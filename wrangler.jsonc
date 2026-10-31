@@ -1,0 +1,25 @@
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "well-ads",
+  "main": "./src/app.ts",
+  "compatibility_date": "2026-10-01",
+  "compatibility_flags": ["nodejs_compat"],
+  "observability": { "enabled": true },
+  // Top level = local dev only. Each env has its own bindings; nothing is inherited.
+  "env": {
+    "staging": {
+      "name": "well-ads-staging",
+      "workers_dev": true,
+      "vars": { "APP_ENV": "staging" },
+      "r2_buckets": [{ "binding": "FILES", "bucket_name": "well-ads-files-staging" }]
+    },
+    "production": {
+      "name": "well-ads",
+      "workers_dev": false,
+      "vars": { "APP_ENV": "production" },
+      "r2_buckets": [{ "binding": "FILES", "bucket_name": "well-ads-files" }]
+    }
+  },
+  "vars": { "APP_ENV": "local" },
+  "r2_buckets": [{ "binding": "FILES", "bucket_name": "well-ads-files-local" }]
+}
