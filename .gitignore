@@ -1,0 +1,15 @@
+node_modules/
+dist/
+.astro/
+.wrangler/
+.dev.vars
+.env
+.env.*
+!.env.example
+backup/
+*.dump
+__pycache__/
+.venv/
+coverage/
+playwright-report/
+test-results/
