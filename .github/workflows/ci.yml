@@ -1,0 +1,27 @@
+name: ci
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  # Job id must stay `ci`: the gate check is named "ci / gate".
+  ci:
+    # eng-policies reusable CI, pinned by commit SHA
+    uses: leen-saz/eng-policies/.github/workflows/ci.yml@79ca6e387c145aa5efba25fc7818b9532dba6a7d
+    with:
+      install-command: "npm ci"
+      lint-command: "npm run lint"
+      typecheck-command: "npm run typecheck"
+      unit-command: "npm run test:unit"
+      integration-command: "npm run test:integration"
+      build-command: "npm run build"
+      audit-command: "npm audit --audit-level=high"

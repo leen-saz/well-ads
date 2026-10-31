@@ -1,0 +1,83 @@
+name: deploy
+
+# Staging: automatic on every push to main, after CI passes.
+# Production: manual only (Actions > deploy > Run workflow > production), after CI passes, through the
+# `production` environment that only accepts main (ADR-0005).
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+    inputs:
+      target:
+        description: "staging or production"
+        type: choice
+        options: [staging, production]
+        default: staging
+
+permissions:
+  contents: read
+
+concurrency:
+  group: deploy-${{ inputs.target || 'staging' }}
+  cancel-in-progress: false
+
+jobs:
+  ci:
+    uses: leen-saz/eng-policies/.github/workflows/ci.yml@79ca6e387c145aa5efba25fc7818b9532dba6a7d
+    with:
+      install-command: "npm ci"
+      lint-command: "npm run lint"
+      typecheck-command: "npm run typecheck"
+      unit-command: "npm run test:unit"
+      integration-command: "npm run test:integration"
+      build-command: "npm run build"
+      audit-command: "npm audit --audit-level=high"
+
+  deploy:
+    needs: ci
+    if: github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    environment:
+      name: ${{ inputs.target || 'staging' }}
+      url: ${{ steps.deploy.outputs.url }}
+    env:
+      TARGET: ${{ inputs.target || 'staging' }}
+      CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+      CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: "22"
+          cache: npm
+      - run: npm ci
+      - name: Cloudflare account check
+        run: npx wrangler whoami
+      - name: Ensure the R2 bucket of this environment exists
+        run: |
+          bucket="well-ads-files"; [ "$TARGET" = staging ] && bucket="well-ads-files-staging"
+          if npx wrangler r2 bucket info "$bucket" >/dev/null 2>&1; then echo "$bucket exists"
+          else npx wrangler r2 bucket create "$bucket"; fi
+      - name: Build for ${{ env.TARGET }}
+        env:
+          CLOUDFLARE_ENV: ${{ env.TARGET }}
+        run: npm run build
+      - name: Deploy
+        id: deploy
+        env:
+          CLOUDFLARE_ENV: ${{ env.TARGET }}
+        run: |
+          npx wrangler deploy 2>&1 | tee deploy.log
+          url="$(grep -oE 'https://[a-z0-9.-]+\.workers\.dev' deploy.log | head -1 || true)"
+          echo "url=$url" >> "$GITHUB_OUTPUT"
+      - name: Smoke test
+        if: steps.deploy.outputs.url != ''
+        env:
+          URL: ${{ steps.deploy.outputs.url }}
+        run: |
+          for i in 1 2 3 4 5; do
+            body="$(curl -fsS "$URL/api/health" || true)"; [ "$body" = '{"ok":true}' ] && break; sleep 5
+          done
+          [ "$body" = '{"ok":true}' ] || { echo "health check failed: $body"; exit 1; }
+          curl -fsSI "$URL/" | grep -i '^x-robots-tag: noindex'
