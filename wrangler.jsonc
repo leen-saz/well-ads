@@ -5,21 +5,22 @@
   "compatibility_date": "2026-10-01",
   "compatibility_flags": ["nodejs_compat"],
   "observability": { "enabled": true },
+  // OWNER_EMAIL is config, not a credential, so it lives here instead of in secrets.
   // Top level = local dev only. Each env has its own bindings; nothing is inherited.
   "env": {
     "staging": {
       "name": "well-ads-staging",
       "workers_dev": true,
-      "vars": { "APP_ENV": "staging" },
+      "vars": { "APP_ENV": "staging", "OWNER_EMAIL": "leen.sulaiman@wellunion.co" },
       "r2_buckets": [{ "binding": "FILES", "bucket_name": "well-ads-files-staging" }]
     },
     "production": {
       "name": "well-ads",
       "workers_dev": false,
-      "vars": { "APP_ENV": "production" },
+      "vars": { "APP_ENV": "production", "OWNER_EMAIL": "leen.sulaiman@wellunion.co" },
       "r2_buckets": [{ "binding": "FILES", "bucket_name": "well-ads-files" }]
     }
   },
-  "vars": { "APP_ENV": "local" },
+  "vars": { "APP_ENV": "local", "OWNER_EMAIL": "leen.sulaiman@wellunion.co" },
   "r2_buckets": [{ "binding": "FILES", "bucket_name": "well-ads-files-local" }]
 }
