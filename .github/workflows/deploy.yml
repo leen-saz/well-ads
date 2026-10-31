@@ -94,4 +94,4 @@ jobs:
             body="$(curl -fsS "$URL/api/health" || true)"; [ "$body" = '{"ok":true}' ] && break; sleep 5
           done
           [ "$body" = '{"ok":true}' ] || { echo "::error title=smoke::health check failed at $URL: $body"; exit 1; }
-          curl -fsSI "$URL/" | grep -i '^x-robots-tag: noindex'
+          curl -fsSI "$URL/robots.txt" | grep -i "^x-robots-tag: noindex"
