@@ -43,6 +43,12 @@ describe('auth', () => {
     expect(A.can(s, 'owner', cfg)).toBe(false);
   });
 
+  it('SUPABASE_URL works with or without the /rest/v1 suffix', () => {
+    for (const u of ['https://sb.example', 'https://sb.example/', 'https://sb.example/rest/v1', 'https://sb.example/rest/v1/']) {
+      expect(A.env({ ...E, SUPABASE_URL: u }).url).toBe('https://sb.example');
+    }
+  });
+
   it('route map', () => {
     expect(need('/login/', '')).toBeNull();
     expect(need('/api/auth/login', '')).toBeNull();
