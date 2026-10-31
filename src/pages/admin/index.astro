@@ -1,0 +1,45 @@
+---
+// Ported as-is from well-ads-dashboard web/public/admin/index.html
+---
+<!doctype html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="robots" content="noindex,nofollow">
+<meta name="referrer" content="no-referrer">
+<meta name="theme-color" content="#F6F0E3">
+<title>الصلاحيات والدخول · Well</title>
+<link rel="preload" href="/assets/fonts/thmanyahsans-Regular.woff2" as="font" type="font/woff2" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@900&display=swap">
+<link rel="stylesheet" href="/assets/app.css">
+</head>
+<body>
+<div class="app" id="app">
+  <aside class="side" id="side" aria-label="القائمة"></aside>
+  <div class="scrim"></div>
+  <div class="main">
+    <header class="topbar" id="top"></header>
+    <main class="content" id="content">
+      <section class="card pad">
+        <h2>إضافة مستخدم</h2>
+        <p class="muted" style="margin:0">يوصله إيميل دعوة يحدد منه الباسوورد. ويقدر يغيّره بعدين أو يستعيده من صفحة الدخول.</p>
+        <form id="add" novalidate>
+          <div class="bar" style="align-items:flex-end">
+            <div style="flex:1;min-width:220px"><label for="email">الإيميل</label><input type="email" id="email" required></div>
+            <div style="flex:1;min-width:180px"><label for="name">الاسم</label><input type="text" id="name"></div>
+          </div>
+          <label>اللوحات المسموحة</label><div class="checks" id="dashChecks"></div>
+          <label>الأقسام المسموحة <span class="muted">(بدون تحديد = كل الأقسام. مدير القسم يشوف تحليلات قسمه بس)</span></label><div class="checks" id="deptChecks"></div>
+          <div class="bar" style="margin-top:20px"><button class="btn primary" type="submit">أرسل الدعوة</button></div>
+          <div class="msg" id="addMsg" role="status"></div>
+        </form>
+      </section>
+      <section class="card" style="margin-top:16px"><div class="pad" style="padding-bottom:0"><h2>المستخدمون وصلاحياتهم</h2></div><div class="tbl" id="users"></div><div class="pad" style="padding-top:0"><div class="msg" id="usersMsg" role="status"></div></div></section>
+      <section class="card" style="margin-top:16px"><div class="pad" style="padding-bottom:0"><h2>سجل الدخول والنشاط</h2><p class="muted" style="margin:0 0 12px">آخر 200 فعل. السجل ما ينعدّل ولا ينحذف.</p></div><div class="tbl" id="log"></div></section>
+    </main>
+  </div>
+</div>
+<script is:inline type="module" src="/assets/admin.js"></script>
+</body>
+</html>

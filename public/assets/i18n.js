@@ -1,0 +1,148 @@
+// اللغة: عربي (الافتراضي) أو إنجليزي. نفس المفتاح اللي تستخدمه اللوحات (well-ads-lang)، فالاختيار يمشي على كل الموقع.
+// الترجمة تمسك النصوص الظاهرة والـplaceholder والـaria-label والـtooltip تلقائياً، حتى اللي ينرسم بعدين.
+export const LANG = (() => {
+  const q = new URLSearchParams(location.search).get('lang');
+  if (q === 'en' || q === 'ar') { try { localStorage.setItem('well-ads-lang', q); } catch {} return q; }
+  try { if (localStorage.getItem('well-ads-lang') === 'en') return 'en'; } catch {}
+  return 'ar';
+})();
+document.documentElement.lang = LANG;
+document.documentElement.dir = LANG === 'en' ? 'ltr' : 'rtl';
+
+const EN = {
+  // التنقل والهيكل
+  'التحليلات': 'Analytics', 'الكرييتف': 'Creative', 'لوحة القرارات': 'Decision board', 'الصلاحيات والدخول': 'Access & sign-in',
+  'حسابي': 'My account', 'خروج': 'Sign out', 'المالكة': 'Owner', 'عضو': 'Member', 'القائمة': 'Menu', 'التنقل': 'Navigation',
+  'عربي': 'عربي', 'English': 'English', 'اللغة': 'Language',
+  // الدخول
+  'أهلاً فيك': 'Welcome', 'ادخل بإيميل الشركة.': 'Sign in with your company email.', 'الإيميل': 'Email', 'الباسوورد': 'Password',
+  'دخول': 'Sign in', 'نسيت الباسوورد': 'Forgot password', 'اكتب إيميلك فوق أول': 'Enter your email above first',
+  'انرسل الرابط. افتح آخر إيميل يوصلك بس، ولو ما لقيته شيّك على الـSpam.': 'Link sent. Open only the newest email, and check Spam if you can\'t find it.',
+  'الإيميل أو الباسوورد غلط': 'Wrong email or password', 'اكتب الإيميل والباسوورد': 'Enter your email and password',
+  'حسابك غير مفعّل. تواصل مع مسؤولة اللوحة.': 'Your account isn\'t active. Contact the board owner.',
+  'باسوورد جديد': 'New password', '10 أحرف أو أكثر.': '10 characters or more.', 'الباسوورد الجديد': 'New password', 'أعد كتابته': 'Type it again',
+  'احفظ': 'Save', 'الباسووردين مو نفس بعض': 'The passwords don\'t match', 'انحفظ. ادخل الحين بالباسوورد الجديد.': 'Saved. Sign in with your new password.',
+  'هذا الرابط انتهى.': 'This link has expired.', 'هذي الصفحة تنفتح من رابط الإيميل بس.': 'This page opens from the email link only.',
+  'إذا وصلك أكثر من إيميل، افتح آخر واحد بس.': 'If you got more than one email, open only the newest one.', 'الدخول': 'Sign in', 'إذا وصلك أكثر من إيميل، افتح': 'If you got more than one email, open only the', 'آخر واحد': 'newest one', 'بس. أو': '. Or', 'اطلب رابط جديد': 'request a new link',
+  'الرابط ناقص. اطلب رابط جديد.': 'The link is incomplete. Request a new one.', 'الرابط انتهى أو استُخدم. اطلب رابط جديد.': 'The link expired or was used. Request a new one.',
+  // الحساب
+  'تغيير الباسوورد': 'Change password', 'الباسوورد الحالي': 'Current password', 'تغيّر الباسوورد.': 'Password changed.',
+  'الباسوورد الحالي غلط': 'Current password is wrong', 'ما تغيّر الباسوورد، جرّب مرة ثانية': 'Password not changed, try again',
+  // الإدارة
+  'إضافة مستخدم': 'Add user', 'يوصله إيميل دعوة يحدد منه الباسوورد. ويقدر يغيّره بعدين أو يستعيده من صفحة الدخول.': 'They get an invite email to set a password, and can change or reset it later.',
+  'الاسم': 'Name', 'اللوحات': 'Dashboards', 'أرسل الدعوة': 'Send invite', 'المستخدمون وصلاحياتهم': 'Users & access', 'سجل الدخول والنشاط': 'Sign-in & activity log', 'اللوحات المسموحة': 'Allowed dashboards', 'الأقسام المسموحة': 'Allowed departments',
+  'آخر 200 فعل. السجل ما ينعدّل ولا ينحذف.': 'Last 200 actions. The log can\'t be edited or deleted.', 'الحالة': 'Status',
+  'كل اللوحات': 'All dashboards', 'مفعّل': 'Active', 'موقوف': 'Disabled', 'احفظ اللوحات': 'Save dashboards', 'أوقف': 'Disable', 'فعّل': 'Enable',
+  'الوقت': 'Time', 'مين': 'Who', 'الفعل': 'Action', 'على': 'On', 'ملاحظة': 'Note', 'الملاحظة': 'Note', 'ما فيه أفعال لين الحين': 'No actions yet',
+  'انرسلت الدعوة.': 'Invite sent.', 'انحفظ.': 'Saved.', 'الإيميل غير صحيح': 'Invalid email', 'اختر لوحة وحدة على الأقل': 'Pick at least one dashboard',
+  'الإيميل مسجّل من قبل': 'This email is already registered', 'ما انرسلت الدعوة': 'The invite wasn\'t sent', 'ما تقدر توقف حسابك': 'You can\'t disable your own account',
+  'دخول فاشل': 'Failed sign-in', 'دخول مرفوض (حساب موقوف)': 'Sign-in blocked (disabled)', 'غيّر الباسوورد': 'Changed password', 'حدد باسوورد جديد': 'Set a new password',
+  'طلب استعادة الباسوورد': 'Requested password reset', 'أضاف مستخدم': 'Added user', 'عدّل صلاحيات مستخدم': 'Changed user access', 'غيّر الوضع': 'Changed mode',
+  'وافق على اقتراح': 'Approved a suggestion', 'رفض اقتراح': 'Rejected a suggestion',
+  // لوحة القرارات
+  'التنفيذ يدوي في المنصات': 'Applied by hand in the platforms', 'التنفيذ مقفل · اختر حملة تجربة': 'Execution off · pick a trial campaign', 'حملات التجربة': 'Trial campaigns', 'تراجع': 'Undo', 'تراجع عن الإيقاف؟': 'Undo the pause?', 'وافق · ينتظر التنفيذ': 'Approved · waiting to run', 'تشغيل (تراجع)': 'Turn on (undo)', 'يفتح بعد ما ينجح التنفيذ في حملات التجربة': 'Opens once execution works in the trial campaigns', 'الموافقة تنحفظ في السجل، والميديا باير ينفّذها بيده في المنصة. التنفيذ التلقائي جاي في المرحلة الجاية': 'Approvals are logged; the media buyer applies them by hand in the platform. Automatic execution comes next phase',
+  'آخر سحب للأرقام من المنصات': 'Last pull from the ad platforms', 'الكتابة مقفلة': 'Writes locked', 'ما ينرسل أي تعديل لحسابات الإعلانات': 'No change is sent to the ad accounts',
+  'الطوارئ': 'Kill switch', 'يتفعّل مع المرحلة A': 'Enabled in phase A', 'مبلغ معرّض للهدر': 'Spend at risk', 'اقتراحات مفتوحة': 'Open suggestions',
+  'نُفّذ هالأسبوع': 'Executed this week', 'نسبة الموافقة': 'Approval rate', 'ر.س/أسبوع': 'SAR/week', 'الوضع': 'Mode', 'الحدود': 'Limits',
+  'يفتح في المرحلة B': 'Opens in phase B', 'حدود التنفيذ': 'Execution limits', 'أقصى تغيير ميزانية بخطوة وحدة:': 'Max budget change per step:',
+  'سقف الصرف اليومي: يتحدد مع المرحلة B': 'Daily spend cap: set in phase B', 'ما فيه إيقاف قبل': 'No pause before', 'أيام من التشغيل': 'days of running',
+  'أي حملة جديدة تحتاج موافقة لين، حتى في Auto': 'Any new campaign needs Leen\'s approval, even in Auto',
+  'كل المنصات': 'All platforms', 'السجل': 'History', 'ابحث بالإعلان أو الحملة': 'Search ad or campaign', 'ابحث بالإعلان أو الشخص': 'Search ad or person', 'بحث': 'Search',
+  'كل الاقتراحات': 'All suggestions', 'نوع الاقتراح': 'Suggestion type', 'كل المستويات': 'All levels', 'المستوى': 'Level', 'الترتيب': 'Sort',
+  'الأثر بالريال': 'SAR impact', 'الأحدث': 'Newest', 'عمر الإعلان': 'Ad age', 'كل القرارات': 'All decisions', 'القرار': 'Decision',
+  'الإعلان': 'Ad', 'المنصة': 'Platform', 'الاقتراح': 'Suggestion', 'الأثر': 'Impact', 'الدليل': 'Evidence', 'تحديد الكل': 'Select all', 'تحديد': 'Select',
+  'ما فيه قرارات تنتظرك': 'Nothing waiting for you', 'ما فيه قرارات سابقة': 'No past decisions',
+  'إيقاف': 'Pause', 'إيقاف الحملة': 'Pause campaign', 'رفع الميزانية': 'Raise budget', 'تنزيل الميزانية': 'Lower budget', 'كرييتف جديد': 'New creative',
+  'صرف ضعف الهدف بدون ليد': 'Spent 2× target with no lead', 'حملة هدفها Traffic': 'Traffic-objective campaign',
+  'ليدز أرخص من الهدف بـ 20% أو أكثر': 'Leads 20%+ cheaper than target', 'نسبة النقر نزلت 30% أو أكثر': 'CTR down 30% or more',
+  'اقتراح كلود': 'Claude suggestion', 'قاعدة': 'Rule', 'حملة': 'Campaign', 'مجموعة': 'Ad set', 'إعلان': 'Ad',
+  'وافق': 'Approve', 'رفض': 'Rejected', 'وافق بتعديل': 'Approve with change', 'تنفّذ': 'Executed', 'فشل': 'Failed', 'انتهى': 'Expired', 'ارفض': 'Reject',
+  'وافق (a)': 'Approve (a)', 'ارفض (r)': 'Reject (r)', 'مختارة': 'selected', 'إلغاء التحديد': 'Clear selection', 'إلغاء': 'Cancel',
+  'سبب الرفض': 'Reason for rejecting', 'وش التعديل المطلوب؟': 'What should change?', 'مطلوب. لو تبي نسوي شي بداله اكتبه هنا.': 'Required. If you want something else done instead, write it here.',
+  'مثال: ارفعها 10% بس.': 'Example: raise it 10% only.', 'وافق بالتعديل': 'Approve with change', 'الملاحظة مطلوبة': 'A note is required',
+  'انحفظت الموافقة': 'Approval saved', 'انحفظ الرفض': 'Rejection saved', 'انحفظت الموافقة بالتعديل': 'Approval with change saved',
+  'ما فيه أرقام آخر 14 يوم': 'No numbers in the last 14 days', 'الصرف': 'Spend', 'الليدز': 'Leads', 'إغلاق': 'Close', 'افتح في المنصة': 'Open in platform',
+  'ليش؟': 'Why?', 'الصرف آخر 7 أيام': 'Spend, last 7 days', 'الليدز آخر 7 أيام': 'Leads, last 7 days', 'تكلفة الليد': 'Cost per lead', 'الهدف': 'Target',
+  '(متوسط 30 يوم للمنصة)': '(platform 30-day average)', 'انقترح': 'Suggested', 'قبل ← بعد': 'Before → after',
+  'الصرف مقابل الليدز · آخر 14 يوم': 'Spend vs leads · last 14 days', 'سجل هذا الإعلان': 'This ad\'s history', 'يحمّل…': 'Loading…',
+  'ما فيه قرارات سابقة على هذا الإعلان': 'No past decisions on this ad', 'ما قدرت أقرأ السجل': 'Couldn\'t read the log', 'حاول مرة ثانية': 'Try again',
+  'اختصارات:': 'Shortcuts:', 'للتنقل،': 'to move,', 'للتحديد،': 'to select,', 'موافقة،': 'approve,', 'رفض،': 'reject,', 'التفاصيل.': 'details.',
+  'ملخص': 'Summary', 'المنصات': 'Platforms', 'تفاصيل الاقتراح': 'Suggestion details', 'صرف': 'Spend', 'ليدز': 'Leads', 'تكلفة': 'Cost', 'نقر': 'CTR',
+  'الأقسام': 'Departments', 'كل الأقسام': 'All departments', '(بدون تحديد = كل الأقسام. مدير القسم يشوف تحليلات قسمه بس)': '(none = all departments. A department manager sees only their department\'s analytics)',
+  'احفظ الصلاحيات': 'Save access', 'مدير قسم': 'Department manager', 'المحاليل الوريدية': 'IV Drips', 'القبالة / رعاية الحمل': 'Midwifery / Maternity', 'تقويم القدم': 'Foot Alignment', 'رينان لصحة الطفل': 'Renan Child Health',
+  'الطوارئ مفعّلة': 'Kill switch on', 'إيقاف الطوارئ': 'Turn off kill switch', 'لين بس توقف الطوارئ': 'Only Leen can turn it off', 'يوقف أي تنفيذ على حسابات الإعلانات فوراً': 'Stops any change to the ad accounts immediately',
+  'تشغيل الطوارئ؟': 'Turn on the kill switch?', 'إيقاف الطوارئ؟': 'Turn off the kill switch?', 'يوقف أي تنفيذ على حسابات الإعلانات فوراً. لين بس تقدر توقفه بعدين.': 'Stops any change to the ad accounts now. Only Leen can turn it off later.',
+  'يرجع التنفيذ حسب الحدود والموافقات.': 'Execution resumes within limits and approvals.', 'شغّل الطوارئ': 'Turn on', 'أوقف الطوارئ': 'Turn off', 'الطوارئ موقوفة': 'Kill switch off', 'لين بس تقدر توقف الطوارئ': 'Only Leen can turn off the kill switch',
+  'المراجع': 'Critic', 'المراجع رفضه': 'Critic blocked', 'عدّى قواعد لين': 'Passed Leen\'s rules', 'الخطة': 'Plan', 'التوقّع': 'Expected', 'القياس': 'Measure', 'التراجع': 'Rollback', 'الخطر': 'Risk',
+  'موقوف': 'Paused', 'شغّال': 'Running', 'الحملة الحالية': 'Current', 'الميزانية الحالية (تنقرا وقت التنفيذ)': 'Current budget (read at execution)', 'مرحلة تعلّم': 'Learning', 'ليدز قليلة': 'Few leads', 'صرف عالي': 'High spend',
+  'شغّل الطوارئ': 'Kill switch on', 'أوقف الطوارئ': 'Kill switch off', 'المراجع راجع الاقتراحات': 'Critic reviewed suggestions',
+  'التعلّم': 'Learning', 'الدروس': 'Lessons', 'موقوفة': 'Blocked', 'ملاحظات الفريق:': 'Team notes:', 'حركات الفريق داخل المنصات · آخر 7 أيام': 'Team moves inside the platforms · last 7 days',
+  'Meta وGoogle. Snap وTikTok ما يعطون سجل نشاط.': 'Meta and Google. Snap and TikTok don\'t expose an activity log.', 'نتيجة القرارات': 'Decision outcomes', 'الحركة': 'Move', 'بعد': 'After',
+  'تكلفة الليد قبل ← بعد': 'CPL before → after', 'التغيّر': 'Change', 'حملة جديدة': 'New campaign', 'تحتاج موافقة لين': 'Needs Leen\'s approval', 'لين بس توافق على الحملات الجديدة': 'Only Leen approves new campaigns',
+  'تفاصيل الحملة': 'Campaign details', 'يعبيها كلود': 'Claude fills it', 'أرسل للموافقة': 'Send for approval', 'الأساسيات': 'Basics', 'الجمهور': 'Audience', 'الكرييتف والنص': 'Creative & copy',
+  'انرسل الطلب للموافقة': 'Request sent for approval', 'عبّئ الخانات المطلوبة (*)': 'Fill the required fields (*)',
+  'القرارات السابقة': 'Past decisions', 'حدود التنفيذ': 'Execution limits', 'إيقاف طوارئ': 'Emergency stop', 'إيقاف الطوارئ مفعّل': 'Emergency stop on',
+  'تفعيل إيقاف الطوارئ؟': 'Turn on emergency stop?', 'إلغاء إيقاف الطوارئ؟': 'Turn off emergency stop?', 'فعّل الإيقاف': 'Turn on', 'ألغِ الإيقاف': 'Turn off',
+  'انلغى إيقاف الطوارئ': 'Emergency stop off', 'إلغاء إيقاف الطوارئ': 'Turn off emergency stop', 'لين بس تلغي إيقاف الطوارئ': 'Only Leen can turn it off',
+  // أخطاء السيرفر
+  'طلب مرفوض': 'Request refused', 'سجّل الدخول': 'Please sign in', 'الحساب موقوف': 'Account disabled', 'ما عندك صلاحية': 'You don\'t have access',
+  'صار خطأ، جرّب مرة ثانية': 'Something went wrong, try again', 'صار خطأ': 'Something went wrong', 'الإعداد غير مكتمل': 'Setup is incomplete',
+  'ما قدرت أقرأ الاقتراحات': 'Couldn\'t read suggestions', 'قرار غير معروف': 'Unknown decision', 'اكتب سبب الرفض': 'Write the reason for rejecting',
+  'اكتب وش التعديل المطلوب': 'Write what should change', 'انحسمت من قبل': 'Already decided', 'ما قدرت أقرأ المستخدمين': 'Couldn\'t read users',
+  'مستخدم غير معروف': 'Unknown user', 'ما انحفظ التعديل': 'Change not saved', 'هدف غير معروف': 'Unknown target', 'قيمة غير صحيحة': 'Invalid value', 'ما انحفظ الوضع': 'Mode not saved',
+};
+const PAT = [
+  [/^يوفر ~(.+) ر\.س\/أسبوع$/, 'Saves ~$1 SAR/week'],
+  [/^\+~(.+) ر\.س\/أسبوع صرف إضافي$/, '+~$1 SAR/week extra spend'],
+  [/^ر\.س\/أسبوع توفير$/, 'SAR/week saved'], [/^ر\.س\/أسبوع صرف إضافي$/, 'SAR/week extra spend'],
+  [/^(\d+) يوم$/, '$1 days'], [/^وافق على (\d+)$/, 'Approve $1'], [/^ارفض (\d+)$/, 'Reject $1'], [/^سبب رفض (\d+)$/, 'Reason for rejecting $1'],
+  [/^(انحفظت الموافقة|انحفظ الرفض|انحفظت الموافقة بالتعديل) على (\d+)$/, (m, a, n) => `${EN[a]} on ${n}`],
+  [/^آخر تحديث للبيانات (.+)$/, 'Data updated $1'], [/^رفع الميزانية (\d+)%$/, 'Raise budget $1%'], [/^وضع (.+)$/, '$1 mode'],
+  [/^الباسوورد لازم (\d+) أحرف أو أكثر$/, 'Password must be $1+ characters'],
+  [/^(.+) ر\.س$/, '$1 SAR'], [/^ر\.س$/, 'SAR'],
+  [/^· (.+)$/, (m, x) => '· ' + t(x)],
+  // أسباب الاقتراحات من suggest.py
+  [/^صرف ([\d.,]+) ريال آخر 7 أيام بدون ولا ليد، وهذا ضعف تكلفة الليد المستهدفة \(([\d.,]+)\) أو أكثر\.$/, 'Spent $1 SAR in the last 7 days with no lead, at least 2× the target CPL ($2).'],
+  [/^جاب ([\d.,]+) ليد آخر 7 أيام بتكلفة ([\d.,]+) ريال، أقل من هدف المنصة \(([\d.,]+)\) بـ (\d+)%\. ارفع ميزانية مجموعته 20%\.$/, 'Got $1 leads in the last 7 days at $2 SAR each, $4% under the platform target ($3). Raise its ad set budget 20%.'],
+  [/^نسبة النقر نزلت من ([\d.,]+)% في أول 7 أيام إلى ([\d.,]+)% آخر 7 أيام\. الكرييتف بدأ يتعب، جهّز بديل\.$/, 'CTR fell from $1% in the first 7 days to $2% in the last 7. The creative is wearing out; prepare a replacement.'],
+  [/^حملة هدفها Traffic\. القاعدة: الهدف Sales أو Leads بس، أبد مو Traffic\.$/, 'Traffic-objective campaign. Rule: Sales or Leads only, never Traffic.'],
+];
+
+export function t(s) {
+  if (LANG !== 'en' || s == null) return s;
+  const str = String(s), k = str.trim();
+  if (!k) return str;
+  if (EN[k]) return str.replace(k, EN[k]);
+  for (const [re, to] of PAT) if (re.test(k)) return str.replace(k, k.replace(re, to));
+  return str;
+}
+
+const ATTRS = ['placeholder', 'aria-label', 'data-tip', 'title'];
+function translate(root) {
+  if (LANG !== 'en' || !root) return;
+  const walker = document.createTreeWalker(root, NodeFilter.SHOW_TEXT);
+  for (let n = walker.nextNode(); n; n = walker.nextNode()) {
+    if (n.parentElement && /^(SCRIPT|STYLE|TEXTAREA)$/.test(n.parentElement.tagName)) continue;
+    const v = t(n.nodeValue); if (v !== n.nodeValue) n.nodeValue = v;
+  }
+  const els = root.nodeType === 1 ? [root, ...root.querySelectorAll('*')] : [];
+  for (const el of els) for (const a of ATTRS) { const v = el.getAttribute && el.getAttribute(a); if (v) { const w = t(v); if (w !== v) el.setAttribute(a, w); } }
+}
+if (LANG === 'en') {
+  const go = () => {
+    translate(document.body); document.title = t(document.title.replace(' · Well', '')) + ' · Well';
+    new MutationObserver(ms => { for (const m of ms) { if (m.type === 'characterData') { const v = t(m.target.nodeValue); if (v !== m.target.nodeValue) m.target.nodeValue = v; } else m.addedNodes.forEach(n => n.nodeType === 3 ? (n.nodeValue = t(n.nodeValue)) : translate(n)); } })
+      .observe(document.body, { childList: true, subtree: true, characterData: true });
+  };
+  document.readyState === 'loading' ? document.addEventListener('DOMContentLoaded', go) : go();
+}
+
+// زر اللغة: يحفظ الاختيار ويعيد تحميل الصفحة بنفس العنوان
+export function langSwitch() {
+  return `<span class="seg lang" role="group" aria-label="اللغة"><button data-lang="ar" aria-pressed="${LANG === 'ar'}">عربي</button><button data-lang="en" aria-pressed="${LANG === 'en'}">English</button></span>`;
+}
+document.addEventListener('click', e => {
+  const b = e.target.closest('[data-lang]'); if (!b || b.dataset.lang === LANG) return;
+  try { localStorage.setItem('well-ads-lang', b.dataset.lang); } catch {}
+  const u = new URL(location.href); u.searchParams.delete('lang'); if (b.dataset.lang === 'en') u.searchParams.set('lang', 'en'); location.href = u.toString();
+});
