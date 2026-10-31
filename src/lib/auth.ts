@@ -39,7 +39,8 @@ export function env(e: AuthEnv): Cfg {
   const secret = e.SESSION_SECRET as string;
   if (secret.length < 32) throw new Error('SESSION_SECRET too short');
   return {
-    url: (e.SUPABASE_URL as string).trim().replace(/\/+$/, ''),
+    // Accept the Data API URL too (https://x.supabase.co/rest/v1): every call adds its own /rest/v1 or /auth/v1.
+    url: (e.SUPABASE_URL as string).trim().replace(/\/+$/, '').replace(/\/rest\/v1$/, ''),
     service: (e.SUPABASE_SERVICE_ROLE_KEY as string).trim(),
     secret,
     owner: (e.OWNER_EMAIL as string).trim().toLowerCase(),
