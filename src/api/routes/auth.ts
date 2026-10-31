@@ -13,6 +13,9 @@ export const login = { POST: handle(async (request, e) => {
   if (!email || !password) return json(400, { error: 'اكتب الإيميل والباسوورد' });
   const r = await sb<{ user?: { id: string } }>(cfg, '/auth/v1/token?grant_type=password', { method: 'POST', body: { email, password } });
   if (!r.ok || !r.data || !r.data.user) {
+    // Diagnostics only: Supabase status and error code, never the email, password or keys.
+    const d = (r.data && typeof r.data === 'object' ? r.data : {}) as Record<string, unknown>;
+    console.warn('login_failed', JSON.stringify({ status: r.status, code: d.error_code ?? d.code ?? null, msg: String(d.msg ?? d.message ?? d.error_description ?? d.error ?? '').slice(0, 120) }));
     await audit(cfg, { email }, 'login_failed');
     return json(401, { error: 'الإيميل أو الباسوورد غلط' });
   }
