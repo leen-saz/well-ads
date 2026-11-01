@@ -6,6 +6,7 @@ import { gate } from './lib/gate';
 import type { AuthEnv } from './lib/auth';
 import { withSecurityHeaders } from './lib/headers';
 import { serveSite } from './lib/site';
+import { dispatchRefresh, type CronEnv } from './lib/cron';
 
 type Bindings = Env & AuthEnv;
 
@@ -40,4 +41,10 @@ app.use(middleware());
 app.use(i18n());
 app.use(pages());
 
-export default app;
+export default {
+  fetch: app.fetch,
+  // Cloudflare Cron Trigger (production only): start the hourly data refresh on GitHub Actions
+  scheduled(_event: ScheduledController, env: CronEnv, ctx: ExecutionContext) {
+    ctx.waitUntil(dispatchRefresh(env));
+  },
+};

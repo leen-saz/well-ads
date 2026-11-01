@@ -8,9 +8,9 @@ name: refresh
 # Live since the cutover (2026-11-01): the old site's refresh-and-deploy is disabled, so this is the only
 # writer to Supabase. Never re-enable the old one while this schedule is on (rollback: docs/cutover.md).
 
+# Started hourly (minute 7) by the production Worker's Cron Trigger (src/lib/cron.ts): GitHub never fired
+# a `schedule` for this repo. Manual runs still work.
 on:
-  schedule:
-    - cron: "7 * * * *"
   workflow_dispatch:
     inputs:
       full:
