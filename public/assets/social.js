@@ -1,10 +1,11 @@
 // السوشال: إنشاء منشور مجدول لأكثر من منصة، وتقويم الأسبوعين الجايين. النشر يصير من السيرفر في وقته.
-import { $, $$, api, say, esc, shell, busy } from './common.js';
+import { $, $$, api, say, esc, shell, busy, LANG } from './common.js';
+import { t } from './i18n.js';
 
 const ST = { draft: 'مسودة', scheduled: 'مجدول', publishing: 'ينشر الحين', published: 'انتشر', partial: 'انتشر جزئياً', failed: 'ما انتشر', cancelled: 'ملغي' };
 let PLATS = {}, mode = 'manual';
-const fmtDay = d => new Intl.DateTimeFormat('ar-SA-u-nu-latn', { weekday: 'long', day: 'numeric', month: 'long', timeZone: 'Asia/Riyadh' }).format(d);
-const fmtTime = d => new Intl.DateTimeFormat('ar-SA-u-nu-latn', { hour: 'numeric', minute: '2-digit', timeZone: 'Asia/Riyadh' }).format(d);
+const fmtDay = d => new Intl.DateTimeFormat((LANG === 'en' ? 'en-GB' : 'ar-SA-u-nu-latn'), { weekday: 'long', day: 'numeric', month: 'long', timeZone: 'Asia/Riyadh' }).format(d);
+const fmtTime = d => new Intl.DateTimeFormat((LANG === 'en' ? 'en-GB' : 'ar-SA-u-nu-latn'), { hour: 'numeric', minute: '2-digit', timeZone: 'Asia/Riyadh' }).format(d);
 
 function counter() {
   const n = $('#body').value.length;
@@ -69,7 +70,7 @@ $('#f').addEventListener('submit', async e => {
 
 $('#list').addEventListener('click', async e => {
   const b = e.target.closest('[data-act]'); if (!b) return;
-  if (b.dataset.act === 'cancel' && !confirm('تلغي المنشور؟')) return;
+  if (b.dataset.act === 'cancel' && !confirm(t('تلغي المنشور؟'))) return;
   busy(b, true);
   try { await api('/api/social/posts', { method: 'PATCH', body: { id: b.closest('[data-id]').dataset.id, action: b.dataset.act } }); await load(); }
   catch (err) { say($('#msg'), err.message); busy(b, false); }

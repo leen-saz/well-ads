@@ -1,3 +1,5 @@
+/* The hidden attribute always wins over layout classes (e.g. .so-grid{display:grid} on the Maestro board) */
+[hidden]{display:none!important}
 /* Well — واجهة لوحة القرارات والحسابات. هوية Palette v2.1: سبعة ألوان بس. */
 @font-face{font-family:"Thmanyah Sans";src:url(/assets/fonts/thmanyahsans-Regular.woff2) format("woff2");font-weight:400;font-display:swap}
 @font-face{font-family:"Thmanyah Sans";src:url(/assets/fonts/thmanyahsans-Medium.woff2) format("woff2");font-weight:500;font-display:swap}
