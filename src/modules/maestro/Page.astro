@@ -26,6 +26,34 @@ import { ClientRouter } from 'astro:transitions';
 .so-st{margin-inline-start:auto;font-size:12px}
 .so-body{white-space:pre-wrap;margin:0}
 .so-note{font-size:13px;margin:8px 0 0;padding:10px 12px;border-radius:12px;background:var(--tint)}
+.mx-bar{display:flex;gap:12px;align-items:center;justify-content:space-between;flex-wrap:wrap;border-bottom:1px solid var(--line);margin:0 0 12px}
+.mx-tabs{display:flex;gap:2px}
+.mx-tabs button{height:44px;padding:0 14px;border:0;background:none;color:var(--muted);font:600 14px var(--f-ar);cursor:pointer;border-bottom:2px solid transparent;margin-bottom:-1px;display:inline-flex;gap:6px;align-items:center}
+.mx-tabs button[aria-selected="true"]{color:var(--text);border-bottom-color:var(--accent)}
+.mx-cnt{font:600 11px var(--f-num);background:var(--accent);color:#fff;border-radius:999px;padding:1px 7px}.mx-cnt:empty{display:none}
+.mx-tools{display:flex;gap:8px;align-items:center;padding:6px 0}
+.mx-search{display:flex;align-items:center;gap:6px;border:1px solid var(--line);border-radius:999px;padding:0 12px;height:36px;background:var(--surface)}
+.mx-search input{border:0;margin:0;height:34px;padding:0;background:none;min-width:160px}.mx-search .i{width:16px;height:16px;opacity:.6}
+.mx-filters{display:flex;gap:6px;flex-wrap:wrap;margin:0 0 12px}
+.mx-filters button{height:30px;padding:0 12px;border-radius:999px;border:1px solid var(--line);background:var(--surface);color:var(--muted);font:500 13px var(--f-ar);cursor:pointer}
+.mx-filters button[aria-pressed="true"]{background:var(--text);color:var(--surface);border-color:var(--text)}
+.mx-kpis{display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:12px;margin:0 0 16px}
+.mx-kpi{padding:16px}.mx-kpi b{display:block;font:700 28px var(--f-num)}.mx-kpi span{color:var(--muted);font-size:13px}
+.mx-list{display:grid;gap:8px}
+.mx-item{display:flex;align-items:center;gap:10px;padding:12px 14px}
+.mx-item b{flex:1;font-weight:500}.mx-id{font:500 12px var(--f-num);color:var(--muted);min-width:56px}
+.mx-dot{width:10px;height:10px;border-radius:50%;flex:none;border:2px solid currentColor}
+.mx-dot.todo,.mx-dot.backlog{color:var(--muted)}.mx-dot.in_progress{color:#E9A23B}.mx-dot.in_review{color:#7E57FD}.mx-dot.blocked{color:#C0392B}.mx-dot.done{color:#2E9E6A;background:currentColor}.mx-dot.cancelled{color:var(--muted);opacity:.4}
+.mx-cols{display:grid;grid-template-columns:repeat(5,minmax(200px,1fr));gap:12px;overflow-x:auto;padding-bottom:6px}
+.mx-col{background:var(--tint);border-radius:16px;padding:10px;display:grid;gap:8px;align-content:start;min-height:120px}
+.mx-col .mx-item{flex-wrap:wrap;gap:6px 8px;min-width:0}.mx-col .mx-item b{flex-basis:100%;order:-1}.mx-col .mx-item .so-chip{display:none}
+.mx-col h3{font-size:13px;margin:2px 4px 4px;display:flex;gap:6px;align-items:center}
+.mx-empty{display:grid;place-items:center;gap:10px;padding:48px 16px;color:var(--muted);text-align:center}
+.mx-empty .i{width:40px;height:40px;padding:10px;border-radius:12px;background:var(--tint)}
+.mx-tree{display:grid;gap:6px}.mx-tree .mx-tree{padding-inline-start:24px;border-inline-start:1px dashed var(--line);margin-inline-start:12px}
+.mx-dlg{border:0;border-radius:20px;padding:24px;width:min(560px,92vw);box-shadow:var(--shadow-lg);background:var(--surface);color:var(--text)}
+.mx-dlg::backdrop{background:rgba(29,16,105,.25)}
+.mx-row{display:grid;grid-template-columns:1fr 1fr;gap:12px}
 </style>
 </head>
 <body data-page="maestro" data-module>
@@ -36,25 +64,36 @@ import { ClientRouter } from 'astro:transitions';
     <header class="topbar" id="top"></header>
     <main class="content" id="content">
       <div id="setup"></div>
-      <div class="so-grid" id="board" hidden>
-        <section class="card pad">
-          <h2>كلّف المايسترو</h2>
-          <form id="f" novalidate>
-            <label for="title">المهمة</label><input type="text" id="title" placeholder="مثال: جهّز 5 منشورات للمحاليل الأسبوع الجاي">
-            <label for="desc">التفاصيل</label><textarea id="desc" rows="5"></textarea>
-            <label for="agent">الإيجنت</label><select id="agent"><option value="">المايسترو يختار</option></select>
-            <label for="prio">الأولوية</label><select id="prio"><option value="medium">عادية</option><option value="high">عالية</option><option value="urgent">عاجلة</option><option value="low">منخفضة</option></select>
-            <p class="so-note">أي شي حساس (نشر، صرف، إيقاف إعلان) يرجع لك موافقة قبل التنفيذ.</p>
-            <div class="bar" style="margin-top:16px"><button class="btn primary" type="submit">أرسل</button></div>
-            <div class="msg" id="msg" role="status"></div>
-          </form>
-          <h3 style="margin:20px 0 8px">الإيجنتس</h3><div id="agents" style="display:grid;gap:8px"></div>
-        </section>
-        <section>
-          <h2 style="margin:0 0 12px">تنتظر موافقتك</h2><div id="approvals" style="display:grid;gap:10px"></div>
-          <h2 style="margin:24px 0 12px">المهام</h2><div id="issues" style="display:grid;gap:10px"></div>
-        </section>
+      <div id="board" hidden>
+        <div class="mx-bar">
+          <nav class="mx-tabs" role="tablist" aria-label="المايسترو">
+            <button role="tab" data-view="overview">لوحة</button>
+            <button role="tab" data-view="inbox">الوارد <span class="mx-cnt" id="inboxCnt"></span></button>
+            <button role="tab" data-view="tasks">المهام</button>
+            <button role="tab" data-view="agents">الإيجنتس</button>
+          </nav>
+          <div class="mx-tools">
+            <label class="mx-search"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></svg><input type="search" id="q" placeholder="ابحث… (/)" aria-label="بحث"></label>
+            <div class="seg mx-layout" role="group" aria-label="العرض"><button type="button" data-layout="list" aria-pressed="true" title="قائمة">☰</button><button type="button" data-layout="board" aria-pressed="false" title="لوحة">▦</button></div>
+            <button class="btn primary sm" id="newTask" title="مهمة جديدة (C)">+ مهمة جديدة</button>
+          </div>
+        </div>
+        <div class="mx-filters" id="filters"></div>
+        <div id="view"></div>
+        <div class="msg" id="msg" role="status"></div>
       </div>
+      <dialog id="dlg" class="mx-dlg">
+        <form id="f" method="dialog" novalidate>
+          <h2>مهمة جديدة</h2>
+          <label for="title">المهمة</label><input type="text" id="title" placeholder="مثال: جهّز 5 منشورات للمحاليل الأسبوع الجاي">
+          <label for="desc">التفاصيل</label><textarea id="desc" rows="5"></textarea>
+          <div class="mx-row"><div><label for="agent">الإيجنت</label><select id="agent"><option value="">المايسترو يختار</option></select></div>
+          <div><label for="prio">الأولوية</label><select id="prio"><option value="medium">عادية</option><option value="high">عالية</option><option value="urgent">عاجلة</option><option value="low">منخفضة</option></select></div></div>
+          <p class="so-note">أي شي حساس (نشر، صرف، إيقاف إعلان) يرجع موافقة قبل التنفيذ.</p>
+          <div class="bar" style="margin-top:16px"><button class="btn primary" type="submit" value="send">أرسل</button><button class="btn ghost" type="button" id="cancel">إلغاء</button></div>
+          <div class="msg" id="dmsg" role="status"></div>
+        </form>
+      </dialog>
     </main>
   </div>
 </div>
