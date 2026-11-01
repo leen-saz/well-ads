@@ -24,6 +24,22 @@ const rewrite = (d: Decision) => (d instanceof Response ? null : d.rewrite ?? nu
 afterEach(() => { vi.unstubAllGlobals(); });
 
 describe('auth', () => {
+  it('a missing column (migration not applied) does not lock the user out: the profile is read alone', async () => {
+    const seen: string[] = [];
+    vi.stubGlobal('fetch', async (u: string) => {
+      seen.push(String(u));
+      if (String(u).includes('companies(')) return new Response(JSON.stringify({ code: '42703', message: 'column companies.disabled_modules does not exist' }), { status: 400 });
+      return new Response(JSON.stringify([member]), { status: 200 });
+    });
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
+    const p = await A.loadProfile(cfg, member.id);
+    expect(p && p.email).toBe(member.email);
+    expect(seen.length).toBe(2);
+    expect(seen[1]).toMatch(/select=\*$/);
+    expect(warn).toHaveBeenCalled();
+    warn.mockRestore();
+  });
+
   it('signature: tampered or expired cookies are rejected', async () => {
     const t = await A.sign(A.sessionFor(member, cfg), cfg.secret);
     expect(await A.verify(t, cfg.secret)).toBeTruthy();
