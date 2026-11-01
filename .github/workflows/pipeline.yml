@@ -1,8 +1,8 @@
 name: pipeline
 
-# Phase 3: hourly read-only export of data.json and the covers from Supabase to the R2 bucket of staging.
-# The old site's refresh-and-deploy (minute 7) stays the only writer to Supabase until cutover,
-# so this runs at minute 37 and only reads. Production gets its own run at cutover (phase 7).
+# Hourly read-only export of data.json, the covers and the built dashboards from Supabase to R2, for staging
+# and production (each its own GitHub environment and bucket). The old site's refresh-and-deploy (minute 7)
+# stays the only writer to Supabase until cutover, so this runs at minute 37 and only reads.
 
 on:
   schedule:
@@ -13,18 +13,26 @@ permissions:
   contents: read
 
 concurrency:
-  group: pipeline-staging
+  group: pipeline
   cancel-in-progress: false
 
 jobs:
   export:
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - target: staging
+            bucket: well-ads-files-staging
+          - target: production
+            bucket: well-ads-files
     runs-on: ubuntu-latest
-    timeout-minutes: 15
-    environment: staging
+    timeout-minutes: 20
+    environment: ${{ matrix.target }}
     env:
       CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
       CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
-      BUCKET: well-ads-files-staging
+      BUCKET: ${{ matrix.bucket }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
