@@ -81,6 +81,9 @@ export const PLATFORMS: Platform[] = [
     fields: [F('LIFTOFF_API_KEY', 'API Key'), F('LIFTOFF_API_SECRET', 'API Secret')] },
   { id: 'mintegral', name: 'Mintegral', group: 'ads', docs: 'https://www.mintegral.com/', help: 'Mintegral ← Account ← API ← Access key و API key.',
     fields: [F('MINTEGRAL_ACCESS_KEY', 'Access Key'), F('MINTEGRAL_API_KEY', 'API Key')] },
+  { id: 'meta_pages', name: 'صفحة فيسبوك وحساب انستقرام (للنشر)', group: 'ads', docs: 'https://developers.facebook.com/apps/',
+    help: 'زر "اربط" بنفس تطبيق ميتا: يطلب صلاحيات النشر ويحفظ مفتاح الصفحة ورقمها ورقم انستقرام المربوط فيها. السوشال يستخدمها للنشر.',
+    fields: [ID('META_PAGE_ID', 'رقم صفحة فيسبوك'), ID('IG_USER_ID', 'رقم حساب انستقرام (Business)', { optional: true }), F('META_PAGE_ACCESS_TOKEN', 'مفتاح الصفحة', { manual: true })] },
   { id: 'meta_capi', name: 'Meta Conversions API (Pixel)', group: 'ads', docs: 'https://business.facebook.com/events_manager2', help: 'Events Manager ← البيكسل ← Settings ← Conversions API ← Generate access token.',
     fields: [F('META_CAPI_TOKEN', 'Conversions API token'), ID('META_PIXEL_ID', 'Pixel / Dataset ID')] },
   { id: 'tiktok_events', name: 'TikTok Events API (Pixel)', group: 'ads', docs: 'https://ads.tiktok.com/i18n/events_manager', help: 'Events Manager ← البيكسل ← Settings ← Generate access token.',
@@ -135,13 +138,13 @@ export const PLATFORMS: Platform[] = [
 // الشعارات: ملفات Simple Icons (CC0) محفوظة في /assets/logos (الـ CSP ما يسمح بصور من برّا).
 // المنصة اللي ما لها شعار في المكتبة: حرفها الأول بلونها.
 const LOGO: Record<string, string> = {
-  meta: 'meta', meta_capi: 'meta', snap: 'snapchat', snap_capi: 'snapchat', tiktok: 'tiktok', tiktok_events: 'tiktok', google_ads: 'googleads', x: 'x',
+  meta: 'meta', meta_pages: 'meta', meta_capi: 'meta', snap: 'snapchat', snap_capi: 'snapchat', tiktok: 'tiktok', tiktok_events: 'tiktok', google_ads: 'googleads', x: 'x',
   pinterest: 'pinterest', reddit: 'reddit', apple: 'apple', quora: 'quora', dv360: 'googledisplayandvideo360', cm360: 'googlecampaignmanager360', sa360: 'googleads',
   spotify: 'spotify', adroll: 'adroll', unity: 'unity', ga4: 'googleanalytics', search_console: 'googlesearchconsole', gtm: 'googletagmanager', firebase: 'firebase',
   hotjar: 'hotjar', mixpanel: 'mixpanel', matomo: 'matomo', plausible: 'plausibleanalytics', posthog: 'posthog', looker: 'googlebigquery',
 };
 const COLOR: Record<string, string> = {
-  meta: '#0467DF', meta_capi: '#0467DF', snap: '#E6C800', snap_capi: '#E6C800', tiktok: '#000000', tiktok_events: '#000000', google_ads: '#4285F4', x: '#000000',
+  meta: '#0467DF', meta_pages: '#0467DF', meta_capi: '#0467DF', snap: '#E6C800', snap_capi: '#E6C800', tiktok: '#000000', tiktok_events: '#000000', google_ads: '#4285F4', x: '#000000',
   linkedin: '#0A66C2', pinterest: '#BD081C', reddit: '#FF4500', microsoft: '#00A4EF', amazon: '#FF9900', apple: '#000000', taboola: '#1C5BD9', outbrain: '#F26722',
   quora: '#B92B27', dv360: '#34A853', cm360: '#1E8E3E', sa360: '#4285F4', ttd: '#0099FA', criteo: '#FE5000', yahoo_dsp: '#6001D2', spotify: '#1DB954',
   adroll: '#0DBDFF', stackadapt: '#3F3CFF', teads: '#111111', yandex: '#FC3F1D', unity: '#000000', applovin: '#0B7EEF', ironsource: '#1E57FF', moloco: '#1F2A44',
@@ -174,6 +177,10 @@ const GOOGLE = (scope: string, refresh: string): OAuthCfg => ({ authorize: 'http
 export const OAUTH: Record<string, OAuthCfg> = {
   meta: { authorize: 'https://www.facebook.com/v23.0/dialog/oauth', scope: 'ads_read,ads_management,business_management',
     app: ['META_APP_ID', 'META_APP_SECRET'], expires: 'بعد 60 يوم تقريباً', exchange: metaExchange },
+  // Publishing (Social tab): page token + page id + linked Instagram business account, from the same Meta app
+  meta_pages: { authorize: 'https://www.facebook.com/v23.0/dialog/oauth',
+    scope: 'pages_show_list,pages_read_engagement,pages_manage_posts,instagram_basic,instagram_content_publish,business_management',
+    app: ['META_APP_ID', 'META_APP_SECRET'], exchange: metaPagesExchange },
   meta_capi: { authorize: 'https://www.facebook.com/v23.0/dialog/oauth', scope: 'ads_management,business_management',
     app: ['META_APP_ID', 'META_APP_SECRET'], expires: 'بعد 60 يوم تقريباً', exchange: args => metaExchange(args, 'META_CAPI_TOKEN') },
   snap: { authorize: 'https://accounts.snapchat.com/login/oauth2/authorize', token: 'https://accounts.snapchat.com/login/oauth2/access_token', scope: 'snapchat-marketing-api',
@@ -286,6 +293,18 @@ async function metaExchange({ code, redirect, id, secret }: ExchangeArgs, env = 
   const l = new URLSearchParams({ grant_type: 'fb_exchange_token', client_id: id, client_secret: secret, fb_exchange_token: String(short.access_token) });
   const long = await getJson(`https://graph.facebook.com/v23.0/oauth/access_token?${l}`);
   return { values: { [env]: String(long.access_token) }, expiresIn: Number(long.expires_in) || 60 * 86400 };
+}
+
+// Page tokens obtained from a long-lived user token do not expire. The first page the user granted is used;
+// its linked Instagram business account (if any) is stored with it.
+async function metaPagesExchange(args: ExchangeArgs): Promise<Exchanged> {
+  const user = (await metaExchange(args, 'USER')).values.USER as string;
+  const pages = await getJson(`https://graph.facebook.com/v23.0/me/accounts?fields=id,name,access_token,instagram_business_account&access_token=${encodeURIComponent(user)}`);
+  const page = (Array.isArray(pages.data) ? pages.data : [])[0] as { id?: string; access_token?: string; instagram_business_account?: { id?: string } } | undefined;
+  if (!page?.id || !page.access_token) throw new Error('no page');
+  const values: Values = { META_PAGE_ID: page.id, META_PAGE_ACCESS_TOKEN: page.access_token };
+  if (page.instagram_business_account?.id) values.IG_USER_ID = page.instagram_business_account.id;
+  return { values, expiresIn: null };
 }
 
 // ---- OAuth 1.0a (X): توقيع HMAC-SHA1 حسب RFC 5849

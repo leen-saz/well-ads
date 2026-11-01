@@ -361,6 +361,12 @@ const EN = {
   'حلّل وابنِ البلان': 'Analyze and build the plan',
   'البلانات السابقة': 'Previous plans',
   'الشركات': 'Companies',
+  // ربط صفحات ميتا للنشر
+  'صفحة فيسبوك وحساب انستقرام (للنشر)': 'Facebook page & Instagram account (publishing)',
+  'زر "اربط" بنفس تطبيق ميتا: يطلب صلاحيات النشر ويحفظ مفتاح الصفحة ورقمها ورقم انستقرام المربوط فيها. السوشال يستخدمها للنشر.': 'The Connect button uses the same Meta app: it asks for publishing permissions and saves the page token, the page ID and its linked Instagram ID. The Social tab publishes with them.',
+  'رقم صفحة فيسبوك': 'Facebook page ID',
+  'رقم حساب انستقرام (Business)': 'Instagram account ID (Business)',
+  'مفتاح الصفحة': 'Page token',
   // أخطاء السيرفر
   'طلب مرفوض': 'Request refused', 'سجّل الدخول': 'Please sign in', 'الحساب موقوف': 'Account disabled', 'ما عندك صلاحية': 'You don\'t have access',
   'صار خطأ، جرّب مرة ثانية': 'Something went wrong, try again', 'صار خطأ': 'Something went wrong', 'الإعداد غير مكتمل': 'Setup is incomplete',
