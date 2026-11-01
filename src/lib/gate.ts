@@ -18,6 +18,7 @@ export function need(pathname: string, search: string): Need | null {
   if (/^\/(api\/)?content(\/|$)/.test(pathname)) return 'content';
   if (/^\/(api\/)?maestro(\/|$)/.test(pathname)) return 'maestro';
   if (/^\/(api\/)?account(\/|$)/.test(pathname)) return 'any';
+  if (/^\/settings\/?$/.test(pathname)) return 'any';
   if (/^\/soon\/?$/.test(pathname)) return 'any';
   if (/^\/creative\/?$/.test(pathname)) return 'creative';
   if (/^\/dept\//.test(pathname)) return new URLSearchParams(search).get('view') === 'creative' ? 'creative' : 'ceo';

@@ -1,4 +1,4 @@
-import { $, $$, api, say, esc, shell, when, busy } from './common.js';
+import { $, $$, api, say, esc, shell, when, busy, settingsTabs } from './common.js';
 
 let DASH = {}, DEPT = {};
 const ACT = { login: 'دخول', login_failed: 'دخول فاشل', login_blocked: 'دخول مرفوض (حساب موقوف)', password_changed: 'غيّر الباسوورد', password_set: 'حدد باسوورد جديد',
@@ -43,4 +43,4 @@ $('#users').addEventListener('click', async e => {
   try { await api('/api/admin/users', { method: 'PATCH', body }); say($('#usersMsg'), 'انحفظ.', true); await loadUsers(); await loadLog(); }
   catch (err) { say($('#usersMsg'), err.message); busy(b, false); }
 });
-shell({ active: 'admin', title: 'الصلاحيات والدخول' }).then(loadUsers).then(loadLog).catch(err => say($('#usersMsg'), err.message));
+shell({ active: 'settings', title: 'الإعدادات' }).then(me => settingsTabs('admin', me)).then(loadUsers).then(loadLog).catch(err => say($('#usersMsg'), err.message));

@@ -19,6 +19,7 @@ describe('siteRedirect', () => {
   it('keeps the old Vercel redirects', () => {
     expect(siteRedirect('/organic')).toBe('/?mode=organic');
     expect(siteRedirect('/creative/')).toBe('/?view=creative');
+    expect(siteRedirect('/settings/')).toBe('/account/');
     expect(siteRedirect('/')).toBeNull();
   });
 });

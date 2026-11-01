@@ -148,6 +148,10 @@ input[type=checkbox]{width:16px;height:16px;accent-color:var(--ink);margin:0;cur
 .tabs{display:flex;gap:4px;border-bottom:1px solid var(--line);overflow-x:auto;margin:20px 0 0}
 .tabs button{display:inline-flex;align-items:center;gap:8px;height:44px;padding:0 14px;border:0;background:transparent;color:var(--muted);font:600 14px var(--f-ar);cursor:pointer;border-bottom:2px solid transparent;margin-bottom:-1px;white-space:nowrap}
 .tabs button[aria-selected="true"]{color:var(--accent);border-bottom-color:var(--accent)}
+.settings-tabs{margin:0 0 16px}
+.settings-tabs a{display:inline-flex;align-items:center;gap:8px;height:44px;padding:0 14px;color:var(--muted);font:600 14px var(--f-ar);text-decoration:none;border-bottom:2px solid transparent;margin-bottom:-1px;white-space:nowrap}
+.settings-tabs a[aria-current]{color:var(--accent);border-bottom-color:var(--accent)}
+.settings-tabs .i{width:16px;height:16px}
 .tabs .cnt{font:600 12px var(--f-num);background:var(--tint-2);border-radius:999px;padding:1px 8px;color:var(--text)}
 .tools-row{display:flex;gap:8px;flex-wrap:wrap;align-items:center;padding:14px 0}
 .tools-row input[type=search]{max-width:280px}
