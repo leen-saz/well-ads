@@ -18,6 +18,8 @@ def env():
         if not key.startswith("V_"):
             continue
         name = key[2:]
+        if name.startswith("TIKTOK_"):  # TikTok stays on MCP (tiktok-data branch), never the API token
+            continue
         if (name.startswith(prefixes) or name in extra) and str(value).strip():
             e[name] = value
     return e

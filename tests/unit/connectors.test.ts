@@ -191,21 +191,21 @@ describe('TikTok OAuth', () => {
     spy.mockRestore();
   });
 
-  it('shows مربوط once the token is saved, and still refuses a pasted key', async () => {
+  it('TikTok stays on MCP whatever is saved, and refuses a pasted key', async () => {
     db(url => (url.includes('/connections') ? [{
       platform: 'tiktok', method: 'oauth', names: ['TIKTOK_ACCESS_TOKEN', 'TIKTOK_ADVERTISER_IDS'], shown: {},
     }] : []));
     const ready = await call('/api/connectors/list', {}, TT);
     const { platforms } = await ready.json() as { platforms: { id: string; status: string; oauth: boolean; oauthReady: boolean; mcp: boolean; help: string }[] };
     const tiktok = platforms.find(p => p.id === 'tiktok');
-    expect(tiktok).toMatchObject({ status: 'ok', oauth: true, oauthReady: true, mcp: true });
+    expect(tiktok).toMatchObject({ status: 'mcp', oauth: true, oauthReady: true, mcp: true });
     expect(JSON.stringify(tiktok)).not.toContain(TT_TOKEN);
     expect(tiktok?.help).toContain('MCP');
 
     db();
     const fresh = await call('/api/connectors/list', {}, TT);
     const again = (await fresh.json() as { platforms: { id: string; status: string }[] }).platforms.find(p => p.id === 'tiktok');
-    expect(again?.status).toBe('none');
+    expect(again?.status).toBe('mcp');
 
     const saved = await call('/api/connectors/save', { method: 'POST', body: JSON.stringify({ platform: 'tiktok', values: { TIKTOK_ACCESS_TOKEN: TT_TOKEN } }) }, TT);
     expect(saved.status).toBe(400);

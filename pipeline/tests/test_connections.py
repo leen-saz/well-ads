@@ -33,10 +33,11 @@ class Lines(unittest.TestCase):
         self.assertNotIn("TIKTOK_ACCESS_TOKEN_EMPTY", out)
         with open(os.path.join(ROOT, ".github", "workflows", "refresh.yml"), encoding="utf-8") as handle:
             yml = handle.read()
-        self.assertIn("TIKTOK_ACCESS_TOKEN: ${{ env.V_TIKTOK_ACCESS_TOKEN || secrets.TIKTOK_ACCESS_TOKEN }}", yml)
-        self.assertIn("TIKTOK_ADVERTISER_IDS: ${{ env.V_TIKTOK_ADVERTISER_IDS || secrets.TIKTOK_ADVERTISER_IDS }}", yml)
+        # TikTok stays on MCP (Leen's decision): the refresh job is never given a TikTok API token
+        self.assertNotIn("TIKTOK_ACCESS_TOKEN:", yml)
+        self.assertNotIn("TIKTOK_ADVERTISER_IDS:", yml)
 
-    def test_env_picks_the_vault_value_and_falls_back_when_it_is_blank(self):
+    def test_env_never_takes_a_tiktok_token_from_the_vault(self):
         keys = ("TIKTOK_ACCESS_TOKEN", "V_TIKTOK_ACCESS_TOKEN", "TIKTOK_ADVERTISER_IDS", "V_TIKTOK_ADVERTISER_IDS")
         old = {k: os.environ.get(k) for k in keys}
         try:
@@ -44,11 +45,6 @@ class Lines(unittest.TestCase):
             os.environ["V_TIKTOK_ACCESS_TOKEN"] = "vault-tiktok-token"
             os.environ["TIKTOK_ADVERTISER_IDS"] = "6948010864247046146"
             os.environ["V_TIKTOK_ADVERTISER_IDS"] = "7532842350553514000"
-            got = env()
-            self.assertEqual(got["TIKTOK_ACCESS_TOKEN"], "vault-tiktok-token")
-            self.assertEqual(got["TIKTOK_ADVERTISER_IDS"], "7532842350553514000")
-            os.environ["V_TIKTOK_ACCESS_TOKEN"] = "  "
-            os.environ.pop("V_TIKTOK_ADVERTISER_IDS")
             got = env()
             self.assertEqual(got["TIKTOK_ACCESS_TOKEN"], "github-tiktok-token")
             self.assertEqual(got["TIKTOK_ADVERTISER_IDS"], "6948010864247046146")

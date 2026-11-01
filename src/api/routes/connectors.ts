@@ -56,8 +56,8 @@ export const list = {
       for (const name of o?.needs || []) if (!required.includes(name)) required.push(name);
       const have = new Set<string>(c ? (c.names as string[]) || [] : []);
       const expires = c?.expires_at as string | null | undefined;
-      // mcp ملاحظة ثانوية في الواجهة. الشارة تتبع المفتاح المحفوظ: مربوط فقط بعد ما ينحفظ.
-      const status = !c ? 'none' : expires && new Date(expires) < new Date() ? 'expired' : required.every(n => have.has(n)) ? 'ok' : 'partial';
+      // TikTok stays on MCP (Leen's decision): its status is 'mcp' whatever is saved.
+      const status = p.mcp ? 'mcp' : !c ? 'none' : expires && new Date(expires) < new Date() ? 'expired' : required.every(n => have.has(n)) ? 'ok' : 'partial';
       const shown = (c?.shown as Values | undefined) || {};
       return {
         id: p.id, name: p.name, group: p.group, fetch: !!p.fetch, mcp: !!p.mcp, docs: p.docs, help: p.help,
