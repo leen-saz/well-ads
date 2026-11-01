@@ -153,6 +153,15 @@ export async function sb<T = unknown>(cfg: Cfg, path: string,
   return { ok: res.ok, status: res.status, data: data as T };
 }
 
+// Diagnostics: the kind of key in use, never the key. JWT keys expose only their role claim.
+export function keyKind(k: string): string {
+  if (k.startsWith('sb_secret_')) return 'sb_secret';
+  if (k.startsWith('sb_publishable_')) return 'sb_publishable';
+  const p = k.split('.')[1];
+  if (!p) return 'unknown';
+  try { return 'jwt:' + String((JSON.parse(atob(p.replace(/-/g, '+').replace(/_/g, '/'))) as { role?: string }).role ?? '?'); } catch { return 'unknown'; }
+}
+
 export async function loadProfile(cfg: Cfg, uid: string): Promise<Profile | null> {
   const r = await sb<Profile[]>(cfg, `/rest/v1/profiles?id=eq.${encodeURIComponent(uid)}&select=*`, { admin: true });
   return r.ok && Array.isArray(r.data) ? r.data[0] || null : null;
