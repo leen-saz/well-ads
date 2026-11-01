@@ -1,5 +1,5 @@
 // /api/maestro/*: the maestro tab. Agents, tasks and pending approvals of the user's company, from Paperclip.
-// Connecting a company to Paperclip and deciding approvals are owner-only; creating tasks needs the `maestro` dashboard.
+// Connecting a company to Paperclip is owner-only; creating tasks needs edit and deciding approvals needs approve on `maestro`.
 import { sb, json, readJson, handle, requireUser, audit, isOwner, type AuthEnv, type Cfg } from '../../lib/auth';
 import { client, cleanTask, STATUS, type PcEnv } from './paperclip';
 
@@ -52,7 +52,7 @@ export const task = { POST: handle(async (request, e: Env) => {
 }) };
 
 export const approval = { POST: handle(async (request, e: Env) => {
-  const { cfg, user } = await requireUser(request, e, 'owner', { write: true });
+  const { cfg, user } = await requireUser(request, e, 'maestro', { write: true, approve: true });
   const pc = client(e);
   if (!pc) return notSet();
   const b = await readJson(request);
