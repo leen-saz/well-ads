@@ -16,7 +16,15 @@ const P = {
 const I = n => `<svg class="wl-i" viewBox="0 0 24 24" aria-hidden="true">${P[n]}</svg>`;
 const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 
-const me = await fetch('/api/account/password', { credentials: 'same-origin' }).then(r => r.ok ? r.json() : null).catch(() => null);
+// The sidebar needs the user's name and dashboards on every page. Kept for 5 minutes in this tab, so moving
+// between tabs does not wait on the database each time (the server still checks every request).
+const ME_KEY = 'well-me';
+let me = null;
+try { const c = JSON.parse(sessionStorage.getItem(ME_KEY) || 'null'); if (c && Date.now() - c.t < 5 * 60 * 1000) me = c.v; } catch { /* storage blocked */ }
+if (!me) {
+  me = await fetch('/api/account/password', { credentials: 'same-origin' }).then(r => r.ok ? r.json() : null).catch(() => null);
+  try { if (me) sessionStorage.setItem(ME_KEY, JSON.stringify({ t: Date.now(), v: me })); } catch { /* storage blocked */ }
+}
 if (me) {
   const creative = /view=creative/.test(location.search) || location.pathname.startsWith('/creative');
   const has = k => me.dashboards.includes(k), owner = me.role === 'owner';
@@ -44,6 +52,7 @@ if (me) {
   scrim.onclick = () => setOpen(false);
   document.addEventListener('keydown', e => { if (e.key === 'Escape' && document.body.classList.contains('wl-open')) { setOpen(false); burger.focus(); } });
   mobile.addEventListener('change', () => setOpen(false));
+  side.querySelector('.wl-out')?.addEventListener('submit', () => { try { sessionStorage.removeItem(ME_KEY); } catch { /* storage blocked */ } });
   side.inert = mobile.matches;
   const css = document.createElement('style');
   css.textContent = `

@@ -1,3 +1,5 @@
+// A new sign-in starts with fresh sidebar info (nav.js keeps it 5 minutes per tab)
+try { sessionStorage.removeItem('well-me'); } catch { /* storage blocked */ }
 import { $, api, say, busy } from './common.js';
 import { langSwitch } from './i18n.js';
 document.getElementById('lang').innerHTML = langSwitch();
