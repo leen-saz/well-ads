@@ -33,7 +33,7 @@ if (me) {
   const has = k => me.dashboards.includes(k), owner = me.role === 'owner';
   const items = [['/', L('التحليلات', 'Analytics'), 'chart', !creative, has('ceo')], ['/?view=creative', L('الكرييتف', 'Creative'), 'image', creative, has('creative')],
     ['/control/', L('لوحة القرارات', 'Decision board'), 'gavel', false, has('control')],
-    ['/connectors/', L('الربط', 'Connectors'), 'plug', false, has('connectors')], ['/settings/', L('الإعدادات', 'Settings'), 'settings', false, true]];
+    ['/connectors/', L('الربط', 'Connectors'), 'plug', false, has('connectors')]];
   const initials = (me.name || me.email).trim().split(/\s+/).map(w => w[0]).join('').slice(0, 2).toUpperCase();
   const role = owner ? L('المالكة', 'Owner') : (me.departments || []).length ? L('مدير قسم', 'Department manager') : L('عضو', 'Member');
   const side = document.createElement('aside');
@@ -43,6 +43,7 @@ if (me) {
       : `<span class="wl-navi wl-locked" aria-disabled="true" title="${L('ما عندك صلاحية', 'No access')}">${I(ic)}<span>${t}</span>${I('lock')}</span>`).join('')}
     ${SOON.map(s => `<a class="wl-navi wl-soon" href="/soon/?t=${s.key}"><svg class="wl-i" viewBox="0 0 24 24" aria-hidden="true">${s.icon}</svg><span>${L(s.ar, s.en)}</span><small class="wl-tag">${L('قريباً', 'Soon')}</small></a>`).join('')}
     <div class="wl-grow"></div>
+    <a class="wl-navi" href="/settings/">${I('settings')}<span>${L('الإعدادات', 'Settings')}</span></a>
     <form method="post" action="/api/auth/logout" class="wl-out"><button type="submit" class="wl-navi">${I('out')}<span>${L('خروج', 'Sign out')}</span></button></form>
     <div class="wl-me"><span class="wl-av">${esc(initials)}</span><span><b>${esc(me.name || me.email)}</b><small>${role}</small></span></div>`;
   const burger = document.createElement('button');

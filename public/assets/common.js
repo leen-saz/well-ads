@@ -69,7 +69,7 @@ export async function shell({ active, title, badge = '', tools = '' }) {
   const owner = me.role === 'owner';
   const items = [['/', 'التحليلات', 'chart', 'ceo', me.dashboards.includes('ceo')], ['/?view=creative', 'الكرييتف', 'image', 'creative', me.dashboards.includes('creative')],
     ['/control/', 'لوحة القرارات', 'gavel', 'control', me.dashboards.includes('control')],
-    ['/connectors/', 'الربط', 'plug', 'connectors', me.dashboards.includes('connectors')], ['/settings/', 'الإعدادات', 'settings', 'settings', true]];
+    ['/connectors/', 'الربط', 'plug', 'connectors', me.dashboards.includes('connectors')]];
   const initials = (me.name || me.email).trim().split(/\s+/).map(w => w[0]).join('').slice(0, 2).toUpperCase();
   const app = $('#app');
   $('#side', app).innerHTML = `<a class="brand mark" href="/" aria-label="Well">Well<i>.</i></a>
@@ -77,6 +77,7 @@ export async function shell({ active, title, badge = '', tools = '' }) {
       : `<span class="navi locked" aria-disabled="true" data-tip="ما عندك صلاحية">${icon(ic)}<span>${t}</span>${icon('lock', 'lk')}</span>`).join('')}
     ${SOON.map(s => `<a class="navi soon" href="/soon/?t=${s.key}"${active === 'soon:' + s.key ? ' aria-current="page"' : ''}><svg class="i" viewBox="0 0 24 24" aria-hidden="true">${s.icon}</svg><span>${LANG === 'en' ? s.en : s.ar}</span><small class="tag">${LANG === 'en' ? 'Soon' : 'قريباً'}</small></a>`).join('')}
     <div class="grow"></div>
+    <a class="navi" href="/settings/"${active === 'settings' ? ' aria-current="page"' : ''}>${icon('settings')}<span>الإعدادات</span></a>
     <button class="me" id="meBtn" aria-haspopup="menu" aria-expanded="false"><span class="avatar">${esc(initials)}</span>
       <span class="who"><b>${esc(me.name || me.email)}</b><span class="muted">${me.role === 'owner' ? 'المالكة' : (me.departments || []).length ? 'مدير قسم' : 'عضو'}</span></span></button>
     <div class="menu" id="meMenu" role="menu" hidden><a href="/account/" role="menuitem">${icon('user')}حسابي</a><form method="post" action="/api/auth/logout" style="margin:0"><button type="submit" role="menuitem">${icon('out')}خروج</button></form></div>`;
