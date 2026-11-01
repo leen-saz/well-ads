@@ -19,7 +19,7 @@ export default defineConfig({
         "object-src 'none'",
         "base-uri 'none'",
         "form-action 'self'",
-        "frame-ancestors 'none'",
+        "frame-ancestors 'self'",
       ],
       // Same as the live site: style attributes are used across the UI, and the brand font comes from Google Fonts.
       styleDirective: { resources: ["'self'", "'unsafe-inline'", 'https://fonts.googleapis.com'] },

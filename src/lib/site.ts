@@ -25,6 +25,13 @@ const TYPES: Record<string, string> = {
   jpg: 'image/jpeg', png: 'image/png', webp: 'image/webp', gif: 'image/gif',
 };
 
+// The pages may be framed by our own pages (kept tabs) and may frame our own pages
+export function framable(csp: string): string {
+  let out = csp.replace("frame-ancestors 'none'", "frame-ancestors 'self'");
+  out = /frame-src /.test(out) ? out.replace(/frame-src (?!'self')/, "frame-src 'self' ") : out + "; frame-src 'self'";
+  return out;
+}
+
 export async function serveSite(request: Request, bucket: R2Bucket): Promise<Response | null> {
   if (request.method !== 'GET' && request.method !== 'HEAD') return null;
   const url = new URL(request.url);
@@ -41,7 +48,7 @@ export async function serveSite(request: Request, bucket: R2Bucket): Promise<Res
   if (ext === 'html') {
     // build.py hashes the page's inline scripts into this policy (same CSP the live site sends)
     const csp = await bucket.get('site/csp.txt');
-    if (csp) headers.set('content-security-policy', (await csp.text()).trim());
+    if (csp) headers.set('content-security-policy', framable((await csp.text()).trim()));
   }
   if (!('body' in obj)) return new Response(null, { status: 304, headers });
   return new Response(request.method === 'HEAD' ? null : obj.body, { status: 200, headers });
