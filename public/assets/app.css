@@ -307,3 +307,13 @@ body{background:
 .menu{background:var(--glass-strong);border:1px solid var(--glass-edge);-webkit-backdrop-filter:var(--glass-blur);backdrop-filter:var(--glass-blur)}
 @media (max-width:900px){.app{grid-template-columns:1fr}.side{margin:0;height:100vh;top:0;border-radius:0 26px 26px 0}[dir=rtl] .side{border-radius:26px 0 0 26px}}
 @media (prefers-reduced-transparency:reduce){.card,.side,.menu{background:#FFFFFF;-webkit-backdrop-filter:none;backdrop-filter:none}}
+/* ---- Glass v2 (same as the dashboard): colour behind the glass, gradient glass with a bright edge, sans text */
+:root{--glass:linear-gradient(140deg,color-mix(in srgb,#FFFFFF 74%,transparent),color-mix(in srgb,#FFFFFF 34%,transparent));--glass-blur:blur(26px) saturate(185%);
+  --shadow:inset 0 1px 1px #FFFFFF,inset 0 -1px 1px color-mix(in srgb,var(--accent) 6%,transparent),0 2px 6px rgba(76,52,180,.05),0 18px 40px rgba(76,52,180,.13)}
+body{font-family:var(--f-ar);background:
+  radial-gradient(42vw 38vw at 92% 4%,rgba(126,87,253,.42),transparent 70%),
+  radial-gradient(38vw 34vw at 6% 28%,rgba(120,150,255,.38),transparent 70%),
+  radial-gradient(34vw 30vw at 48% 62%,rgba(172,166,225,.55),transparent 70%),
+  radial-gradient(40vw 36vw at 88% 96%,rgba(34,17,150,.20),transparent 70%),
+  linear-gradient(160deg,#EEF0FF,#ECE6FB 55%,#F1EAFB);background-attachment:fixed}
+.card,.side{background:var(--glass);border-color:color-mix(in srgb,#FFFFFF 78%,transparent)}

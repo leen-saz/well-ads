@@ -388,6 +388,26 @@ body{background:radial-gradient(1100px 680px at 100% -10%,rgba(126,87,253,.22),t
 .seg{background:var(--glass);border-color:var(--glass-edge)}
 .seg button[aria-pressed="true"]{box-shadow:0 4px 14px rgba(126,87,253,.28)}
 @media (prefers-reduced-transparency:reduce){.panel,.ffun,.filter-card,.kpi,.card{background:#FFFFFF;-webkit-backdrop-filter:none;backdrop-filter:none}}
+
+/* ---- Glass v2: closer to ShopWave. Colour behind the glass, gradient glass with a bright edge, sans text, glossy funnel layers. */
+:root{--glass-bg:linear-gradient(140deg,rgba(255,255,255,.74),rgba(255,255,255,.34));--glass-blur:blur(26px) saturate(185%);
+  --lift:inset 0 1px 1px rgba(255,255,255,.95),inset 0 -1px 1px rgba(126,87,253,.06),0 2px 6px rgba(76,52,180,.05),0 18px 40px rgba(76,52,180,.13)}
+body{font-family:var(--f-ar);background:
+  radial-gradient(42vw 38vw at 92% 4%,rgba(126,87,253,.42),transparent 70%),
+  radial-gradient(38vw 34vw at 6% 28%,rgba(120,150,255,.38),transparent 70%),
+  radial-gradient(34vw 30vw at 48% 62%,rgba(172,166,225,.55),transparent 70%),
+  radial-gradient(40vw 36vw at 88% 96%,rgba(34,17,150,.20),transparent 70%),
+  linear-gradient(160deg,#EEF0FF,#ECE6FB 55%,#F1EAFB);background-attachment:fixed}
+h1,h2,h3,.kpi .l{font-family:var(--f-ar)}
+.panel,.ffun,.filter-card,.kpi,.card,.kpi.hero{background:var(--glass-bg);border:1px solid rgba(255,255,255,.78);-webkit-backdrop-filter:var(--glass-blur);backdrop-filter:var(--glass-blur);box-shadow:var(--lift)}
+.fband .kpi,.fcost .kpi,.flink .kpi{background:transparent;border:0;box-shadow:none;-webkit-backdrop-filter:none;backdrop-filter:none}
+.flink .kpi{background:rgba(255,255,255,.6);border:1px solid rgba(255,255,255,.8)}
+.tile .v{font-size:1.75rem;font-weight:700;letter-spacing:-.01em}
+.tile .ic{border-radius:14px;background:linear-gradient(140deg,rgba(126,87,253,.22),rgba(172,166,225,.30));box-shadow:inset 0 1px 0 rgba(255,255,255,.8)}
+.kpis.kout>.tile:nth-child(3) .ic{background:linear-gradient(140deg,rgba(120,150,255,.28),rgba(172,166,225,.28));color:#4A5BD8}
+.kpis.kout>.tile:nth-child(4) .ic{background:linear-gradient(140deg,rgba(34,17,150,.16),rgba(126,87,253,.18));color:var(--ink)}
+.kpi.tile.feature{background:linear-gradient(150deg,#9B7BFF,#6A45F0 55%,#3A22B8);border-color:rgba(255,255,255,.45);box-shadow:inset 0 1px 1px rgba(255,255,255,.5),0 18px 40px rgba(106,69,240,.35)}
+.fband{clip-path:none;border-radius:22px 22px 60px 60px/22px 22px 34px 34px;background:linear-gradient(180deg,rgba(255,255,255,.38),rgba(255,255,255,0) 48%),var(--fc);box-shadow:inset 0 2px 1px rgba(255,255,255,.55),inset 0 -6px 14px rgba(20,8,90,.18),0 12px 26px rgba(76,52,180,.28)}
 </style>
 
 <div class="wrap" dir="rtl" lang="ar">
@@ -1423,7 +1443,7 @@ function renderKpis(now,prev){
   const widths = [100, 84, 68, 52];
   const funnel = stages.map((st,i)=>(st.rate?`<div class="flink"><span class="farrow" aria-hidden="true">↓</span>${st.rate}</div>`:'')
     + `<div class="flayer"><div class="fname"><b>${i+1}</b><span>${st.n}</span><em>${st.hint}</em></div>`
-    + `<div class="fband-wrap"><div class="fband" style="--w:${widths[i]}%;--k:${i}">${st.main}</div></div>`
+    + `<div class="fband-wrap"><div class="fband" style="--w:${widths[i]}%;--k:${i};--fc:${['#7C8CFF','#8B6CFF','#7E57FD','#5B36D6'][i]}">${st.main}</div></div>`
     + `<div class="fcost">${st.sub.join('')}</div></div>`).join('');
   $('#kpis').innerHTML =
     `<div class="kgroup"><div class="khead"><h3>النتيجة</h3>${toggle}</div><div class="kpis kout">${outcome}</div>`
