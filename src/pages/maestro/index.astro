@@ -1,0 +1,61 @@
+---
+// المايسترو: مدير كل الإيجنتس (Paperclip). المهام والإيجنتس والموافقات لكل شركة.
+---
+<!doctype html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="robots" content="noindex,nofollow">
+<meta name="referrer" content="no-referrer">
+<meta name="theme-color" content="#F6F0E3">
+<title>المايسترو · Well</title>
+<link rel="preload" href="/assets/fonts/thmanyahsans-Regular.woff2" as="font" type="font/woff2" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@900&display=swap">
+<link rel="stylesheet" href="/assets/app.css">
+<style is:global>
+.so-grid{display:grid;grid-template-columns:minmax(0,420px) minmax(0,1fr);gap:16px;align-items:start}
+@media (max-width:1000px){.so-grid{grid-template-columns:1fr}}
+.so-cnt{font-size:12px;margin:4px 0 0}.so-cnt.over{color:#C0392B}
+.so-day{margin:18px 0 8px;font-size:15px}
+.so-post{padding:14px 16px;display:grid;gap:8px}
+.so-top{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+.so-chip{font-size:12px;padding:3px 10px;border-radius:999px;background:var(--tint)}
+.so-st{margin-inline-start:auto;font-size:12px}
+.so-body{white-space:pre-wrap;margin:0}
+.so-note{font-size:13px;margin:8px 0 0;padding:10px 12px;border-radius:12px;background:var(--tint)}
+</style>
+</head>
+<body>
+<div class="app" id="app">
+  <aside class="side" id="side" aria-label="القائمة"></aside>
+  <div class="scrim"></div>
+  <div class="main">
+    <header class="topbar" id="top"></header>
+    <main class="content" id="content">
+      <div id="setup"></div>
+      <div class="so-grid" id="board" hidden>
+        <section class="card pad">
+          <h2>كلّف المايسترو</h2>
+          <form id="f" novalidate>
+            <label for="title">المهمة</label><input type="text" id="title" placeholder="مثال: جهّز 5 منشورات للمحاليل الأسبوع الجاي">
+            <label for="desc">التفاصيل</label><textarea id="desc" rows="5"></textarea>
+            <label for="agent">الإيجنت</label><select id="agent"><option value="">المايسترو يختار</option></select>
+            <label for="prio">الأولوية</label><select id="prio"><option value="medium">عادية</option><option value="high">عالية</option><option value="urgent">عاجلة</option><option value="low">منخفضة</option></select>
+            <p class="so-note">أي شي حساس (نشر، صرف، إيقاف إعلان) يرجع لك موافقة قبل التنفيذ.</p>
+            <div class="bar" style="margin-top:16px"><button class="btn primary" type="submit">أرسل</button></div>
+            <div class="msg" id="msg" role="status"></div>
+          </form>
+          <h3 style="margin:20px 0 8px">الإيجنتس</h3><div id="agents" style="display:grid;gap:8px"></div>
+        </section>
+        <section>
+          <h2 style="margin:0 0 12px">تنتظر موافقتك</h2><div id="approvals" style="display:grid;gap:10px"></div>
+          <h2 style="margin:24px 0 12px">المهام</h2><div id="issues" style="display:grid;gap:10px"></div>
+        </section>
+      </div>
+    </main>
+  </div>
+</div>
+<script is:inline type="module" src="/assets/maestro.js"></script>
+</body>
+</html>
