@@ -1,0 +1,47 @@
+# Manual executor test, ported from the old repo: pauses the lowest-spend ad in a canary campaign, resumes it,
+# and reads Meta back after each step. Runs only if the campaign is one of Leen's canary campaigns and the
+# emergency stop is off (modules/execute guards).
+name: execute-smoke
+
+on:
+  workflow_dispatch:
+    inputs:
+      campaign:
+        description: "Canary campaign name in Meta"
+        required: true
+        default: "META_WP_Spark_25\\10"
+
+permissions:
+  contents: read
+
+# Same group as refresh.yml, so the test never overlaps an hourly run
+concurrency:
+  group: refresh
+  cancel-in-progress: false
+
+jobs:
+  smoke:
+    runs-on: ubuntu-24.04
+    environment: production
+    timeout-minutes: 5
+    defaults:
+      run:
+        working-directory: pipeline
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: Load connections from the Connectors page
+        continue-on-error: true
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+        run: python3 -m modules.core.connections
+      - name: Pause then resume one ad, read back each step
+        env:
+          CAMPAIGN: ${{ inputs.campaign }}
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+          META_ACCESS_TOKEN: ${{ env.V_META_ACCESS_TOKEN || secrets.META_ACCESS_TOKEN }}
+          META_AD_ACCOUNT_ID: ${{ env.V_META_AD_ACCOUNT_ID || secrets.META_AD_ACCOUNT_ID }}
+        run: python3 -m modules.execute.smoke
