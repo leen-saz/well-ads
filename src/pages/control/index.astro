@@ -1,0 +1,39 @@
+---
+// Ported as-is from well-ads-dashboard web/public/control/index.html
+---
+<!doctype html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="robots" content="noindex,nofollow">
+<meta name="referrer" content="no-referrer">
+<meta name="theme-color" content="#F6F0E3">
+<title>لوحة القرارات · Well</title>
+<link rel="preload" href="/assets/fonts/thmanyahsans-Regular.woff2" as="font" type="font/woff2" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@900&display=swap">
+<link rel="stylesheet" href="/assets/app.css">
+</head>
+<body>
+<div class="app" id="app">
+  <aside class="side" id="side" aria-label="القائمة"></aside>
+  <div class="scrim"></div>
+  <div class="main">
+    <header class="topbar" id="top"></header>
+    <main class="content" id="content">
+      <div class="kill-banner" id="killBanner" role="alert" hidden></div>
+      <section class="kpis" id="kpis" aria-label="ملخص"></section>
+      <section class="card pad bar" id="modes" aria-label="الوضع"></section>
+      <nav class="tabs" role="tablist" id="tabs" aria-label="المنصات"></nav>
+      <div class="tools-row" id="filters"></div>
+      <section class="card tbl" id="inbox" aria-live="polite"></section>
+      <p class="muted kbd-hint" style="margin-top:12px">اختصارات: <span class="kbd">j</span> <span class="kbd">k</span> للتنقل، <span class="kbd">x</span> للتحديد، <span class="kbd">a</span> موافقة، <span class="kbd">r</span> رفض، <span class="kbd">Enter</span> التفاصيل.</p>
+    </main>
+  </div>
+</div>
+<div class="veil" id="veil"></div>
+<aside class="panel" id="panel" aria-label="تفاصيل الاقتراح" aria-hidden="true"></aside>
+<div class="selbar" id="selbar" hidden></div>
+<script is:inline type="module" src="/assets/control.js"></script>
+</body>
+</html>
