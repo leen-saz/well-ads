@@ -198,8 +198,14 @@ export function keyKind(k: string): string {
 }
 
 export async function loadProfile(cfg: Cfg, uid: string): Promise<Profile | null> {
-  const r = await sb<Profile[]>(cfg, `/rest/v1/profiles?id=eq.${encodeURIComponent(uid)}&select=*,company:companies(disabled_modules)`, { admin: true });
-  return r.ok && Array.isArray(r.data) ? r.data[0] || null : null;
+  const q = `/rest/v1/profiles?id=eq.${encodeURIComponent(uid)}&select=`;
+  const r = await sb<Profile[]>(cfg, q + '*,company:companies(disabled_modules)', { admin: true });
+  if (r.ok && Array.isArray(r.data)) return r.data[0] || null;
+  // A column from a migration that is not applied yet must not lock everyone out: read the profile alone and log why.
+  const d = (r.data && typeof r.data === 'object' && !Array.isArray(r.data) ? r.data : {}) as Record<string, unknown>;
+  console.warn('profile_read_degraded', JSON.stringify({ status: r.status, code: d.code ?? null, msg: String(d.message ?? '').slice(0, 160) }));
+  const plain = await sb<Profile[]>(cfg, q + '*', { admin: true });
+  return plain.ok && Array.isArray(plain.data) ? plain.data[0] || null : null;
 }
 
 type Who = { uid?: string; id?: string | undefined; email?: string | undefined; co?: string } | null;
