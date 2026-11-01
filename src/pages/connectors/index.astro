@@ -1,0 +1,52 @@
+---
+// Ported as-is from well-ads-dashboard web/public/connectors/index.html
+---
+<!doctype html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="robots" content="noindex,nofollow">
+<meta name="referrer" content="no-referrer">
+<meta name="theme-color" content="#F6F0E3">
+<title>الربط · Well</title>
+<link rel="preload" href="/assets/fonts/thmanyahsans-Regular.woff2" as="font" type="font/woff2" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@900&display=swap">
+<link rel="stylesheet" href="/assets/app.css">
+<style>
+.cx-intro{max-width:760px;margin:0 0 16px}
+.cx-tools{display:flex;gap:12px;flex-wrap:wrap;align-items:center;margin:0 0 8px}
+.cx-tools input{max-width:320px;margin:0}
+.cx-h{margin:28px 0 12px;font-size:18px}
+.cx-list{display:grid;gap:12px}
+.cx{padding:16px 20px}
+.cx-top{display:flex;gap:12px;align-items:center;flex-wrap:wrap}
+.cx-top h3{margin:0;font-size:16px;flex:1 1 200px}
+.cx-acts{display:flex;gap:8px;flex-wrap:wrap}
+.cx-meta{margin:8px 0 0;font-size:13px}
+.cx form{margin-top:14px;border-top:1px solid var(--line);padding-top:14px;max-width:560px}
+.cx form textarea{min-height:110px;font:12px ui-monospace,monospace;direction:ltr}
+.cx form input{direction:ltr}
+.cx-logo{width:40px;height:40px;border-radius:12px;display:grid;place-items:center;background:var(--tint);flex:none}.cx-logo img{width:24px;height:24px}
+.cx-logo.mono{color:#FFFFFF;font:700 18px var(--f-ar)}
+.cx form a{color:var(--accent)}
+.chip.ok{background:#E3F4EA;color:#14532D}.chip.warn{background:#FFF4D6;color:#7A4B00}
+</style>
+</head>
+<body>
+<div class="app" id="app">
+  <aside class="side" id="side" aria-label="القائمة"></aside>
+  <div class="scrim"></div>
+  <div class="main">
+    <header class="topbar" id="top"></header>
+    <main class="content" id="content">
+      <p class="muted cx-intro">اربط منصات الإعلانات والتحليلات. المفاتيح تنحفظ مشفّرة في خزنة القاعدة وما تنعرض لأحد بعد الحفظ، والتحديث كل ساعة يقراها من هناك.</p>
+      <div class="cx-tools"><input type="search" id="q" placeholder="ابحث عن منصة" aria-label="ابحث عن منصة"><span class="muted" id="sum"></span></div>
+      <div class="msg" id="msg" role="status"></div>
+      <div id="list" aria-live="polite"></div>
+    </main>
+  </div>
+</div>
+<script is:inline type="module" src="/assets/connectors.js"></script>
+</body>
+</html>

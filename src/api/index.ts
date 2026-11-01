@@ -3,6 +3,7 @@ import { json, type AuthEnv, type Handler } from '../lib/auth';
 import * as auth from './routes/auth';
 import * as account from './routes/account';
 import * as admin from './routes/admin';
+import * as connectors from './routes/connectors';
 import * as control from './routes/control';
 
 type Group = Record<string, Partial<Record<string, Handler>>>;
@@ -21,6 +22,7 @@ api.get('/health', c => c.json({ ok: true }));
 api.all('/auth/:action', group(auth));
 api.all('/admin/:action', group(admin));
 api.all('/account/:action', group(account));
+api.all('/connectors/:action', group(connectors));
 api.all('/control/:action', group(control));
 
 api.notFound(() => json(404, { ok: false, error: 'not_found' }));
