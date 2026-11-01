@@ -13,6 +13,10 @@ export function need(pathname: string, search: string): Need | null {
   if (/^\/(api\/)?admin(\/|$)/.test(pathname)) return 'owner';
   if (/^\/(api\/)?control(\/|$)/.test(pathname)) return 'control';
   if (/^\/(api\/)?connectors(\/|$)/.test(pathname)) return 'connectors';
+  if (/^\/(api\/)?social(\/|$)/.test(pathname)) return 'social';
+  if (/^\/(api\/)?journeys(\/|$)/.test(pathname)) return 'journeys';
+  if (/^\/(api\/)?content(\/|$)/.test(pathname)) return 'content';
+  if (/^\/(api\/)?maestro(\/|$)/.test(pathname)) return 'maestro';
   if (/^\/(api\/)?account(\/|$)/.test(pathname)) return 'any';
   if (/^\/settings\/?$/.test(pathname)) return 'any';
   if (/^\/soon\/?$/.test(pathname)) return 'any';

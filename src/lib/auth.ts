@@ -1,10 +1,12 @@
 // Port of well-ads-dashboard web/lib/auth.js. Same behavior; env comes from Worker bindings instead of process.env.
 // Email + password via Supabase Auth, session in an HMAC-signed cookie. Web Crypto only.
 
+import { companyOf } from './tenant';
+
 export const SESSION = '__Host-well_session';
 export const SESSION_HOURS = 12;
 export const RECHECK_MS = 10 * 60 * 1000; // pages re-read the user's permissions every 10 minutes
-export const DASHBOARDS = { ceo: 'التحليلات', creative: 'الكرييتف', control: 'لوحة القرارات', connectors: 'الربط' } as const;
+export const DASHBOARDS = { ceo: 'التحليلات', creative: 'الكرييتف', control: 'لوحة القرارات', connectors: 'الربط', social: 'السوشال', journeys: 'الرحلات', content: 'المحتوى و SEO', maestro: 'المايسترو' } as const;
 // Department scope: empty = all departments. A department manager sees only their department.
 export const DEPTS = { iv: 'المحاليل الوريدية', midwife: 'القبالة / رعاية الحمل', foot: 'تقويم القدم', renan: 'رينان لصحة الطفل' } as const;
 export const PASSWORD_MIN = 10;
@@ -24,12 +26,14 @@ export interface Session {
   uid: string; email: string; name: string;
   role: 'owner' | 'member';
   dash: Dashboard[]; depts: Dept[];
+  co: string; // company id (SaaS); owner = owner of this company only
   exp: number; chk: number;
   stale?: boolean;
 }
 export interface Profile {
   id: string; email?: string | null; name?: string | null; role?: string | null;
   dashboards?: string[] | null; departments?: string[] | null; active?: boolean | null;
+  company_id?: string | null;
 }
 
 export function env(e: AuthEnv): Cfg {
@@ -118,6 +122,9 @@ export function home(s: Session, cfg?: Cfg): string {
   if (can(s, 'creative', cfg)) return '/?view=creative';
   if (can(s, 'control', cfg)) return '/control/';
   if (can(s, 'connectors', cfg)) return '/connectors/';
+  if (can(s, 'social', cfg)) return '/social/';
+  if (can(s, 'journeys', cfg)) return '/journeys/';
+  if (can(s, 'content', cfg)) return '/content/';
   return '/account/';
 }
 // Blocks redirects to another site after login
@@ -132,6 +139,7 @@ export function sessionFor(profile: Profile, cfg: Cfg, now = Date.now()): Sessio
     role: owner ? 'owner' : 'member',
     dash: owner ? (Object.keys(DASHBOARDS) as Dashboard[]) : ((profile.dashboards || []).filter(d => d in DASHBOARDS) as Dashboard[]),
     depts: owner ? [] : ((profile.departments || []).filter(d => d in DEPTS) as Dept[]),
+    co: companyOf(profile.company_id),
     exp: now + SESSION_HOURS * 3600 * 1000, chk: now,
   };
 }
@@ -167,11 +175,11 @@ export async function loadProfile(cfg: Cfg, uid: string): Promise<Profile | null
   return r.ok && Array.isArray(r.data) ? r.data[0] || null : null;
 }
 
-type Who = { uid?: string; id?: string | undefined; email?: string | undefined } | null;
+type Who = { uid?: string; id?: string | undefined; email?: string | undefined; co?: string } | null;
 export async function audit(cfg: Cfg, user: Who, action: string, fields: Record<string, unknown> = {}): Promise<void> {
   await sb(cfg, '/rest/v1/audit_log', {
     method: 'POST', admin: true, headers: { Prefer: 'return=minimal' },
-    body: { user_id: user ? user.uid || user.id || null : null, email: user ? user.email ?? null : null, action, ...fields },
+    body: { user_id: user ? user.uid || user.id || null : null, email: user ? user.email ?? null : null, ...(user?.co ? { company_id: user.co } : {}), action, ...fields },
   }).catch(() => {});
 }
 

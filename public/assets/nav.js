@@ -1,7 +1,6 @@
 // نفس القائمة الجانبية حق لوحة القرارات، فوق اللوحات (/ و/creative): موقع واحد.
 // كل الأقسام تطلع للكل، واللي ما له صلاحية عليه يطلع مقفل. في الجوال: زر قائمة يفتح درج.
 import { SOON } from './tabs.js';
-import { keepTabs } from './keep.js';
 const EN = (() => { try { return new URLSearchParams(location.search).get('lang') === 'en' || localStorage.getItem('well-ads-lang') === 'en'; } catch { return false; } })();
 const L = (ar, en) => EN ? en : ar;
 const P = {
@@ -11,6 +10,10 @@ const P = {
   gavel: '<path d="m14 13-7.5 7.5a2.1 2.1 0 0 1-3-3L11 10"/><path d="m16 16 6-6"/><path d="m8 8 6-6"/><path d="m9 7 8 8"/><path d="m21 11-8-8"/>',
   users: '<path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.9"/><path d="M16 3.1a4 4 0 0 1 0 7.8"/>',
   settings: '<path d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.39a2 2 0 0 0-.73-2.73l-.15-.08a2 2 0 0 1-1-1.74v-.5a2 2 0 0 1 1-1.74l.15-.09a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z"/><circle cx="12" cy="12" r="3"/>',
+  calendar: '<rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/>',
+  route: '<circle cx="6" cy="19" r="3"/><path d="M9 19h8.5a3.5 3.5 0 0 0 0-7h-11a3.5 3.5 0 0 1 0-7H15"/><circle cx="18" cy="5" r="3"/>',
+  pen: '<path d="M12 20h9"/><path d="M16.4 3.6a2 2 0 0 1 3 3L7 19l-4 1 1-4Z"/>',
+  star: '<path d="M12 3l1.9 5.8L20 11l-6.1 2.2L12 19l-1.9-5.8L4 11l6.1-2.2Z"/>',
   user: '<circle cx="12" cy="8" r="4"/><path d="M20 21a8 8 0 0 0-16 0"/>',
   out: '<path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><path d="m16 17 5-5-5-5"/><path d="M21 12H9"/>',
   lock: '<rect x="4" y="11" width="16" height="10" rx="2"/><path d="M8 11V7a4 4 0 0 1 8 0v4"/>',
@@ -31,8 +34,8 @@ if (!me) {
 if (me) {
   const creative = /view=creative/.test(location.search) || location.pathname.startsWith('/creative');
   const has = k => me.dashboards.includes(k), owner = me.role === 'owner';
-  const items = [['/', L('التحليلات', 'Analytics'), 'chart', !creative, has('ceo')], ['/?view=creative', L('الكرييتف', 'Creative'), 'image', creative, has('creative')],
-    ['/control/', L('لوحة القرارات', 'Decision board'), 'gavel', false, has('control')],
+  const items = [['/', L('التحليلات', 'Analytics'), 'chart', !creative, has('ceo')], ['/?view=creative', L('الكرييتف', 'Creative'), 'image', creative, has('creative')], ['/maestro/', L('المايسترو', 'Maestro'), 'star', false, has('maestro')],
+    ['/control/', L('لوحة القرارات', 'Decision board'), 'gavel', false, has('control')], ['/social/', L('السوشال', 'Social'), 'calendar', false, has('social')], ['/journeys/', L('الرحلات والرسائل', 'Journeys'), 'route', false, has('journeys')], ['/content/', L('المحتوى و SEO', 'Content & SEO'), 'pen', false, has('content')],
     ['/connectors/', L('الربط', 'Connectors'), 'plug', false, has('connectors')]];
   const initials = (me.name || me.email).trim().split(/\s+/).map(w => w[0]).join('').slice(0, 2).toUpperCase();
   const role = owner ? L('المالكة', 'Owner') : (me.departments || []).length ? L('مدير قسم', 'Department manager') : L('عضو', 'Member');
@@ -93,5 +96,4 @@ if (me) {
   }`;
   document.head.appendChild(css);
   document.body.append(side, scrim, burger);
-  keepTabs(side);
 }

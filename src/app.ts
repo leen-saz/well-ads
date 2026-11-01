@@ -7,8 +7,12 @@ import type { AuthEnv } from './lib/auth';
 import { withSecurityHeaders } from './lib/headers';
 import { serveSite } from './lib/site';
 import { dispatchRefresh, type CronEnv } from './lib/cron';
+import { runSocial } from './lib/social-cron';
+// Cloudflare Workflows: the class must be exported from the Worker entry
+export { JourneyRun } from './lib/journey-workflow';
 
 type Bindings = Env & AuthEnv;
+const SOCIAL_CRON = '*/5 * * * *';
 
 // Requests produced by a gateway rewrite (department or creative copy) skip the gateway the second time.
 const REWRITTEN = new WeakSet<Request>();
@@ -43,8 +47,8 @@ app.use(pages());
 
 export default {
   fetch: app.fetch,
-  // Cloudflare Cron Trigger (production only): start the hourly data refresh on GitHub Actions
-  scheduled(_event: ScheduledController, env: CronEnv, ctx: ExecutionContext) {
-    ctx.waitUntil(dispatchRefresh(env));
+  // Cloudflare Cron Triggers (production only): the hourly data refresh on GitHub Actions, and every 5 minutes the due social posts
+  scheduled(event: ScheduledController, env: CronEnv & AuthEnv, ctx: ExecutionContext) {
+    ctx.waitUntil(event.cron === SOCIAL_CRON ? runSocial(env) : dispatchRefresh(env));
   },
 };
