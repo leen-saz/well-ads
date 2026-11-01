@@ -19,8 +19,8 @@
       "workers_dev": false,
       "vars": { "APP_ENV": "production", "OWNER_EMAIL": "leen.sulaiman@wellunion.co" },
       "r2_buckets": [{ "binding": "FILES", "bucket_name": "well-ads-files" }],
-      // Hourly data refresh (src/lib/cron.ts): GitHub's own schedule never fired for this repo
-      "triggers": { "crons": ["7 * * * *"] }
+      // Hourly data refresh (src/lib/cron.ts): GitHub's own schedule never fired for this repo; every 5 minutes: due social posts
+      "triggers": { "crons": ["7 * * * *", "*/5 * * * *"] }
     }
   },
   "vars": { "APP_ENV": "local", "OWNER_EMAIL": "leen.sulaiman@wellunion.co" },
