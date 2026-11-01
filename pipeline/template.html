@@ -150,6 +150,16 @@ input[type=search]{width:min(240px,100%)}
 .range-label b{color:var(--ink);font-family:var(--f-num);font-weight:600}
 
 /* KPIs */
+.kgroups{display:grid;gap:18px}
+.kgroup{display:grid;gap:8px}
+.khead{display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap}
+.khead h3{margin:0;font-size:.95rem;font-weight:600;color:var(--ink)}
+.seg-sm button{font-size:.78rem;padding:3px 10px}
+.knote{margin:0;font-size:.8rem;color:var(--muted)}
+.kstrip{display:flex;flex-wrap:wrap;gap:6px 22px;background:var(--surface);box-shadow:var(--lift);border-radius:var(--r);padding:10px 14px}
+.kstrip>div{display:flex;align-items:baseline;gap:6px}
+.kstrip .l{font-size:.8rem;color:var(--muted)}
+.kstrip .v{font-size:.95rem;font-weight:600;color:var(--ink)}
 .kpis{display:grid;grid-template-columns:repeat(auto-fill,minmax(min(100%,210px),1fr));gap:10px}
 .kpi{background:var(--surface);border:0;box-shadow:var(--lift);border-radius:var(--r);padding:12px 14px;display:grid;gap:2px;min-width:0}
 .kpi .l{font-size:.82rem;color:var(--muted)}
@@ -405,7 +415,7 @@ td.cap{white-space:normal;min-width:200px;max-width:360px}
       <div class="filter-tools">
         <label for="filterOpen" class="filter-fab btn">الفلاتر</label>
       </div>
-  <section data-mode="ads" data-page="overview channels depts creative dept" class="kpis" id="kpis" aria-label="الملخص"></section>
+  <section data-mode="ads" data-page="overview channels depts creative dept" class="kgroups" id="kpis" aria-label="الملخص"></section>
   <section data-mode="ads" data-page="overview dept" class="panel" aria-labelledby="winsH">
     <div class="panel-h"><h2 id="winsH">نجاحات هالأسبوع</h2><span class="sub" id="winsSub"></span></div>
     <div class="wins" id="wins"></div>
@@ -566,6 +576,11 @@ const EN = {
   'قارن جنب بعض':'Compare side by side',
   'الاقفالات (مدفوعة)':'Closings (paid)',
   'المدفوع':'Paid',
+  'المبيعات':'Sales',
+  'الوصول والتفاعل':'Reach and engagement',
+  'اقفالات من الإعلانات':'Closings from ads',
+  'العائد على الإعلان':'ROAS',
+  'ولا اقفالة مدفوعة مربوطة بإعلان في هالفترة':'No paid closing is linked to an ad in this period',
   'الاقفالات (كل المصادر)':'Closings (all sources)',
   'المدفوع (كل المصادر)':'Paid (all sources)',
   'الاقفالات حسب':'Closings by',
@@ -1291,32 +1306,36 @@ function delta(a,b,lowerIsBetter){
 document.addEventListener('click', e => { const b = e.target.closest && e.target.closest('[data-crmby]'); if(!b) return; S.crmBy = b.dataset.crmby; render(); });
 function renderKpis(now,prev){
   const a=derive(now.tot), b=cur&&cur.compareOk&&prev?derive(prev.tot):{};
-  const K=[
+  // A card: [label, value, unit, delta, hero]. No comparison → no line (less noise).
+  const card = ([l,v,u,d,hero]) => `<div class="kpi${hero?' hero':''}"><span class="l">${l}</span><span class="v">${v}${u?`<small>${u}</small>`:''}</span>${/لا مقارنة/.test(d)?'':(l==='الصرف'?d.replace(/delta (good|bad)">/,'delta flat">'):d)}</div>`;
+  const group = (title, cards, tools='', note='') => `<div class="kgroup"><div class="khead"><h3>${title}</h3>${tools}</div><div class="kpis">${cards.map(card).join('')}</div>${note?`<p class="knote">${note}</p>`:''}</div>`;
+  const ads = [
     ['الصرف',sar(a.spend),money(),delta(a.spend,b.spend,null),true],
     ['الليدز',qty(a.leads),'',delta(a.leads,b.leads,false)],
     ['تكلفة الليد',sar(a.cpl),money(),delta(a.cpl,b.cpl,true)],
-    ...(D.crm ? [
-      ['الاقفالات (مدفوعة)',fmt(a.booked||0),'',delta(a.booked,b.booked,false)],
-      ['تكلفة الاقفالة',sar(a.cpb),money(),delta(a.cpb,b.cpb,true)],
-      ['نسبة الاقفال',pct(a.closeRate),'',delta(a.closeRate,b.closeRate,false)],
-      ['المدفوع',sar(a.value||0),money(),delta(a.value,b.value,false)],
-      ['ROAS',a.roas==null?'—':fmt(a.roas,2)+'×','',delta(a.roas,b.roas,false)],
-      ...(D.crm.paid_all ? [
-        ['الاقفالات (كل المصادر)',fmt(a.allPaidN||0),'',delta(a.allPaidN,b.allPaidN,false)],
-        ['المدفوع (كل المصادر)',sar(a.allPaid||0),money(),delta(a.allPaid,b.allPaid,false)],
-      ] : []),
-    ] : []),
     ['محادثات واتساب وماسنجر',fmt(a.conv),'',delta(a.conv,b.conv,false)],
-    ['الظهور',fmt(a.impr),'',delta(a.impr,b.impr,false)],
-    ['نقرات الرابط والسوايب',fmt(a.clicks),'',delta(a.clicks,b.clicks,false)],
-    ['نسبة النقر',pct(a.ctr),'',delta(a.ctr,b.ctr,false)],
-    ['تكلفة النقرة',sar(a.cpc),money(),delta(a.cpc,b.cpc,true)],
-    ['تكلفة الألف ظهور',sar(a.cpm),money(),delta(a.cpm,b.cpm,true)],
   ];
-  const by = D.crm ? `<div class="kpi crm-by"><span class="l">${tr('الاقفالات حسب')}</span><span class="seg" role="group">`
-    + [['lead','يوم الليد'],['paid','يوم الدفع']].map(([v,l])=>`<button type="button" data-crmby="${v}" aria-pressed="${(S.crmBy||'lead')===v}">${tr(l)}</button>`).join('')
-    + `</span></div>` : '';
-  $('#kpis').innerHTML = by + K.map(([l,v,u,d,hero])=>`<div class="kpi${hero?' hero':''}"><span class="l">${l}</span><span class="v">${v}${u?`<small>${u}</small>`:''}</span>${d.replace('class="delta','class="delta').replace(/delta (good|bad)">/, (m,g)=> l==='الصرف' ? 'delta flat">' : m)}</div>`).join('');
+  let sales = '';
+  if(D.crm){
+    const fromAds = (a.booked||0) > 0 || (b.booked||0) > 0;
+    const cards = [
+      ...(D.crm.paid_all ? [
+        ['الاقفالات',fmt(a.allPaidN||0),'',delta(a.allPaidN,b.allPaidN,false),true],
+        ['المدفوع',sar(a.allPaid||0),money(),delta(a.allPaid,b.allPaid,false)],
+      ] : []),
+      ...(fromAds ? [
+        ['اقفالات من الإعلانات',fmt(a.booked||0),'',delta(a.booked,b.booked,false)],
+        ['تكلفة الاقفالة',sar(a.cpb),money(),delta(a.cpb,b.cpb,true)],
+        ['العائد على الإعلان',a.roas==null?'—':fmt(a.roas,2)+'×','',delta(a.roas,b.roas,false)],
+      ] : []),
+    ];
+    const tools = `<span class="seg seg-sm" role="group" aria-label="${tr('الاقفالات حسب')}">`
+      + [['lead','يوم الليد'],['paid','يوم الدفع']].map(([v,l])=>`<button type="button" data-crmby="${v}" aria-pressed="${(S.crmBy||'lead')===v}">${tr(l)}</button>`).join('') + `</span>`;
+    sales = group('المبيعات', cards, tools, fromAds ? '' : 'ولا اقفالة مدفوعة مربوطة بإعلان في هالفترة');
+  }
+  const reach = [['الظهور',fmt(a.impr)],['النقرات',fmt(a.clicks)],['نسبة النقر',pct(a.ctr)],['تكلفة النقرة',sar(a.cpc)+' '+money()],['تكلفة الألف ظهور',sar(a.cpm)+' '+money()]];
+  $('#kpis').innerHTML = group('الإعلانات', ads) + sales
+    + `<div class="kgroup"><div class="khead"><h3>الوصول والتفاعل</h3></div><div class="kstrip">${reach.map(([l,v])=>`<div><span class="l">${l}</span><span class="v num">${v}</span></div>`).join('')}</div></div>`;
 }
 
 function noteCard(title, line, alert){
