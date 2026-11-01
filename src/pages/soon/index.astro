@@ -1,0 +1,34 @@
+---
+// Ported as-is from well-ads-dashboard web/public/soon/index.html
+---
+<!doctype html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="robots" content="noindex,nofollow">
+<meta name="referrer" content="no-referrer">
+<meta name="theme-color" content="#F6F0E3">
+<title>قريباً · Well</title>
+<link rel="preload" href="/assets/fonts/thmanyahsans-Regular.woff2" as="font" type="font/woff2" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@900&display=swap">
+<link rel="stylesheet" href="/assets/app.css">
+<style is:global>
+.sn{max-width:640px;padding:24px 28px}
+.sn h2{margin:0 0 6px;font-size:18px}
+.sn ul{margin:14px 0 0;padding-inline-start:20px;display:grid;gap:8px}
+.sn-note{margin:18px 0 0;font-size:13px}
+</style>
+</head>
+<body>
+<div class="app" id="app">
+  <aside class="side" id="side" aria-label="القائمة"></aside>
+  <div class="scrim"></div>
+  <div class="main">
+    <header class="topbar" id="top"></header>
+    <main class="content" id="content" aria-live="polite"></main>
+  </div>
+</div>
+<script is:inline type="module" src="/assets/soon.js"></script>
+</body>
+</html>

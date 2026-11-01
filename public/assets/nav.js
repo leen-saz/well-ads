@@ -1,5 +1,6 @@
 // نفس القائمة الجانبية حق لوحة القرارات، فوق اللوحات (/ و/creative): موقع واحد.
 // كل الأقسام تطلع للكل، واللي ما له صلاحية عليه يطلع مقفل. في الجوال: زر قائمة يفتح درج.
+import { SOON } from './tabs.js';
 const EN = (() => { try { return new URLSearchParams(location.search).get('lang') === 'en' || localStorage.getItem('well-ads-lang') === 'en'; } catch { return false; } })();
 const L = (ar, en) => EN ? en : ar;
 const P = {
@@ -38,6 +39,7 @@ if (me) {
   side.innerHTML = `<a class="wl-mark" href="/">Well<i>.</i></a>
     ${items.map(([h, t, ic, on, ok]) => ok ? `<a class="wl-navi" href="${h}"${on ? ' aria-current="page"' : ''}>${I(ic)}<span>${t}</span></a>`
       : `<span class="wl-navi wl-locked" aria-disabled="true" title="${L('ما عندك صلاحية', 'No access')}">${I(ic)}<span>${t}</span>${I('lock')}</span>`).join('')}
+    ${SOON.map(s => `<a class="wl-navi wl-soon" href="/soon/?t=${s.key}"><svg class="wl-i" viewBox="0 0 24 24" aria-hidden="true">${s.icon}</svg><span>${L(s.ar, s.en)}</span><small class="wl-tag">${L('قريباً', 'Soon')}</small></a>`).join('')}
     <div class="wl-grow"></div>
     <a class="wl-navi" href="/account/">${I('user')}<span>${L('حسابي', 'My account')}</span></a>
     <form method="post" action="/api/auth/logout" class="wl-out"><button type="submit" class="wl-navi">${I('out')}<span>${L('خروج', 'Sign out')}</span></button></form>
@@ -58,7 +60,7 @@ if (me) {
   css.textContent = `
   body{padding-inline-start:256px}
   .brand .mark{display:none}
-  .wl-side{position:fixed;inset-block:0;inset-inline-start:0;width:256px;z-index:60;display:flex;flex-direction:column;gap:4px;padding:24px 16px;
+  .wl-side{position:fixed;inset-block:0;inset-inline-start:0;width:256px;z-index:60;overflow-y:auto;display:flex;flex-direction:column;gap:4px;padding:24px 16px;
     background:rgba(255,255,255,.62);-webkit-backdrop-filter:blur(12px);backdrop-filter:blur(12px);font:400 15px/1.4 "Thmanyah Sans",system-ui,sans-serif;color:#1D1069}
   .wl-mark{font:900 26px/1 "Playfair Display",Georgia,serif;color:#1D1069;text-decoration:none;padding:4px 16px 22px;direction:ltr;text-align:start}
   .wl-mark i{color:#7E57FD;font-style:normal}
@@ -69,6 +71,8 @@ if (me) {
   .wl-navi[aria-current]{background:#7E57FD;color:#FFFFFF;font-weight:500;box-shadow:0 6px 18px rgba(126,87,253,.28)}
   .wl-locked{opacity:.45;cursor:not-allowed}.wl-locked:hover{background:transparent}.wl-locked .wl-i:last-child{width:14px;height:14px;margin-inline-start:auto}
   .wl-i{width:18px;height:18px;stroke:currentColor;fill:none;stroke-width:1.75;stroke-linecap:round;stroke-linejoin:round;flex:none}
+  .wl-soon{height:40px;font-size:14px}
+  .wl-tag{margin-inline-start:auto;flex:none;font:500 11px/1 "Thmanyah Sans",system-ui,sans-serif;padding:4px 8px;border-radius:999px;background:rgba(126,87,253,.12);color:#1D1069}
   .wl-grow{flex:1}
   .wl-me{display:flex;align-items:center;gap:10px;padding:10px 8px 0;border-top:1px solid rgba(172,166,225,.35);margin-top:6px}
   .wl-me b{display:block;font-size:14px;font-weight:700;max-width:170px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.wl-me small{color:rgba(29,16,105,.62);font-size:12px}

@@ -58,6 +58,21 @@ header{display:flex;flex-wrap:wrap;align-items:flex-end;justify-content:space-be
 .pill.warn{background:transparent;border:1px solid var(--pulse);color:var(--ink)}
 .hookrow{display:flex;gap:10px;flex-wrap:wrap;font-size:.75rem;color:var(--muted)}
 .hookrow b{color:var(--ink);font-family:var(--f-num)}
+.aud{display:grid;gap:10px}
+.aud-h{display:flex;flex-wrap:wrap;gap:8px;align-items:center;justify-content:space-between}
+.aud-bar{height:8px;border-radius:999px;background:var(--chip);min-width:60px;overflow:hidden}
+.aud-bar i{display:block;height:100%;background:var(--accent);border-radius:999px}
+.aud-best{display:grid;gap:6px;padding:12px 14px;border:1px solid var(--line);border-radius:14px;background:var(--surface)}
+.aud-best h3,.scn h3{margin:0;font-size:.95rem}
+.aud-best li,.scn li{font-size:.85rem}
+.aud-best ul,.scn ul{margin:0;padding-inline-start:18px;display:grid;gap:4px}
+.aud-hours{display:grid;grid-template-columns:repeat(24,1fr);gap:2px;align-items:end;height:70px;direction:ltr}
+.aud-hours span{background:var(--accent);border-radius:3px 3px 0 0;min-height:2px}
+.aud-hours span.top{background:var(--ink)}
+.scn{display:grid;gap:8px;padding:12px 14px;border:1px solid var(--line);border-radius:14px;background:var(--surface)}
+.scn svg{width:100%;height:auto;direction:ltr}
+.scn polyline{fill:none;stroke:var(--accent);stroke-width:2.5}
+.scn .drop{fill:none;stroke:var(--pulse);stroke-width:3}
 .pill.tired{background:transparent;border:1px solid var(--bad);color:var(--ink)}
 .cmp{display:flex;align-items:center;gap:6px;font-size:.78rem;color:var(--muted);cursor:pointer}
 .cmp-bar[hidden]{display:none}
@@ -1797,6 +1812,83 @@ function weekly(k){
   const lead=ADS[k].goal==='lead';
   return `<div><div class="sub">${ui('أسبوع بأسبوع من أول ما اشتغل الإعلان','Week by week since the ad started')}</div><div class="tbl"><table><thead><tr><th>${ui('الأسبوع','Week')}</th><th class="n">${ui('الصرف','Spend')}</th><th class="n">${ui('الظهور','Impressions')}</th><th class="n">${ui('نسبة النقر','CTR')}</th>${lead?`<th class="n">${ui('الليدز','Leads')}</th><th class="n">${ui('تكلفة الليد','CPL')}</th>`:''}</tr></thead><tbody>${rows.map(([wk,x])=>`<tr><td>${nice(wk)}</td><td class="n">${sar(x.sp)}</td><td class="n">${fmt(x.im)}</td><td class="n">${x.im?pct(100*x.cl/x.im):'—'}</td>${lead?`<td class="n">${qty(x.ld)}</td><td class="n">${x.ld?sar(x.sp/x.ld):'—'}</td>`:''}</tr>`).join('')}</tbody></table></div></div>`;
 }
+// ---- المشاهدين ومشاهد الفيديو (من a.aud و a.vid). كل صف [الفئة، ظهور، نقرات، صرف، ليدز أو null]
+const AUD_DIMS=[['age','العمر','Age'],['gender','الجنس','Gender'],['region','المنطقة','Region'],['device','الجهاز','Device'],['place','المنصة','Placement'],['hour','وقت المشاهدة','Time of day']];
+const AUD_WORD={male:['ذكور','Men'],female:['إناث','Women'],unknown:['غير معروف','Unknown'],android_smartphone:['أندرويد جوال','Android phone'],android_tablet:['أندرويد تابلت','Android tablet'],
+  iphone:['آيفون','iPhone'],ipad:['آيباد','iPad'],ipod:['آيبود','iPod'],desktop:['كمبيوتر','Desktop'],mobile:['جوال','Mobile'],tablet:['تابلت','Tablet'],connected_tv:['تلفزيون','TV'],ios:['آيفون (iOS)','iOS'],android:['أندرويد','Android'],
+  facebook:['فيسبوك','Facebook'],instagram:['انستقرام','Instagram'],messenger:['ماسنجر','Messenger'],audience_network:['شبكة الجمهور','Audience Network'],threads:['ثريدز','Threads'],tiktok:['تيك توك','TikTok'],pangle:['Pangle','Pangle']};
+const AUD_REGION=[[/riyadh/i,'الرياض'],[/makkah|mecca/i,'مكة المكرمة'],[/eastern|sharqiyah/i,'الشرقية'],[/madinah|medina/i,'المدينة المنورة'],[/qassim|qasim/i,'القصيم'],[/asir|aseer/i,'عسير'],[/tabuk/i,'تبوك'],[/hail|ha'il/i,'حائل'],[/jazan|jizan/i,'جازان'],[/najran/i,'نجران'],[/bahah|baha/i,'الباحة'],[/jawf|jouf/i,'الجوف'],[/northern/i,'الحدود الشمالية']];
+function audLabel(dim,v){
+  if(dim==='hour') return `${+v}:00`;
+  const w=AUD_WORD[String(v).toLowerCase()]; if(w) return ui(w[0],w[1]);
+  if(dim==='region'&&LANG!=='en'){ const r=AUD_REGION.find(([re])=>re.test(v)); if(r) return r[1]; }
+  return String(v);
+}
+// أكثر فئة تتفاعل: أعلى نسبة نقر بين الفئات اللي لها ظهور كافي (5% من البعد و100 ظهور على الأقل)، وأرخص ليد إذا الليدز متوفرة
+function audBest(rows){
+  const tot=rows.reduce((s,r)=>s+r[1],0), clk=rows.reduce((s,r)=>s+r[2],0); if(!tot) return null;
+  const ok=rows.filter(r=>r[1]>=Math.max(100,tot*.05)); if(!ok.length) return null;
+  const ctr=r=>100*r[2]/r[1], avg=100*clk/tot;
+  const top=ok.reduce((b,r)=>ctr(r)>ctr(b)?r:b);
+  const withLeads=ok.filter(r=>r[4]>0), cheap=withLeads.length?withLeads.reduce((b,r)=>r[3]/r[4]<b[3]/b[4]?r:b):null;
+  return {top, ctr:ctr(top), lift:avg?ctr(top)/avg-1:null, cheap, cpl:cheap?cheap[3]/cheap[4]:null};
+}
+function audTable(dim,rows,lead){
+  const tot=rows.reduce((s,r)=>s+r[1],0)||1;
+  if(dim==='hour'){
+    const by=Array.from({length:24},(_,h)=>rows.find(r=>+r[0]===h)||[h,0,0,0,null]), max=Math.max(...by.map(r=>r[1]),1), best=audBest(rows);
+    return `<div class="aud-hours" role="img" aria-label="${ui('الظهور حسب ساعة اليوم','Impressions by hour of day')}">${by.map(r=>`<span${best&&+best.top[0]===+r[0]?' class="top"':''} style="height:${Math.max(2,100*r[1]/max)}%" title="${audLabel('hour',r[0])}: ${fmt(r[1])} ${ui('ظهور','impr.')} · ${ui('نسبة النقر','CTR')} ${r[1]?pct(100*r[2]/r[1]):'—'}"></span>`).join('')}</div>
+      <div class="sub" style="display:flex;justify-content:space-between;direction:ltr"><span>0:00</span><span>12:00</span><span>23:00</span></div>`;
+  }
+  const showLeads=lead&&rows.some(r=>r[4]!=null);
+  return `<div class="tbl"><table><thead><tr><th>${ui('الفئة','Segment')}</th><th>${ui('من الظهور','Share of impressions')}</th><th class="n">${ui('نسبة النقر','CTR')}</th><th class="n">${ui('الصرف','Spend')}</th>${showLeads?`<th class="n">${ui('الليدز','Leads')}</th><th class="n">${ui('تكلفة الليد','CPL')}</th>`:''}</tr></thead>
+    <tbody>${rows.slice(0,12).map(r=>`<tr><td>${esc(audLabel(dim,r[0]))}</td><td><div style="display:flex;gap:8px;align-items:center"><div class="aud-bar" style="flex:1"><i style="width:${100*r[1]/tot}%"></i></div><span class="sub">${pct(100*r[1]/tot)}</span></div></td><td class="n">${r[1]?pct(100*r[2]/r[1]):'—'}</td><td class="n">${sar(r[3])}</td>${showLeads?`<td class="n">${r[4]==null?'—':qty(r[4])}</td><td class="n">${r[4]?sar(r[3]/r[4]):'—'}</td>`:''}</tr>`).join('')}</tbody></table></div>`;
+}
+function audBox(a, dim){
+  const A=a.aud; if(!A) return '';
+  const dims=AUD_DIMS.filter(([d])=>A[d]&&A[d].length); if(!dims.length) return '';
+  const on=dims.some(([d])=>d===dim)?dim:dims[0][0], lead=a.goal==='lead';
+  const fam=family(a.platform), notes=[ui('آخر 30 يوم','Last 30 days')];
+  if(A.hour&&(fam==='snap'||fam==='tiktok')) notes.push(ui('الساعة: آخر 7 أيام بتوقيت الرياض','Hours: last 7 days, Riyadh time'));
+  if(A.lvl==='group') notes.push(ui('قوقل يعطي العمر والجنس والمنطقة والساعة للمجموعة الإعلانية كاملة','Google reports age, gender, region and hour for the whole ad group'));
+  if(fam==='snap') notes.push(ui('سناب ما يقسم الليدز على الفئات، والنقرات هي السوايب','Snap does not split leads by segment; clicks are swipes'));
+  const best=dims.map(([d,ar,en])=>{ const b=audBest(A[d]); if(!b) return '';
+    const lift=b.lift!=null&&isFinite(b.lift)&&Math.abs(b.lift)>=.05?` (${b.lift>0?ui('أعلى','above'):ui('أقل','below')} ${ui('من المتوسط بـ','average by')} ${fmt(Math.abs(b.lift)*100)}%)`:'';
+    const cheap=lead&&b.cheap?` · ${ui('أرخص ليد','cheapest lead')}: ${esc(audLabel(d,b.cheap[0]))} ${sar(b.cpl)} ${money()}`:'';
+    return `<li><b>${ui(ar,en)}:</b> ${esc(audLabel(d,b.top[0]))} · ${ui('نسبة النقر','CTR')} ${pct(b.ctr)}${lift}${cheap}</li>`; }).filter(Boolean);
+  return `<section class="aud" data-aud-root>
+    <div class="aud-h"><h3 style="margin:0">${ui('المشاهدين','Audience')}</h3><span class="sub">${notes.join(' · ')}</span></div>
+    ${best.length?`<div class="aud-best"><h3>${ui('المشاهدين الأكثر تفاعل','Most engaged viewers')}</h3><ul>${best.join('')}</ul><span class="sub">${ui('الفئة لازم يكون لها 5% من الظهور على الأقل عشان تنحسب','A segment needs at least 5% of impressions to count')}</span></div>`:''}
+    <div class="seg" role="group" aria-label="${ui('تفاصيل المشاهدين','Audience breakdown')}">${dims.map(([d,ar,en])=>`<button type="button" data-aud-dim="${d}" aria-pressed="${d===on}">${ui(ar,en)}</button>`).join('')}</div>
+    ${audTable(on,A[on],lead)}
+  </section>`;
+}
+// مشاهد الفيديو: منحنى ميتا ثانية بثانية، وغيرها من أرباع الفيديو
+const CURVE_S=[0,1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,20,25,30,40,50,60];
+function scenesBox(a){
+  const v=a.vid; if(!v||!v.v) return '';
+  let pts, unit;
+  if(v.pc&&v.pc.length>2){ pts=v.pc.map((p,i)=>[CURVE_S[i]??i, p]); const z=pts.findIndex(p=>p[1]===0); if(z>1) pts=pts.slice(0,z+1); unit='s'; }   // الأصفار بعد نهاية الفيديو ما تنرسم
+  else if(v.q&&v.q.some(Boolean)){ pts=[[0,100],...v.q.map((n,i)=>[25*(i+1), Math.min(100,100*n/v.v)])]; unit='%'; }
+  else return '';
+  const W=640,H=140,maxX=pts[pts.length-1][0]||1, X=x=>8+(W-16)*x/maxX, Y=y=>8+(H-16)*(1-y/100);
+  let drop=null, calm=null;
+  for(let i=1;i<pts.length;i++){ const d=pts[i-1][1]-pts[i][1]; if(!drop||d>drop.d) drop={i,d}; if(!calm||d<calm.d) calm={i,d}; }
+  const at=s=>unit==='s'?ui(`الثانية ${s}`,`second ${s}`):ui(`${s}% من الفيديو`,`${s}% of the video`);
+  const half=pts.find(p=>p[1]<50), hook=unit==='s'?(pts.find(p=>p[0]===3)||[])[1]:null, lines=[];
+  if(drop&&drop.d>0) lines.push(`${ui('أكثر مكان يطلعون فيه','Biggest drop-off')}: ${ui('بين','between')} ${at(pts[drop.i-1][0])} ${ui('و','and')} ${at(pts[drop.i][0])} (${ui('نزل','fell')} ${fmt(drop.d)} ${ui('نقطة','points')})`);
+  if(calm&&pts.length>3) lines.push(`${ui('أقوى مقطع يمسك المشاهد','Strongest stretch')}: ${ui('بين','between')} ${at(pts[calm.i-1][0])} ${ui('و','and')} ${at(pts[calm.i][0])}`);
+  if(hook!=null) lines.push(`${ui('باقين بعد أول 3 ثواني','Still watching after 3 seconds')}: ${pct(hook)}`);
+  if(half) lines.push(`${ui('نص المشاهدين طلعوا قبل','Half the viewers left before')} ${at(half[0])}`);
+  if(unit==='%'&&v.c) lines.push(`${ui('كمّلوا الفيديو كامل','Watched the whole video')}: ${pct(100*v.c/v.v)}`);
+  const dl=drop&&drop.d>0?`<line class="drop" x1="${X(pts[drop.i-1][0])}" y1="${Y(pts[drop.i-1][1])}" x2="${X(pts[drop.i][0])}" y2="${Y(pts[drop.i][1])}"/>`:'';
+  return `<section class="scn"><h3>${ui('مشاهد الفيديو الأكثر تفاعل','Most engaging video moments')}</h3>
+    <svg viewBox="0 0 ${W} ${H+18}" role="img" aria-label="${ui('نسبة اللي باقين يشوفون الفيديو','Share still watching')}"><line class="grid" x1="8" x2="${W-8}" y1="${Y(50)}" y2="${Y(50)}"/><polyline points="${pts.map(p=>`${X(p[0])},${Y(p[1])}`).join(' ')}"/>${dl}
+      <text x="8" y="${H+14}" text-anchor="start">${unit==='s'?'0s':'0%'}</text><text x="${W-8}" y="${H+14}" text-anchor="end">${unit==='s'?maxX+'s':'100%'}</text></svg>
+    <ul>${lines.map(l=>`<li>${l}</li>`).join('')}</ul>
+    <span class="sub">${unit==='s'?ui('من منحنى ميتا: نسبة اللي باقين يشوفون عند كل ثانية','From Meta\'s curve: share still watching at each second'):ui('المنصة تعطي أرباع الفيديو بس، مو كل ثانية','This platform only reports video quarters, not each second')}</span>
+  </section>`;
+}
 function openAd(k){
   const a=ADS[k], o=derive(cur.now.byAd[k]||{spend:0,impr:0,clicks:0,leads:0,conv:0,leadSpend:0,days:{}});
   const days=[]; for(let d=S.from; d<=S.to; d=addDays(d,1)) days.push(d);
@@ -1831,10 +1923,13 @@ function openAd(k){
       <div><div class="k">تكلفة النقرة</div><div class="mini">${sar(o.cpc)}</div></div>
       <div><div class="k">تكلفة الألف ظهور</div><div class="mini">${sar(o.cpm)}</div></div>
     </div>
+    ${scenesBox(a)}
+    ${audBox(a)}
     <div><div class="sub">الصرف اليومي في الفترة المختارة</div><div class="chart">${sp}</div></div>
     ${weekly(k)}`;
   const dlg=$('#dlg'); if(!dlg.open) dlg.showModal(); $('#dlgClose').onclick=()=>dlg.close();
-  $('#dlgBody').onclick=e=>{ const v=e.target.closest('[data-view]'); if(!v || v.tagName==='A') return; e.preventDefault(); openCreative(a, k); };
+  $('#dlgBody').onclick=e=>{ const d=e.target.closest('[data-aud-dim]'); if(d){ const box=d.closest('[data-aud-root]'); box.outerHTML=audBox(a, d.dataset.audDim); localize(); $(`[data-aud-dim="${d.dataset.audDim}"]`)?.focus(); return; }
+    const v=e.target.closest('[data-view]'); if(!v || v.tagName==='A') return; e.preventDefault(); openCreative(a, k); };
   $('#dlgBody').onkeydown=e=>{ if((e.key==='Enter'||e.key===' ') && e.target.matches('.thumb[data-view]')){ e.preventDefault(); openCreative(a, k); } };
   localize();
 }

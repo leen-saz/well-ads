@@ -23,6 +23,7 @@ from classify import apply_all, public_config
 from common import env, http
 from organic import collect_organic, clip as clip_err
 from tiktok.fetch import ingest_tiktok
+import audience
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 DATA_PATH = os.path.join(HERE, "data.json")
@@ -49,6 +50,28 @@ FROM = None
 RANGE_START = None
 TO = TODAY
 CACHE = {}
+AUD_EVERY_H = 6   # تفاصيل المشاهدين ثقيلة: تنسحب كل 6 ساعات، وبينها تبقى آخر نسخة
+
+
+def audience_due(prev=None, now=None):
+    """تنسحب تفاصيل المشاهدين إذا ما فيه نسخة سابقة، أو مر عليها AUD_EVERY_H ساعات، أو AUDIENCE=1."""
+    if os.environ.get("AUDIENCE") == "1":
+        return True
+    at = ((PREV if prev is None else prev) or {}).get("aud_at")
+    if not at:
+        return True
+    try:
+        return (now or datetime.now(RIYADH)) - datetime.fromisoformat(at) >= timedelta(hours=AUD_EVERY_H)
+    except ValueError:
+        return True
+
+
+def keep_audience(prev_ads, ads):
+    """الإعلان اللي ما انسحبت له تفاصيل هالمرة يحتفظ بآخر نسخة."""
+    for key, ad in ads.items():
+        old = (prev_ads or {}).get(key)
+        if "aud" not in ad and isinstance(old, dict) and old.get("aud"):
+            ad["aud"] = old["aud"]
 
 STATUS_AR = {"ACTIVE": "نشط", "ENABLED": "نشط", "PAUSED": "متوقف", "ADSET_PAUSED": "المجموعة متوقفة",
              "CAMPAIGN_PAUSED": "الحملة متوقفة", "DISAPPROVED": "مرفوض", "PENDING_REVIEW": "قيد المراجعة",
@@ -296,6 +319,24 @@ def meta(P):
         print(f"meta: مقاييس فيديو لـ {got} إعلان", file=sys.stderr)
     except Exception as ex:
         print("meta: مقاييس الفيديو ما انسحبت —", str(ex)[:160], file=sys.stderr)
+    # منحنى المشاهدة ثانية بثانية (مشاهد الفيديو). اختياري.
+    try:
+        got = 0
+        for x in pages(g(f"{A}/insights", level="ad", date_preset="maximum", limit=500, fields="ad_id,video_play_curve_actions")):
+            curve = ((x.get("video_play_curve_actions") or [{}])[0].get("value") or [])
+            if not any(curve[1:]):
+                continue
+            for key in [k for k in P.ads if (k == "m" + x["ad_id"] or k.startswith("m" + x["ad_id"] + "|")) and P.ads[k].get("vid")]:
+                P.ads[key]["vid"]["pc"] = [int(v) for v in curve]; got += 1
+        print(f"meta: منحنى مشاهدة لـ {got} إعلان", file=sys.stderr)
+    except Exception as ex:
+        print("meta: منحنى المشاهدة ما انسحب —", str(ex)[:160], file=sys.stderr)
+    if audience_due():
+        try:
+            n = audience.attach(P.ads, "m", audience.meta(E, lambda p, **q: pages(g(p, **q)), act, USD_SAR, LAST_FULL))
+            print(f"meta: تفاصيل المشاهدين لـ {n} إعلان", file=sys.stderr)
+        except Exception as ex:
+            print("meta: تفاصيل المشاهدين ما انسحبت —", str(ex)[:160], file=sys.stderr)
 
 # ---------------- Google ----------------
 def google(P):
@@ -352,6 +393,12 @@ def google(P):
         P.status_catalog = True
     except Exception as ex:
         print("جوجل: تعذر تحديث حالة الإعلانات بلا صرف", str(ex)[:160], file=sys.stderr)
+    if audience_due():
+        try:
+            n = audience.attach(P.ads, "g", audience.google(q, LAST_FULL))
+            print(f"جوجل: تفاصيل المشاهدين لـ {n} إعلان", file=sys.stderr)
+        except Exception as ex:
+            print("جوجل: تفاصيل المشاهدين ما انسحبت —", str(ex)[:160], file=sys.stderr)
 
 # ---------------- Snapchat ----------------
 def snap(P):
@@ -496,6 +543,13 @@ def snap(P):
         print(f"snap: مقاييس فيديو لـ {got} إعلان", file=sys.stderr)
     except Exception as ex:
         print("snap: مقاييس الفيديو ما انسحبت —", str(ex)[:160], file=sys.stderr)
+    if audience_due():
+        try:
+            cids = {squads[a["ad_squad_id"]]["campaign_id"] for a in show if a.get("ad_squad_id") in squads}
+            n = audience.attach(P.ads, "s", audience.snap(g, sorted(cids), LAST_FULL))
+            print(f"snap: تفاصيل المشاهدين لـ {n} إعلان", file=sys.stderr)
+        except Exception as ex:
+            print("snap: تفاصيل المشاهدين ما انسحبت —", str(ex)[:160], file=sys.stderr)
 
 # ---------------- بداية التاريخ ----------------
 def history_start():
@@ -593,6 +647,8 @@ def main():
 
     ADS, ROWS, status, HEALTH = {}, [], {}, {}
     from_s = ds(FROM)
+    aud_fresh = audience_due()
+    aud_at = datetime.now(RIYADH).isoformat(timespec="minutes") if aud_fresh else (PREV or {}).get("aud_at")
     for name, fn in (("meta", meta), ("google", google), ("snap", snap)):
         p = name[0]
         P = Plat()
@@ -625,7 +681,7 @@ def main():
     pending = [{"platform": "tiktok", "reason": "بيانات تيك توك غير متوفرة"}]
     got = ingest_tiktok(
         E, PREV, RECENT, FROM, TO, ds(TODAY), TT_PATH, http, datetime.now(RIYADH),
-        lambda prev_ads, fresh: carry_forward(prev_ads, fresh, "t"),
+        lambda prev_ads, fresh: carry_forward(prev_ads, fresh, "t"), audience_due=aud_fresh,
     )
     if got["ads"]:
         ADS.update(got["ads"])
@@ -645,6 +701,7 @@ def main():
             plat = placement_platform(k.split("|", 1)[1])
         ADS[k] = dict(platform=plat, family=fam, name="إعلان محذوف", campaign="—", group="—",
                       format="", status="محذوف", live=False, text="", thumb=None, link=None, goal="other")
+    keep_audience((PREV or {}).get("ads"), ADS)
     apply_all(ADS)
     channels = annotate(ADS)
     try:
@@ -660,6 +717,7 @@ def main():
             "range": {"start": RANGE_START, "end": ds(LAST_FULL), "today": ds(TODAY)},
             "currency": "SAR", "usd_sar": USD_SAR, "goals": GOALS, "platforms": status,
             "departments": public_config(), "channels": channels,
+            "aud_at": aud_at,
             "ads": ADS, "rows": sorted(ROWS, key=lambda r: (r[1], r[0])),
             "organic": organic, "pending": pending}
     tmp = DATA_PATH + ".tmp"
