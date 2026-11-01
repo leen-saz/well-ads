@@ -8,6 +8,8 @@ export const LANG = (() => {
 })();
 document.documentElement.lang = LANG;
 document.documentElement.dir = LANG === 'en' ? 'ltr' : 'rtl';
+// The ClientRouter copies <html lang/dir> from each new page: put the chosen language back
+document.addEventListener('astro:after-swap', () => { document.documentElement.lang = LANG; document.documentElement.dir = LANG === 'en' ? 'ltr' : 'rtl'; });
 
 const EN = {
   // التنقل والهيكل
@@ -414,9 +416,11 @@ function translate(root) {
 if (LANG === 'en') {
   const go = () => {
     translate(document.body); document.title = t(document.title.replace(' · Well', '')) + ' · Well';
-    new MutationObserver(ms => { for (const m of ms) { if (m.type === 'characterData') { const v = t(m.target.nodeValue); if (v !== m.target.nodeValue) m.target.nodeValue = v; } else m.addedNodes.forEach(n => n.nodeType === 3 ? (n.nodeValue = t(n.nodeValue)) : translate(n)); } })
-      .observe(document.body, { childList: true, subtree: true, characterData: true });
+    OBS.observe(document.body, { childList: true, subtree: true, characterData: true });
   };
+  const OBS = new MutationObserver(ms => { for (const m of ms) { if (m.type === 'characterData') { const v = t(m.target.nodeValue); if (v !== m.target.nodeValue) m.target.nodeValue = v; } else m.addedNodes.forEach(n => n.nodeType === 3 ? (n.nodeValue = t(n.nodeValue)) : translate(n)); } });
+  // Astro's ClientRouter swaps in a new <body>: translate it and watch it too
+  document.addEventListener('astro:after-swap', () => { OBS.disconnect(); go(); });
   document.readyState === 'loading' ? document.addEventListener('DOMContentLoaded', go) : go();
 }
 

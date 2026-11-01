@@ -1,4 +1,5 @@
 ---
+import { ClientRouter } from 'astro:transitions';
 // Ported as-is from well-ads-dashboard web/public/soon/index.html
 ---
 <!doctype html>
@@ -13,6 +14,7 @@
 <link rel="preload" href="/assets/fonts/thmanyahsans-Regular.woff2" as="font" type="font/woff2" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@900&display=swap">
 <link rel="stylesheet" href="/assets/app.css">
+<ClientRouter />
 <style is:global>
 .sn{max-width:640px;padding:24px 28px}
 .sn h2{margin:0 0 6px;font-size:18px}
@@ -20,15 +22,15 @@
 .sn-note{margin:18px 0 0;font-size:13px}
 </style>
 </head>
-<body>
+<body data-page="soon">
 <div class="app" id="app">
-  <aside class="side" id="side" aria-label="القائمة"></aside>
+  <aside class="side" id="side" aria-label="القائمة" transition:persist="side"></aside>
   <div class="scrim"></div>
   <div class="main">
     <header class="topbar" id="top"></header>
     <main class="content" id="content" aria-live="polite"></main>
   </div>
 </div>
-<script is:inline type="module" src="/assets/soon.js"></script>
+<script is:inline type="module" src="/assets/router.js"></script>
 </body>
 </html>
