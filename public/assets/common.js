@@ -24,6 +24,7 @@ const P = {
   gavel: '<path d="m14 13-7.5 7.5a2.1 2.1 0 0 1-3-3L11 10"/><path d="m16 16 6-6"/><path d="m8 8 6-6"/><path d="m9 7 8 8"/><path d="m21 11-8-8"/>',
   users: '<path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.9"/><path d="M16 3.1a4 4 0 0 1 0 7.8"/>',
   calendar: '<rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/>',
+  route: '<circle cx="6" cy="19" r="3"/><path d="M9 19h8.5a3.5 3.5 0 0 0 0-7h-11a3.5 3.5 0 0 1 0-7H15"/><circle cx="18" cy="5" r="3"/>',
   user: '<circle cx="12" cy="8" r="4"/><path d="M20 21a8 8 0 0 0-16 0"/>',
   out: '<path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><path d="m16 17 5-5-5-5"/><path d="M21 12H9"/>',
   menu: '<path d="M4 6h16M4 12h16M4 18h16"/>',
@@ -68,7 +69,7 @@ export async function shell({ active, title, badge = '', tools = '' }) {
   // كل الأقسام تطلع للكل، واللي ما له صلاحية عليه يطلع مقفل
   const owner = me.role === 'owner';
   const items = [['/', 'التحليلات', 'chart', 'ceo', me.dashboards.includes('ceo')], ['/?view=creative', 'الكرييتف', 'image', 'creative', me.dashboards.includes('creative')],
-    ['/control/', 'لوحة القرارات', 'gavel', 'control', me.dashboards.includes('control')], ['/social/', 'السوشال', 'calendar', 'social', me.dashboards.includes('social')],
+    ['/control/', 'لوحة القرارات', 'gavel', 'control', me.dashboards.includes('control')], ['/social/', 'السوشال', 'calendar', 'social', me.dashboards.includes('social')], ['/journeys/', 'الرحلات والرسائل', 'route', 'journeys', me.dashboards.includes('journeys')],
     ['/connectors/', 'الربط', 'plug', 'connectors', me.dashboards.includes('connectors')], ['/admin/', 'الصلاحيات والدخول', 'users', 'admin', owner]];
   const initials = (me.name || me.email).trim().split(/\s+/).map(w => w[0]).join('').slice(0, 2).toUpperCase();
   const app = $('#app');

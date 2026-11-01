@@ -8,6 +8,8 @@ import { withSecurityHeaders } from './lib/headers';
 import { serveSite } from './lib/site';
 import { dispatchRefresh, type CronEnv } from './lib/cron';
 import { runSocial } from './lib/social-cron';
+// Cloudflare Workflows: the class must be exported from the Worker entry
+export { JourneyRun } from './lib/journey-workflow';
 
 type Bindings = Env & AuthEnv;
 const SOCIAL_CRON = '*/5 * * * *';
