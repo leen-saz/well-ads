@@ -6,7 +6,7 @@ import { companyOf } from './tenant';
 export const SESSION = '__Host-well_session';
 export const SESSION_HOURS = 12;
 export const RECHECK_MS = 10 * 60 * 1000; // pages re-read the user's permissions every 10 minutes
-export const DASHBOARDS = { ceo: 'التحليلات', creative: 'الكرييتف', control: 'لوحة القرارات', connectors: 'الربط' } as const;
+export const DASHBOARDS = { ceo: 'التحليلات', creative: 'الكرييتف', control: 'لوحة القرارات', connectors: 'الربط', social: 'السوشال', journeys: 'الرحلات' } as const;
 // Department scope: empty = all departments. A department manager sees only their department.
 export const DEPTS = { iv: 'المحاليل الوريدية', midwife: 'القبالة / رعاية الحمل', foot: 'تقويم القدم', renan: 'رينان لصحة الطفل' } as const;
 export const PASSWORD_MIN = 10;
@@ -122,6 +122,8 @@ export function home(s: Session, cfg?: Cfg): string {
   if (can(s, 'creative', cfg)) return '/?view=creative';
   if (can(s, 'control', cfg)) return '/control/';
   if (can(s, 'connectors', cfg)) return '/connectors/';
+  if (can(s, 'social', cfg)) return '/social/';
+  if (can(s, 'journeys', cfg)) return '/journeys/';
   return '/account/';
 }
 // Blocks redirects to another site after login

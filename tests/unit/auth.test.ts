@@ -35,7 +35,7 @@ describe('auth', () => {
 
   it('owner gets every dashboard, members only what Leen picked', () => {
     const owner = A.sessionFor({ id: member.id, email: 'LEEN@example.com', dashboards: [] }, cfg);
-    expect([...owner.dash].sort()).toEqual(['ceo', 'connectors', 'control', 'creative']);
+    expect([...owner.dash].sort()).toEqual(['ceo', 'connectors', 'control', 'creative', 'journeys', 'social']);
     const s = A.sessionFor({ ...member, dashboards: ['creative', 'bogus'] }, cfg);
     expect(s.dash).toEqual(['creative']);
     expect(A.can(s, 'creative', cfg)).toBe(true);
@@ -70,6 +70,8 @@ describe('auth', () => {
     expect(need('/admin/', '')).toBe('owner');
     expect(need('/api/admin/users', '')).toBe('owner');
     expect(need('/account/', '')).toBe('any');
+    expect(need('/social/', '')).toBe('social');
+    expect(need('/api/social/posts', '')).toBe('social');
     expect(need('/soon/', '?t=seo')).toBe('any');
   });
 
