@@ -407,6 +407,16 @@ const EN = {
   'السطر الثاني': 'Second line', 'الزر': 'Button', 'نزّل PNG': 'Download PNG', 'اختر مقاس واحد على الأقل.': 'Pick at least one size.',
   'يجهز البريف…': 'Preparing the brief…', 'جاهز. عدّل النص أو اختر خيار ثاني، والمعاينة تتحدث.': 'Ready. Edit the copy or pick another option, and the preview updates.',
   'ما فيه إعلانات ليدز بثلاث ليدز أو أكثر آخر 30 يوم، فالنصوص من القوالب.': 'No lead ads with three or more leads in the last 30 days, so the copy comes from templates.',
+  // الصوت (voice)
+  'الصوت': 'Voice', 'الصوت · Well': 'Voice · Well',
+  'يفحص النص على صوت علامة Well، ويحسب مدته كفويس أوفر، ويعيد كتابته بصوت العلامة، وتسمعه بصوت عربي من جهازك.': "Checks copy against Well's brand voice, times it as a voice-over, rewrites it in the brand voice, and plays it in an Arabic voice from your device.",
+  'النص أو سكربت الفويس أوفر': 'Text or voice-over script', 'مثال: تعبان من الدوام؟ فريقنا الطبي يجيك البيت. احجز جلستك': 'Example: Tired after work? Our medical team comes to your home. Book your session',
+  'مدة الإعلان': 'Ad length', '15 ثانية': '15 seconds', '30 ثانية': '30 seconds', '60 ثانية': '60 seconds', 'اكتبه بصوت العلامة': 'Write it in the brand voice',
+  'اسمعه': 'Listen', 'السرعة': 'Speed', 'شغّل': 'Play', 'وقّف': 'Stop', 'النتيجة': 'Result',
+  'الاستماع من أصوات جهازك ومجاني. تنزيل ملف صوت بالعربي يحتاج خدمة صوت مدفوعة، لأن أصوات Cloudflare المجانية ما تدعم العربي للحين.': "Listening uses your device's voices and is free. Downloading an Arabic audio file needs a paid voice service, because Cloudflare's free voices do not support Arabic yet.",
+  'اكتب نص واضغط "افحص النص".': 'Write a text and press "Check the text".', 'دليل صوت العلامة': 'Brand voice guide', 'مطابقة صوت العلامة': 'Brand voice match',
+  'اللهجة': 'Dialect', 'كلمة': 'words', 'انفحص.': 'Checked.', 'انكتب بصوت العلامة. راجعه قبل ما تستخدمه.': 'Rewritten in the brand voice. Review it before you use it.',
+  'اكتب النص أول': 'Write the text first', 'الذكاء الاصطناعي ما رد الحين، جرّب بعد دقيقة': 'The AI did not answer; try again in a minute', 'سعودي': 'Saudi', 'فصحى': 'Formal Arabic', 'خليط': 'Mixed', 'محايد': 'Neutral', 'نعم:': 'Do:', 'لا:': "Don't:",
   // أخطاء السيرفر
   'طلب مرفوض': 'Request refused', 'سجّل الدخول': 'Please sign in', 'الحساب موقوف': 'Account disabled', 'ما عندك صلاحية': 'You don\'t have access',
   'صار خطأ، جرّب مرة ثانية': 'Something went wrong, try again', 'صار خطأ': 'Something went wrong', 'الإعداد غير مكتمل': 'Setup is incomplete',

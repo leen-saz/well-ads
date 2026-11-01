@@ -24,13 +24,16 @@ describe('registry', () => {
     expect(Object.keys(ROUTES).sort()).toEqual([...LIVE].sort());
     expect(new Set(MODULES.map(m => m.key)).size).toBe(MODULES.length);
     expect(A.DASHBOARDS).toMatchObject({ ceo: 'التحليلات', maestro: 'المايسترو', social: 'السوشال' });
-    expect(Object.keys(A.DASHBOARDS)).not.toContain('voice');           // soon modules are not dashboards
+    for (const m of MODULES.filter(x => x.status === 'soon')) expect(Object.keys(A.DASHBOARDS)).not.toContain(m.key); // soon modules are not dashboards
+    expect(A.DASHBOARDS).toMatchObject({ voice: 'الصوت', debugger: 'التتبع' });
     expect(Object.keys(routesModule)).toEqual(['ROUTES']);
   });
   it('the gate maps module paths to their dashboard', () => {
     expect(need('/social/', '')).toBe('social');
     expect(need('/api/maestro/state', '')).toBe('maestro');
-    expect(need('/voice/', '')).toBe('ceo');                              // not live: no special rule
+    expect(need('/voice/', '')).toBe('voice');
+    expect(need('/api/compliance/scan', '')).toBe('compliance');
+    expect(need('/nothing/', '')).toBe('ceo');                            // not a module: no special rule
   });
 });
 
@@ -56,7 +59,8 @@ describe('locked modules', () => {
     const by = Object.fromEntries(me.modules.map(m => [m.key, m]));
     expect(by.journeys).toMatchObject({ locked: true, ok: false });
     expect(by.social).toMatchObject({ locked: false, ok: true, status: 'live' });
-    expect(by.voice).toMatchObject({ status: 'soon', ok: true });
+    expect(by.voice).toMatchObject({ status: 'live', ok: true });
+    for (const m of MODULES.filter(x => x.status === 'soon')) expect(by[m.key]).toMatchObject({ status: 'soon', ok: true });
   });
 
   it('the owner switches modules off; unknown keys are dropped', async () => {
