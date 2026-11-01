@@ -5,11 +5,13 @@ Keys come from the Connectors page (Vault): TIKTOK_MCP_CLIENT_ID and TIKTOK_MCP_
 Each run trades the refresh token for an access token. When TikTok hands back a new refresh token,
 it is written back to the Vault at once (connector_put), so the next run still works.
 
-This first version discovers the server: it lists the tools and the input schema of each one, and logs
-names and schemas only. No token, key or account value is printed. Read-only: no tool is called that
-changes anything on TikTok.
+Then it pulls, read-only, the same data Grok used to push to the tiktok-data branch: ad_get (all statuses),
+campaign_get (objectives), report_integrated_get (AUCTION_AD, ad_id × stat_time_day) and the video covers,
+and rewrites pipeline/tiktok-data/tiktok.json through tiktok/merge.py, so fetch_data.py reads it as before.
+Only get/list tools are called. No token, key or account value is printed.
 """
-import json, os, sys, urllib.error, urllib.parse, urllib.request
+import json, os, subprocess, sys, tempfile, urllib.error, urllib.parse, urllib.request
+from datetime import datetime, timedelta, timezone
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
@@ -111,6 +113,106 @@ def describe(tools):
     return lines
 
 
+RIYADH = timezone(timedelta(hours=3))
+HERE = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+SNAPSHOT = os.path.join(HERE, "tiktok-data", "tiktok.json")
+READ_ONLY = ("_get", "_list")
+AD_FIELDS = ["ad_id", "ad_name", "campaign_id", "campaign_name", "adgroup_id", "adgroup_name", "operation_status",
+             "secondary_status", "tiktok_item_id", "ad_text", "advertiser_id", "video_id", "image_ids"]
+METRICS = ["spend", "impressions", "clicks", "conversion"]
+
+
+def tool(m, name, args):
+    """One read-only TikTok tool call; returns the API's data block (list, page_info...)."""
+    if not name.endswith(READ_ONLY):
+        raise RuntimeError(f"refused non-read tool {name}")
+    r = m.call("tools/call", {"name": name, "arguments": args})
+    if r.get("isError"):
+        raise RuntimeError(f"{name}: " + " ".join(c.get("text", "") for c in r.get("content") or [])[:200])
+    d = r.get("structuredContent")
+    if d is None:
+        text = "".join(c.get("text", "") for c in r.get("content") or [] if c.get("type") == "text")
+        d = json.loads(text) if text.strip().startswith(("{", "[")) else {}
+    if isinstance(d, dict) and d.get("code") not in (None, 0):
+        raise RuntimeError(f"{name}: TikTok {d.get('code')} {str(d.get('message'))[:120]}")
+    return d.get("data", d) if isinstance(d, dict) else {"list": d}
+
+
+def pages(m, name, args, size=1000):
+    out, page = [], 1
+    while True:
+        d = tool(m, name, {**args, "page": page, "page_size": size})
+        out += d.get("list") or []
+        info = d.get("page_info") or {}
+        if page >= int(info.get("total_page") or 1):
+            return out
+        page += 1
+
+
+def windows(start, end, step=30):
+    """report_integrated_get takes at most 30 days per call."""
+    d = start
+    while d <= end:
+        e = min(d + timedelta(days=step - 1), end)
+        yield d, e
+        d = e + timedelta(days=1)
+
+
+def snapshot():
+    try:
+        return json.load(open(SNAPSHOT, encoding="utf-8"))
+    except (OSError, ValueError):
+        return {}
+
+
+def pull(m, today=None):
+    """Read-only pull into tiktok.json (same format as the branch). Returns a one-line summary."""
+    snap = snapshot()
+    adv = str(os.environ.get("TIKTOK_ADVERTISER_ID") or snap.get("advertiser_id") or "").strip()
+    if not adv:
+        raise RuntimeError("no advertiser id (tiktok.json has none and TIKTOK_ADVERTISER_ID is empty)")
+    today = today or datetime.now(RIYADH).date()
+    last = max((r[1] for r in snap.get("rows") or []), default="")
+    start = (datetime.fromisoformat(last).date() - timedelta(days=3)) if last else today - timedelta(days=90)
+    start = max(start, today - timedelta(days=120))
+    ads = pages(m, "ad_get", {"advertiser_id": adv, "fields": AD_FIELDS, "filtering": {"primary_status": "STATUS_ALL"}})
+    camps = pages(m, "campaign_get", {"advertiser_id": adv, "fields": ["campaign_id", "objective_type"], "filtering": {"primary_status": "STATUS_ALL"}})
+    reports = []
+    for a, b in windows(start, today):
+        rows = pages(m, "report_integrated_get", {"advertiser_id": adv, "report_type": "BASIC", "data_level": "AUCTION_AD",
+                                                  "dimensions": ["ad_id", "stat_time_day"], "metrics": METRICS,
+                                                  "start_date": a.isoformat(), "end_date": b.isoformat()})
+        reports.append({"list": rows, "page_info": {"total_page": 1}})
+    vids = sorted({str(x["video_id"]) for x in ads if x.get("video_id")})
+    covers = []
+    for i in range(0, len(vids), 60):
+        try:
+            covers.append({"list": tool(m, "file_video_ad_info_get", {"advertiser_id": adv, "video_ids": vids[i:i + 60]}).get("list") or []})
+        except Exception as ex:  # noqa: BLE001 - covers are optional
+            print("tiktok-mcp: covers skipped —", str(ex)[:120])
+            break
+    tmp = tempfile.mkdtemp()
+    def put(name, obj):
+        path = os.path.join(tmp, name)
+        json.dump(obj, open(path, "w", encoding="utf-8"), ensure_ascii=False)
+        return path
+    objectives = {str(c["campaign_id"]): c.get("objective_type") for c in camps if c.get("campaign_id")}
+    os.makedirs(os.path.dirname(SNAPSHOT), exist_ok=True)
+    cmd = [sys.executable, os.path.join(HERE, "tiktok", "merge.py"), SNAPSHOT, "--ads", put("ads.json", {"list": ads}),
+           "--days", *[put(f"r{i}.json", r) for i, r in enumerate(reports)], "--objectives", put("obj.json", objectives),
+           "--advertiser-id", adv, "--advertiser-name", str(snap.get("advertiser_name") or "")]
+    if covers:
+        cmd += ["--covers", *[put(f"c{i}.json", c) for i, c in enumerate(covers)]]
+    out = subprocess.run(cmd, cwd=HERE, capture_output=True, text=True, timeout=600)
+    if out.returncode:
+        raise RuntimeError("merge: " + (out.stderr or out.stdout)[-300:])
+    blob = json.load(open(SNAPSHOT, encoding="utf-8"))
+    blob["source"] = "TikTok for Business MCP (hourly refresh)"
+    json.dump(blob, open(SNAPSHOT, "w", encoding="utf-8"), ensure_ascii=False, separators=(",", ":"))
+    return (f"{len(ads)} ads, {sum(len(r['list']) for r in reports)} report rows {start}→{today}, "
+            f"{len(vids)} videos | " + out.stdout.strip().splitlines()[-1][:200])
+
+
 def main():
     cid = (os.environ.get("TIKTOK_MCP_CLIENT_ID") or "").strip()
     refresh = (os.environ.get("TIKTOK_MCP_REFRESH_TOKEN") or "").strip()
@@ -127,13 +229,10 @@ def main():
     info = m.start()
     srv = info.get("serverInfo") or {}
     print(f"tiktok-mcp: connected to {srv.get('name', '?')} {srv.get('version', '')} (protocol {info.get('protocolVersion', '?')})")
-    tools = m.tools()
-    print(f"tiktok-mcp: {len(tools)} tools")
-    for line in describe(tools):
-        print(line)
-    for t in tools:
-        if t.get("name") in ("tool_execute", "tool_search", "tool_list", "tools_search"):
-            print(f"schema {t['name']}: " + json.dumps(t.get("inputSchema") or {}, ensure_ascii=False)[:1500])
+    if os.environ.get("TIKTOK_MCP_LIST_TOOLS"):
+        for line in describe(m.tools()):
+            print(line)
+    print("tiktok-mcp: " + pull(m))
     return 0
 
 
