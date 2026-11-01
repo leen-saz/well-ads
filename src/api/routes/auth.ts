@@ -1,7 +1,7 @@
 // /api/auth/*: login, logout, refresh, forgot, reset. Port of web/lib/routes/auth/*.js.
 import {
   env, sb, loadProfile, sessionFor, sign, verify, readCookie, setCookie, clearCookie, safePath, home, audit, html, json,
-  sameOrigin, readJson, handle, SESSION, SESSION_HOURS, PASSWORD_MIN, type Profile,
+  sameOrigin, readJson, handle, keyKind, SESSION, SESSION_HOURS, PASSWORD_MIN, type Profile,
 } from '../../lib/auth';
 
 export const login = { POST: handle(async (request, e) => {
@@ -28,6 +28,11 @@ export const login = { POST: handle(async (request, e) => {
     profile = made.ok ? made.data[0] || null : null;
   }
   if (!profile || profile.active === false) {
+    // Diagnostics only: HTTP status and row count of the profile read, and the key type. No values.
+    const chk = await sb<unknown>(cfg, `/rest/v1/profiles?id=eq.${encodeURIComponent(uid)}&select=id,active`, { admin: true });
+    const d = (chk.data && typeof chk.data === 'object' && !Array.isArray(chk.data) ? chk.data : {}) as Record<string, unknown>;
+    console.warn('login_blocked', JSON.stringify({ key: keyKind(cfg.service), owner: email === cfg.owner, profileStatus: chk.status,
+      rows: Array.isArray(chk.data) ? chk.data.length : null, active: profile ? profile.active : null, code: d.code ?? null, msg: String(d.message ?? '').slice(0, 120) }));
     await audit(cfg, { uid, email }, 'login_blocked');
     return json(403, { error: 'حسابك غير مفعّل. تواصل مع مسؤولة اللوحة.' });
   }

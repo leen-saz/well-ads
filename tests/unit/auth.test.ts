@@ -49,6 +49,14 @@ describe('auth', () => {
     }
   });
 
+  it('keyKind names the key type without revealing it', () => {
+    const jwt = (role: string) => 'x.' + btoa(JSON.stringify({ role })).replace(/=+$/, '') + '.y';
+    expect(A.keyKind(jwt('service_role'))).toBe('jwt:service_role');
+    expect(A.keyKind(jwt('anon'))).toBe('jwt:anon');
+    expect(A.keyKind('sb_secret_abc')).toBe('sb_secret');
+    expect(A.keyKind('sb_publishable_abc')).toBe('sb_publishable');
+  });
+
   it('route map', () => {
     expect(need('/login/', '')).toBeNull();
     expect(need('/api/auth/login', '')).toBeNull();
