@@ -74,7 +74,8 @@ jobs:
           key: ads-data-${{ github.run_id }}
           restore-keys: ads-data-
 
-      # TikTok through its official MCP server (Connectors page sign-in). Discovery for now: lists the tools, read-only.
+      # TikTok through its official MCP server (Connectors page sign-in): read-only pull of ads, daily numbers and covers
+      # into pipeline/tiktok-data/tiktok.json, which the next step reads exactly like the old tiktok-data branch file.
       - name: TikTok via MCP
         continue-on-error: true
         env:
