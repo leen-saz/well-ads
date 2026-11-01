@@ -13,3 +13,7 @@ __pycache__/
 coverage/
 playwright-report/
 test-results/
+
+# pipeline outputs
+pipeline/data.json
+pipeline/cache_ads.json

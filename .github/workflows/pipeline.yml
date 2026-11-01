@@ -1,0 +1,50 @@
+name: pipeline
+
+# Phase 3.2: hourly read-only export of data.json from Supabase to the R2 bucket of staging.
+# The old site's refresh-and-deploy (minute 7) stays the only writer to Supabase until cutover,
+# so this runs at minute 37 and only reads. Production gets its own run at cutover (phase 7).
+
+on:
+  schedule:
+    - cron: "37 * * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: pipeline-staging
+  cancel-in-progress: false
+
+jobs:
+  export:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    environment: staging
+    env:
+      CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+      CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+      BUCKET: well-ads-files-staging
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        with:
+          python-version: "3.12"
+      - name: Export data.json from Supabase (read-only)
+        working-directory: pipeline
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+        run: python export_data.py
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: "24"
+          cache: npm
+      - run: npm ci
+      - name: Upload data.json to R2
+        run: |
+          npx wrangler r2 object put "$BUCKET/data.json" --file pipeline/data.json \
+            --content-type application/json --remote
+          echo "::notice title=pipeline::data.json uploaded to $BUCKET"
