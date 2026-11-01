@@ -165,6 +165,8 @@ export interface OAuthCfg {
   authorize: string; token?: string; scope?: string; app: string[]; expires?: string; basic?: boolean; v1?: boolean;
   request?: string; access?: string; extra?: Record<string, string>; store?: Record<string, string>;
   exchange?: (a: ExchangeArgs) => Promise<Exchanged>;
+  // bare: رابط التفويض يستخدم app_id و state و redirect_uri فقط (تيك توك). needs: أسماء الخزنة اللازمة لحالة «مربوط».
+  bare?: boolean; idName?: string; needs?: string[];
 }
 const GOOGLE = (scope: string, refresh: string): OAuthCfg => ({ authorize: 'https://accounts.google.com/o/oauth2/v2/auth', token: 'https://oauth2.googleapis.com/token', scope,
   extra: { access_type: 'offline', prompt: 'consent', include_granted_scopes: 'true' }, app: ['GOOGLE_ADS_CLIENT_ID', 'GOOGLE_ADS_CLIENT_SECRET'], store: { refresh } });
@@ -201,6 +203,9 @@ export const OAUTH: Record<string, OAuthCfg> = {
   // X Ads API: OAuth 1.0a (مو 2.0). الخطوة الأولى request token من السيرفر
   x: { v1: true, request: 'https://api.x.com/oauth/request_token', authorize: 'https://api.x.com/oauth/authorize', access: 'https://api.x.com/oauth/access_token',
     app: ['X_ADS_CONSUMER_KEY', 'X_ADS_CONSUMER_SECRET'], store: { token: 'X_ADS_ACCESS_TOKEN', secret: 'X_ADS_ACCESS_SECRET', id: 'X_ADS_CONSUMER_KEY', key: 'X_ADS_CONSUMER_SECRET' } },
+  // المفتاح طويل المدى. أرقام المعلنين أعداد أكبر من Number.MAX_SAFE_INTEGER، فتُقرأ من نص الرد كما هي.
+  tiktok: { authorize: 'https://business-api.tiktok.com/portal/auth', bare: true, idName: 'app_id',
+    app: ['TIKTOK_APP_ID', 'TIKTOK_APP_SECRET'], needs: ['TIKTOK_ACCESS_TOKEN', 'TIKTOK_ADVERTISER_IDS'], exchange: tiktokExchange },
 };
 
 // بيانات تطبيق المنصة (Client ID/Secret) من بيئة السيرفر. ناقصة = زر الربط ما يشتغل والبديل اليدوي يطلع.
@@ -213,6 +218,13 @@ export const appCreds = (p: Platform, e: Record<string, unknown>): { id: string;
 
 export function authorizeUrl(p: Platform, { id, redirect, state }: { id: string; redirect: string; state: string }): string {
   const o = OAUTH[p.id] as OAuthCfg;
+  if (o.bare) {
+    const q = new URLSearchParams();
+    q.set(o.idName || 'app_id', id);
+    q.set('state', state);
+    q.set('redirect_uri', redirect);
+    return `${o.authorize}?${q}`;
+  }
   const q = new URLSearchParams({ client_id: id, redirect_uri: redirect, response_type: 'code', state, ...(o.scope ? { scope: o.scope } : {}), ...(o.extra || {}) });
   return `${o.authorize}?${q}`;
 }
@@ -231,6 +243,40 @@ export async function exchange(p: Platform, { code, redirect, id, secret }: Exch
   if (st.id) values[st.id] = id;
   if (st.secret) values[st.secret] = secret;
   return { values, expiresIn: !t.refresh_token && t.expires_in ? Number(t.expires_in) : null };
+}
+
+// Spring Rose0406 حساب منفصل ولا يُحفظ مع حسابات ويل. نفس المعرّف في pipeline/tiktok/merge.py.
+const TIKTOK_EXCLUDED_ADVERTISERS = new Set(['6948010864247046146']);
+
+function tiktokAdvertiserIds(text: string): string[] {
+  const m = text.match(/"advertiser_ids"\s*:\s*\[([\s\S]*?)\]/);
+  const body = m?.[1];
+  if (!body) return [];
+  const ids: string[] = [];
+  for (const part of body.split(',')) {
+    const id = part.trim().replace(/^"|"$/g, '');
+    if (!/^\d+$/.test(id) || TIKTOK_EXCLUDED_ADVERTISERS.has(id) || ids.includes(id)) continue;
+    ids.push(id);
+  }
+  return ids;
+}
+
+async function tiktokExchange({ code, id, secret }: ExchangeArgs): Promise<Exchanged> {
+  const r = await fetch('https://business-api.tiktok.com/open_api/v1.3/oauth2/access_token/', {
+    method: 'POST',
+    headers: { 'content-type': 'application/json' },
+    body: JSON.stringify({ app_id: id, secret, auth_code: code }),
+  });
+  const text = await r.text();
+  let parsed: Record<string, unknown> = {};
+  try { parsed = text ? JSON.parse(text) as Record<string, unknown> : {}; } catch { parsed = {}; }
+  const data = (parsed.data && typeof parsed.data === 'object' ? parsed.data : {}) as Record<string, unknown>;
+  const token = typeof data.access_token === 'string' ? data.access_token.trim() : '';
+  const okCode = parsed.code === 0 || parsed.code === '0';
+  const advertisers = tiktokAdvertiserIds(text);
+  // رسالة الخطأ عامة: جسم الرد فيه المفتاح، وما ينطبع ولا يرجع للمتصفح.
+  if (!r.ok || !okCode || !token || !advertisers.length) throw new Error('oauth tiktok');
+  return { values: { TIKTOK_ACCESS_TOKEN: token, TIKTOK_ADVERTISER_IDS: advertisers.join(',') } };
 }
 
 async function metaExchange({ code, redirect, id, secret }: ExchangeArgs, env = 'META_ACCESS_TOKEN'): Promise<Exchanged> {

@@ -51,11 +51,13 @@ export const list = {
     const by = Object.fromEntries(rows(r.data).map(x => [String(x.platform), x]));
     const platforms = PLATFORMS.map(p => {
       const c = by[p.id] || null;
+      const o = OAUTH[p.id];
       const required = p.fields.filter(f => !f.optional && !f.manual).map(f => f.env);
+      for (const name of o?.needs || []) if (!required.includes(name)) required.push(name);
       const have = new Set<string>(c ? (c.names as string[]) || [] : []);
       const expires = c?.expires_at as string | null | undefined;
-      const status = p.mcp ? 'mcp' : !c ? 'none' : expires && new Date(expires) < new Date() ? 'expired' : required.every(n => have.has(n)) ? 'ok' : 'partial';
-      const o = OAUTH[p.id];
+      // mcp ملاحظة ثانوية في الواجهة. الشارة تتبع المفتاح المحفوظ: مربوط فقط بعد ما ينحفظ.
+      const status = !c ? 'none' : expires && new Date(expires) < new Date() ? 'expired' : required.every(n => have.has(n)) ? 'ok' : 'partial';
       const shown = (c?.shown as Values | undefined) || {};
       return {
         id: p.id, name: p.name, group: p.group, fetch: !!p.fetch, mcp: !!p.mcp, docs: p.docs, help: p.help,
@@ -100,7 +102,7 @@ export const disconnect = {
   POST: handle(async (request, e) => {
     const { cfg, user } = await requireUser(request, e, 'connectors', { write: true });
     const p = byId((await readJson(request)).platform);
-    if (!p || p.mcp) return json(400, { error: 'منصة غير معروفة' });
+    if (!p) return json(400, { error: 'منصة غير معروفة' });
     await dropPlatform(cfg, user, p);
     return json(200, { ok: true });
   }),
@@ -152,7 +154,8 @@ export const callback = {
     const p = byId(st.p);
     const o = OAUTH[st.p];
     const v1 = !!o?.v1;
-    if (q.get('error') || q.get('denied') || !(v1 ? q.get('oauth_verifier') : q.get('code'))) return back(`/connectors/?err=denied&p=${encodeURIComponent(st.p)}`, true);
+    const code = q.get('auth_code') || q.get('code') || '';
+    if (q.get('error') || q.get('denied') || !(v1 ? q.get('oauth_verifier') : code)) return back(`/connectors/?err=denied&p=${encodeURIComponent(st.p)}`, true);
     const profile = await loadProfile(cfg, st.uid);
     const user = profile && profile.active !== false ? sessionFor(profile, cfg) : null;
     const app = p && appCreds(p, vars(e));
@@ -165,7 +168,7 @@ export const callback = {
         if (!t.oauth_token || !t.oauth_token_secret || !s.token || !s.secret || !s.id || !s.key) throw new Error('no token');
         got = { values: { [s.token]: t.oauth_token, [s.secret]: t.oauth_token_secret, [s.id]: app.id, [s.key]: app.secret } };
       } else {
-        got = await exchange(p, { code: q.get('code') || '', redirect: redirectFor(request), ...app });
+        got = await exchange(p, { code, redirect: redirectFor(request), ...app });
       }
       await saveValues(cfg, user, p, 'oauth', got.values, { expiresIn: got.expiresIn || null, checked: 'انربط من صفحة المنصة' });
     } catch (err) {

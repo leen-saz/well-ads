@@ -38,10 +38,12 @@ function form(p) {
     <div class="msg" role="status"></div></form>`;
 }
 function card(p) {
-  const direct = p.oauth && p.oauthReady && !S.fallback.has(p.id);
+  // منصة بلا خانات (تيك توك) زرها الوحيد هو الربط، حتى لو أسرار التطبيق لسا ما انضافت أو المحاولة السابقة فشلت.
+  const direct = p.oauth && (p.oauthReady || !p.fields.length) && (!p.fields.length || !S.fallback.has(p.id));
   const label = p.status === 'ok' ? 'أعد الربط' : 'اربط';
-  const btn = p.mcp ? '' : direct
+  const btn = direct
     ? `<a class="btn sm primary" href="/api/connectors/start?platform=${p.id}">${icon('plug')}${label}</a>`
+    : p.mcp ? ''
     : `<button class="btn sm primary" data-key="${p.id}" aria-expanded="${S.open === p.id}">${icon('plug')}${label}</button>`;
   // بعد زر الربط: إذا ناقص رقم الحساب نطلبه بدون ما نرجع للمفاتيح
   const needIds = direct && p.status === 'partial' && p.fields.some(f => !f.manual && !f.saved && !f.optional);
@@ -49,9 +51,12 @@ function card(p) {
   if (p.at) meta.push(`آخر ربط ${when(p.at)}${p.by ? ` · ${esc(p.by)}` : ''}`);
   if (p.expires) meta.push(`ينتهي ${when(p.expires)}`);
   if (p.checked) meta.push(esc(p.checked));
+  const drop = p.status !== 'none' && p.status !== 'mcp' && !p.fields.length
+    ? `<button class="btn sm ghost" type="button" data-drop="${p.id}">${icon('x')}فك الربط</button>` : '';
+  const note = p.mcp && S.open !== p.id ? `<p class="muted cx-meta">${esc(p.help)}</p>` : '';
   return `<article class="card cx" id="cx_${p.id}"><div class="cx-top">${logo(p)}<h3>${esc(p.name)}</h3>${chip(p)}<div class="cx-acts">${btn}
-    ${needIds ? `<button class="btn sm secondary" data-key="${p.id}">${icon('pen')}أضف رقم الحساب</button>` : ''}</div></div>
-    <p class="muted cx-meta">${meta.join(' · ')}</p>${S.open === p.id ? form(p) : ''}</article>`;
+    ${needIds ? `<button class="btn sm secondary" data-key="${p.id}">${icon('pen')}أضف رقم الحساب</button>` : ''}${drop}</div></div>
+    <p class="muted cx-meta">${meta.join(' · ')}</p>${note}${S.open === p.id ? form(p) : ''}</article>`;
 }
 function render() {
   const q = S.q.trim().toLowerCase();
@@ -64,7 +69,14 @@ function render() {
   }).join('') || `<div class="card empty">${icon('search')}<div>ما فيه منصة بهالاسم</div></div>`;
 }
 async function load() {
-  try { S.list = (await api('/api/connectors/list')).platforms; render(); }
+  try {
+    S.list = (await api('/api/connectors/list')).platforms;
+    if (S.open) {
+      const opened = S.list.find(x => x.id === S.open);
+      if (opened && !opened.fields.length) { S.open = null; S.fallback.delete(opened.id); }
+    }
+    render();
+  }
   catch (err) { $('#list').innerHTML = `<div class="card empty">${icon('alert')}<div>${esc(err.message)}</div><button class="btn secondary" id="retry" style="margin-top:12px">${icon('refresh')}حاول مرة ثانية</button></div>`; $('#retry').onclick = load; }
 }
 

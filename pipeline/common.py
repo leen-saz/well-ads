@@ -13,6 +13,13 @@ def env():
             l = l.strip()
             if l and not l.startswith("#") and "=" in l:
                 k, v = l.split("=", 1); e.setdefault(k.strip(), v.strip())
+    # صفحة الربط تكتب V_NAME في GITHUB_ENV. القيمة دي تغلب سر GitHub لنفس الاسم، والفارغ يتجاهل.
+    for key, value in os.environ.items():
+        if not key.startswith("V_"):
+            continue
+        name = key[2:]
+        if (name.startswith(prefixes) or name in extra) and str(value).strip():
+            e[name] = value
     return e
 def http(url, data=None, headers=None, method=None, timeout=60):
     req = urllib.request.Request(url, data=data, headers=headers or {}, method=method)
