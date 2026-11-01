@@ -32,6 +32,24 @@ class SyncTests(unittest.TestCase):
     def tearDown(self):
         self.env.stop()
 
+    def test_first_run_starts_at_the_first_ads_day(self):
+        seen = []
+
+        def get(url, key):
+            seen.append(urllib.parse.parse_qs(urllib.parse.urlparse(url).query))
+            return {"data": [], "page": {"next_cursor": None}}
+
+        class StartDb(Db):
+            def __call__(self, method, url, data, headers):
+                if method == "GET" and "ad_metrics" in url:
+                    return [{"day": "2025-12-01"}]
+                return super().__call__(method, url, data, headers)
+
+        fetch.sync("k", now=NOW, get=get, transport=StartDb([]))
+        self.assertTrue(seen[0]["created_from"][0].startswith("2025-12-01T00:00:00+03:00"))
+        self.assertEqual(len(seen), 4)  # 2025-12-01 → 2026-11-01 in windows of 92 days
+        self.assertEqual(seen[-1]["created_to"], [NOW.isoformat()])
+
     def test_first_run_backfills_90_days_and_follows_cursors(self):
         calls = []
 

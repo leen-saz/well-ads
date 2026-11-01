@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Well CRM leads (Marketing API v1) into Supabase `crm_leads`. Read-only on the CRM (GET only).
 
-First run: backfill the last 90 days by created_at. Every run after: rows changed since the largest
+First run: backfill from the first day of the ads history (the oldest day in `ad_metrics`) by created_at. Every run after: rows changed since the largest
 `updated_at` stored (`crm_sync_state`), following cursors, upserted by `lead_id`.
 The key (CRM_API_KEY) is never printed. Docs: the Marketing API v1 document from the CRM owner.
 """
@@ -59,9 +59,16 @@ def record(row):
     return rec
 
 
-def windows(now, days=BACKFILL_DAYS, step=92):
-    """created_from/created_to windows covering the last `days` (the API allows at most 92 days each)."""
-    start = now - timedelta(days=days)
+def ads_start(transport=None):
+    """First day of the ads history (oldest ad_metrics day), or None."""
+    got = supabase_store._request("GET", "/rest/v1/ad_metrics?select=day&order=day.asc&limit=1", transport=transport) or []
+    day = got[0].get("day") if got else None
+    return datetime.fromisoformat(str(day)[:10]).replace(tzinfo=timezone(timedelta(hours=3))) if day else None
+
+
+def windows(now, days=BACKFILL_DAYS, step=92, start=None):
+    """created_from/created_to windows from `start` (or the last `days`) to now; the API allows at most 92 days each."""
+    start = start or now - timedelta(days=days)
     while start < now:
         end = min(start + timedelta(days=step), now)
         yield {"created_from": start.isoformat(), "created_to": end.isoformat()}
@@ -75,9 +82,9 @@ def sync(key, now=None, get=http_get, transport=None):
     if last:
         # The API accepts at most 92 days back; a longer gap falls back to a backfill window
         since = datetime.fromisoformat(str(last).replace("Z", "+00:00"))
-        filters = [{"updated_since": since.isoformat()}] if now - since < timedelta(days=91) else list(windows(now))
+        filters = [{"updated_since": since.isoformat()}] if now - since < timedelta(days=91) else list(windows(now, start=since))
     else:
-        filters = list(windows(now))
+        filters = list(windows(now, start=ads_start(transport)))
     total, newest = 0, last
     for params in filters:
         for rows in pages(params, key, get):
