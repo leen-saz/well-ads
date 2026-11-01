@@ -67,7 +67,7 @@ def stats(leads, matched_ids):
         s = by_src.setdefault(src, [0, 0, 0])  # leads, matched, closings
         s[0] += 1
         s[1] += 1 if r.get("lead_id") in matched_ids else 0
-        if r.get("payment_status") == "paid" and float(r.get("amount_paid_sar") or 0) > 0:
+        if is_paid(r):
             s[2] += 1
             m = riyadh_day(r.get("paid_at"))[:7] or "?"
             by_month[m] = by_month.get(m, 0) + 1
@@ -75,6 +75,25 @@ def stats(leads, matched_ids):
     for r in leads:
         status[r.get("status") or "?"] = status.get(r.get("status") or "?", 0) + 1
     return {"by_source": by_src, "closings_by_paid_month": dict(sorted(by_month.items())), "status": status}
+
+
+def is_paid(r):
+    """A closing is a payment (Leen): payment_status paid with an amount."""
+    return r.get("payment_status") == "paid" and float(r.get("amount_paid_sar") or 0) > 0
+
+
+def paid_all(leads):
+    """Every paid lead, with or without an ad: [lead_day, paid_day, amount, source], by payment day."""
+    out = [[day_of(r), riyadh_day(r.get("paid_at")), float(r["amount_paid_sar"]), r.get("source_platform") or "?"]
+           for r in leads if is_paid(r)]
+    return sorted(out, key=lambda x: x[1])
+
+
+def last_days(rows, today, days=30):
+    """Closings and amount paid in the last `days` days up to `today` (Riyadh), by payment day."""
+    start = (datetime.fromisoformat(today) - timedelta(days=days - 1)).strftime("%Y-%m-%d")
+    got = [r for r in rows if r[1] and start <= r[1] <= today]
+    return {"from": start, "to": today, "closings": len(got), "paid_sar": round(sum(r[2] for r in got), 2)}
 
 
 def attach(data, leads):
@@ -88,9 +107,9 @@ def attach(data, leads):
         matched_ids.add(r.get("lead_id"))
         # A closing is a payment (Leen): payment_status paid with an amount; its value is the amount paid
         amount = float(r.get("amount_paid_sar") or 0)
-        paid = 1 if r.get("payment_status") == "paid" and amount > 0 else 0
+        paid = 1 if is_paid(r) else 0
         out.append([key, day_of(r), riyadh_day(r.get("paid_at")) if paid else "", paid, amount if paid else 0.0])
-    data["crm"] = {"rows": out, "unmatched": unmatched, "total": len(leads), "stats": stats(leads, matched_ids),
+    data["crm"] = {"rows": out, "paid_all": paid_all(leads), "unmatched": unmatched, "total": len(leads), "stats": stats(leads, matched_ids),
                    "synced": datetime.now(RIYADH).isoformat(timespec="minutes"), "caveats": CAVEATS}
     return data["crm"]
 
@@ -118,6 +137,7 @@ def attach_from_db(data):
         print("crm status:", st["status"])
         print("crm by source [leads, matched to an ad, closings]:", st["by_source"])
         print("crm closings (paid) by payment month:", st["closings_by_paid_month"])
+        print("crm last 30 days, all sources, by payment day:", last_days(crm["paid_all"], datetime.now(RIYADH).strftime("%Y-%m-%d")))
         return crm
     except Exception as ex:  # noqa: BLE001 - the dashboard must still build
         print("crm: skipped —", str(ex)[:160])

@@ -44,6 +44,15 @@ class JoinTests(unittest.TestCase):
         crm = join.attach({"ads": ADS}, [lead(status="booked", booking_value_sar=900), lead(payment_status="refunded", amount_paid_sar=300)])
         self.assertEqual([r[3] for r in crm["rows"]], [0, 0])
 
+    def test_paid_all_keeps_leads_without_an_ad_and_sums_the_last_30_days(self):
+        crm = join.attach({"ads": ADS}, [
+            lead(source_platform="manual", ad_id=None, payment_status="paid", amount_paid_sar=700, paid_at="2026-10-20T10:00:00Z"),
+            lead(payment_status="paid", amount_paid_sar=500, paid_at="2026-09-01T10:00:00Z"),
+            lead(payment_status="unpaid", amount_paid_sar=0)])
+        self.assertEqual([r[3] for r in crm["paid_all"]], ["meta_form", "manual"])
+        self.assertEqual(join.last_days(crm["paid_all"], "2026-11-01"),
+                         {"from": "2026-10-03", "to": "2026-11-01", "closings": 1, "paid_sar": 700.0})
+
 
 if __name__ == "__main__":
     unittest.main()
