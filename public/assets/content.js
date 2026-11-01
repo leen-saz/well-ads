@@ -1,5 +1,5 @@
 // إيجنت المحتوى و SEO/AEO: يحلل الموقع ويبني بلان، والماركتير يوافق على كل بند، ويكتب مسودة، وينشر (تصدير الحين).
-import { $, api, say, esc, shell, busy } from './common.js';
+import { $, api, say, esc, shell, busy, LANG } from './common.js';
 
 const KIND = { fix: 'تصليح', page: 'صفحة', article: 'مقال', faq: 'أسئلة شائعة' };
 const ST = { proposed: 'مقترح', approved: 'موافَق', done: 'انتشر', rejected: 'مرفوض' };
@@ -26,7 +26,7 @@ function drawPlan() {
 }
 
 function drawHistory() {
-  $('#history').innerHTML = plans.map(p => `<button class="btn sm ${cur && p.id === cur.id ? 'secondary' : 'ghost'}" data-plan="${p.id}" style="margin:0 0 6px">${esc(p.site.replace('https://', ''))} · ${new Date(p.created_at).toLocaleDateString('ar-SA-u-nu-latn')}</button>`).join(' ') || '<p class="muted">ما فيه.</p>';
+  $('#history').innerHTML = plans.map(p => `<button class="btn sm ${cur && p.id === cur.id ? 'secondary' : 'ghost'}" data-plan="${p.id}" style="margin:0 0 6px">${esc(p.site.replace('https://', ''))} · ${new Date(p.created_at).toLocaleDateString((LANG === 'en' ? 'en-GB' : 'ar-SA-u-nu-latn'))}</button>`).join(' ') || '<p class="muted">ما فيه.</p>';
 }
 
 async function load(keep) {
