@@ -566,6 +566,8 @@ const EN = {
   'قارن جنب بعض':'Compare side by side',
   'الاقفالات (مدفوعة)':'Closings (paid)',
   'المدفوع':'Paid',
+  'الاقفالات (كل المصادر)':'Closings (all sources)',
+  'المدفوع (كل المصادر)':'Paid (all sources)',
   'الاقفالات حسب':'Closings by',
   'يوم الليد':'Lead day',
   'يوم الدفع':'Payment day',
@@ -1159,6 +1161,12 @@ function agg(from,to){
   }
   const tot = {spend:0,impr:0,clicks:0,leads:0,conv:0,leadSpend:0,leadN:0,crmLeads:0,booked:0,paid:0,value:0};
   for(const p of Object.values(byPlat)){for(const f in tot) tot[f]+=(p[f]||0);}
+  // Every paid lead in the CRM, with or without an ad (crm.paid_all: [lead_day, paid_day, amount, source]); ignores the ad filters
+  tot.allPaidN=0; tot.allPaid=0;
+  for(const [leadDay,paidDay,amount] of ((D.crm&&D.crm.paid_all)||[])){
+    const d = S.crmBy==='paid' ? paidDay : leadDay;
+    if(d && d>=from && d<=to){ tot.allPaidN++; tot.allPaid+=amount; }
+  }
   return {byAd,byDay,byPlat,tot};
 }
 const derive = o => {
@@ -1293,6 +1301,10 @@ function renderKpis(now,prev){
       ['نسبة الاقفال',pct(a.closeRate),'',delta(a.closeRate,b.closeRate,false)],
       ['المدفوع',sar(a.value||0),money(),delta(a.value,b.value,false)],
       ['ROAS',a.roas==null?'—':fmt(a.roas,2)+'×','',delta(a.roas,b.roas,false)],
+      ...(D.crm.paid_all ? [
+        ['الاقفالات (كل المصادر)',fmt(a.allPaidN||0),'',delta(a.allPaidN,b.allPaidN,false)],
+        ['المدفوع (كل المصادر)',sar(a.allPaid||0),money(),delta(a.allPaid,b.allPaid,false)],
+      ] : []),
     ] : []),
     ['محادثات واتساب وماسنجر',fmt(a.conv),'',delta(a.conv,b.conv,false)],
     ['الظهور',fmt(a.impr),'',delta(a.impr,b.impr,false)],
