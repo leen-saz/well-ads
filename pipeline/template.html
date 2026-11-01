@@ -150,6 +150,47 @@ input[type=search]{width:min(240px,100%)}
 .range-label b{color:var(--ink);font-family:var(--f-num);font-weight:600}
 
 /* KPIs */
+.kgroups{display:grid;gap:18px}
+.kgroup{display:grid;gap:8px}
+.khead{display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap}
+.khead h3{margin:0;font-size:.95rem;font-weight:600;color:var(--ink)}
+.seg-sm button{font-size:.78rem;padding:3px 10px}
+.knote{margin:0;font-size:.8rem;color:var(--muted)}
+.tile{position:relative;padding:16px;gap:4px;align-content:start}
+.tile .ic{width:36px;height:36px;border-radius:12px;display:grid;place-items:center;background:rgba(126,87,253,.12);color:var(--accent);margin-bottom:6px}
+.tile .ic svg{width:20px;height:20px;fill:none;stroke:currentColor;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}
+.tile .spark{width:100%;height:32px;margin-top:8px;fill:var(--accent)}
+.kpi.tile.feature{background:linear-gradient(150deg,rgba(126,87,253,.92),rgba(34,17,150,.92));border-color:rgba(255,255,255,.35);color:#fff}
+.tile.feature .l,.tile.feature .v,.tile.feature .v small,.tile.feature .delta,.tile.feature .delta span{color:#fff!important}
+.tile.feature .ic{background:rgba(255,255,255,.18);color:#fff}
+.tile.feature .spark{fill:#fff}
+.kpis.kout{grid-template-columns:repeat(auto-fit,minmax(min(100%,160px),1fr))}
+.kout .kpi.hero .v{font-size:1.6rem}
+.ffun{display:grid;gap:0;background:var(--surface);box-shadow:var(--lift);border-radius:var(--r);padding:16px 14px}
+.flayer{display:grid;grid-template-columns:minmax(120px,1fr) minmax(0,2.4fr) minmax(140px,1fr);align-items:center;gap:14px}
+.fname{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+.fname b{width:24px;height:24px;border-radius:50%;background:var(--accent);color:#fff;display:grid;place-items:center;font-size:.78rem}
+.fname span{font-weight:600;color:var(--ink)}
+.fname em{font-style:normal;font-size:.75rem;color:var(--muted);flex-basis:100%}
+.fband-wrap{display:flex;justify-content:center}
+.fband{width:var(--w);min-width:180px;clip-path:polygon(0 0,100% 0,94% 100%,6% 100%);background:color-mix(in srgb,var(--accent) calc(100% - var(--k) * 14%),#1b1240);padding:12px 18px 14px;text-align:center}
+.fband .kpi{background:transparent;box-shadow:none;padding:0;justify-items:center}
+.fband .kpi .l,.fband .kpi .v,.fband .kpi .v small,.fband .delta,.fband .delta span{color:#fff!important}
+.fband .kpi .l{opacity:.85}
+.fband .kpi .v{font-size:1.5rem}
+.fband .delta{opacity:.85;font-size:.75rem}
+.fcost{display:grid;gap:6px}
+.fcost .kpi{background:transparent;box-shadow:none;padding:0;display:flex;flex-wrap:wrap;align-items:baseline;justify-content:space-between;gap:2px 8px}
+.fcost .kpi .l{font-size:.78rem}
+.fcost .kpi .v{font-size:.95rem}
+.fcost .kpi .delta{flex-basis:100%;font-size:.7rem}
+.flink{display:flex;justify-content:center;align-items:center;gap:8px;padding:6px 0}
+.flink .farrow{color:var(--accent);font-weight:700}
+.flink .kpi{display:flex;align-items:baseline;gap:6px;background:color-mix(in srgb,var(--accent) 10%,transparent);box-shadow:none;border-radius:999px;padding:3px 12px}
+.flink .kpi .l{font-size:.75rem}
+.flink .kpi .v{font-size:.9rem}
+.flink .kpi .delta{font-size:.68rem}
+@media (max-width:760px){.flayer{grid-template-columns:1fr;gap:6px}.fband{min-width:0}.fname em{flex-basis:auto}.fcost{grid-template-columns:1fr 1fr;gap:4px 12px}.flink .kpi{flex-wrap:wrap;justify-content:center}}
 .kpis{display:grid;grid-template-columns:repeat(auto-fill,minmax(min(100%,210px),1fr));gap:10px}
 .kpi{background:var(--surface);border:0;box-shadow:var(--lift);border-radius:var(--r);padding:12px 14px;display:grid;gap:2px;min-width:0}
 .kpi .l{font-size:.82rem;color:var(--muted)}
@@ -334,6 +375,38 @@ section[hidden]{display:none!important}
 td.cap{white-space:normal;min-width:200px;max-width:360px}
 .jdg{color:var(--accent);font-weight:700}
 .vgrid{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,340px),1fr));gap:14px}
+
+/* ---- Liquid glass, same layer as the app shell (public/assets/app.css). Blur only on large containers. */
+:root{--bg:#F1EEFA;--glass:rgba(255,255,255,.58);--glass-strong:rgba(255,255,255,.78);--glass-edge:rgba(255,255,255,.85);--glass-blur:blur(20px) saturate(160%);
+  --lift:inset 0 1px 0 rgba(255,255,255,.9),0 1px 2px rgba(126,87,253,.06),0 12px 32px rgba(126,87,253,.12);--r:22px}
+body{background:radial-gradient(1100px 680px at 100% -10%,rgba(126,87,253,.22),transparent 62%),radial-gradient(900px 640px at -10% 35%,rgba(172,166,225,.55),transparent 62%),radial-gradient(760px 560px at 55% 115%,rgba(34,17,150,.12),transparent 60%),linear-gradient(180deg,#F5F3FC,#ECE8F8);background-attachment:fixed}
+.panel,.ffun,.filter-card{background:var(--glass);border:1px solid var(--glass-edge);-webkit-backdrop-filter:var(--glass-blur);backdrop-filter:var(--glass-blur)}
+.kpi,.card,.kpi.hero{background:var(--glass-strong);border:1px solid var(--glass-edge)}
+.fband .kpi,.fcost .kpi,.flink .kpi{border:0}
+.fband .kpi{background:transparent}
+.fcost .kpi{background:transparent}
+.seg{background:var(--glass);border-color:var(--glass-edge)}
+.seg button[aria-pressed="true"]{box-shadow:0 4px 14px rgba(126,87,253,.28)}
+@media (prefers-reduced-transparency:reduce){.panel,.ffun,.filter-card,.kpi,.card{background:#FFFFFF;-webkit-backdrop-filter:none;backdrop-filter:none}}
+
+/* ---- Glass v2: closer to ShopWave. Colour behind the glass, gradient glass with a bright edge, glossy funnel layers. Fonts and logo stay Well's. */
+:root{--glass-bg:linear-gradient(140deg,rgba(255,255,255,.74),rgba(255,255,255,.34));--glass-blur:blur(26px) saturate(185%);
+  --lift:inset 0 1px 1px rgba(255,255,255,.95),inset 0 -1px 1px rgba(126,87,253,.06),0 2px 6px rgba(76,52,180,.05),0 18px 40px rgba(76,52,180,.13)}
+body{background:
+  radial-gradient(42vw 38vw at 92% 4%,rgba(126,87,253,.42),transparent 70%),
+  radial-gradient(38vw 34vw at 6% 28%,rgba(120,150,255,.38),transparent 70%),
+  radial-gradient(34vw 30vw at 48% 62%,rgba(172,166,225,.55),transparent 70%),
+  radial-gradient(40vw 36vw at 88% 96%,rgba(34,17,150,.20),transparent 70%),
+  linear-gradient(160deg,#EEF0FF,#ECE6FB 55%,#F1EAFB);background-attachment:fixed}
+.panel,.ffun,.filter-card,.kpi,.card,.kpi.hero{background:var(--glass-bg);border:1px solid rgba(255,255,255,.78);-webkit-backdrop-filter:var(--glass-blur);backdrop-filter:var(--glass-blur);box-shadow:var(--lift)}
+.fband .kpi,.fcost .kpi,.flink .kpi{background:transparent;border:0;box-shadow:none;-webkit-backdrop-filter:none;backdrop-filter:none}
+.flink .kpi{background:rgba(255,255,255,.6);border:1px solid rgba(255,255,255,.8)}
+.tile .v{font-size:1.75rem}
+.tile .ic{border-radius:14px;background:linear-gradient(140deg,rgba(126,87,253,.22),rgba(172,166,225,.30));box-shadow:inset 0 1px 0 rgba(255,255,255,.8)}
+.kpis.kout>.tile:nth-child(3) .ic{background:linear-gradient(140deg,rgba(120,150,255,.28),rgba(172,166,225,.28));color:#4A5BD8}
+.kpis.kout>.tile:nth-child(4) .ic{background:linear-gradient(140deg,rgba(34,17,150,.16),rgba(126,87,253,.18));color:var(--ink)}
+.kpi.tile.feature{background:linear-gradient(150deg,#9B7BFF,#6A45F0 55%,#3A22B8);border-color:rgba(255,255,255,.45);box-shadow:inset 0 1px 1px rgba(255,255,255,.5),0 18px 40px rgba(106,69,240,.35)}
+.fband{clip-path:none;border-radius:22px 22px 60px 60px/22px 22px 34px 34px;background:linear-gradient(180deg,rgba(255,255,255,.38),rgba(255,255,255,0) 48%),var(--fc);box-shadow:inset 0 2px 1px rgba(255,255,255,.55),inset 0 -6px 14px rgba(20,8,90,.18),0 12px 26px rgba(76,52,180,.28)}
 </style>
 
 <div class="wrap" dir="rtl" lang="ar">
@@ -405,7 +478,7 @@ td.cap{white-space:normal;min-width:200px;max-width:360px}
       <div class="filter-tools">
         <label for="filterOpen" class="filter-fab btn">الفلاتر</label>
       </div>
-  <section data-mode="ads" data-page="overview channels depts creative dept" class="kpis" id="kpis" aria-label="الملخص"></section>
+  <section data-mode="ads" data-page="overview channels depts creative dept" class="kgroups" id="kpis" aria-label="الملخص"></section>
   <section data-mode="ads" data-page="overview dept" class="panel" aria-labelledby="winsH">
     <div class="panel-h"><h2 id="winsH">نجاحات هالأسبوع</h2><span class="sub" id="winsSub"></span></div>
     <div class="wins" id="wins"></div>
@@ -566,6 +639,25 @@ const EN = {
   'قارن جنب بعض':'Compare side by side',
   'الاقفالات (مدفوعة)':'Closings (paid)',
   'المدفوع':'Paid',
+  'النتيجة':'Outcome',
+  'رحلة العميل':'Customer journey',
+  'العائد على الصرف':'Return on spend',
+  'تكلفة العميل':'Cost per customer',
+  'الوعي':'Awareness',
+  'الاهتمام':'Interest',
+  'التحويل':'Conversion',
+  'البيع':'Sale',
+  'كم شخص شاف الإعلان':'How many saw the ad',
+  'كم واحد ضغط':'How many clicked',
+  'كم واحد ترك بياناته أو راسلنا':'How many left details or messaged us',
+  'كم واحد دفع':'How many paid',
+  'اقفالات مدفوعة':'Paid closings',
+  'العائد من الإعلانات':'ROAS from ads',
+  'من نقرة إلى ليد':'Click to lead',
+  'من ليد إلى اقفالة':'Lead to closing',
+  'الاقفالات والمدفوع من كل المصادر في نظام العملاء (مدفوعات ميسّر). العائد على الصرف = المدفوع ÷ الصرف. تكلفة العميل = الصرف ÷ الاقفالات.':'Closings and paid come from every source in the CRM (Moyasar payments). Return on spend = paid ÷ spend. Cost per customer = spend ÷ closings.',
+  'اقفالات من الإعلانات':'Closings from ads',
+  'العائد على الإعلان':'ROAS',
   'الاقفالات (كل المصادر)':'Closings (all sources)',
   'المدفوع (كل المصادر)':'Paid (all sources)',
   'الاقفالات حسب':'Closings by',
@@ -1289,34 +1381,73 @@ function delta(a,b,lowerIsBetter){
   return `<span class="delta ${good?'good':'bad'}">${up?'▲':'▼'} ${fmt(Math.abs(ch),1)}% <span style="color:var(--muted)">${tr('عن الفترة السابقة')}</span></span>`;
 }
 document.addEventListener('click', e => { const b = e.target.closest && e.target.closest('[data-crmby]'); if(!b) return; S.crmBy = b.dataset.crmby; render(); });
+// Full-funnel summary (awareness → interest → conversion → sale), then the outcome: the usual way to read ad performance.
 function renderKpis(now,prev){
   const a=derive(now.tot), b=cur&&cur.compareOk&&prev?derive(prev.tot):{};
-  const K=[
-    ['الصرف',sar(a.spend),money(),delta(a.spend,b.spend,null),true],
-    ['الليدز',qty(a.leads),'',delta(a.leads,b.leads,false)],
-    ['تكلفة الليد',sar(a.cpl),money(),delta(a.cpl,b.cpl,true)],
-    ...(D.crm ? [
-      ['الاقفالات (مدفوعة)',fmt(a.booked||0),'',delta(a.booked,b.booked,false)],
-      ['تكلفة الاقفالة',sar(a.cpb),money(),delta(a.cpb,b.cpb,true)],
-      ['نسبة الاقفال',pct(a.closeRate),'',delta(a.closeRate,b.closeRate,false)],
-      ['المدفوع',sar(a.value||0),money(),delta(a.value,b.value,false)],
-      ['ROAS',a.roas==null?'—':fmt(a.roas,2)+'×','',delta(a.roas,b.roas,false)],
-      ...(D.crm.paid_all ? [
-        ['الاقفالات (كل المصادر)',fmt(a.allPaidN||0),'',delta(a.allPaidN,b.allPaidN,false)],
-        ['المدفوع (كل المصادر)',sar(a.allPaid||0),money(),delta(a.allPaid,b.allPaid,false)],
-      ] : []),
+  const dl = d => /لا مقارنة/.test(d) ? '' : d;   // no comparison → no line
+  const kpi = (l,v,u,d,cls='') => `<div class="kpi ${cls}"><span class="l">${l}</span><span class="v">${v}${u?`<small>${u}</small>`:''}</span>${dl(d)}</div>`;
+  const ratio = (x,y) => x!=null && y ? x/y : null;
+  const allN = a.allPaidN||0, allP = a.allPaid||0;
+  const mer = ratio(allP, a.spend), merB = ratio(b.allPaid, b.spend);
+  const cac = allN ? a.spend/allN : null, cacB = b.allPaidN ? b.spend/b.allPaidN : null;
+  const crm = !!(D.crm && D.crm.paid_all);
+  // 1) Outcome
+  const toggle = D.crm ? `<span class="seg seg-sm" role="group" aria-label="${tr('الاقفالات حسب')}">`
+    + [['lead','يوم الليد'],['paid','يوم الدفع']].map(([v,l])=>`<button type="button" data-crmby="${v}" aria-pressed="${(S.crmBy||'lead')===v}">${tr(l)}</button>`).join('') + `</span>` : '';
+  const spend = delta(a.spend,b.spend,null).replace(/delta (good|bad)">/,'delta flat">');
+  // Outcome tiles (references: icon chip, number, change, and a small bar chart of the same number over the range)
+  const BK = buckets(now), keys = BK.keys.slice(-14);
+  const daySum = (k,f) => Object.values(BK.byKey[k]||{}).reduce((t,v)=>t+(v[f]||0),0);
+  const paidIn = (k,amount) => { const [x,y] = BK.span(k); let n=0;
+    for(const [ld,pd,am] of ((D.crm&&D.crm.paid_all)||[])){ const d = S.crmBy==='paid'?pd:ld; if(d && d>=x && d<=y) n += amount?am:1; } return n; };
+  const spark = vals => { const m = Math.max(...vals,0); if(!m || vals.length<2) return '';
+    const bw = 100/vals.length; return `<svg class="spark" viewBox="0 0 100 32" preserveAspectRatio="none" aria-hidden="true">${vals.map((v,i)=>{ const h=Math.max(2,30*v/m);
+      return `<rect x="${(LANG==='en'?i:vals.length-1-i)*bw+bw*.18}" y="${32-h}" width="${bw*.64}" height="${h}" rx="1.5" opacity="${i===vals.length-1?1:.45}"/>`; }).join('')}</svg>`; };
+  const ICON = {
+    spend:'<path d="M3 7h18v12H3z"/><path d="M3 10h18"/><path d="M16 15h2"/>',
+    closings:'<circle cx="12" cy="12" r="9"/><path d="m8 12 3 3 5-6"/>',
+    paid:'<ellipse cx="12" cy="6" rx="7" ry="3"/><path d="M5 6v6c0 1.7 3.1 3 7 3s7-1.3 7-3V6"/><path d="M5 12v6c0 1.7 3.1 3 7 3s7-1.3 7-3v-6"/>',
+    ret:'<path d="m3 17 6-6 4 4 8-8"/><path d="M15 7h6v6"/>',
+    cac:'<circle cx="12" cy="8" r="4"/><path d="M4 21c1.5-4 4.5-6 8-6s6.5 2 8 6"/>' };
+  const tile = (l,v,u,d,ic,vals,cls='') => `<div class="kpi hero tile ${cls}"><span class="ic" aria-hidden="true"><svg viewBox="0 0 24 24">${ICON[ic]}</svg></span>`
+    + `<span class="l">${l}</span><span class="v">${v}${u?`<small>${u}</small>`:''}</span>${dl(d)}${vals?spark(vals):''}</div>`;
+  const outcome = [
+    tile('الصرف',sar(a.spend),money(),spend,'spend',keys.map(k=>daySum(k,'spend'))),
+    ...(crm ? [
+      tile('الاقفالات',fmt(allN),'',delta(allN,b.allPaidN,false),'closings',keys.map(k=>paidIn(k,false)),'feature'),
+      tile('المدفوع',sar(allP),money(),delta(allP,b.allPaid,false),'paid',keys.map(k=>paidIn(k,true))),
+      tile('العائد على الصرف',mer==null?'—':fmt(mer,2)+'×','',delta(mer,merB,false),'ret',null),
+      tile('تكلفة العميل',sar(cac),money(),delta(cac,cacB,true),'cac',null),
     ] : []),
-    ['محادثات واتساب وماسنجر',fmt(a.conv),'',delta(a.conv,b.conv,false)],
-    ['الظهور',fmt(a.impr),'',delta(a.impr,b.impr,false)],
-    ['نقرات الرابط والسوايب',fmt(a.clicks),'',delta(a.clicks,b.clicks,false)],
-    ['نسبة النقر',pct(a.ctr),'',delta(a.ctr,b.ctr,false)],
-    ['تكلفة النقرة',sar(a.cpc),money(),delta(a.cpc,b.cpc,true)],
-    ['تكلفة الألف ظهور',sar(a.cpm),money(),delta(a.cpm,b.cpm,true)],
+  ].join('');
+  // 2) Funnel: each stage has its volume, its cost, and the rate that carries people to the next stage
+  const vol = [a.impr||0, a.clicks||0, (a.leads||0)+(a.conv||0), crm ? allN : (a.booked||0)];
+  const top = Math.max(...vol, 1), w = v => v>0 ? Math.max(8, 100*Math.log10(v+1)/Math.log10(top+1)) : 4;
+  const clickToLead = ratio(100*((a.leads||0)+(a.conv||0)), a.clicks), clickToLeadB = ratio(100*((b.leads||0)+(b.conv||0)), b.clicks);
+  const leadToSale = a.closeRate, leadToSaleB = b.closeRate;   // ad-linked paid closings ÷ ad-linked CRM leads: both sides from ads
+  const stages = [
+    {n:'الوعي', hint:'كم شخص شاف الإعلان', main:kpi('الظهور',fmt(a.impr),'',delta(a.impr,b.impr,false),'main'),
+     sub:[kpi('تكلفة الألف ظهور',sar(a.cpm),money(),delta(a.cpm,b.cpm,true),'sub')]},
+    {n:'الاهتمام', hint:'كم واحد ضغط', main:kpi('نقرات الرابط والسوايب',fmt(a.clicks),'',delta(a.clicks,b.clicks,false),'main'),
+     sub:[kpi('تكلفة النقرة',sar(a.cpc),money(),delta(a.cpc,b.cpc,true),'sub')],
+     rate:kpi('نسبة النقر',pct(a.ctr),'',delta(a.ctr,b.ctr,false),'rate')},
+    {n:'التحويل', hint:'كم واحد ترك بياناته أو راسلنا', main:kpi('الليدز',qty(a.leads),'',delta(a.leads,b.leads,false),'main'),
+     sub:[kpi('تكلفة الليد',sar(a.cpl),money(),delta(a.cpl,b.cpl,true),'sub'), kpi('محادثات واتساب وماسنجر',fmt(a.conv),'',delta(a.conv,b.conv,false),'sub')],
+     rate:kpi('من نقرة إلى ليد',pct(clickToLead),'',delta(clickToLead,clickToLeadB,false),'rate')},
+    ...(D.crm ? [{n:'البيع', hint:'كم واحد دفع', main:kpi('اقفالات مدفوعة',fmt(crm?allN:(a.booked||0)),'',delta(crm?allN:a.booked,crm?b.allPaidN:b.booked,false),'main'),
+     sub:[kpi('اقفالات من الإعلانات',fmt(a.booked||0),'',delta(a.booked,b.booked,false),'sub'), kpi('العائد من الإعلانات',a.roas==null?'—':fmt(a.roas,2)+'×','',delta(a.roas,b.roas,false),'sub')],
+     rate:kpi('من ليد إلى اقفالة',pct(leadToSale),'',delta(leadToSale,leadToSaleB,false),'rate')}] : []),
   ];
-  const by = D.crm ? `<div class="kpi crm-by"><span class="l">${tr('الاقفالات حسب')}</span><span class="seg" role="group">`
-    + [['lead','يوم الليد'],['paid','يوم الدفع']].map(([v,l])=>`<button type="button" data-crmby="${v}" aria-pressed="${(S.crmBy||'lead')===v}">${tr(l)}</button>`).join('')
-    + `</span></div>` : '';
-  $('#kpis').innerHTML = by + K.map(([l,v,u,d,hero])=>`<div class="kpi${hero?' hero':''}"><span class="l">${l}</span><span class="v">${v}${u?`<small>${u}</small>`:''}</span>${d.replace('class="delta','class="delta').replace(/delta (good|bad)">/, (m,g)=> l==='الصرف' ? 'delta flat">' : m)}</div>`).join('');
+  // A real funnel: each layer narrower than the one above; stage name on one side, its cost on the other, the rate between layers
+  const widths = [100, 84, 68, 52];
+  const funnel = stages.map((st,i)=>(st.rate?`<div class="flink"><span class="farrow" aria-hidden="true">↓</span>${st.rate}</div>`:'')
+    + `<div class="flayer"><div class="fname"><b>${i+1}</b><span>${st.n}</span><em>${st.hint}</em></div>`
+    + `<div class="fband-wrap"><div class="fband" style="--w:${widths[i]}%;--k:${i};--fc:${['#7C8CFF','#8B6CFF','#7E57FD','#5B36D6'][i]}">${st.main}</div></div>`
+    + `<div class="fcost">${st.sub.join('')}</div></div>`).join('');
+  $('#kpis').innerHTML =
+    `<div class="kgroup"><div class="khead"><h3>النتيجة</h3>${toggle}</div><div class="kpis kout">${outcome}</div>`
+    + (crm ? `<p class="knote">${tr('الاقفالات والمدفوع من كل المصادر في نظام العملاء (مدفوعات ميسّر). العائد على الصرف = المدفوع ÷ الصرف. تكلفة العميل = الصرف ÷ الاقفالات.')}</p>` : '') + `</div>`
+    + `<div class="kgroup"><div class="khead"><h3>رحلة العميل</h3></div><div class="ffun">${funnel}</div></div>`;
 }
 
 function noteCard(title, line, alert){
