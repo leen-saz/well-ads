@@ -407,6 +407,38 @@ body{background:
 .kpis.kout>.tile:nth-child(4) .ic{background:linear-gradient(140deg,rgba(34,17,150,.16),rgba(126,87,253,.18));color:var(--ink)}
 .kpi.tile.feature{background:linear-gradient(150deg,#9B7BFF,#6A45F0 55%,#3A22B8);border-color:rgba(255,255,255,.45);box-shadow:inset 0 1px 1px rgba(255,255,255,.5),0 18px 40px rgba(106,69,240,.35)}
 .fband{clip-path:none;border-radius:22px 22px 60px 60px/22px 22px 34px 34px;background:linear-gradient(180deg,rgba(255,255,255,.38),rgba(255,255,255,0) 48%),var(--fc);box-shadow:inset 0 2px 1px rgba(255,255,255,.55),inset 0 -6px 14px rgba(20,8,90,.18),0 12px 26px rgba(76,52,180,.28)}
+
+/* ---- Bento (Leen's references): a 12-column grid for the sections, filters in one row on top. Phones keep the drawer. */
+@media (min-width:1101px){
+  .dash{grid-template-columns:minmax(0,1fr)}
+  .dash-main{grid-template-columns:repeat(12,minmax(0,1fr));gap:18px}
+  .dash-main>*{grid-column:1/-1}
+  .dash-main>.b-6{grid-column:span 6}
+  .dash-main>.b-4{grid-column:span 4}
+  .dash-main>.b-8{grid-column:span 8}
+  .filter-card{position:sticky;top:8px;max-height:none;overflow:visible;padding:10px 14px;border-radius:20px;display:block}
+  .filter-head{display:none}
+  .filter-card .bar{display:flex;flex-wrap:wrap;align-items:center;gap:8px 12px}
+  .filter-card .row{display:flex;flex-wrap:wrap;align-items:center;gap:6px 8px}
+  .filter-card .row + .row{padding-top:0;border-top:0}
+  .filter-card .seg{width:auto;border-radius:999px}
+  .filter-card .field{display:flex;gap:6px;align-items:center}
+  .filter-card select,.filter-card input[type=date]{width:auto}
+  .filter-card:not(.show-adv) .adv{display:none}
+  .filter-card .chips,.filter-card .range-label{flex-basis:100%}
+  .filter-card .chips:empty{display:none}
+}
+.more-f{border-radius:999px}
+.filter-card.show-adv .more-f{background:var(--accent);color:#fff}
+@media (max-width:1100px){.more-f{display:none}}
+
+/* Page tabs inside the analytics page: only the chosen page's sections show */
+.ptabs{display:flex;gap:4px;flex-wrap:wrap;padding:5px;border-radius:999px;background:var(--glass-bg,rgba(255,255,255,.6));border:1px solid rgba(255,255,255,.78);box-shadow:var(--lift);-webkit-backdrop-filter:var(--glass-blur);backdrop-filter:var(--glass-blur);justify-self:start}
+.ptabs button{border:0;background:transparent;color:var(--muted);font:500 .9rem var(--f-ar);padding:8px 16px;border-radius:999px;cursor:pointer;min-height:40px}
+.ptabs button:hover{background:rgba(255,255,255,.7);color:var(--ink)}
+.ptabs button[aria-current="page"]{background:var(--accent);color:#fff;box-shadow:0 6px 16px rgba(126,87,253,.3)}
+.ptabs button:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+@media (max-width:640px){.ptabs{flex-wrap:nowrap;overflow-x:auto;border-radius:18px;max-width:100%}.ptabs button{white-space:nowrap}}
 </style>
 
 <div class="wrap" dir="rtl" lang="ar">
@@ -448,7 +480,7 @@ body{background:
       <label class="field" for="from">من <input type="date" id="from"></label>
       <label class="field" for="to">إلى <input type="date" id="to"></label>
     </div>
-    <div class="row">
+    <div class="row adv">
       <span class="slc-l">القسم</span>
       <div class="seg" id="depts" role="group" aria-label="القسم"></div>
       <span class="hint" id="deptOrgHint" hidden>يصفّي المنشورات حسب نصها</span>
@@ -456,11 +488,11 @@ body{background:
     <div class="row">
       <div class="seg" id="plats" role="group" aria-label="المنصة"></div>
     </div>
-    <div class="row" id="gRow">
+    <div class="row adv" id="gRow">
       <span class="slc-l">جوجل</span>
       <div class="seg" id="gtypes" role="group" aria-label="نوع حملة جوجل"></div>
     </div>
-    <div class="row" id="adsOnly">
+    <div class="row adv" id="adsOnly">
       <div class="seg" id="stat" role="group" aria-label="حالة الإعلان">
         <button type="button" data-v="all" aria-pressed="true">كل الإعلانات</button>
         <button type="button" data-v="live" aria-pressed="false">النشطة الآن</button>
@@ -470,6 +502,7 @@ body{background:
       <label class="field" for="fGoal">الهدف <select id="fGoal"><option value="">كل الأهداف</option></select></label>
       <label class="field" for="fFmt">الصيغة <select id="fFmt"><option value="">كل الصيغ</option></select></label>
     </div>
+    <button type="button" class="btn more-f" id="moreF" aria-expanded="false" aria-controls="filterCard">فلاتر أكثر</button>
     <div class="chips" id="chips" aria-live="polite"></div>
     <span class="range-label" id="rangeLabel"></span>
       </section>
@@ -478,13 +511,14 @@ body{background:
       <div class="filter-tools">
         <label for="filterOpen" class="filter-fab btn">الفلاتر</label>
       </div>
+  <nav class="ptabs" id="tabs" aria-label="صفحات اللوحة"></nav>
   <section data-mode="ads" data-page="overview channels depts creative dept" class="kgroups" id="kpis" aria-label="الملخص"></section>
-  <section data-mode="ads" data-page="overview dept" class="panel" aria-labelledby="winsH">
+  <section data-mode="ads" data-page="overview dept" class="panel b-6" aria-labelledby="winsH">
     <div class="panel-h"><h2 id="winsH">نجاحات هالأسبوع</h2><span class="sub" id="winsSub"></span></div>
     <div class="wins" id="wins"></div>
   </section>
   <section data-mode="ads" data-page="dept" class="panel" id="deptRoot" aria-label="صفحة القسم"></section>
-  <section data-mode="ads" data-page="overview" class="panel" aria-labelledby="dmH">
+  <section data-mode="ads" data-page="overview" class="panel b-6" aria-labelledby="dmH">
     <div class="panel-h"><h2 id="dmH">الأقسام</h2><span class="sub">اضغط على القسم لفتح صفحته</span></div>
     <div id="deptMini"></div>
   </section>
@@ -503,14 +537,17 @@ body{background:
     </div>
   </section>
 
-  <section data-mode="ads" data-page="overview" class="panel" aria-labelledby="biH">
-    <div class="panel-h"><h2 id="biH">تحليل الأداء</h2></div>
-    <div class="bi-grid">
-      <div class="bi-card"><h3>القمع: من الظهور إلى الليد</h3><div class="funnel" id="funnel"></div></div>
-      <div class="bi-card"><h3>حصة كل منصة من الصرف ومن الليدز</h3><div id="share"></div><div class="hint">لما تكون حصة الليدز أكبر من حصة الصرف، المنصة تجيب أكثر من نصيبها.</div></div>
-      <div class="bi-card"><h3>وتيرة الشهر الحالي وتوقع نهايته</h3><div id="pace"></div><div class="hint">التوقع = المعدل اليومي لهذا الشهر × عدد أيامه، وما يحسب اليوم الحالي لأنه ناقص.</div></div>
-      <div class="bi-card"><h3>تكلفة الليد حسب يوم الأسبوع</h3><div class="tbl"><table class="heat" id="heat"></table></div><div class="hint">الأغمق = الأغلى.</div></div>
-    </div>
+  <section data-mode="ads" data-page="overview" class="panel b-6" aria-labelledby="shareH">
+    <div class="panel-h"><h2 id="shareH">حصة كل منصة من الصرف ومن الليدز</h2></div>
+    <div id="share"></div><div class="hint">لما تكون حصة الليدز أكبر من حصة الصرف، المنصة تجيب أكثر من نصيبها.</div>
+  </section>
+  <section data-mode="ads" data-page="overview" class="panel b-6" aria-labelledby="paceH">
+    <div class="panel-h"><h2 id="paceH">وتيرة الشهر الحالي وتوقع نهايته</h2></div>
+    <div id="pace"></div><div class="hint">التوقع = المعدل اليومي لهذا الشهر × عدد أيامه، وما يحسب اليوم الحالي لأنه ناقص.</div>
+  </section>
+  <section data-mode="ads" data-page="overview" class="panel" aria-labelledby="heatH">
+    <div class="panel-h"><h2 id="heatH">تكلفة الليد حسب يوم الأسبوع</h2></div>
+    <div class="tbl"><table class="heat" id="heat"></table></div><div class="hint">الأغمق = الأغلى.</div>
   </section>
 
   <section data-mode="ads" data-page="depts" class="panel" aria-labelledby="dcH">
@@ -640,6 +677,12 @@ const EN = {
   'الاقفالات (مدفوعة)':'Closings (paid)',
   'المدفوع':'Paid',
   'النتيجة':'Outcome',
+  'فلاتر أكثر':'More filters',
+  'صفحات اللوحة':'Dashboard pages',
+  'نظرة عامة':'Overview',
+  'المنصات والحملات':'Platforms and campaigns',
+  'طريقة الحساب':'How it is calculated',
+  'فلاتر أقل':'Fewer filters',
   'رحلة العميل':'Customer journey',
   'العائد على الصرف':'Return on spend',
   'تكلفة العميل':'Cost per customer',
@@ -1139,6 +1182,7 @@ function syncModeShape(){
     if(!['all','facebook','instagram','tiktok'].includes(S.plat)) S.plat='all';
   }else if(!['overview','depts','dept','channels','creative','notes'].includes(S.page)) S.page='overview';
 }
+{ const q=new URLSearchParams(location.search).get('p'); if(q && !CREATIVE_ONLY) S.page=q; }
 syncModeShape();
 if(S.mode==='organic' && new URLSearchParams(location.search).get('mode')!=='organic'){
   const url=new URL(location.href); url.searchParams.set('mode','organic'); url.hash='';
@@ -1380,6 +1424,7 @@ function delta(a,b,lowerIsBetter){
   const up = ch>0, good = lowerIsBetter ? !up : up;
   return `<span class="delta ${good?'good':'bad'}">${up?'▲':'▼'} ${fmt(Math.abs(ch),1)}% <span style="color:var(--muted)">${tr('عن الفترة السابقة')}</span></span>`;
 }
+document.addEventListener('click', e => { const m = e.target.closest && e.target.closest('#moreF'); if(m){ const c=$('#filterCard'); const on=!c.classList.contains('show-adv'); c.classList.toggle('show-adv',on); m.setAttribute('aria-expanded',String(on)); m.textContent=tr(on?'فلاتر أقل':'فلاتر أكثر'); } });
 document.addEventListener('click', e => { const b = e.target.closest && e.target.closest('[data-crmby]'); if(!b) return; S.crmBy = b.dataset.crmby; render(); });
 // Full-funnel summary (awareness → interest → conversion → sale), then the outcome: the usual way to read ad performance.
 function renderKpis(now,prev){
@@ -1637,7 +1682,7 @@ $('#gran').addEventListener('click',e=>{ const b=e.target.closest('button'); if(
 function renderBI(now){
   const t=derive(now.tot), steps=[['الظهور',t.impr],['النقرات',t.clicks],['الليدز والمحادثات',t.leads+t.conv]];
   const mx=Math.max(1,t.impr), w=v=>Math.max(4, Math.round(100*Math.sqrt(v/mx)));
-  $('#funnel').innerHTML = steps.map(([l,v],i)=>`<div class="fstep"><span class="lbl">${l}</span><div class="fbar" style="width:${w(v)}%">${i===2?qty(v):fmt(v)}</div>`
+  if($('#funnel')) $('#funnel').innerHTML = steps.map(([l,v],i)=>`<div class="fstep"><span class="lbl">${l}</span><div class="fbar" style="width:${w(v)}%">${i===2?qty(v):fmt(v)}</div>`
     + (i? `<span class="frate">${i===1?`${tr('نسبة النقر')} ${pct(t.ctr)}`:`${ui('من النقرة لليد','Click to result')} ${pct(t.clicks?100*(t.leads+t.conv)/t.clicks:null)} · ${ui('تكلفة النتيجة','Cost per result')} ${sar((t.leads+t.conv)?t.spend/(t.leads+t.conv):null)} ${money()}`}</span>`:'')+`</div>`).join('');
   const plats=ORDER.filter(p=>now.byPlat[p]), ts=plats.reduce((a,p)=>a+now.byPlat[p].spend,0)||1, tl=plats.reduce((a,p)=>a+now.byPlat[p].leads,0)||1;
   const bar=(f,tot)=>`<div class="share-bar">${plats.map(p=>{const v=100*now.byPlat[p][f]/tot; return v>0?`<span style="width:${v}%;background:var(${PL[p].c})" title="${platName(p)}: ${fmt(v,1)}%"></span>`:'';}).join('')}</div>`;
@@ -2121,6 +2166,11 @@ $('#dlg').addEventListener('click',e=>{ if(e.target.id==='dlg') e.target.close()
 const PAGES = () => S.mode==='organic'
   ? [['accounts','الحسابات'],['posts','المنشورات'],['notes','طريقة الحساب']]
   : [['overview','نظرة عامة'],['depts','الأقسام'],...DORDER.map(k=>['dept:'+k, DEP[k].ar]),['channels','المنصات والحملات'],['creative','الكرييتف'],['notes','طريقة الحساب']];
+function renderTabs(){
+  const el=$('#tabs'); if(!el) return;
+  el.hidden = CREATIVE_ONLY;
+  el.innerHTML = PAGES().filter(([id])=>!id.startsWith('dept:')).map(([id,l])=>`<button type="button" data-p="${id}" aria-current="${tabOn(id)||(id==='depts'&&S.page==='dept')?'page':'false'}">${tr(l)}</button>`).join('');
+}
 function tabOn(id){ return id.startsWith('dept:') ? S.page==='dept' && S.dept===id.slice(5) : S.page===id; }
 function setDept(k){
   S.dept = S.dept===k ? '' : k;
@@ -2190,9 +2240,10 @@ function renderWins(){
 }
 function renderReport(now,prev){
   document.querySelectorAll('section[data-mode]').forEach(s=>{
-    const modes=(s.dataset.mode||'ads').split(/\s+/);
-    s.hidden = !modes.includes(S.mode) || (CREATIVE_ONLY && (s.id==='kpis' || !(s.dataset.page||'').split(/\s+/).includes('creative')));
+    const modes=(s.dataset.mode||'ads').split(/\s+/), pages=(s.dataset.page||'').split(/\s+/).filter(Boolean);
+    s.hidden = !modes.includes(S.mode) || (pages.length && !pages.includes(S.page)) || (CREATIVE_ONLY && (s.id==='kpis' || !pages.includes('creative')));
   });
+  renderTabs();
   const mr=$('#modeRow'); if(mr) mr.hidden = CREATIVE_ONLY;
   const root=$('#deptRoot');
   if(root && S.mode==='ads') root.hidden = !S.dept || S.page!=='dept' || CREATIVE_ONLY;
@@ -2522,6 +2573,7 @@ function openOrganic(id){
 }
 const tabsEl=$('#tabs'); if(tabsEl) tabsEl.addEventListener('click',e=>{ const b=e.target.closest('button'); if(!b) return; const p=b.dataset.p;
   if(p.startsWith('dept:')){ S.page='dept'; S.dept=p.slice(5); S.camp=''; } else S.page=p;
+  try{ const u=new URL(location.href); u.searchParams.set('p',S.page); history.replaceState(history.state,'',u.pathname+u.search); }catch(_){}
   save(); render(); window.scrollTo({top:0}); });
 $('#depts').addEventListener('click',e=>{ const b=e.target.closest('button'); if(!b) return; S.dept=b.dataset.v; S.camp=''; S.shown=24; S.orgShown=24; if(S.mode==='ads' && S.page==='dept' && !S.dept) S.page='depts'; render(); });
 $('#ocards').addEventListener('click', onCardClick);

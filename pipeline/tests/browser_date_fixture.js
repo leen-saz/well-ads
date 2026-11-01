@@ -150,6 +150,7 @@ async function main() {
     check(!cpl.includes('ما فيه ليدز') && cpl.includes('8.00'), 'half a lead still draws the CPL line', cpl);
     await click(page, '#plats button[data-v="all"]');
 
+    await click(page, '#moreF'); // status, campaign, goal and format sit behind "more filters" on wide screens
     await click(page, '#stat button[data-v="off"]');
     await expectKpi(page, 'الصرف', '4.00', 'paused filter keeps only the paused ad');
     await expectKpi(page, 'الليدز', '0.50', 'paused leads');
