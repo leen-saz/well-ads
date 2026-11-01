@@ -18,6 +18,8 @@ jobs:
     # eng-policies reusable CI, pinned by commit SHA
     uses: leen-saz/eng-policies/.github/workflows/ci.yml@79ca6e387c145aa5efba25fc7818b9532dba6a7d
     with:
+      # Astro needs Node >= 22.23.4; the runner's Node 22 resolved to 22.23.3
+      node-version: "24"
       install-command: "npm ci"
       lint-command: "npm run lint"
       typecheck-command: "npm run typecheck"
