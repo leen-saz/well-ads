@@ -1,0 +1,256 @@
+{
+  "advertiser_info": {
+    "code": 0,
+    "message": "OK",
+    "data": {
+      "list": [
+        {
+          "advertiser_id": "7532842350553514000",
+          "name": "Well",
+          "currency": "SAR",
+          "timezone": "Asia/Riyadh",
+          "status": "STATUS_ENABLE"
+        }
+      ]
+    }
+  },
+  "campaigns": {
+    "code": 0,
+    "message": "OK",
+    "data": {
+      "list": [
+        {
+          "campaign_id": "1875496154242098",
+          "campaign_name": "Tiktok_Leads_WELL_iv",
+          "objective_type": "LEAD_GENERATION",
+          "operation_status": "ENABLE"
+        },
+        {
+          "campaign_id": "99",
+          "campaign_name": "SR | iOS14 | AppInstall",
+          "objective_type": "TRAFFIC",
+          "operation_status": "ENABLE"
+        }
+      ],
+      "page_info": {"page": 1, "page_size": 1000, "total_number": 2, "total_page": 1}
+    }
+  },
+  "adgroups": {
+    "code": 0,
+    "message": "OK",
+    "data": {
+      "list": [
+        {"adgroup_id": "22", "operation_status": "ENABLE"},
+        {"adgroup_id": "23", "operation_status": "DISABLE"},
+        {"adgroup_id": "25", "operation_status": "DISABLE"}
+      ],
+      "page_info": {"page": 1, "page_size": 1000, "total_number": 3, "total_page": 1}
+    }
+  },
+  "ads": {
+    "code": 0,
+    "message": "OK",
+    "data": {
+      "list": [
+        {
+          "advertiser_id": "7532842350553514000",
+          "ad_id": "1878109843378193",
+          "ad_name": "Well lead video",
+          "campaign_id": "1875496154242098",
+          "campaign_name": "Tiktok_Leads_WELL_iv",
+          "adgroup_id": "22",
+          "adgroup_name": "Female2",
+          "operation_status": "ENABLE",
+          "secondary_status": "AD_STATUS_DELIVERY_OK",
+          "tiktok_item_id": "7692055113619442965",
+          "ad_text": "فيتامينات وريدية"
+        },
+        {
+          "advertiser_id": "7532842350553514000",
+          "ad_id": "555",
+          "ad_name": "Old group",
+          "campaign_id": "1875496154242098",
+          "campaign_name": "Tiktok_Leads_WELL_iv",
+          "adgroup_id": "23",
+          "adgroup_name": "Paused group",
+          "operation_status": "DISABLE",
+          "secondary_status": "AD_STATUS_ADGROUP_DISABLE",
+          "ad_text": ""
+        },
+        {
+          "advertiser_id": "7532842350553514000",
+          "ad_id": "556",
+          "ad_name": "Looks delivering",
+          "campaign_id": "1875496154242098",
+          "campaign_name": "Tiktok_Leads_WELL_iv",
+          "adgroup_id": "25",
+          "adgroup_name": "Parent off",
+          "operation_status": "ENABLE",
+          "secondary_status": "AD_STATUS_DELIVERY_OK",
+          "ad_text": ""
+        },
+        {
+          "advertiser_id": "7532842350553514000",
+          "ad_id": "9",
+          "ad_name": "Rose install",
+          "campaign_id": "99",
+          "campaign_name": "SR | iOS14 | AppInstall",
+          "adgroup_id": "22",
+          "adgroup_name": "g",
+          "operation_status": "ENABLE",
+          "secondary_status": "AD_STATUS_DELIVERY_OK",
+          "ad_text": "زهرة الربيع"
+        }
+      ],
+      "page_info": {"page": 1, "page_size": 1000, "total_number": 4, "total_page": 1}
+    }
+  },
+  "report_page_1": {
+    "code": 0,
+    "message": "OK",
+    "data": {
+      "list": [
+        {
+          "dimensions": {"ad_id": "1878109843378193", "stat_time_day": "2026-10-17 00:00:00"},
+          "metrics": {
+            "spend": "50.29",
+            "impressions": "17367",
+            "clicks": "86",
+            "conversion": "2",
+            "messaging_total_conversation_tiktok_direct_message": "2",
+            "messaging_total_conversation_instant_messaging_app": "1",
+            "ad_name": "Well lead video",
+            "campaign_name": "Tiktok_Leads_WELL_iv",
+            "adgroup_name": "Female2",
+            "campaign_id": "1875496154242098"
+          }
+        },
+        {
+          "dimensions": {"ad_id": "1878109843378193", "stat_time_day": "2026-10-15 00:00:00"},
+          "metrics": {
+            "spend": "0",
+            "impressions": "0",
+            "clicks": "0",
+            "conversion": "0",
+            "messaging_total_conversation_tiktok_direct_message": "4",
+            "messaging_total_conversation_instant_messaging_app": "0"
+          }
+        },
+        {
+          "dimensions": {"ad_id": "1878109843378193", "stat_time_day": "2026-10-18 00:00:00"},
+          "metrics": {
+            "spend": "0.00",
+            "impressions": "0",
+            "clicks": "0",
+            "conversion": "0",
+            "messaging_total_conversation_tiktok_direct_message": "0",
+            "messaging_total_conversation_instant_messaging_app": "0"
+          }
+        },
+        {
+          "dimensions": {"ad_id": "555", "stat_time_day": "2026-10-16 00:00:00"},
+          "metrics": {
+            "spend": "0",
+            "impressions": "10",
+            "clicks": "1",
+            "conversion": "0"
+          }
+        },
+        {
+          "dimensions": {"ad_id": "9", "stat_time_day": "2026-10-17 00:00:00"},
+          "metrics": {
+            "spend": "80.00",
+            "impressions": "999",
+            "clicks": "40",
+            "conversion": "7",
+            "campaign_name": "SR | iOS14 | AppInstall",
+            "ad_name": "Rose install"
+          }
+        }
+      ],
+      "page_info": {"page": 1, "page_size": 1000, "total_number": 6, "total_page": 2}
+    }
+  },
+  "report_page_2": {
+    "code": 0,
+    "message": "OK",
+    "data": {
+      "list": [
+        {
+          "dimensions": {"ad_id": "777", "stat_time_day": "2026-10-17 00:00:00"},
+          "metrics": {
+            "spend": "3.50",
+            "impressions": "20",
+            "clicks": "2",
+            "conversion": "0.5",
+            "ad_name": "Deleted creative",
+            "campaign_name": "Tiktok_Leads_WELL_iv",
+            "adgroup_name": "Archive",
+            "campaign_id": "1875496154242098"
+          }
+        }
+      ],
+      "page_info": {"page": 2, "page_size": 1000, "total_number": 6, "total_page": 2}
+    }
+  },
+  "metric_error": {
+    "code": 40002,
+    "message": "Invalid metric messaging_total_conversation_tiktok_direct_message",
+    "data": {}
+  },
+  "usd_advertiser_info": {
+    "code": 0,
+    "message": "OK",
+    "data": {
+      "list": [
+        {
+          "advertiser_id": "7532842350553514000",
+          "name": "Well",
+          "currency": "USD",
+          "timezone": "Asia/Riyadh"
+        }
+      ]
+    }
+  },
+  "usd_report": {
+    "code": 0,
+    "message": "OK",
+    "data": {
+      "list": [
+        {
+          "dimensions": {"ad_id": "1878109843378193", "stat_time_day": "2026-10-17 00:00:00"},
+          "metrics": {"spend": "10.00", "impressions": "100", "clicks": "4", "conversion": "1"}
+        }
+      ],
+      "page_info": {"page": 1, "page_size": 1000, "total_number": 1, "total_page": 1}
+    }
+  },
+  "eur_advertiser_info": {
+    "code": 0,
+    "message": "OK",
+    "data": {
+      "list": [
+        {
+          "advertiser_id": "7532842350553514000",
+          "name": "Well",
+          "currency": "EUR",
+          "timezone": "Asia/Riyadh"
+        }
+      ]
+    }
+  },
+  "rose_named_advertiser_info": {
+    "code": 0,
+    "message": "OK",
+    "data": {
+      "list": [
+        {
+          "advertiser_id": "7532842350553514000",
+          "name": "Spring Rose0406",
+          "currency": "SAR",
+          "timezone": "Asia/Riyadh"
+        }
+      ]
+    }
+  }
+}

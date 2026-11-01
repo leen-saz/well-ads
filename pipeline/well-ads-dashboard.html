@@ -1,0 +1,2395 @@
+<title>لوحة إعلانات Well</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@900&display=swap">
+<style>
+@font-face{font-family:"Thmanyah Sans";src:url(/assets/fonts/thmanyahsans-Regular.woff2) format("woff2");font-weight:400;font-display:swap}
+@font-face{font-family:"Thmanyah Sans";src:url(/assets/fonts/thmanyahsans-Medium.woff2) format("woff2");font-weight:500 600;font-display:swap}
+@font-face{font-family:"Thmanyah Sans";src:url(/assets/fonts/thmanyahsans-Bold.woff2) format("woff2");font-weight:700;font-display:swap}
+@font-face{font-family:"Thmanyah Serif";src:url(/assets/fonts/thmanyahseriftext-Regular.woff2) format("woff2");font-weight:400;font-display:swap}
+@font-face{font-family:"Thmanyah Serif";src:url(/assets/fonts/thmanyahseriftext-Medium.woff2) format("woff2");font-weight:500 600;font-display:swap}
+@font-face{font-family:"Thmanyah Serif";src:url(/assets/fonts/thmanyahseriftext-Bold.woff2) format("woff2");font-weight:700;font-display:swap}
+@font-face{font-family:"Thmanyah Display";src:url(/assets/fonts/thmanyahserifdisplay-Bold.woff2) format("woff2");font-weight:700;font-display:swap}
+/* Well brand tokens (من wellcare.sa: خطوط ثمانية، كروت 20px بظل بنفسجي ناعم بدون حدود، البنفسجي للنشط). Ivory page, white cards, indigo ink, purple for active and the wordmark dot. */
+:root{
+  --bg:#F6F0E3;
+  --surface:#FFFFFF;
+  --ink:#1D1069;
+  --ink-2:#221196;
+  --muted:rgba(29,16,105,.70);
+  --line:rgba(172,166,225,.45);
+  --accent:#7E57FD;
+  --soft:#ACA6E1;
+  --pulse:#F86080;
+  --chip:rgba(172,166,225,.25);
+  --deep:#221196;
+  --good:#221196; --bad:#221196;
+  --f-ar:"Thmanyah Sans","IBM Plex Sans Arabic","Segoe UI",Tahoma,sans-serif;
+  --f-num:"Thmanyah Sans","Helvetica Neue",Arial,sans-serif;
+  --f-display:"Thmanyah Display","Thmanyah Sans",serif;
+  --f-text:"Thmanyah Serif","Thmanyah Sans",serif;
+  --lift:0 1px 2px rgba(126,87,253,.05),0 10px 30px rgba(126,87,253,.14);
+  --f-mark:"Playfair Display",Georgia,serif;
+  --r:20px;
+  --d-iv:#7E57FD; --d-midwife:#1D1069; --d-foot:#ACA6E1;
+  --d-renan:#221196; --d-brand:rgba(29,16,105,.35);
+  --s-fb:#7E57FD; --s-ig:#221196; --s-msg:rgba(126,87,253,.55); --s-an:#ACA6E1; --s-threads:rgba(29,16,105,.55);
+  --s-meta:#1D1069; --s-snap:#7E57FD; --s-tiktok:#F86080; --s-google:#ACA6E1;
+  --s-gs:#7E57FD; --s-gp:#1D1069; --s-gd:#ACA6E1; --s-gv:#221196; --s-gg:rgba(126,87,253,.45);
+  --s-gsh:rgba(29,16,105,.35); --s-ga:rgba(126,87,253,.55);
+  --pane-w:300px;
+}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--ink);font-family:var(--f-text);font-size:14px;line-height:1.55;letter-spacing:0}
+button,.btn,.pill,select,input,th,.seg button,.chips,.range-label,.meta-line{font-family:var(--f-ar)}
+.wrap[lang="en"], html[lang="en"] body{font-family:var(--f-num)}
+@media (max-width:640px){body{font-size:16px}.kpis{grid-template-columns:repeat(2,minmax(0,1fr))!important}.kpi .v{font-size:1.25rem}}
+.wrap{max-width:1640px;margin:0 auto;padding-inline:clamp(16px,3vw,32px);padding-block:20px 48px;display:grid;gap:22px}
+.num,td.n,.kpi .v,.mini{font-family:var(--f-num);font-variant-numeric:tabular-nums}
+h1,h2{margin:0;text-wrap:balance;font-weight:700;font-family:var(--f-display)}
+h2{font-size:1.15rem}
+header{display:flex;flex-wrap:wrap;align-items:flex-end;justify-content:space-between;gap:12px}
+.brand{display:flex;align-items:baseline;gap:14px}
+.mark{font-family:var(--f-mark);font-weight:900;font-size:2rem;color:var(--ink);letter-spacing:-.01em;direction:ltr}
+.mark i{color:var(--accent);font-style:normal}
+.sub{color:var(--muted);font-size:.9rem}
+.meta-line{display:flex;flex-wrap:wrap;gap:8px;align-items:center;color:var(--muted);font-size:.85rem}
+.pill{display:inline-flex;align-items:center;gap:6px;border-radius:999px;padding:2px 10px;font-size:.8rem;background:var(--chip);color:var(--ink);white-space:nowrap}
+.pill.warn{background:transparent;border:1px solid var(--pulse);color:var(--ink)}
+.hookrow{display:flex;gap:10px;flex-wrap:wrap;font-size:.75rem;color:var(--muted)}
+.hookrow b{color:var(--ink);font-family:var(--f-num)}
+.pill.tired{background:transparent;border:1px solid var(--bad);color:var(--ink)}
+.cmp{display:flex;align-items:center;gap:6px;font-size:.78rem;color:var(--muted);cursor:pointer}
+.cmp-bar[hidden]{display:none}
+.cmp-bar{position:sticky;bottom:12px;z-index:5;display:flex;gap:8px;align-items:center;justify-content:center;background:var(--surface);border:1px solid var(--accent);border-radius:999px;padding:6px 12px;margin:0 auto 10px;width:fit-content}
+.cmp-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,200px),1fr));gap:12px}
+.cmp-grid .thumb{aspect-ratio:1;overflow:hidden;border-radius:10px;background:var(--chip)}
+.cmp-grid .thumb img{width:100%;height:100%;object-fit:cover}
+.cmp-grid dl{display:grid;grid-template-columns:auto 1fr;gap:2px 8px;font-size:.82rem;margin:8px 0 0}
+.cmp-grid dt{color:var(--muted)} .cmp-grid dd{margin:0;font-family:var(--f-num);text-align:end}
+.cmp-grid dd.best{color:var(--accent);font-weight:700}
+.pill.win{background:color-mix(in srgb, var(--accent) 22%, transparent);color:var(--ink);font-weight:600}
+.dot{width:8px;height:8px;border-radius:50%;display:inline-block;flex:none}
+
+/* Filters live in a side card. The controls themselves are unchanged. */
+.bar{position:static;background:transparent;border:0;padding:0;display:grid;gap:6px}
+.row{display:flex;flex-wrap:wrap;gap:8px;align-items:center}
+.filter-open{position:fixed;inline-size:1px;block-size:1px;margin:-1px;padding:0;border:0;overflow:hidden;clip:rect(0 0 0 0);clip-path:inset(50%);white-space:nowrap;pointer-events:none}
+.dash{display:grid;grid-template-columns:minmax(280px,320px) minmax(0,1fr);gap:18px;align-items:start}
+.dash-main{display:grid;gap:22px;min-width:0;align-content:start}
+.filter-tools{display:none}
+.filter-card{
+  position:sticky;top:12px;align-self:start;z-index:4;
+  max-height:calc(100dvh - 24px);overflow:auto;overscroll-behavior:contain;
+  display:grid;gap:8px;align-content:start;
+  padding:12px 14px 12px;border-radius:22px;color:var(--ink);
+  background:linear-gradient(165deg, rgba(255,255,255,.58) 0%, rgba(255,255,255,.30) 42%, rgba(246,240,227,.36) 100%);
+  -webkit-backdrop-filter:blur(22px) saturate(1.7);
+  backdrop-filter:blur(22px) saturate(1.7);
+  border:1px solid rgba(255,255,255,.9);
+  box-shadow:0 20px 44px rgba(29,16,105,.12), 0 2px 8px rgba(29,16,105,.06), inset 0 1px 0 rgba(255,255,255,.96), inset 0 0 0 1px rgba(172,166,225,.42);
+}
+.filter-card::-webkit-scrollbar{width:8px}
+.filter-card::-webkit-scrollbar-thumb{background:rgba(29,16,105,.28);border-radius:99px}
+.filter-head{display:flex;justify-content:space-between;align-items:center;gap:8px;padding-bottom:6px;border-bottom:1px solid rgba(255,255,255,.55)}
+.filter-head h2{font-size:1.05rem}
+.filter-close,.filter-scrim{display:none}
+.filter-card .row{display:grid;gap:8px}
+.filter-card .row + .row{padding-top:6px;border-top:1px solid rgba(172,166,225,.4)}
+.filter-card .field{display:grid;grid-template-columns:4.6rem minmax(0,1fr);align-items:center}
+.filter-card .seg{width:100%;border-radius:14px;background:rgba(255,255,255,.48);border-color:rgba(255,255,255,.72)}
+.filter-card .seg button{max-width:100%}
+.filter-card select,.filter-card input[type=date]{width:100%;background:rgba(255,255,255,.62);border-color:rgba(255,255,255,.8)}
+.filter-card .range-label{white-space:normal}
+.filter-card [hidden]{display:none !important}
+@media (max-width:1100px){
+  html{overflow-x:clip}
+  .dash{display:block}
+  .filter-tools{display:flex;position:sticky;top:0;z-index:8;padding-block:8px;background:color-mix(in srgb, var(--bg) 88%, transparent);-webkit-backdrop-filter:blur(12px) saturate(1.4);backdrop-filter:blur(12px) saturate(1.4)}
+  .filter-fab{display:inline-flex;align-items:center}
+  .filter-open:focus-visible ~ .dash .filter-fab,.filter-open:focus-visible ~ * .filter-fab{outline:2px solid var(--accent);outline-offset:2px}
+  .filter-card{
+    position:fixed;z-index:40;inset-block:0;inset-inline-start:0;width:min(360px, calc(100vw - 28px));
+    max-height:none;height:100dvh;border-radius:0;border-start-end-radius:22px;border-end-end-radius:22px;
+    padding:max(16px, env(safe-area-inset-top)) 14px max(18px, env(safe-area-inset-bottom));
+    visibility:hidden;transform:translateX(-100%);
+    transition:transform .28s ease, visibility 0s linear .28s;
+    background:linear-gradient(180deg, rgba(255,255,255,.82), rgba(246,240,227,.66));
+    -webkit-backdrop-filter:blur(28px) saturate(1.75);
+    backdrop-filter:blur(28px) saturate(1.75);
+  }
+  [dir="rtl"] .filter-card{transform:translateX(100%)}
+  .filter-open:checked ~ .dash .filter-card{visibility:visible;transform:none;transition:transform .28s ease, visibility 0s}
+  .filter-open:checked ~ .dash .filter-close{display:inline-flex;align-items:center;cursor:pointer}
+  .filter-open:checked ~ .dash .filter-scrim{display:block;position:fixed;inset:0;z-index:35;background:rgba(18,11,63,.38);-webkit-backdrop-filter:blur(2px);backdrop-filter:blur(2px);cursor:pointer}
+  body:has(#filterOpen:checked){overflow:hidden}
+}
+.seg{display:flex;flex-wrap:wrap;gap:4px;background:var(--surface);border:1px solid var(--line);border-radius:999px;padding:3px}
+.seg button{border:0;background:transparent;color:var(--ink);font:inherit;font-size:.85rem;padding:4px 12px;border-radius:999px;cursor:pointer}
+.seg button[aria-pressed="true"]{background:var(--accent);color:#FFFFFF}
+.seg button:focus-visible,button:focus-visible,input:focus-visible,select:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+.field{display:flex;align-items:center;gap:6px;font-size:.85rem;color:var(--muted)}
+input[type=date],select,input[type=search]{font:inherit;font-size:.85rem;color:var(--ink);background:var(--surface);border:1px solid var(--line);border-radius:8px;padding:4px 8px;min-width:0}
+input[type=search]{width:min(240px,100%)}
+.range-label{font-size:.85rem;color:var(--muted)}
+.range-label b{color:var(--ink);font-family:var(--f-num);font-weight:600}
+
+/* KPIs */
+.kpis{display:grid;grid-template-columns:repeat(auto-fill,minmax(min(100%,210px),1fr));gap:10px}
+.kpi{background:var(--surface);border:0;box-shadow:var(--lift);border-radius:var(--r);padding:12px 14px;display:grid;gap:2px;min-width:0}
+.kpi .l{font-size:.82rem;color:var(--muted)}
+.kpi .v{font-size:1.45rem;font-weight:600;color:var(--ink)}
+.kpi .v small{font-size:.75rem;color:var(--muted);font-weight:500;margin-inline-start:4px}
+.delta{font-family:var(--f-num);font-size:.8rem;display:flex;gap:4px;align-items:center}
+.delta.good{color:var(--good)} .delta.bad{color:var(--bad)} .delta.flat{color:var(--muted)}
+.kpi.hero{border-color:var(--ink)}
+
+/* Panels */
+.panel{background:var(--surface);border:0;box-shadow:var(--lift);border-radius:var(--r);padding:20px;display:grid;gap:12px;min-width:0}
+.panel-h{display:flex;flex-wrap:wrap;gap:10px;justify-content:space-between;align-items:center}
+.charts{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,460px),1fr));gap:14px}
+.legend{display:flex;flex-wrap:wrap;gap:14px;font-size:.82rem;color:var(--muted)}
+.legend span{display:inline-flex;gap:6px;align-items:center}
+.chart{position:relative;min-width:0}
+.chart svg{display:block;width:100%;height:auto;overflow:visible}
+.chart text{fill:var(--muted);font-family:var(--f-num);font-size:11px}
+.chart .grid{stroke:var(--line);stroke-width:1}
+.chart .hit{fill:transparent;cursor:crosshair}
+.chart .hit:hover{fill:var(--chip);opacity:.5}
+.qi{display:inline-block;position:relative;vertical-align:middle;margin-inline-start:6px;font:500 .8rem/1 inherit}
+.qi summary{list-style:none;cursor:pointer;width:22px;height:22px;border-radius:50%;border:1.5px solid var(--ink);display:grid;place-items:center;font-weight:700;font-size:.8rem;color:var(--ink)}
+.qi summary::-webkit-details-marker{display:none}
+.qi[open] summary{background:var(--ink);color:var(--bg)}
+.qi>div{position:absolute;inset-block-start:30px;inset-inline-start:0;z-index:20;width:min(320px,80vw);background:var(--surface);color:var(--ink);border:1px solid var(--line);border-radius:14px;padding:12px 14px;font-weight:400;font-size:.88rem;line-height:1.7;box-shadow:0 12px 30px rgba(126,87,253,.18)}
+.wins{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,260px),1fr));gap:12px}
+.win-i{display:flex;gap:12px;align-items:flex-start;padding:14px 16px;border-radius:16px;background:var(--chip);line-height:1.6}
+.win-i .ic{font-size:1.25rem;line-height:1.3}
+.win-i b{display:block;font-size:1.02rem}
+.win-i span{color:var(--muted);font-size:.88rem}
+.tip{position:absolute;pointer-events:none;background:var(--ink);color:var(--bg);border-radius:8px;padding:8px 10px;font-size:.8rem;line-height:1.5;min-width:150px;z-index:3;box-shadow:0 6px 18px rgba(29,16,105,.18)}
+.tip .t{font-family:var(--f-num);font-weight:600;margin-bottom:2px}
+.tip .r{display:flex;justify-content:space-between;gap:12px}
+.tip .r b{font-family:var(--f-num);font-weight:500}
+
+/* Tables */
+.tbl{overflow-x:auto}
+table{border-collapse:collapse;width:100%;font-size:.88rem}
+th,td{padding:8px 10px;text-align:start;border-bottom:1px solid var(--line);white-space:nowrap}
+th{font-weight:600;color:var(--muted);font-size:.8rem;cursor:pointer;user-select:none}
+th[aria-sort]::after{content:" ▾";color:var(--accent)}
+th[aria-sort="ascending"]::after{content:" ▴"}
+td.n,th.n{text-align:end}
+td.name{white-space:normal;min-width:180px;max-width:340px}
+tbody tr:hover{background:var(--chip)}
+.bar-cell{display:inline-block;height:6px;border-radius:3px;background:var(--soft);vertical-align:middle;margin-inline-start:6px}
+
+/* Creatives */
+.toolbar{display:flex;flex-wrap:wrap;gap:8px;align-items:center}
+.grid-cr{display:grid;grid-template-columns:repeat(auto-fill,minmax(min(100%,230px),1fr));gap:12px}
+.grid-cr>.empty{grid-column:1/-1;text-align:start}
+.card{background:var(--surface);border:0;box-shadow:var(--lift);border-radius:var(--r);overflow:hidden;display:flex;flex-direction:column;cursor:pointer;text-align:start;font:inherit;color:inherit;padding:0}
+.card:hover{border-color:var(--accent)}
+.thumb{aspect-ratio:1/1;max-width:100%;background:var(--chip);display:grid;place-items:center;overflow:hidden;position:relative}
+.thumb img,.thumb video{width:100%;height:100%;object-fit:cover}
+.thumb iframe{width:100%;height:100%;border:0;background:#111}
+.thumb .play{position:absolute;inset-inline-end:10px;inset-block-end:10px;width:34px;height:34px;border-radius:50%;background:var(--ink);color:var(--bg);display:grid;place-items:center;font-size:13px;line-height:1}
+.thumb .nothumb{display:grid;place-items:center;align-content:center;gap:10px;padding:18px;text-align:center;color:var(--muted);font-size:.85rem;line-height:1.6}
+.thumb .nothumb svg{width:44px;height:44px;fill:none;stroke:var(--accent,#7E57FD);stroke-width:1.6;stroke-linejoin:round}
+.thumb .txt{padding:14px;font-size:.85rem;line-height:1.7;color:var(--ink);display:-webkit-box;-webkit-line-clamp:7;-webkit-box-orient:vertical;overflow:hidden}
+.badges{position:absolute;inset-block-start:8px;inset-inline:8px;display:flex;justify-content:space-between;gap:6px}
+.badges .pill{background:var(--surface);box-shadow:0 1px 4px rgba(29,16,105,.12)}
+.st-live{color:var(--ink)} .st-live .dot{background:var(--accent)}
+.st-off .dot{background:var(--muted)}
+.card .body{padding:10px 12px;display:grid;gap:6px}
+.card .nm{font-weight:600;font-size:.9rem;line-height:1.4;overflow-wrap:anywhere}
+.card .cp{font-size:.75rem;color:var(--muted);overflow-wrap:anywhere}
+.stats{display:grid;grid-template-columns:repeat(3,1fr);gap:4px;border-top:1px solid var(--line);padding-top:8px}
+.stats div{display:grid;gap:0}
+.stats .k{font-size:.7rem;color:var(--muted)}
+.stats .mini{font-size:.88rem;font-weight:600}
+.flag{font-size:.75rem;color:var(--bad)}
+.pill.camp-on{background:transparent;border:1px solid var(--accent)}
+.pill.camp-off{background:transparent;border:1px solid var(--soft);color:var(--muted)}
+.more{justify-self:center}
+.btn{font:inherit;font-size:.85rem;border:1px solid var(--ink);background:transparent;color:var(--ink);border-radius:999px;padding:5px 16px;cursor:pointer}
+a.btn{text-decoration:none}
+.btn.primary{background:var(--accent);border-color:var(--accent);color:#fff}
+.fullimg{width:100%;max-height:80vh;object-fit:contain;background:var(--chip);border-radius:10px}
+.dlg-top .thumb.zoom{cursor:zoom-in}
+
+/* Insights */
+.ins{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,280px),1fr));gap:10px}
+.ins .item{border:1px solid var(--line);border-radius:var(--r);padding:10px 12px;background:var(--surface);display:grid;gap:4px;min-width:0}
+.ins .item.alert{border-color:var(--pulse)}
+.ins .item .b{font-weight:700;font-size:.95rem;line-height:1.35}
+.ins .item .sub{font-size:.82rem;color:var(--muted);line-height:1.4;display:-webkit-box;-webkit-box-orient:vertical;-webkit-line-clamp:2;overflow:hidden}
+
+/* Drawer */
+dialog{border:0;border-radius:14px;padding:0;max-width:min(720px,calc(100vw - 32px));width:100%;background:var(--surface);color:var(--ink)}
+dialog::backdrop{background:rgba(18,11,63,.45)}
+.dlg{display:grid;gap:14px;padding:18px}
+.dlg-top{display:grid;grid-template-columns:minmax(0,200px) minmax(0,1fr);gap:16px}
+.dlg-top:has(iframe),.dlg-top:has(video){grid-template-columns:minmax(180px,280px) minmax(0,1fr)}
+.dlg .thumb:has(iframe),.dlg .thumb:has(video){aspect-ratio:9/16;max-height:480px}
+@media (max-width:560px){.dlg-top,.dlg-top:has(iframe),.dlg-top:has(video){grid-template-columns:1fr}}
+.dlg .thumb{border-radius:10px}
+.dlg pre{white-space:pre-wrap;font-family:var(--f-ar);margin:0;font-size:.88rem;background:var(--bg);border-radius:8px;padding:10px;max-height:180px;overflow:auto}
+.kv{display:grid;grid-template-columns:repeat(auto-fit,minmax(110px,1fr));gap:8px}
+.kv div{background:var(--bg);border-radius:8px;padding:6px 10px}
+.kv .k{font-size:.72rem;color:var(--muted)} .kv .mini{font-weight:600}
+a{color:var(--accent)}
+.notes{font-size:.82rem;color:var(--muted);display:grid;gap:4px}
+.notes p{margin:0;max-width:90ch}
+.empty{padding:24px;text-align:center;color:var(--muted)}
+@media (prefers-reduced-motion:reduce){*{transition:none!important}}
+
+/* ---- BI layer ---- */
+.chips{display:flex;flex-wrap:wrap;gap:6px}
+.chip{display:inline-flex;align-items:center;gap:6px;border:1px solid var(--accent);border-radius:999px;padding:2px 4px 2px 10px;font-size:.8rem;background:var(--surface);color:var(--ink)}
+.chip button{border:0;background:var(--chip);color:var(--ink);border-radius:50%;width:20px;height:20px;line-height:20px;padding:0;cursor:pointer;font:inherit;font-size:.8rem}
+.chip.clear{border-color:var(--line);cursor:pointer;padding:2px 10px}
+.bi-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,380px),1fr));gap:14px}
+.bi-card{border:1px solid var(--line);border-radius:var(--r);padding:14px;display:grid;gap:10px;min-width:0;background:var(--surface)}
+.bi-card h3{margin:0;font-size:.95rem;font-weight:700}
+.funnel{display:grid;gap:8px}
+.fstep{display:grid;grid-template-columns:96px 1fr;gap:10px;align-items:center}
+.fstep .lbl{font-size:.82rem;color:var(--muted)}
+.fbar{height:30px;border-radius:6px;background:var(--soft);display:flex;align-items:center;padding-inline:10px;font-family:var(--f-num);font-size:.85rem;font-weight:600;color:var(--ink);min-width:fit-content;white-space:nowrap}
+.frate{grid-column:2;font-size:.75rem;color:var(--muted);font-family:var(--f-num)}
+.share-row{display:grid;grid-template-columns:70px 1fr;gap:8px;align-items:center;font-size:.8rem}
+.share-bar{display:flex;height:22px;border-radius:6px;overflow:hidden;background:var(--chip)}
+.share-bar span{display:block;height:100%}
+.heat{border-collapse:separate;border-spacing:3px;width:100%}
+.heat th{font-weight:600;color:var(--muted);font-size:.75rem;padding:2px 4px;border:0;cursor:default}
+.heat td{text-align:center;border-radius:6px;padding:8px 4px;font-family:var(--f-num);font-size:.8rem;border:0;white-space:nowrap}
+.tree td.lv1{font-weight:700}.tree td.lv2{padding-inline-start:26px}.tree td.lv3{padding-inline-start:44px}.tree td.lv4{padding-inline-start:62px;font-weight:400}
+.tree .tg{border:0;background:transparent;color:var(--accent);cursor:pointer;font:inherit;padding:0 4px;width:22px}
+.tree tr.lv1row{background:var(--chip)}
+.pv td.n{position:relative}
+.pv td.hot{font-weight:600}
+tr.click{cursor:pointer}
+.hint{font-size:.75rem;color:var(--muted)}
+.pbi{min-height:100vh;display:flex;flex-direction:column}
+.appbar{background:var(--deep);color:#fff;padding:12px clamp(16px,2.4vw,28px);display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:12px}
+.appbar .mark{color:#fff}
+.appbar h1{font-size:1.3rem;color:#fff}
+.appbar .sub,.appbar .meta-line{color:var(--soft)}
+.appbar .meta-line .pill{background:rgba(255,255,255,.12);color:#F6F0E3}
+.appbar .meta-line .pill.warn{background:transparent;border-color:var(--pulse);color:#fff}
+.acct{display:grid;gap:16px}
+.tabs{display:flex;gap:2px;background:var(--surface);border-bottom:1px solid var(--line);padding:0 clamp(12px,2vw,24px);overflow-x:auto;position:sticky;top:0;z-index:6}
+.tabs button{border:0;background:transparent;color:var(--muted);font:inherit;font-size:.9rem;padding:10px 14px;cursor:pointer;border-bottom:3px solid transparent;white-space:nowrap}
+.tabs button:hover{color:var(--ink);background:var(--chip)}
+.tabs button[aria-selected="true"]{color:var(--ink);font-weight:700;border-bottom-color:var(--accent)}
+.tabs .tn{font-family:var(--f-num);font-size:.72rem;color:var(--muted);margin-inline-start:6px;background:var(--chip);border-radius:999px;padding:0 6px}
+.layout{display:grid;grid-template-columns:minmax(0,1fr) var(--pane-w);align-items:start;flex:1}
+@media (max-width:1100px){.layout{grid-template-columns:1fr}.pane{order:-1;position:static!important;max-height:none!important;border-inline-start:0!important;border-bottom:1px solid var(--line)}}
+.canvas{padding:18px clamp(14px,2vw,24px) 40px;display:grid;gap:16px;min-width:0;align-content:start}
+.page-h{display:flex;flex-wrap:wrap;justify-content:space-between;align-items:baseline;gap:8px}
+.pane{position:sticky;top:46px;max-height:calc(100vh - 46px);overflow:auto;background:var(--surface);border-inline-start:1px solid var(--line);padding:14px 16px}
+.pane .bar{position:static;background:transparent;border:0;padding:0;gap:12px}
+.pane .row{display:grid;gap:8px}
+.pane .field{display:grid;grid-template-columns:72px minmax(0,1fr)}
+.pane select,.pane input[type=date]{width:100%}
+.pane-h{font-weight:700;font-size:1rem;display:flex;justify-content:space-between;align-items:baseline;border-bottom:1px solid var(--line);padding-bottom:8px}
+.slc{display:grid;gap:6px}
+.slc-l{font-size:.78rem;font-weight:700;color:var(--muted)}
+section[hidden]{display:none!important}
+.dcards{display:grid;grid-template-columns:repeat(auto-fill,minmax(min(100%,240px),1fr));gap:12px}
+.dcard{border:1px solid var(--line);border-radius:var(--r);background:var(--surface);padding:12px 14px;display:grid;gap:8px;cursor:pointer;text-align:start;font:inherit;color:inherit;border-top:4px solid var(--dc)}
+.dcard[aria-pressed="true"]{outline:2px solid var(--accent);outline-offset:1px}
+.dcard.dim{opacity:.45}
+.dbar-row{display:grid;grid-template-columns:170px 1fr 220px;gap:10px;align-items:center;font-size:.85rem;cursor:pointer;padding:3px 0}
+@media (max-width:640px){
+  .dbar-row{grid-template-columns:minmax(0,1fr);gap:4px}
+  .bar .row,.field,select{min-width:0;max-width:100%}
+  select{width:100%}
+  .field{flex:1 1 140px}
+}
+.dbar-row.dim{opacity:.4}
+.dbar{height:18px;border-radius:5px;background:var(--chip);overflow:hidden}
+.dbar span{display:block;height:100%}
+.pend{border:1.5px dashed var(--soft);background:rgba(172,166,225,.14)}
+.needs{margin:0;padding-inline-start:18px;display:grid;gap:4px}
+.pill.pending{background:transparent;border:1px solid var(--soft)}
+.postbars{display:grid;gap:6px}
+.pb{display:grid;grid-template-columns:78px 1fr 72px;gap:8px;align-items:center;font-size:.8rem}
+.pb .b{height:14px;border-radius:4px;background:var(--chip);overflow:hidden}
+.pb .b span{display:block;height:100%}
+td.cap{white-space:normal;min-width:200px;max-width:360px}
+.jdg{color:var(--accent);font-weight:700}
+.vgrid{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,340px),1fr));gap:14px}
+</style>
+
+<div class="wrap" dir="rtl" lang="ar">
+  <input type="checkbox" id="filterOpen" class="filter-open" aria-label="الفلاتر" aria-controls="filterCard">
+  <header>
+    <div class="brand">
+      <span class="mark">Well<i>.</i></span>
+      <div>
+        <h1 id="headTitle">لوحة أداء الإعلانات</h1>
+        <div class="sub" id="headSub">ميتا · جوجل · سناب شات · تيك توك — كل المبالغ بالريال السعودي</div>
+      </div>
+    </div>
+    <div class="row">
+      <div class="seg" id="lang" role="group" aria-label="Language">
+        <button type="button" data-v="ar" aria-pressed="true">عربي</button>
+        <button type="button" data-v="en" aria-pressed="false">English</button>
+      </div>
+      <div class="meta-line" id="metaLine"></div>
+    </div>
+  </header>
+
+  <div class="dash">
+    <label for="filterOpen" class="filter-scrim" aria-hidden="true"></label>
+    <aside class="filter-card" id="filterCard" aria-labelledby="filterTitle">
+      <div class="filter-head">
+        <h2 id="filterTitle">الفلاتر</h2>
+        <label for="filterOpen" class="filter-close btn" aria-hidden="true">إغلاق</label>
+      </div>
+      <section class="bar" aria-label="الفلاتر">
+    <div class="row" id="modeRow">
+      <span class="slc-l">العرض</span>
+      <div class="seg" id="mode" role="group" aria-label="الإعلانات أو العضوي">
+        <button type="button" data-v="ads" aria-pressed="true">الإعلانات</button>
+        <button type="button" data-v="organic" aria-pressed="false">العضوي</button>
+      </div>
+    </div>
+    <div class="row">
+      <div class="seg" id="presets" role="group" aria-label="الفترة"></div>
+      <label class="field" for="from">من <input type="date" id="from"></label>
+      <label class="field" for="to">إلى <input type="date" id="to"></label>
+    </div>
+    <div class="row">
+      <span class="slc-l">القسم</span>
+      <div class="seg" id="depts" role="group" aria-label="القسم"></div>
+      <span class="hint" id="deptOrgHint" hidden>يصفّي المنشورات حسب نصها</span>
+    </div>
+    <div class="row">
+      <div class="seg" id="plats" role="group" aria-label="المنصة"></div>
+    </div>
+    <div class="row" id="gRow">
+      <span class="slc-l">جوجل</span>
+      <div class="seg" id="gtypes" role="group" aria-label="نوع حملة جوجل"></div>
+    </div>
+    <div class="row" id="adsOnly">
+      <div class="seg" id="stat" role="group" aria-label="حالة الإعلان">
+        <button type="button" data-v="all" aria-pressed="true">كل الإعلانات</button>
+        <button type="button" data-v="live" aria-pressed="false">النشطة الآن</button>
+        <button type="button" data-v="off" aria-pressed="false">متوقف</button>
+      </div>
+      <label class="field" for="fCamp">الحملة <select id="fCamp"><option value="">كل الحملات</option></select></label>
+      <label class="field" for="fGoal">الهدف <select id="fGoal"><option value="">كل الأهداف</option></select></label>
+      <label class="field" for="fFmt">الصيغة <select id="fFmt"><option value="">كل الصيغ</option></select></label>
+    </div>
+    <div class="chips" id="chips" aria-live="polite"></div>
+    <span class="range-label" id="rangeLabel"></span>
+      </section>
+    </aside>
+    <div class="dash-main">
+      <div class="filter-tools">
+        <label for="filterOpen" class="filter-fab btn">الفلاتر</label>
+      </div>
+  <section data-mode="ads" data-page="overview channels depts creative dept" class="kpis" id="kpis" aria-label="الملخص"></section>
+  <section data-mode="ads" data-page="overview dept" class="panel" aria-labelledby="winsH">
+    <div class="panel-h"><h2 id="winsH">نجاحات هالأسبوع</h2><span class="sub" id="winsSub"></span></div>
+    <div class="wins" id="wins"></div>
+  </section>
+  <section data-mode="ads" data-page="dept" class="panel" id="deptRoot" aria-label="صفحة القسم"></section>
+  <section data-mode="ads" data-page="overview" class="panel" aria-labelledby="dmH">
+    <div class="panel-h"><h2 id="dmH">الأقسام</h2><span class="sub">اضغط على القسم لفتح صفحته</span></div>
+    <div id="deptMini"></div>
+  </section>
+
+  <section data-mode="ads" data-page="overview" class="panel" aria-labelledby="trendH">
+    <div class="panel-h"><h2 id="trendH">الاتجاه</h2>
+      <div class="row"><div class="seg" id="gran" role="group" aria-label="التجميع">
+        <button type="button" data-v="auto" aria-pressed="true">تلقائي</button><button type="button" data-v="day" aria-pressed="false">يومي</button>
+        <button type="button" data-v="week" aria-pressed="false">أسبوعي</button><button type="button" data-v="month" aria-pressed="false">شهري</button></div>
+        <div class="legend" id="legend"></div></div></div>
+    <div class="hint">اضغط على أي عمود عشان تركّز الفترة عليه.</div>
+    <div class="charts">
+      <div><div class="sub" id="chSpendT">الصرف (ر.س)</div><div class="chart" id="chSpend"></div></div>
+      <div><div class="sub" id="chLeadsT">الليدز</div><div class="chart" id="chLeads"></div></div>
+      <div><div class="sub">تكلفة الليد حسب المنصة (ر.س)</div><div class="chart" id="chCpl"></div></div>
+    </div>
+  </section>
+
+  <section data-mode="ads" data-page="overview" class="panel" aria-labelledby="biH">
+    <div class="panel-h"><h2 id="biH">تحليل الأداء</h2></div>
+    <div class="bi-grid">
+      <div class="bi-card"><h3>القمع: من الظهور إلى الليد</h3><div class="funnel" id="funnel"></div></div>
+      <div class="bi-card"><h3>حصة كل منصة من الصرف ومن الليدز</h3><div id="share"></div><div class="hint">لما تكون حصة الليدز أكبر من حصة الصرف، المنصة تجيب أكثر من نصيبها.</div></div>
+      <div class="bi-card"><h3>وتيرة الشهر الحالي وتوقع نهايته</h3><div id="pace"></div><div class="hint">التوقع = المعدل اليومي لهذا الشهر × عدد أيامه، وما يحسب اليوم الحالي لأنه ناقص.</div></div>
+      <div class="bi-card"><h3>تكلفة الليد حسب يوم الأسبوع</h3><div class="tbl"><table class="heat" id="heat"></table></div><div class="hint">الأغمق = الأغلى.</div></div>
+    </div>
+  </section>
+
+  <section data-mode="ads" data-page="depts" class="panel" aria-labelledby="dcH">
+    <div class="panel-h"><h2 id="dcH">بطاقات الأقسام</h2><span class="sub" id="dcSub"></span></div>
+    <div class="dcards" id="deptCards"></div>
+  </section>
+  <section data-mode="ads" data-page="depts" class="panel" aria-labelledby="dxH">
+    <div class="panel-h"><h2 id="dxH">القسم × المنصة</h2><span class="sub">الصرف · الليدز · تكلفة الليد</span></div>
+    <div class="tbl"><table id="tDeptPlat"></table></div>
+  </section>
+  <section data-mode="ads" data-page="channels" class="panel" aria-labelledby="platH">
+    <div class="panel-h"><h2 id="platH">المنصات</h2></div>
+    <div class="tbl"><table id="tPlat"></table></div>
+  </section>
+
+  <section data-mode="ads" data-page="channels" class="panel" aria-labelledby="campH">
+    <div class="panel-h"><h2 id="campH">الحملات</h2><div class="row"><span class="sub" id="campCount"></span><label class="field" for="tgt">هدف تكلفة الليد <input type="number" id="tgt" min="0" step="0.5" inputmode="decimal" placeholder="مثلاً 15" style="width:90px"> ر.س</label><button type="button" class="btn" id="csv">تصدير Excel (CSV)</button></div></div>
+    <div class="hint">اضغط على أي حملة عشان تفلتر اللوحة كاملة عليها.</div>
+    <div class="tbl"><table id="tCamp"></table></div>
+  </section>
+
+  <section data-mode="ads" data-page="channels" class="panel" aria-labelledby="monH">
+    <div class="panel-h"><h2 id="monH">شهر بشهر</h2><span class="sub">الصرف والليدز وتكلفة الليد لكل منصة</span></div>
+    <div class="tbl"><table class="pv" id="tMonth"></table></div>
+  </section>
+
+  <section data-mode="ads" data-page="channels" class="panel" aria-labelledby="treeH">
+    <div class="panel-h"><h2 id="treeH">تفصيل هرمي</h2>
+      <div class="row"><button type="button" class="btn" id="treeOpen">فتح الكل</button><button type="button" class="btn" id="treeClose">طي الكل</button></div></div>
+    <div class="hint">المنصة ◂ الحملة ◂ المجموعة ◂ الإعلان. اضغط على ▸ عشان تفتح المستوى اللي تحته.</div>
+    <div class="tbl"><table class="tree" id="tTree"></table></div>
+  </section>
+
+  <section data-mode="ads" data-page="creative" class="panel" aria-labelledby="crH">
+    <div class="panel-h">
+      <h2 id="crH">الكرييتف <details class="qi"><summary aria-label="وش يعني كل كرت؟">!</summary><div>كل كرت = فكرة وحدة: نفس الكرييتف مجمّع من كل المنصات والحملات والنسخ (copy، spark…)، وأرقامه مجموعها. اضغط على الكرت عشان تشوف كل إعلان منها لحاله. تفاصيل كل إعلان موجودة في لوحة التحليلات.</div></details></h2>
+      <div class="toolbar">
+        <input type="search" id="q" placeholder="ابحث باسم الإعلان أو الحملة" aria-label="بحث">
+        <div class="seg" id="wallStat" role="group" aria-label="حالة الكرييتف">
+          <button type="button" data-v="all" aria-pressed="true">الكل</button>
+          <button type="button" data-v="on" aria-pressed="false">فعّال</button>
+          <button type="button" data-v="off" aria-pressed="false">متوقف</button>
+        </div>
+        <label class="field" for="sort">ترتيب
+          <select id="sort">
+            <option value="spend">الأعلى صرفاً</option>
+            <option value="leads">الأكثر نتائج (ليدز ومحادثات)</option>
+            <option value="cpl">الأقل تكلفة لليد</option>
+            <option value="ctr">الأعلى نسبة نقر</option>
+            <option value="impr">الأكثر ظهوراً</option>
+          </select>
+        </label>
+      </div>
+    </div>
+    <div class="cmp-bar" id="cmpBar" hidden><span id="cmpN"></span><button type="button" class="btn" id="cmpGo">قارن جنب بعض</button><button type="button" class="btn" id="cmpClear">مسح</button></div>
+    <div class="grid-cr" id="cards"></div>
+    <button type="button" class="btn more" id="more" hidden>عرض المزيد</button>
+  </section>
+
+  <section data-mode="ads" data-page="notes" class="panel" aria-label="ملاحظات البيانات">
+    <h2>كيف تنحسب الأرقام</h2>
+    <div class="ins">
+      <div class="item"><span class="b">تكلفة الليد</span><span class="sub">صرف إعلانات الليدز فقط ÷ عدد الليدز.</span></div>
+      <div class="item"><span class="b">ميتا</span><span class="sub">فيسبوك وإنستغرام منفصلان، والدولار يُحسب بـ 3.75.</span></div>
+      <div class="item"><span class="b">جوجل</span><span class="sub">يتقسم حسب نوع الحملة. سناب وتيك توك كما هما.</span></div>
+      <div class="item"><span class="b">المقارنة</span><span class="sub">الفترة السابقة بنفس عدد الأيام، بتوقيت الرياض.</span></div>
+      <div class="item"><span class="b">تيك توك</span><span class="sub">يأتي من فرع tiktok-data، والليد من حملات الليدز.</span></div>
+    </div>
+  </section>
+  <section data-mode="ads organic" data-page="notes" class="panel notes" id="rulesNote" aria-label="تصنيف الأقسام"></section>
+
+  <section data-mode="organic" data-page="accounts" class="acct" id="acctPage" aria-label="الحسابات"></section>
+  <section data-mode="organic" data-page="posts" class="panel" aria-labelledby="orgH">
+    <div class="panel-h">
+      <h2 id="orgH">المنشورات</h2>
+      <div class="toolbar">
+        <span class="sub" id="orgCount"></span>
+        <input type="search" id="oq" placeholder="ابحث في نص المنشور" aria-label="بحث في المنشورات">
+        <label class="field" for="osort">ترتيب
+          <select id="osort">
+            <option value="date">الأحدث</option>
+            <option value="views">الأكثر مشاهدة</option>
+            <option value="reach">الأعلى وصولاً</option>
+            <option value="eng">الأعلى نسبة تفاعل</option>
+            <option value="likes">الأكثر إعجاباً</option>
+            <option value="comments">الأكثر تعليقاً</option>
+            <option value="shares">الأكثر مشاركة</option>
+            <option value="saves">الأكثر حفظاً</option>
+          </select>
+        </label>
+      </div>
+    </div>
+    <div class="grid-cr" id="ocards"></div>
+    <button type="button" class="btn more" id="omore" hidden>عرض المزيد</button>
+  </section>
+  <section data-mode="organic" data-page="posts" id="orgExtra" aria-label="مصادر ناقصة"></section>
+  <section data-mode="organic" data-page="notes" class="panel" aria-label="طريقة حساب العضوي">
+    <h2>كيف تنحسب أرقام العضوي</h2>
+    <div class="ins">
+      <div class="item"><span class="b">مشاهدات ووصول</span><span class="sub">من رؤى الصفحة والمنشور، والمتابعون رقم حالي.</span></div>
+      <div class="item"><span class="b">نسبة التفاعل</span><span class="sub">الإعجاب والتعليقات والمشاركات والحفظ ÷ الوصول.</span></div>
+      <div class="item"><span class="b">القسم</span><span class="sub">يُستنتج من نص المنشور، وحيوية الشعر ضمن المحاليل.</span></div>
+      <div class="item"><span class="b">بانتظار</span><span class="sub">إذا نقص المصدر تظهر جملة بما ينقص، ولا يتوقف سحب الإعلانات.</span></div>
+    </div>
+  </section>
+    </div>
+  </div>
+</div>
+
+<dialog id="dlg" aria-labelledby="dlgTitle"><div class="dlg" id="dlgBody"></div></dialog>
+
+<script type="application/json" id="data">{"generated_at":"2026-10-12T09:07+03:00","schema":2,"range":{"start":"2026-09-14","end":"2026-10-11","today":"2026-10-12"},"goals":{"lead":"ليدز"},"platforms":{"meta":{"ok":true}},"ads":{"m1":{"name":"قابلة وِل","campaign":"x","platform":"facebook","goal":"lead","status":"متوقف","group":"","text":"","live":false,"dept":"midwife","dsrc":"ad","family":"meta"}},"rows":[["m1","2026-10-01",10,0,0,1,0]],"channels":{"order":["facebook","instagram","messenger","audience_network","threads","meta","snap","tiktok","google_search","google_pmax","google_display","google_video","google_demand_gen","google_shopping","google_app","google_smart","google_local","google_hotel","google_travel","google"],"platforms":{"facebook":{"ar":"فيسبوك","family":"meta","color":"--s-fb"},"instagram":{"ar":"إنستغرام","family":"meta","color":"--s-ig"},"messenger":{"ar":"ماسنجر","family":"meta","color":"--s-msg"},"audience_network":{"ar":"شبكة الجمهور","family":"meta","color":"--s-an"},"threads":{"ar":"ثريدز","family":"meta","color":"--s-threads"},"meta":{"ar":"ميتا","family":"meta","color":"--s-meta"},"snap":{"ar":"سناب شات","family":"snap","color":"--s-snap"},"tiktok":{"ar":"تيك توك","family":"tiktok","color":"--s-tiktok"},"google_search":{"ar":"جوجل · بحث","family":"google","color":"--s-gs"},"google_pmax":{"ar":"جوجل · أداء أقصى","family":"google","color":"--s-gp"},"google_display":{"ar":"جوجل · شبكة العرض","family":"google","color":"--s-gd"},"google_video":{"ar":"جوجل · يوتيوب","family":"google","color":"--s-gv"},"google_demand_gen":{"ar":"جوجل · توليد الطلب","family":"google","color":"--s-gg"},"google_shopping":{"ar":"جوجل · تسوق","family":"google","color":"--s-gsh"},"google_app":{"ar":"جوجل · تطبيقات","family":"google","color":"--s-ga"},"google_smart":{"ar":"جوجل · ذكي","family":"google","color":"--s-google"},"google_local":{"ar":"جوجل · محلي","family":"google","color":"--s-google"},"google_hotel":{"ar":"جوجل · فنادق","family":"google","color":"--s-google"},"google_travel":{"ar":"جوجل · سفر","family":"google","color":"--s-google"},"google":{"ar":"جوجل","family":"google","color":"--s-google"}}},"departments":{"default":"brand","order":["iv","midwife","foot","renan","brand"],"departments":{"midwife":{"ar":"القبالة / رعاية الحمل","color":"--d-midwife"},"foot":{"ar":"تقويم القدم","color":"--d-foot"},"renan":{"ar":"رينان لصحة الطفل","color":"--d-renan"},"iv":{"ar":"المحاليل الوريدية","color":"--d-iv"},"brand":{"ar":"العلامة التجارية / الوعي","color":"--d-brand"}},"signals":[{"id":"midwife","pattern":"midwife|meternity|maternity|قابلة|القبالة|رعاية الحمل"},{"id":"foot","pattern":"foot\\s*alignment|foot-alignment|تقويم القدم"},{"id":"renan","pattern":"رينان"},{"id":"iv","pattern":"(?<![a-z])iv(?![a-z])|محاليل|محلول|وريدي|well services|hair[\\s_-]*vitality|حيوية الشعر"},{"id":"brand","pattern":"awareness|followers|retargeting|brand|competitor"}],"notes":["اسم الإعلان أولاً، والحملة فقط إذا الاسم بلا إشارة.","بلا إشارة: العلامة التجارية / الوعي.","حيوية الشعر ضمن المحاليل الوريدية.","Hair Tonic يبقى مع المحاليل إذا الحملة فيها IV."]},"organic":{"facebook":[{"status":"pending","name":"Well Care.","id":null,"needs":["META_ACCESS_TOKEN في GitHub Environment production (نفس سر الإعلانات).","صلاحيات التوكن: pages_show_list، pages_read_engagement، pages_read_user_content، read_insights، مهمة ANALYZE على الصفحة.","الصفحات: Well Care..","إنستغرام @wellcare.sa: instagram_basic، instagram_manage_insights، pages_show_list، pages_read_engagement، read_insights، مع ربط الحساب بصفحة فيسبوك."],"error":"","followers":null,"days":[],"posts":[]}],"instagram":[{"status":"pending","name":"@wellcare.sa","id":null,"needs":["META_ACCESS_TOKEN في GitHub Environment production (نفس سر الإعلانات).","صلاحيات التوكن: pages_show_list، pages_read_engagement، pages_read_user_content، read_insights، مهمة ANALYZE على الصفحة.","الصفحات: Well Care..","إنستغرام @wellcare.sa: instagram_basic، instagram_manage_insights، pages_show_list، pages_read_engagement، read_insights، مع ربط الحساب بصفحة فيسبوك.","instagram_basic","instagram_manage_insights","pages_show_list","pages_read_engagement","read_insights"],"error":"","followers":null,"days":[],"posts":[]}],"tiktok":{"status":"pending","name":"تيك توك","needs":["فرع tiktok-data يوفّر الإعلانات المدفوعة فقط (ad_get و report_integrated_get) ولا يوجد سر API لتيك توك.","لعرض العضوي: مفتاح organic داخل tiktok.json فيه followers و reach و views و engagement و posts (caption و permalink والمقاييس)، أو صلاحية محتوى الحساب (user.info.stats و video.list) وهي غير متاحة في الموصّل الحالي."],"error":"","followers":null,"days":[],"posts":[]},"ga4":{"status":"pending","name":"GA4","needs":["GA4_PROPERTY_ID في GitHub Environment production","GA4_SERVICE_ACCOUNT_JSON (JSON حساب خدمة له صلاحية Viewer على خاصية GA4). أسرار Google Ads لا تكفي لأنها OAuth للإعلانات وليست حساب خدمة."],"error":"","days":[],"totals":{},"channels":[]}}}</script>
+<script>
+(function(){
+let LANG = (function(){
+  const q = new URLSearchParams(location.search).get('lang');
+  if(q==='en' || q==='ar') return q;
+  try{ const s=localStorage.getItem('well-ads-lang'); if(s==='en'||s==='ar') return s; }catch(e){}
+  return 'ar';
+})();
+const EN = {
+  'لوحة إعلانات Well':'Well ads',
+  'لوحة أداء الإعلانات':'Ads performance',
+  'ميتا · جوجل · سناب شات · تيك توك — كل المبالغ بالريال السعودي':'Meta · Google · Snapchat · TikTok — amounts in Saudi riyals',
+  'صفحات فيسبوك · إنستغرام · تيك توك · تحليلات الموقع':'Facebook · Instagram · TikTok pages · site analytics',
+  'العرض':'View',
+  'الفلاتر':'Filters',
+  'الإعلانات':'Ads',
+  'العضوي':'Organic',
+  'من':'From',
+  'إلى':'To',
+  'القسم':'Department',
+  'يصفّي المنشورات حسب نصها':'Filters posts by their text',
+  'جوجل':'Google',
+  'كل الإعلانات':'All ads',
+  'النشطة الآن':'Active now',
+  'الحملة':'Campaign',
+  'كل الحملات':'All campaigns',
+  'الهدف':'Objective',
+  'كل الأهداف':'All objectives',
+  'الصيغة':'Format',
+  'كل الصيغ':'All formats',
+  'الأقسام':'Departments',
+  'اضغط على القسم لفتح صفحته':'Click a department to open it',
+  'الاتجاه':'Trend',
+  'تلقائي':'Auto',
+  'يومي':'Daily',
+  'أسبوعي':'Weekly',
+  'شهري':'Monthly',
+  'اضغط على أي عمود عشان تركّز الفترة عليه.':'Click a bar to focus the range on it.',
+  'الصرف (ر.س)':'Spend (SAR)',
+  'الليدز':'Leads',
+  'تكلفة الليد حسب المنصة (ر.س)':'Cost per lead by platform (SAR)',
+  'تحليل الأداء':'Performance',
+  'القمع: من الظهور إلى الليد':'Funnel: impressions to leads',
+  'حصة كل منصة من الصرف ومن الليدز':'Each platform’s share of spend and leads',
+  'لما تكون حصة الليدز أكبر من حصة الصرف، المنصة تجيب أكثر من نصيبها.':'When the lead share is higher than the spend share, the platform is pulling more than its weight.',
+  'وتيرة الشهر الحالي وتوقع نهايته':'This month’s pace and month-end forecast',
+  'التوقع = المعدل اليومي لهذا الشهر × عدد أيامه، وما يحسب اليوم الحالي لأنه ناقص.':'Forecast = this month’s daily average × its days. Today is left out because it is incomplete.',
+  'تكلفة الليد حسب يوم الأسبوع':'Cost per lead by weekday',
+  'الأغمق = الأغلى.':'Darker means more expensive.',
+  'بطاقات الأقسام':'Department cards',
+  'القسم × المنصة':'Department × platform',
+  'الصرف · الليدز · تكلفة الليد':'Spend · leads · cost per lead',
+  'المنصات':'Platforms',
+  'الحملات':'Campaigns',
+  'هدف تكلفة الليد':'Cost-per-lead target',
+  'ر.س':'SAR',
+  'تصدير Excel (CSV)':'Export Excel (CSV)',
+  'اضغط على أي حملة عشان تفلتر اللوحة كاملة عليها.':'Click a campaign to filter the whole report.',
+  'شهر بشهر':'Month by month',
+  'الصرف والليدز وتكلفة الليد لكل منصة':'Spend, leads, and cost per lead by platform',
+  'تفصيل هرمي':'Breakdown',
+  'فتح الكل':'Expand all',
+  'طي الكل':'Collapse all',
+  'المنصة ◂ الحملة ◂ المجموعة ◂ الإعلان. اضغط على ▸ عشان تفتح المستوى اللي تحته.':'Platform ◂ campaign ◂ ad set ◂ ad. Click ▸ to open the level below.',
+  'الكرييتف':'Creatives',
+  'وش يعني كل كرت؟':'What does each card mean?',
+  'كل كرت = فكرة وحدة: نفس الكرييتف مجمّع من كل المنصات والحملات والنسخ (copy، spark…)، وأرقامه مجموعها. اضغط على الكرت عشان تشوف كل إعلان منها لحاله. تفاصيل كل إعلان موجودة في لوحة التحليلات.':'Each card = one idea: the same creative grouped across platforms, campaigns and copies (copy, spark…), with its numbers summed. Click the card to see each ad on its own. Per-ad detail lives in the analytics dashboard.',
+  'متحمس تعرف؟ اضغط زر «عرض الكرييتف» لمعرفته':'Curious? Press «View creative» to see it',
+  'الكل':'All',
+  'فعّال':'Active',
+  'متوقف':'Paused',
+  'ترتيب':'Sort',
+  'الأعلى صرفاً':'Highest spend',
+  'الأكثر نتائج (ليدز ومحادثات)':'Most results (leads and conversations)',
+  'الأقل تكلفة لليد':'Lowest cost per lead',
+  'الأعلى نسبة نقر':'Highest CTR',
+  'الأكثر ظهوراً':'Most impressions',
+  'عرض المزيد':'Show more',
+  'كيف تنحسب الأرقام':'How the numbers are calculated',
+  'تكلفة الليد':'Cost per lead',
+  'صرف إعلانات الليدز فقط ÷ عدد الليدز.':'Spend on lead ads only ÷ number of leads.',
+  'ميتا':'Meta',
+  'فيسبوك وإنستغرام منفصلان، والدولار يُحسب بـ 3.75.':'Facebook and Instagram are separate. Dollars convert at 3.75.',
+  'يتقسم حسب نوع الحملة. سناب وتيك توك كما هما.':'Split by campaign type. Snapchat and TikTok stay as they are.',
+  'المقارنة':'Comparison',
+  'الفترة السابقة بنفس عدد الأيام، بتوقيت الرياض.':'The previous period has the same number of days, in Riyadh time.',
+  'تيك توك':'TikTok',
+  'يأتي من فرع tiktok-data، والليد من حملات الليدز.':'Comes from the tiktok-data branch. Leads come from lead campaigns.',
+  'المنشورات':'Posts',
+  'الأحدث':'Newest',
+  'الأكثر مشاهدة':'Most views',
+  'الأعلى وصولاً':'Highest reach',
+  'الأعلى نسبة تفاعل':'Highest engagement rate',
+  'الأكثر إعجاباً':'Most likes',
+  'الأكثر تعليقاً':'Most comments',
+  'الأكثر مشاركة':'Most shares',
+  'الأكثر حفظاً':'Most saves',
+  'كيف تنحسب أرقام العضوي':'How organic numbers are calculated',
+  'مشاهدات ووصول':'Views and reach',
+  'من رؤى الصفحة والمنشور، والمتابعون رقم حالي.':'From page and post insights. Followers are the current count.',
+  'نسبة التفاعل':'Engagement rate',
+  'الإعجاب والتعليقات والمشاركات والحفظ ÷ الوصول.':'Likes, comments, shares, and saves ÷ reach.',
+  'يُستنتج من نص المنشور، وحيوية الشعر ضمن المحاليل.':'Inferred from the post text. Hair vitality stays with IV drips.',
+  'بانتظار':'Waiting',
+  'إذا نقص المصدر تظهر جملة بما ينقص، ولا يتوقف سحب الإعلانات.':'If a source is missing, a short line says what is missing. The ads fetch keeps going.',
+  'اليوم (جزئي)':'Today (partial)',
+  'أمس':'Yesterday',
+  '٧ أيام':'7 days',
+  '١٤ يوم':'14 days',
+  '٣٠ يوم':'30 days',
+  'هذا الشهر':'This month',
+  'الشهر الماضي':'Last month',
+  'سنة':'Year',
+  'كل الفترة':'All time',
+  'كل المنصات':'All platforms',
+  'كل الأقسام':'All departments',
+  'فيسبوك':'Facebook',
+  'إنستغرام':'Instagram',
+  'ماسنجر':'Messenger',
+  'سناب شات':'Snapchat',
+  'جوجل · بحث':'Google · Search',
+  'جوجل · أداء أقصى':'Google · Performance Max',
+  'جوجل · شبكة العرض':'Google · Display',
+  'جوجل · يوتيوب':'Google · YouTube',
+  'جوجل · توليد الطلب':'Google · Demand Gen',
+  'الصرف':'Spend',
+  'الظهور':'Impressions',
+  'النقرات':'Clicks',
+  'محادثات':'Conversations',
+  'محادثات واتساب وماسنجر':'WhatsApp and Messenger conversations',
+  'نقرات الرابط والسوايب':'Link clicks and swipes',
+  'نسبة النقر':'CTR',
+  'تكلفة النقرة':'CPC',
+  'تكلفة الألف ظهور':'CPM',
+  'تكلفة المحادثة':'Cost per conversation',
+  'المنصة':'Platform',
+  'الحصة':'Share',
+  'تكلفة الليد قبل':'Previous cost per lead',
+  'إعلانات صرفت':'Ads with spend',
+  'نشط / صرف':'Active / spending',
+  'المجموع':'Total',
+  'ليدز':'Leads',
+  'شهر':'Month',
+  'الاسم':'Name',
+  'الإعلان':'Ad',
+  'المجموعة':'Ad set',
+  'الحالة':'Status',
+  'القناة':'Channel',
+  'جلسات':'Sessions',
+  'مستخدمون':'Users',
+  'مشاهدات':'Views',
+  'وصول':'Reach',
+  'إعجاب':'Likes',
+  'تعليقات':'Comments',
+  'مشاركات':'Shares',
+  'حفظ':'Saves',
+  'المتابعون الآن':'Followers now',
+  'المشاهدات في الفترة':'Views in range',
+  'الوصول في الفترة':'Reach in range',
+  'التفاعل في الفترة':'Engagement in range',
+  'المنشورات في الفترة':'Posts in range',
+  'المستخدمون':'Users',
+  'الجلسات':'Sessions',
+  'مشاهدات الصفحات':'Page views',
+  'بانتظار البيانات':'Waiting for data',
+  'بانتظار تحديث':'Waiting for an update',
+  'بانتظار بيانات المنشورات':'Waiting for posts',
+  'بانتظار الصلاحية':'Awaiting permission',
+  'مصادر ناقصة':'Missing sources',
+  'إغلاق':'Close',
+  'تحليلات الكرييتف':'Creative analytics',
+  'تحليلات الكرييتف · Well':'Well creative analytics',
+  'رجوع':'Back',
+  'نشط':'Active',
+  'بحث':'Search',
+  'فيديو':'Video',
+  'صورة':'Image',
+  'أخرى':'Other',
+  'ليدز':'Leads',
+  'محادثات':'Conversations',
+  'زيارات البروفايل':'Profile visits',
+  'زيارات الموقع':'Website visits',
+  '— لا مقارنة':'— no comparison',
+  '● ثابت':'● flat',
+  'عن الفترة السابقة':'vs previous period',
+  'اليوم الحالي جزئي':'Today is partial',
+  'الأرقام للإعلانات النشطة الآن فقط':'Numbers are for ads active now',
+  'الأرقام للإعلانات المتوقفة فقط':'Numbers are for paused ads only',
+  'عرض الكرييتف':'View creative',
+  'لا توجد فترة سابقة كاملة للمقارنة':'No full previous period to compare',
+  'مقارنة بـ':'compared with',
+  'الفترة:':'Range:',
+  'يوم':'day',
+  'فلترة على هذي المنصة':'Filter to this platform',
+  'فلترة على هذي الحملة':'Filter to this campaign',
+  'لا توجد بيانات.':'No data.',
+  'لا توجد بيانات في هذه الفترة.':'No data in this range.',
+  'ما فيه ليدز في هذي الفترة.':'No leads in this range.',
+  'لا يوجد كرييتف يطابق الفلاتر في هذه الفترة.':'No creative matches the filters in this range.',
+  'لا يوجد منشور يطابق البحث أو الفلاتر في هذه الفترة.':'No post matches the search or filters in this range.',
+  'لا توجد حملات.':'No campaigns.',
+  'لا توجد إعلانات صرفت.':'No ads with spend.',
+  'مسح الكل':'Clear all',
+  'آخر تحديث لميتا وسناب وجوجل:':'Last update for Meta, Snap, and Google:',
+  'بتوقيت الرياض':'Riyadh time',
+  'تيك توك: جاري التحميل…':'TikTok: loading…',
+  'جاري تحميل تيك توك':'Loading TikTok',
+  'تيك توك غير متاح':'TikTok is unavailable',
+  'تحميل تيك توك':'Load TikTok',
+  'مشاهدة الفيديو':'Watch video',
+  'صفحة الهبوط':'Landing page',
+  'فتح المنشور':'Open post',
+  'فتح الحساب':'Open profile',
+  'فتح في مدير الإعلانات':'Open in Ads Manager',
+  'من اسم الإعلان':'from the ad name',
+  'من اسم الحملة':'from the campaign name',
+  'من نص المنشور':'from the post text',
+  'افتراضي':'default',
+  'كيف تنقسم الأقسام':'How departments are split',
+  'براندينق':'Branding',
+  'هذه حملات براندينق، وتبقى ضمن الحملات والمنصات بدون قسم.':'These are branding campaigns, kept within campaigns and platforms with no department.',
+  'يحتاج توكن ميتا بصلاحيات المحتوى':'Needs a Meta token with content permissions',
+  'يحتاج بيانات تيك توك العضوي':'Needs TikTok organic data',
+  'يحتاج ربط تحليلات جوجل':'Needs Google Analytics connected',
+  'ابحث باسم الإعلان أو الحملة':'Search by ad or campaign name',
+  'ابحث في نص المنشور':'Search post text',
+  'بحث':'Search',
+  'بحث في المنشورات':'Search posts',
+  'الفترة':'Range',
+  'المنصة':'Platform',
+  'نوع حملة جوجل':'Google campaign type',
+  'حالة الإعلان':'Ad status',
+  'حالة الكرييتف':'Creative status',
+  'التجميع':'Grouping',
+  'الفلاتر':'Filters',
+  'الملخص':'Summary',
+  'صفحة القسم':'Department',
+  'الحسابات':'Accounts',
+  'ملاحظات البيانات':'Data notes',
+  'تصنيف الأقسام':'Department rules',
+  'طريقة حساب العضوي':'How organic numbers work',
+  'الإعلانات أو العضوي':'Ads or organic',
+  'Language':'Language',
+  'النص لا يحدد القسم':'The text does not identify a department',
+  'معاينة الفيديو':'Video preview',
+  'الصرف اليومي':'Daily spend',
+  'الليدز اليومية':'Daily leads',
+  'الصرف اليومي للإعلان':'Daily spend for this ad',
+  'تكلفة الليد حسب المنصة':'Cost per lead by platform',
+  'الصرف اليومي في الفترة المختارة':'Daily spend in the selected range',
+  'منشور':'Post',
+  'تفاصيل':'Details',
+  'نقرات':'Clicks',
+  'الصرف اليومي':'Daily spend',
+  'الصرف اليومي (ر.س)':'Daily spend (SAR)',
+  'الصرف الأسبوعي (ر.س)':'Weekly spend (SAR)',
+  'الصرف الشهري (ر.س)':'Monthly spend (SAR)',
+  'الليدز اليومية':'Daily leads',
+  'الليدز الأسبوعية':'Weekly leads',
+  'الليدز الشهرية':'Monthly leads',
+  'الليدز والمحادثات':'Leads and conversations',
+  'مثلاً 15':'e.g. 15',
+  'تعذّر تحديث':'Update failed',
+  'بيانات تيك توك غير متوفرة':'TikTok data is unavailable',
+  'المحادثات':'Conversations',
+  'نسبة النقر %':'CTR %',
+  'يناير':'January','فبراير':'February','مارس':'March','أبريل':'April','مايو':'May','يونيو':'June','يوليو':'July','أغسطس':'August','سبتمبر':'September','أكتوبر':'October','نوفمبر':'November','ديسمبر':'December',
+  'الأحد':'Sunday','الاثنين':'Monday','الثلاثاء':'Tuesday','الأربعاء':'Wednesday','الخميس':'Thursday','الجمعة':'Friday','السبت':'Saturday',
+  'آخر صرف':'Last spend',
+  'صورة':'Image',
+  'ملخص الحسابات':'Account summary',
+  'صرف سابق':'Previous spend',
+  'ليدز سابقة':'Previous leads',
+  'تكلفة ليد سابقة':'Previous cost per lead',
+  'مقارنة الفترة السابقة':'Previous period',
+  'أفضل الإعلانات':'Top ads',
+  'الشهر':'Month',
+  'بحث نصي':'Text search',
+  'أداء أقصى':'Performance Max',
+  'توليد الطلب':'Demand Gen',
+  'تسوق':'Shopping',
+  'تطبيق':'App',
+  'إعلان':'Ad'
+};
+function tr(s){
+  if(LANG!=='en' || s==null) return s;
+  const v=EN[s];
+  return v==null?s:v;
+}
+function ui(ar,en){ return LANG==='en'?en:ar; }
+function localizeRoot(root){
+  if(!root) return;
+  const walk=node=>{
+    if(node.nodeType===1){
+      const tag=node.tagName;
+      if(tag==='SCRIPT'||tag==='STYLE') return;
+      if(node.classList && (node.classList.contains('nm')||node.classList.contains('name'))) return;
+      if(tag==='PRE' || node.id==='dlgTitle') return;
+      if(tag==='OPTION' && node.value && node.parentElement && node.parentElement.id==='fCamp') return;
+      for(const attr of ['placeholder','title','aria-label']){
+        if(!node.hasAttribute(attr)) continue;
+        const key='__src_'+attr;
+        if(node[key]==null) node[key]=node.getAttribute(attr);
+        const src=node[key];
+        node.setAttribute(attr, LANG==='en'?(EN[src]||src):src);
+      }
+      for(const c of node.childNodes) walk(c);
+      return;
+    }
+    if(node.nodeType!==3) return;
+    if(node.__src==null) node.__src=node.nodeValue;
+    const src=node.__src;
+    if(LANG!=='en'){ node.nodeValue=src; return; }
+    const core=src.trim();
+    if(!core || !EN[core]) return;
+    node.nodeValue=src.replace(core, EN[core]);
+  };
+  walk(root);
+}
+function localize(){
+  const wrap=document.querySelector('.wrap');
+  const lang=LANG==='en'?'en':'ar', dir=LANG==='en'?'ltr':'rtl';
+  document.documentElement.lang=lang; document.documentElement.dir=dir;
+  if(wrap){ wrap.dir=dir; wrap.lang=lang; }
+  const title = CREATIVE_ONLY ? 'تحليلات الكرييتف · Well' : 'لوحة إعلانات Well';
+  document.title=LANG==='en'?EN[title]:title;
+  const ht=document.getElementById('headTitle'); if(ht && CREATIVE_ONLY) ht.textContent = LANG==='en' ? EN['تحليلات الكرييتف'] : 'تحليلات الكرييتف';
+  localizeRoot(wrap);
+  localizeRoot(document.getElementById('dlg'));
+  document.querySelectorAll('#lang button').forEach(b=>b.setAttribute('aria-pressed', b.dataset.v===LANG));
+}
+function syncLangUrl(){
+  try{ localStorage.setItem('well-ads-lang', LANG); }catch(e){}
+  const url=new URL(location.href);
+  if(LANG==='en') url.searchParams.set('lang','en'); else url.searchParams.delete('lang');
+  const next=url.pathname+url.search+url.hash;
+  if(location.pathname+location.search+location.hash!==next) history.replaceState({lang:LANG}, '', next);
+}
+const DEP_EN={iv:'IV Drips', midwife:'Midwifery / Maternity', foot:'Foot Alignment', renan:'Renan Child Health'};
+const PL_EN={facebook:'Facebook',instagram:'Instagram',messenger:'Messenger',threads:'Threads',meta:'Meta',snap:'Snapchat',tiktok:'TikTok',google:'Google',google_search:'Google · Search',google_pmax:'Google · Performance Max',google_display:'Google · Display',google_video:'Google · YouTube',google_demand_gen:'Google · Demand Gen',google_shopping:'Google · Shopping',google_app:'Google · App',google_smart:'Google · Smart',google_local:'Google · Local',google_hotel:'Google · Hotel',google_travel:'Google · Travel'};
+const GOAL_EN={lead:'Leads',messages:'Conversations',profile:'Profile visits',traffic:'Website visits',other:'Other'};
+function depName(k){
+  if(!k || HIDDEN_DEPT.has(k) || !DEP[k]) return '';
+  return LANG==='en' && DEP_EN[k] ? DEP_EN[k] : DEP[k].ar;
+}
+function platName(p){
+  if(!p || HIDDEN_PLAT.has(p)) return '';
+  if(LANG==='en' && PL_EN[p]) return PL_EN[p];
+  return (PL[p]&&PL[p].ar) || '';
+}
+function goalName(g){
+  if(LANG==='en' && GOAL_EN[g]) return GOAL_EN[g];
+  return (D.goals||{})[g] || (LANG==='en'?'Other':'أخرى');
+}
+function money(){ return LANG==='en'?'SAR':'ر.س'; }
+function pendingCopy(kind){
+  if(kind==='tiktok') return LANG==='en'?EN['يحتاج بيانات تيك توك العضوي']:'يحتاج بيانات تيك توك العضوي';
+  if(kind==='ga4') return LANG==='en'?EN['يحتاج ربط تحليلات جوجل']:'يحتاج ربط تحليلات جوجل';
+  return LANG==='en'?EN['يحتاج توكن ميتا بصلاحيات المحتوى']:'يحتاج توكن ميتا بصلاحيات المحتوى';
+}
+const D = JSON.parse(document.getElementById('data').textContent);
+// Spring Rose0406 (شركة زهرة الربيع) حساب تيك توك منفصل: لا يُحسب في الصرف ولا التاريخ.
+const TT_EXCLUDED_ID = '6948010864247046146';
+function ttExcludedAccount(id, name){
+  const n = String(name||'').replace(/\s+/g,' ').trim().toLowerCase();
+  if(String(id||'')===TT_EXCLUDED_ID) return true;
+  return n.includes('spring rose0406') || n.includes('زهرة الربيع');
+}
+function ttExcludedAd(a){
+  if(!a || (a.platform && a.platform!=='tiktok')) return false;
+  if(ttExcludedAccount(a.advertiser_id, a.advertiser_name||a.account)) return true;
+  const blob = `${a.name||''} ${a.campaign||''} ${a.group||''} ${a.text||''} ${a.ad_name||''} ${a.campaign_name||''} ${a.adgroup_name||''} ${a.ad_text||''}`;
+  return /spring\s*rose/i.test(blob) || blob.includes('زهرة الربيع') || /zr_nd96/i.test(blob) || /sr\s*\|\s*ios14/i.test(blob);
+}
+const ORG_FB_HIDDEN = new Set(['Well Home Care','Well Women Health']);
+if(D.organic && Array.isArray(D.organic.facebook)){
+  D.organic.facebook = D.organic.facebook.filter(p=>p && !ORG_FB_HIDDEN.has(p.name));
+}
+(function dropExcludedTikTok(){
+  const gone = new Set();
+  for(const [k,a] of Object.entries(D.ads||{})) if(ttExcludedAd(a)) gone.add(k);
+  if(!gone.size) return;
+  for(const k of gone) delete D.ads[k];
+  if(Array.isArray(D.rows)) D.rows = D.rows.filter(r=>!gone.has(r[0]));
+})();
+const DEP_CFG = D.departments || {default:'brand', order:['iv','midwife','foot','renan','brand'], departments:{
+  iv:{ar:'المحاليل الوريدية',color:'--d-iv'}, midwife:{ar:'القبالة / رعاية الحمل',color:'--d-midwife'}, foot:{ar:'تقويم القدم',color:'--d-foot'},
+  renan:{ar:'رينان لصحة الطفل',color:'--d-renan'}, brand:{ar:'العلامة التجارية / الوعي',color:'--d-brand'}}, signals:[]};
+const DEP = DEP_CFG.departments || {};
+// واتساب وشبكة الجمهور يبقيان في الإجمالي بلا شريحة أو صف أو اسم. العلامة التجارية بلا قسم: تظهر كحملات داخل المنصة فقط.
+const HIDDEN_PLAT = new Set(['audience_network','meta_whatsapp']);
+const HIDDEN_DEPT = new Set(['brand']);
+const DORDER = (DEP_CFG.order || Object.keys(DEP)).filter(k=>DEP[k] && !HIDDEN_DEPT.has(k));
+const CH = (D.channels && D.channels.platforms) ? D.channels : {order:['facebook','instagram','messenger','snap','tiktok','google_search','google_pmax','google_display','google_video','google_demand_gen','google','meta'], platforms:{}};
+const PL = {};
+function syncPL(){
+  for(const [k,v] of Object.entries(CH.platforms||{})) PL[k]={ar:v.ar,c:v.color||'--s-meta',family:v.family||k};
+  const fallback={facebook:['فيسبوك','--s-fb','meta'],instagram:['إنستغرام','--s-ig','meta'],messenger:['ماسنجر','--s-msg','meta'],audience_network:['شبكة الجمهور','--s-an','meta'],threads:['ثريدز','--s-threads','meta'],meta:['ميتا','--s-meta','meta'],snap:['سناب شات','--s-snap','snap'],tiktok:['تيك توك','--s-tiktok','tiktok'],google:['جوجل','--s-google','google'],google_search:['جوجل · بحث','--s-gs','google'],google_pmax:['جوجل · أداء أقصى','--s-gp','google'],google_display:['جوجل · شبكة العرض','--s-gd','google'],google_video:['جوجل · يوتيوب','--s-gv','google'],google_demand_gen:['جوجل · توليد الطلب','--s-gg','google']};
+  for(const [k,v] of Object.entries(fallback)) if(!PL[k]) PL[k]={ar:v[0],c:v[1],family:v[2]};
+  for(const a of Object.values(D.ads||{})) if(a.platform && !PL[a.platform]) PL[a.platform]={ar:a.platform,c:'--s-google',family:a.family||a.platform};
+}
+syncPL();
+let ORDER = [];
+function refreshOrder(){
+  const present=new Set(Object.values(D.ads||{}).map(a=>a.platform).filter(p=>p && !HIDDEN_PLAT.has(p)));
+  ORDER=(CH.order||Object.keys(PL)).filter(p=>present.has(p));
+  for(const p of present) if(!ORDER.includes(p)) ORDER.push(p);
+}
+const family = p => (PL[p]&&PL[p].family) || (String(p||'').startsWith('google')?'google':String(p||'').startsWith('meta')?'meta':p);
+function classifyText(name, campaign){
+  const hit = t => { const s=(t||'').toLowerCase(); for(const x of DEP_CFG.signals||[]){ try{ if(new RegExp(x.pattern).test(s)) return x.id; }catch(e){} } return null; };
+  let s=hit(name); if(s) return [s,'ad'];
+  s=hit(campaign); if(s) return [s,'campaign'];
+  return [DEP_CFG.default||'brand','default'];
+}
+function cleanStatus(s){
+  let t=String(s||'').replaceAll('ميزانية الحساب أو الحملة خلصت','حد صرف الحملة خلص').replaceAll('ميزانية المجموعة خلصت','حد صرف المجموعة خلص');
+  if(/رصيد|سداد|مستحق|شحن|فوتر|فاتور|billing|unpaid|top-?up|payment|account balance/i.test(t)) return 'متوقف';
+  return t;
+}
+function stamp(a){
+  if(!a) return a;
+  a.family = a.family || family(a.platform);
+  if(a.status) a.status = cleanStatus(a.status);
+  if(!a.dept){ const [d,src]=classifyText(a.name,a.campaign); a.dept=d; a.dsrc=src; }
+  return a;
+}
+const depCell = k => (DEP[k] && !HIDDEN_DEPT.has(k)) ? `<span class="pill"><span class="dot" style="background:var(${DEP[k].color})"></span>${depName(k)}</span>` : '';
+const sar2 = n => n==null||!isFinite(n) ? '—' : fmt(n,2);
+const $ = s => document.querySelector(s);
+const fmt = (n,d=0) => n==null||!isFinite(n) ? '—' : n.toLocaleString('en-US',{maximumFractionDigits:d,minimumFractionDigits:d});
+const qty = n => { if(n==null||!isFinite(n)) return '—'; const r=Math.round(n*100)/100; return Math.abs(r-Math.round(r))<1e-9 ? fmt(r,0) : fmt(r,2); };
+const sar = n => n==null ? '—' : fmt(n, n<100?2:0);
+const pct = n => n==null||!isFinite(n) ? '—' : fmt(n,2)+'%';
+const css = v => getComputedStyle(document.documentElement).getPropertyValue(v).trim();
+const esc = s => String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+
+// ---- dates (all strings YYYY-MM-DD, UTC math to avoid DST issues)
+const toD = s => new Date(s+'T00:00:00Z');
+const toS = d => d.toISOString().slice(0,10);
+const addDays = (s,n) => { const d=toD(s); d.setUTCDate(d.getUTCDate()+n); return toS(d); };
+const diffDays = (a,b) => Math.round((toD(b)-toD(a))/864e5);
+const MIN = D.range.start, MAX = D.range.end, TODAY = D.range.today || D.range.end;
+const clamp = s => s<MIN?MIN:s>TODAY?TODAY:s;
+const PRESETS = [
+  ['t','اليوم (جزئي)',()=>[TODAY,TODAY]],
+  ['y','أمس',()=>{ const y=addDays(TODAY,-1); const d=y<MIN?MIN:y>TODAY?TODAY:y; return [d,d]; }],
+  ['7','٧ أيام',()=>[addDays(MAX,-6),MAX]],
+  ['14','١٤ يوم',()=>[addDays(MAX,-13),MAX]],
+  ['30','٣٠ يوم',()=>[addDays(MAX,-29),MAX]],
+  ['m','هذا الشهر',()=>{ const s=TODAY.slice(0,8)+'01'; return [s, MAX>=s?MAX:TODAY]; }],
+  ['pm','الشهر الماضي',()=>{ const e=addDays(TODAY.slice(0,8)+'01',-1); return [e.slice(0,8)+'01', e]; }],
+  ['365','سنة',()=>[addDays(MAX,-364),MAX]],
+  ['90','كل الفترة',()=>[MIN,TODAY]],
+];
+const MONTHS_AR=['يناير','فبراير','مارس','أبريل','مايو','يونيو','يوليو','أغسطس','سبتمبر','أكتوبر','نوفمبر','ديسمبر'];
+const MONTHS_EN=['January','February','March','April','May','June','July','August','September','October','November','December'];
+const DAYS_AR=['الأحد','الاثنين','الثلاثاء','الأربعاء','الخميس','الجمعة','السبت'];
+const DAYS_EN=['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday'];
+function monthName(i){ return (LANG==='en'?MONTHS_EN:MONTHS_AR)[i]; }
+function dayName(i){ return (LANG==='en'?DAYS_EN:DAYS_AR)[i]; }
+const nice = s => { const d=toD(s); const day=d.getUTCDate(), mon=monthName(d.getUTCMonth()); return LANG==='en'? mon+' '+day : day+' '+mon; };
+
+// ---- state. mode is shareable via ?mode=organic (also accepts #organic)
+function modeFromUrl(){
+  const q = new URLSearchParams(location.search).get('mode');
+  if(q==='organic'||q==='ads') return q;
+  const h = decodeURIComponent((location.hash||'').replace(/^#/,''));
+  if(h==='organic'||h==='mode=organic') return 'organic';
+  if(h==='ads'||h==='mode=ads') return 'ads';
+  return 'ads';
+}
+// /creative (or ?view=creative): only the creative wall and the KPIs above it
+const CREATIVE_ONLY = /^\/(creative|c)\/?$/.test(location.pathname) || new URLSearchParams(location.search).get('view')==='creative';
+const S = {mode:CREATIVE_ONLY?'ads':modeFromUrl(), page:CREATIVE_ONLY?'creative':'overview', dept:'', from:addDays(MAX,-6), to:MAX, preset:'7', plat:'all', stat:'all', wall:'all', q:'', sort:'spend', shown:24, orgQ:'', orgSort:'date', orgShown:24, camp:'', goal:'', fmt:'', gran:'auto', open:new Set()};
+try{ const p=JSON.parse(localStorage.getItem('well-ads-ui')||'{}'); if(p.preset){const pr=PRESETS.find(x=>x[0]===p.preset); if(pr){[S.from,S.to]=pr[2]();S.preset=p.preset;}} else if(/^\d{4}-\d{2}-\d{2}$/.test(p.from||'') && /^\d{4}-\d{2}-\d{2}$/.test(p.to||'')){ S.from=clamp(p.from); S.to=clamp(p.to); if(S.from>S.to)[S.from,S.to]=[S.to,S.from]; S.preset=null; } if(p.plat) S.plat=p.plat; if(p.sort) S.sort=p.sort; if(p.orgSort) S.orgSort=p.orgSort; if(p.stat==='live'||p.stat==='off'){ S.stat=p.stat; S.wall=p.stat==='live'?'on':'off'; } }catch(e){}
+if(HIDDEN_PLAT.has(S.plat)) S.plat='all';
+if(HIDDEN_DEPT.has(S.dept)) S.dept='';
+function syncModeShape(){
+  if(S.mode==='organic'){
+    if(!['accounts','posts','notes'].includes(S.page)) S.page='accounts';
+    if(!['all','facebook','instagram','tiktok'].includes(S.plat)) S.plat='all';
+  }else if(!['overview','depts','dept','channels','creative','notes'].includes(S.page)) S.page='overview';
+}
+syncModeShape();
+if(S.mode==='organic' && new URLSearchParams(location.search).get('mode')!=='organic'){
+  const url=new URL(location.href); url.searchParams.set('mode','organic'); url.hash='';
+  history.replaceState({mode:'organic'},'',url.pathname+url.search);
+}
+let TARGET=null; try{ const t=parseFloat(localStorage.getItem('well-ads-target')); if(t>0) TARGET=t; }catch(e){}
+const tgtStyle = v => !TARGET||v==null||!isFinite(v) ? '' : v<=TARGET ? 'background:color-mix(in srgb, var(--accent) 22%, transparent);border-radius:6px;padding:1px 6px'
+  : v>TARGET*1.25 ? 'background:color-mix(in srgb, var(--pulse) 30%, transparent);border-radius:6px;padding:1px 6px' : '';
+const tgtCell = v => `<span style="${tgtStyle(v)}">${sar(v)}</span>`;
+const save = () => { try{ localStorage.setItem('well-ads-ui',JSON.stringify({preset:S.preset,from:S.preset?null:S.from,to:S.preset?null:S.to,plat:S.plat,sort:S.sort,orgSort:S.orgSort,stat:S.stat})); }catch(e){} };
+function samePlat(p){
+  if(S.plat==='all') return true;
+  if(S.plat==='google') return family(p)==='google';
+  if(S.plat==='meta') return family(p)==='meta';
+  return p===S.plat;
+}
+function orderNow(){ return ORDER.filter(p=>samePlat(p)); }
+
+// ---- aggregation
+const ADS = D.ads;
+// Google search ads have no creative to study, so the production page leaves them out entirely.
+if(CREATIVE_ONLY){ for(const k of Object.keys(ADS)) if(family(ADS[k].platform)==='google') delete ADS[k]; D.rows=D.rows.filter(r=>ADS[r[0]]); }
+// الكلمة والشارة من قاعدة واحدة: نشط فقط إذا سحب المنصة قال إن الإعلان ومجموعته وحملته كلها مفعّلة.
+function alignDelivery(a){
+  if(!a) return;
+  if(a.live){ a.status='نشط'; return; }
+  if(cleanStatus(a.status)==='نشط') a.status='متوقف';
+}
+Object.values(ADS).forEach(a=>{ stamp(a); alignDelivery(a); });
+refreshOrder();
+function passesStatus(a){
+  if(!a) return false;
+  if(S.stat==='live') return !!a.live;
+  if(S.stat==='off') return !a.live;
+  return true;
+}
+function matchesSlice(a){
+  if(!a || !samePlat(a.platform)) return false;
+  if(S.dept && a.dept!==S.dept) return false;
+  if(!passesStatus(a)) return false;
+  if(S.camp && a.platform+'|'+a.campaign!==S.camp) return false;
+  if(S.goal && a.goal!==S.goal) return false;
+  if(S.fmt && (a.format||'')!==S.fmt) return false;
+  return true;
+}
+function coverEnd(fam){
+  const info = (D.platforms||{})[fam] || {};
+  if(/^\d{4}-\d{2}-\d{2}$/.test(info.coverage_end||'')) return info.coverage_end;
+  if(fam==='tiktok'){
+    const day = String(info.synced_at||'').slice(0,10);
+    if(/^\d{4}-\d{2}-\d{2}$/.test(day)) return day;
+    return null;
+  }
+  if(info.ok===false){
+    const day = String(info.stale_from||'').slice(0,10);
+    return /^\d{4}-\d{2}-\d{2}$/.test(day) ? day : null;
+  }
+  return TODAY;
+}
+function activeFamilies(){
+  const fams = new Set();
+  for(const a of Object.values(ADS)){
+    if(!a || HIDDEN_PLAT.has(a.platform)) continue;
+    if(!samePlat(a.platform)) continue;
+    if(S.dept && a.dept!==S.dept) continue;
+    if(!passesStatus(a)) continue;
+    if(S.camp && a.platform+'|'+a.campaign!==S.camp) continue;
+    if(S.goal && a.goal!==S.goal) continue;
+    if(S.fmt && (a.format||'')!==S.fmt) continue;
+    fams.add(family(a.platform)||a.platform);
+  }
+  return fams;
+}
+function holesBetween(from, to){
+  const bad = [];
+  for(const fam of activeFamilies()){
+    const end = coverEnd(fam);
+    if(!end || to>end) bad.push(fam);
+  }
+  return bad;
+}
+function dayOpen(fam, day){
+  const end = coverEnd(fam);
+  return !end || day>end;
+}
+function applyStat(v){
+  S.stat = v==='on'||v==='live' ? 'live' : v==='off' ? 'off' : 'all';
+  S.wall = S.stat==='live' ? 'on' : S.stat==='off' ? 'off' : 'all';
+  S.shown=24; save(); render();
+}
+function agg(from,to){
+  const byAd = {}, byDay = {}, byPlat = {};
+  for(const [k,date,sp,im,cl,ld,cv=0] of D.rows){
+    if(date<from||date>to) continue;
+    const a = ADS[k]; if(!matchesSlice(a)) continue;
+    const lg = a.goal==='lead' ? sp : 0;
+    const ln = a.goal==='lead' ? ld : 0;
+    const o = byAd[k] ||= {spend:0,impr:0,clicks:0,leads:0,conv:0,leadSpend:0,leadN:0,days:{}};
+    o.spend+=sp; o.impr+=im; o.clicks+=cl; o.leads+=ld; o.conv+=cv; o.leadSpend+=lg; o.leadN+=ln; o.days[date]=(o.days[date]||0)+sp;
+    const d = byDay[date] ||= {}; const dp = d[a.platform] ||= {spend:0,leads:0,ls:0,ln:0}; dp.spend+=sp; dp.leads+=ld; dp.ls+=lg; dp.ln+=ln;
+    const p = byPlat[a.platform] ||= {spend:0,impr:0,clicks:0,leads:0,conv:0,leadSpend:0,leadN:0,ads:new Set()}; p.spend+=sp;p.impr+=im;p.clicks+=cl;p.leads+=ld;p.conv+=cv;p.leadSpend+=lg;p.leadN+=ln;p.ads.add(k);
+  }
+  const tot = {spend:0,impr:0,clicks:0,leads:0,conv:0,leadSpend:0,leadN:0};
+  for(const p of Object.values(byPlat)){for(const f in tot) tot[f]+=p[f];}
+  return {byAd,byDay,byPlat,tot};
+}
+const derive = o => {
+  const leadN = o.leadN==null ? o.leads : o.leadN;
+  return {...o, cpl:leadN?(o.leadSpend??o.spend)/leadN:null, cpm2:o.conv?o.spend/o.conv:null, ctr:o.impr?100*o.clicks/o.impr:null, cpc:o.clicks?o.spend/o.clicks:null, cpm:o.impr?1000*o.spend/o.impr:null};
+};
+
+// ---- UI: filters
+function platBtn(p, pressed){
+  const org = S.mode==='organic';
+  const off = !org && p==='tiktok' && TT.state!=='ok';
+  const label = p==='all' ? 'كل المنصات' : `<span class="dot" style="background:var(${(PL[p]||{}).c||'--s-meta'})"></span> ${platName(p)}`;
+  return `<button type="button" data-v="${p}" aria-pressed="${pressed}"${off?` disabled title="${esc(TT.state==='loading'?'جاري تحميل تيك توك':'تيك توك غير متاح')}" style="opacity:.5"`:''}>${label}</button>`;
+}
+function buildFilters(){
+  $('#presets').innerHTML = PRESETS.map(([k,l])=>`<button type="button" data-k="${k}" aria-pressed="${S.preset===k}">${l}</button>`).join('');
+  const org = S.mode==='organic';
+  const metaKids = ORDER.filter(p=>family(p)==='meta' && p!=='meta');
+  const gKids = ORDER.filter(p=>family(p)==='google' && p!=='google');
+  let top;
+  if(org) top = ['all','facebook','instagram','tiktok'];
+  else {
+    top = ['all'];
+    if(metaKids.length) top.push(...metaKids); else if(ORDER.includes('meta')) top.push('meta');
+    for(const p of ORDER){ if(family(p)==='meta'||family(p)==='google') continue; top.push(p); }
+    if(gKids.length || ORDER.includes('google')) top.push('google');
+  }
+  $('#plats').innerHTML = top.map(p=>platBtn(p, p==='google' ? family(S.plat)==='google' : S.plat===p)).join('');
+  const gRow=$('#gRow');
+  if(gRow){
+    gRow.hidden = org || !gKids.length;
+    $('#gtypes').innerHTML = gKids.map(p=>platBtn(p, S.plat===p)).join('');
+  }
+  document.querySelectorAll('#mode button').forEach(b=>b.setAttribute('aria-pressed', b.dataset.v===S.mode));
+  document.querySelectorAll('#wallStat button').forEach(b=>b.setAttribute('aria-pressed', S.wall===b.dataset.v));
+  const adsOnly=$('#adsOnly'); if(adsOnly) adsOnly.hidden=org;
+  const hint=$('#deptOrgHint'); if(hint) hint.hidden=!org;
+  for(const id of ['from','to']){ const el=$('#'+id); el.min=MIN; el.max=TODAY; }
+}
+$('#presets').addEventListener('click',e=>{const b=e.target.closest('button'); if(!b) return; const pr=PRESETS.find(x=>x[0]===b.dataset.k); if(!pr) return; [S.from,S.to]=pr[2](); S.from=clamp(S.from); S.to=clamp(S.to); if(S.from>S.to)[S.from,S.to]=[S.to,S.from]; S.preset=pr[0]; S.shown=24; S.orgShown=24; save(); render();});
+$('#plats').addEventListener('click',e=>{const b=e.target.closest('button'); if(!b||b.disabled) return; S.plat=b.dataset.v; S.shown=24; S.orgShown=24; save(); render();});
+$('#stat').addEventListener('click',e=>{const b=e.target.closest('button'); if(!b) return; applyStat(b.dataset.v);});
+$('#gtypes').addEventListener('click',e=>{const b=e.target.closest('button'); if(!b||b.disabled) return; S.plat=b.dataset.v; S.shown=24; S.orgShown=24; save(); render();});
+$('#wallStat').addEventListener('click',e=>{const b=e.target.closest('button'); if(!b) return; applyStat(b.dataset.v);});
+$('#mode').addEventListener('click',e=>{ const b=e.target.closest('button'); if(!b||b.dataset.v===S.mode) return; applyMode(b.dataset.v,true); });
+function isoDate(v){ return /^\d{4}-\d{2}-\d{2}$/.test(v||'') ? v : ''; }
+function applyDates(){
+  const rawF=isoDate($('#from').value), rawT=isoDate($('#to').value);
+  if(!rawF || !rawT) return;
+  let f=clamp(rawF), t=clamp(rawT); if(f>t)[f,t]=[t,f];
+  if(f===S.from && t===S.to && !S.preset) return;
+  S.from=f; S.to=t; S.preset=null; S.shown=24; S.orgShown=24; save(); render();
+}
+for(const id of ['from','to']){ const el=$('#'+id); el.addEventListener('change', applyDates); el.addEventListener('input', applyDates); }
+$('#q').addEventListener('input',e=>{S.q=e.target.value.trim();S.shown=24;renderCards(cur);});
+$('#sort').addEventListener('change',e=>{S.sort=e.target.value;S.shown=24;save();renderCards(cur);});
+$('#more').addEventListener('click',()=>{S.shown+=24;renderCards(cur);});
+
+// ---- render
+let cur=null;
+function applyMode(mode, push){
+  if(mode!=='ads' && mode!=='organic') mode='ads';
+  const prev=S.mode;
+  if(mode==='organic' && prev!=='organic'){ S._adsPage=S.page; S._adsPlat=S.plat; if(S._orgPage) S.page=S._orgPage; if(S._orgPlat) S.plat=S._orgPlat; }
+  if(mode==='ads' && prev==='organic'){ S._orgPage=S.page; S._orgPlat=S.plat; if(S._adsPage) S.page=S._adsPage; if(S._adsPlat) S.plat=S._adsPlat; }
+  S.mode=mode;
+  syncModeShape();
+  if(push){
+    const url=new URL(location.href);
+    if(mode==='organic') url.searchParams.set('mode','organic'); else url.searchParams.delete('mode');
+    url.hash='';
+    history.pushState({mode},'',url.pathname+url.search);
+  }
+  save(); render(); window.scrollTo({top:0});
+}
+window.addEventListener('popstate',()=>{
+  const q=new URLSearchParams(location.search).get('lang');
+  LANG = q==='en' ? 'en' : 'ar';
+  try{ localStorage.setItem('well-ads-lang', LANG); }catch(e){}
+  const next=modeFromUrl(), prev=S.mode;
+  if(next==='organic' && prev!=='organic'){ S._adsPage=S.page; S._adsPlat=S.plat; if(S._orgPage) S.page=S._orgPage; if(S._orgPlat) S.plat=S._orgPlat; }
+  if(next==='ads' && prev==='organic'){ S._orgPage=S.page; S._orgPlat=S.plat; if(S._adsPage) S.page=S._adsPage; if(S._adsPlat) S.plat=S._adsPlat; }
+  S.mode=next; syncModeShape(); render();
+});
+function render(){
+  refreshOrder();
+  buildFilters();
+  document.querySelectorAll('#presets button').forEach(b=>b.setAttribute('aria-pressed',S.preset===b.dataset.k));
+  document.querySelectorAll('#plats button[data-v]').forEach(b=>b.setAttribute('aria-pressed',S.plat===b.dataset.v));
+  document.querySelectorAll('#stat button').forEach(b=>b.setAttribute('aria-pressed',S.stat===b.dataset.v));
+  if(document.activeElement!==$('#from')) $('#from').value=S.from;
+  if($('#sort')) $('#sort').value=S.sort;
+  if(document.activeElement!==$('#to')) $('#to').value=S.to;
+  const n = diffDays(S.from,S.to)+1;
+  const pTo = addDays(S.from,-1), pFrom = addDays(pTo,-(n-1));
+  const now = agg(S.from,S.to), prev = pFrom>=MIN ? agg(pFrom,pTo) : null;
+  const holes = S.mode==='ads' ? holesBetween(S.from,S.to) : [];
+  const prevHoles = prev && S.mode==='ads' ? holesBetween(pFrom,pTo) : [];
+  const compareOk = !!(prev && !holes.length && !prevHoles.length);
+  cur = {now,prev,n,pFrom,pTo,compareOk,holes};
+  const partial = S.to===TODAY && TODAY!==MAX ? ` · <b style="color:var(--bad)">${tr('اليوم الحالي جزئي')}</b>` : '';
+  const holeNote = holes.length ? ` · <b style="color:var(--bad)">${ui('بيانات ناقصة','Missing data')}: ${holes.map(fam=>{ const end=coverEnd(fam); const name=platName(fam)||fam; return end?`${name} ${ui('حتى','through')} ${nice(end)}`:name; }).join(ui('، ', ', '))}</b>` : '';
+  const liveNote = S.mode!=='ads' ? '' : S.stat==='live' ? ` · ${tr('الأرقام للإعلانات النشطة الآن فقط')}` : S.stat==='off' ? ` · ${tr('الأرقام للإعلانات المتوقفة فقط')}` : '';
+  const dayWord = n===1 ? tr('يوم') : (LANG==='en'?'days':tr('يوم'));
+  const prevBit = prev ? ` · ${tr('مقارنة بـ')} <b>${nice(pFrom)} – ${nice(pTo)}</b>` : ` · ${tr('لا توجد فترة سابقة كاملة للمقارنة')}`;
+  $('#rangeLabel').innerHTML = `${tr('الفترة:')} <b>${nice(S.from)} – ${nice(S.to)}</b> (${n} ${dayWord})` + (S.mode==='organic' ? '' : prevBit) + partial + holeNote + liveNote;
+  const head=$('#headSub'); if(head) head.textContent = S.mode==='organic' ? 'صفحات فيسبوك · إنستغرام · تيك توك · تحليلات الموقع' : (CREATIVE_ONLY ? 'ميتا · سناب شات · تيك توك — كل المبالغ بالريال السعودي' : 'ميتا · جوجل · سناب شات · تيك توك — كل المبالغ بالريال السعودي');
+  buildSelects(); renderChips();
+  renderKpis(now,prev); renderCharts(now); renderBI(now); renderPlat(now,prev); renderCamp(now); renderMonths(); renderPace(); renderTree(now); renderCards(cur);
+  renderReport(now,prev); renderWins();
+  localize();
+}
+
+function delta(a,b,lowerIsBetter){
+  if(b==null||a==null||!isFinite(a)||!isFinite(b)||b===0) return `<span class="delta flat">— لا مقارنة</span>`;
+  const ch = 100*(a-b)/Math.abs(b);
+  if(Math.abs(ch)<0.5) return `<span class="delta flat">● ثابت</span>`;
+  const up = ch>0, good = lowerIsBetter ? !up : up;
+  return `<span class="delta ${good?'good':'bad'}">${up?'▲':'▼'} ${fmt(Math.abs(ch),1)}% <span style="color:var(--muted)">${tr('عن الفترة السابقة')}</span></span>`;
+}
+function renderKpis(now,prev){
+  const a=derive(now.tot), b=cur&&cur.compareOk&&prev?derive(prev.tot):{};
+  const K=[
+    ['الصرف',sar(a.spend),money(),delta(a.spend,b.spend,null),true],
+    ['الليدز',qty(a.leads),'',delta(a.leads,b.leads,false)],
+    ['تكلفة الليد',sar(a.cpl),money(),delta(a.cpl,b.cpl,true)],
+    ['محادثات واتساب وماسنجر',fmt(a.conv),'',delta(a.conv,b.conv,false)],
+    ['الظهور',fmt(a.impr),'',delta(a.impr,b.impr,false)],
+    ['نقرات الرابط والسوايب',fmt(a.clicks),'',delta(a.clicks,b.clicks,false)],
+    ['نسبة النقر',pct(a.ctr),'',delta(a.ctr,b.ctr,false)],
+    ['تكلفة النقرة',sar(a.cpc),money(),delta(a.cpc,b.cpc,true)],
+    ['تكلفة الألف ظهور',sar(a.cpm),money(),delta(a.cpm,b.cpm,true)],
+  ];
+  $('#kpis').innerHTML = K.map(([l,v,u,d,hero])=>`<div class="kpi${hero?' hero':''}"><span class="l">${l}</span><span class="v">${v}${u?`<small>${u}</small>`:''}</span>${d.replace('class="delta','class="delta').replace(/delta (good|bad)">/, (m,g)=> l==='الصرف' ? 'delta flat">' : m)}</div>`).join('');
+}
+
+function noteCard(title, line, alert){
+  return `<div class="item${alert?' alert':''}"><span class="b">${title}</span><span class="sub">${line}</span></div>`;
+}
+
+// ---- charts (stacked bars, one axis each)
+function niceMax(v){ if(v<=0) return 1; const p=Math.pow(10,Math.floor(Math.log10(v))); const n=v/p; return (n<=1?1:n<=2?2:n<=2.5?2.5:n<=5?5:10)*p; }
+function barX(L,iw,bw,i){ return LANG==='en' ? L+i*bw : L+iw-(i+1)*bw; }
+function midX(L,iw,bw,i){ return LANG==='en' ? L+(i+.5)*bw : L+iw-(i+.5)*bw; }
+function stacked(el,now,field,unit){
+  const BK = buckets(now), days = BK.keys; now = {byDay:BK.byKey};
+  const plats = orderNow();
+  const W=640,H=230,L=8,R=46,T=10,B=26, iw=W-L-R, ih=H-T-B;
+  const tot = days.map(d=>plats.reduce((s,p)=>s+((now.byDay[d]||{})[p]?.[field]||0),0));
+  const max = niceMax(Math.max(...tot,0));
+  const bw = iw/days.length, gap = Math.min(2,bw*.2), w=Math.max(1,bw-gap);
+  const y = v => T+ih-(v/max)*ih;
+  let s = `<svg viewBox="0 0 ${W} ${H}" role="img" aria-label="${field==='spend'?'الصرف اليومي':'الليدز اليومية'}">`;
+  for(let i=0;i<=4;i++){const v=max*i/4, yy=y(v); s+=`<line class="grid" x1="${L}" x2="${L+iw}" y1="${yy}" y2="${yy}"/><text x="${W-R+6}" y="${yy+4}" text-anchor="start">${fmt(v)}</text>`;}
+  days.forEach((d,i)=>{
+    const x = barX(L,iw,bw,i)+gap/2;
+    let acc=0;
+    plats.forEach((p,j)=>{ const v=(now.byDay[d]||{})[p]?.[field]||0; if(!v) return; const y0=y(acc), y1=y(acc+v); acc+=v;
+      const h=Math.max(0,y0-y1-(acc>v?1:0)); s+=`<rect x="${x}" y="${y1}" width="${w}" height="${h}" rx="${Math.min(2,w/2)}" fill="var(${PL[p].c})"/>`; });
+    s+=`<rect class="hit" data-i="${i}" x="${barX(L,iw,bw,i)}" y="${T}" width="${bw}" height="${ih}"><title>${BK.label(d)}</title></rect>`;
+  });
+  const step = Math.ceil(days.length/7);
+  days.forEach((d,i)=>{ if(i%step===0||i===days.length-1){ const x=midX(L,iw,bw,i); s+=`<text x="${x}" y="${H-8}" text-anchor="middle">${BK.tick(d)}</text>`; }});
+  s+=`</svg><div class="tip" hidden></div>`;
+  el.innerHTML=s;
+  const tip=el.querySelector('.tip');
+  el.querySelectorAll('.hit').forEach(r=>{
+    r.addEventListener('mousemove',ev=>{
+      const d=days[+r.dataset.i];
+      const span=BK.span(d);
+      const rows=plats.map(p=>{ const open=dayOpen(family(p), span[0])||dayOpen(family(p), span[1]); const v=(now.byDay[d]||{})[p]?.[field]||0; return [p, open&&!v?null:v]; });
+      const known=rows.filter(([,v])=>v!=null);
+      const incomplete=known.length!==rows.length;
+      const sum=known.reduce((s,[,v])=>s+v,0);
+      const cell=v=> v==null ? '—' : (field==='spend'?sar(v):qty(v));
+      const totalTxt = !known.length ? '—' : cell(sum)+(incomplete?' · '+ui('ناقص','incomplete'):'');
+      tip.innerHTML=`<div class="t">${BK.label(d)}</div>`+rows.map(([p,v])=>`<div class="r"><span><span class="dot" style="background:var(${PL[p].c})"></span> ${platName(p)}</span><b>${cell(v)}</b></div>`).join('')+`<div class="r"><span>${tr('المجموع')}</span><b>${totalTxt}</b></div>`;
+      tip.hidden=false; const bx=el.getBoundingClientRect(); let x=ev.clientX-bx.left+12, yy=ev.clientY-bx.top-10;
+      if(x+170>bx.width) x=ev.clientX-bx.left-180; tip.style.left=Math.max(0,x)+'px'; tip.style.top=Math.max(0,yy)+'px';
+    });
+    r.addEventListener('mouseleave',()=>tip.hidden=true);
+    r.addEventListener('click',()=>{ const d=days[+r.dataset.i]; const [f,t]=BK.span(d); S.from=clamp(f); S.to=t>TODAY?TODAY:t; S.preset=null; S.shown=24; render(); });
+  });
+}
+function renderCharts(now){
+  const plats = orderNow();
+  $('#legend').innerHTML = plats.map(p=>`<span><span class="dot" style="background:var(${PL[p].c})"></span>${platName(p)}</span>`).join('');
+  stacked($('#chSpend'),now,'spend'); stacked($('#chLeads'),now,'leads'); cplLine($('#chCpl'),now);
+  const g=granOf();
+  $('#chSpendT').textContent={day:'الصرف اليومي (ر.س)',week:'الصرف الأسبوعي (ر.س)',month:'الصرف الشهري (ر.س)'}[g];
+  $('#chLeadsT').textContent={day:'الليدز اليومية',week:'الليدز الأسبوعية',month:'الليدز الشهرية'}[g];
+  document.querySelectorAll('#gran button').forEach(b=>b.setAttribute('aria-pressed',S.gran===b.dataset.v));
+  localize();
+}
+
+// ---- tables
+function sortable(tbl,cols,rows,state,draw){
+  tbl.onclick = e => { const th=e.target.closest('th'); if(!th) return; const k=th.dataset.k; state.dir = state.k===k ? -state.dir : (cols.find(c=>c.k===k).asc?1:-1); state.k=k; draw(); };
+  rows.sort((a,b)=>{ const x=a[state.k], y=b[state.k]; if(x==null&&y==null) return 0; if(x==null) return 1; if(y==null) return -1; return (typeof x==='string'? x.localeCompare(y,LANG==='en'?'en':'ar') : x-y)*state.dir; });
+  tbl.innerHTML = `<thead><tr>${cols.map(c=>`<th data-k="${c.k}" class="${c.n?'n':''}" ${state.k===c.k?`aria-sort="${state.dir>0?'ascending':'descending'}"`:''}>${c.l}</th>`).join('')}</tr></thead><tbody>${rows.map(r=>`<tr>${cols.map(c=>`<td class="${c.n?'n':''}${c.cls?' '+c.cls:''}">${c.f?c.f(r):esc(r[c.k])}</td>`).join('')}</tr>`).join('')}</tbody>`;
+}
+const goalPill = g => `<span class="pill">${esc(goalName(g))}</span>`;
+const platCell = p => { if(HIDDEN_PLAT.has(p)) return ''; const i=PL[p]||{c:'--s-meta'}; const name=platName(p); if(!name) return ''; return `<span class="pill"><span class="dot" style="background:var(${i.c})"></span>${name}</span>`; };
+const TP = {k:'spend',dir:-1};
+function renderPlat(now,prev){
+  const tot = now.tot.spend||1;
+  const rows = Object.entries(now.byPlat).filter(([p])=>!HIDDEN_PLAT.has(p)).map(([p,o])=>{
+    const d=derive(o), fam=family(p);
+    const open = dayOpen(fam, S.to) || (cur&&cur.prev && dayOpen(fam, cur.pTo));
+    const b = !open && prev?.byPlat[p] ? derive(prev.byPlat[p]) : {};
+    return {p,...d,share:100*o.spend/tot,ads:o.ads.size,pcpl:b.cpl??null};
+  });
+  const cols=[
+    {k:'p',l:'المنصة',f:r=>platCell(r.p)},
+    {k:'spend',l:'الصرف',n:1,f:r=>sar(r.spend)},
+    {k:'share',l:'الحصة',n:1,f:r=>`${fmt(r.share,0)}%<span class="bar-cell" style="width:${Math.round(r.share*.6)}px"></span>`},
+    {k:'leads',l:'الليدز',n:1,f:r=>qty(r.leads)},
+    {k:'cpl',l:'تكلفة الليد',n:1,asc:1,f:r=>sar(r.cpl)},
+    {k:'conv',l:'محادثات',n:1,f:r=>family(r.p)==='meta'?fmt(r.conv):'—'},
+    {k:'pcpl',l:'تكلفة الليد قبل',n:1,asc:1,f:r=>sar(r.pcpl)},
+    {k:'impr',l:'الظهور',n:1,f:r=>fmt(r.impr)},
+    {k:'clicks',l:'النقرات',n:1,f:r=>fmt(r.clicks)},
+    {k:'ctr',l:'نسبة النقر',n:1,f:r=>pct(r.ctr)},
+    {k:'cpc',l:'تكلفة النقرة',n:1,asc:1,f:r=>sar(r.cpc)},
+    {k:'ads',l:'إعلانات صرفت',n:1,f:r=>fmt(r.ads)},
+  ];
+  const draw=()=>{ sortable($('#tPlat'),cols,rows,TP,draw); $('#tPlat').querySelectorAll('tbody tr').forEach((tr,i)=>{ tr.classList.add('click'); tr.title='فلترة على هذي المنصة'; tr.onclick=()=>{ S.plat=rows[i].p; S.camp=''; S.shown=24; save(); render(); }; }); }; draw();
+}
+const TC = {k:'spend',dir:-1};
+function renderCamp(now){
+  const m={};
+  for(const [k,o] of Object.entries(now.byAd)){ const a=ADS[k]; const key=a.platform+'|'+a.campaign; const c=m[key] ||= {p:a.platform,name:a.campaign,goal:a.goal,spend:0,impr:0,clicks:0,leads:0,conv:0,leadSpend:0,leadN:0,ads:0,live:0}; c.spend+=o.spend;c.impr+=o.impr;c.clicks+=o.clicks;c.leads+=o.leads;c.conv+=o.conv;c.leadSpend+=o.leadSpend;c.leadN+=o.leadN||0;c.ads++; if(a.live)c.live++; }
+  const rows = Object.values(m).map(derive);
+  $('#campCount').textContent = ui(`${fmt(rows.length)} حملة صرفت في الفترة`, `${fmt(rows.length)} campaigns with spend in this range`);
+  const cols=[
+    {k:'p',l:'المنصة',f:r=>platCell(r.p)},
+    {k:'name',l:'الحملة',cls:'name'},
+    {k:'goal',l:'الهدف',f:r=>goalPill(r.goal)},
+    {k:'spend',l:'الصرف',n:1,f:r=>sar(r.spend)},
+    {k:'leads',l:'الليدز',n:1,f:r=>r.goal==='lead'?qty(r.leadN):'—'},
+    {k:'cpl',l:'تكلفة الليد',n:1,asc:1,f:r=>r.goal==='lead'?tgtCell(r.cpl):'—'},
+    {k:'conv',l:'محادثات',n:1,f:r=>family(r.p)==='meta'?fmt(r.conv):'—'},
+    {k:'impr',l:'الظهور',n:1,f:r=>fmt(r.impr)},
+    {k:'ctr',l:'نسبة النقر',n:1,f:r=>pct(r.ctr)},
+    {k:'cpc',l:'تكلفة النقرة',n:1,asc:1,f:r=>sar(r.cpc)},
+    {k:'live',l:'نشط / صرف',n:1,f:r=>`${fmt(r.live)} / ${fmt(r.ads)}`},
+  ];
+  const draw=()=>{ sortable($('#tCamp'),cols,rows,TC,draw); $('#tCamp').querySelectorAll('tbody tr').forEach((tr,i)=>{ tr.classList.add('click'); tr.title='فلترة على هذي الحملة'; tr.onclick=()=>{ S.camp=rows[i].p+'|'+rows[i].name; S.shown=24; render(); }; }); }; draw();
+}
+
+
+// ---- BI: buckets, slicers, cross-filter chips, funnel, share, heatmap, month pivot, drill tree
+function granOf(){ if(S.gran!=='auto') return S.gran; const n=diffDays(S.from,S.to)+1; return n>200?'month':n>62?'week':'day'; }
+const weekStart = d => addDays(d,-toD(d).getUTCDay());
+function buckets(now){
+  const g=granOf(), key = d => g==='day'?d : g==='week'?weekStart(d) : d.slice(0,8)+'01';
+  const keys=[], byKey={}; let last=null;
+  for(let d=S.from; d<=S.to; d=addDays(d,1)){ const k=key(d); if(k!==last){ keys.push(k); last=k; } const src=now.byDay[d]; if(!src) continue;
+    const t=byKey[k] ||= {}; for(const [p,v] of Object.entries(src)){ const o=t[p] ||= {spend:0,leads:0,ls:0,ln:0}; o.spend+=v.spend; o.leads+=v.leads; o.ls+=v.ls||0; o.ln+=v.ln||0; } }
+  const end = k => g==='day'?k : g==='week'?addDays(k,6) : addDays(addDays(k.slice(0,8)+'28',4).slice(0,8)+'01',-1);
+  return {keys, byKey, g,
+    span: k => [k<S.from?S.from:k, end(k)>S.to?S.to:end(k)],
+    label: k => g==='day'?nice(k) : g==='week'?ui(`أسبوع ${nice(k<S.from?S.from:k)}`,`Week of ${nice(k<S.from?S.from:k)}`) : `${monthName(toD(k).getUTCMonth())} ${toD(k).getUTCFullYear()}`,
+    tick: k => g==='month'?`${toD(k).getUTCMonth()+1}/${String(toD(k).getUTCFullYear()).slice(2)}` : `${toD(k).getUTCDate()}/${toD(k).getUTCMonth()+1}`};
+}
+function cplLine(el,now){
+  const B=buckets(now), ks=B.keys, plats=orderNow();
+  const W=640,H=200,L=8,R=46,T=10,Bm=26, iw=W-L-R, ih=H-T-Bm, bw=iw/Math.max(1,ks.length);
+  const val=(k,p)=>{ const o=(B.byKey[k]||{})[p]; const n=o?(o.ln==null?o.leads:o.ln):0; return o&&n>0&&o.ls>0 ? o.ls/n : null; };
+  const all=[]; ks.forEach(k=>plats.forEach(p=>{const v=val(k,p); if(v!=null) all.push(v);}));
+  if(!all.length){ el.innerHTML='<div class="empty">ما فيه ليدز في هذي الفترة.</div>'; return; }
+  all.sort((a,b)=>a-b); const max=niceMax(all[Math.floor(all.length*0.95)]||all[all.length-1]);
+  const y=v=>T+ih-(Math.min(v,max)/max)*ih, x=i=>midX(L,iw,bw,i);
+  let s=`<svg viewBox="0 0 ${W} ${H}" role="img" aria-label="تكلفة الليد حسب المنصة">`;
+  for(let i=0;i<=4;i++){const v=max*i/4,yy=y(v); s+=`<line class="grid" x1="${L}" x2="${L+iw}" y1="${yy}" y2="${yy}"/><text x="${W-R+6}" y="${yy+4}">${fmt(v)}</text>`;}
+  plats.forEach(p=>{ let d='', pts=''; ks.forEach((k,i)=>{ const v=val(k,p); if(v==null){ d+=' '; return; } const span=B.span(k); const open=dayOpen(family(p), span[0])||dayOpen(family(p), span[1]); d+=(d.trim()&&!d.endsWith(' ')?'L':'M')+x(i).toFixed(1)+' '+y(v).toFixed(1);
+      pts+=`<circle cx="${x(i).toFixed(1)}" cy="${y(v).toFixed(1)}" r="2.5" fill="var(${PL[p].c})"><title>${platName(p)} · ${B.label(k)}: ${sar(v)} ${money()}${open?' · '+ui('ناقص','incomplete'):''}</title></circle>`; });
+    s+=`<path d="${d.replace(/ +/g,' ').trim()}" fill="none" stroke="var(${PL[p].c})" stroke-width="2" stroke-linejoin="round"/>`+pts; });
+  const step=Math.ceil(ks.length/7); ks.forEach((k,i)=>{ if(i%step===0||i===ks.length-1) s+=`<text x="${x(i)}" y="${H-8}" text-anchor="middle">${B.tick(k)}</text>`; });
+  el.innerHTML=s+'</svg>';
+}
+function buildSelects(){
+  const camps=new Map(), goals=new Set(), fmts=new Set();
+  for(const a of Object.values(ADS)){ if(!samePlat(a.platform)) continue; if(S.dept&&a.dept!==S.dept) continue; camps.set(a.platform+'|'+a.campaign,a); goals.add(a.goal); if(a.format) fmts.add(a.format); }
+  if(S.camp && !camps.has(S.camp)) S.camp='';
+  const opt=(v,l,cur)=>`<option value="${esc(v)}"${v===cur?' selected':''}>${esc(l)}</option>`;
+  const cs=[...camps.entries()].sort((a,b)=>a[0].localeCompare(b[0],'ar'));
+  $('#fCamp').innerHTML=opt('','كل الحملات',S.camp)+cs.map(([k,a])=>{ const pn=HIDDEN_PLAT.has(a.platform)?'':platName(a.platform); return opt(k,`${pn?pn+' · ':''}${a.campaign}`,S.camp); }).join('');
+  $('#fGoal').innerHTML=opt('','كل الأهداف',S.goal)+[...goals].map(g=>opt(g,goalName(g),S.goal)).join('');
+  $('#fFmt').innerHTML=opt('','كل الصيغ',S.fmt)+[...fmts].map(f=>opt(f,tr(f),S.fmt)).join('');
+}
+function renderChips(){
+  const c=[];
+  if(S.dept) c.push(['dept',`${ui('القسم','Department')}: ${depName(S.dept)}`]);
+  if(S.plat!=='all') c.push(['plat',`${ui('المنصة','Platform')}: ${platName(S.plat)}`]);
+  if(S.camp) c.push(['camp',`${ui('الحملة','Campaign')}: ${S.camp.split('|').slice(1).join('|')}`]);
+  if(S.goal) c.push(['goal',`${ui('الهدف','Objective')}: ${goalName(S.goal)}`]);
+  if(S.fmt) c.push(['fmt',`${ui('الصيغة','Format')}: ${tr(S.fmt)}`]);
+  if(S.stat==='live') c.push(['stat','النشطة الآن']);
+  if(S.stat==='off') c.push(['stat','متوقف']);
+  if(!S.preset) c.push(['date',`${nice(S.from)} – ${nice(S.to)}`]);
+  $('#chips').innerHTML = c.map(([k,l])=>`<span class="chip">${esc(l)}<button type="button" data-k="${k}" aria-label="${esc(ui('إزالة','Remove')+' '+l)}">×</button></span>`).join('')
+    + (c.length>1?`<button type="button" class="chip clear" data-k="all">مسح الكل</button>`:'');
+}
+$('#chips').addEventListener('click',e=>{ const b=e.target.closest('[data-k]'); if(!b) return; const k=b.dataset.k;
+  if(k==='plat'||k==='all'){ S.plat='all'; } if(k==='dept'||k==='all'){ S.dept=''; if(S.page==='dept') S.page='depts'; }
+  if(k==='camp'||k==='all') S.camp=''; if(k==='goal'||k==='all') S.goal=''; if(k==='fmt'||k==='all') S.fmt='';
+  if(k==='stat'||k==='all'){ S.stat='all'; S.wall='all'; } if(k==='date'||k==='all'){ [S.from,S.to]=PRESETS.find(x=>x[0]==='7')[2](); S.from=clamp(S.from); S.to=clamp(S.to); S.preset='7'; }
+  S.shown=24; save(); render(); });
+$('#fCamp').addEventListener('change',e=>{ S.camp=e.target.value; if(S.camp){ const p=S.camp.split('|')[0]; if(HIDDEN_PLAT.has(p)) S.plat='all'; else if(S.plat!=='all'&&S.plat!==p) S.plat=p; } S.shown=24; render(); });
+$('#fGoal').addEventListener('change',e=>{ S.goal=e.target.value; S.shown=24; render(); });
+$('#fFmt').addEventListener('change',e=>{ S.fmt=e.target.value; S.shown=24; render(); });
+$('#gran').addEventListener('click',e=>{ const b=e.target.closest('button'); if(!b) return; S.gran=b.dataset.v; renderCharts(cur.now); });
+
+function renderBI(now){
+  const t=derive(now.tot), steps=[['الظهور',t.impr],['النقرات',t.clicks],['الليدز والمحادثات',t.leads+t.conv]];
+  const mx=Math.max(1,t.impr), w=v=>Math.max(4, Math.round(100*Math.sqrt(v/mx)));
+  $('#funnel').innerHTML = steps.map(([l,v],i)=>`<div class="fstep"><span class="lbl">${l}</span><div class="fbar" style="width:${w(v)}%">${i===2?qty(v):fmt(v)}</div>`
+    + (i? `<span class="frate">${i===1?`${tr('نسبة النقر')} ${pct(t.ctr)}`:`${ui('من النقرة لليد','Click to result')} ${pct(t.clicks?100*(t.leads+t.conv)/t.clicks:null)} · ${ui('تكلفة النتيجة','Cost per result')} ${sar((t.leads+t.conv)?t.spend/(t.leads+t.conv):null)} ${money()}`}</span>`:'')+`</div>`).join('');
+  const plats=ORDER.filter(p=>now.byPlat[p]), ts=plats.reduce((a,p)=>a+now.byPlat[p].spend,0)||1, tl=plats.reduce((a,p)=>a+now.byPlat[p].leads,0)||1;
+  const bar=(f,tot)=>`<div class="share-bar">${plats.map(p=>{const v=100*now.byPlat[p][f]/tot; return v>0?`<span style="width:${v}%;background:var(${PL[p].c})" title="${platName(p)}: ${fmt(v,1)}%"></span>`:'';}).join('')}</div>`;
+  $('#share').innerHTML = plats.length ? `<div class="share-row"><span>الصرف</span>${bar('spend',ts)}</div><div class="share-row"><span>الليدز</span>${bar('leads',tl)}</div>`
+    + `<div class="legend" style="margin-top:8px">${plats.map(p=>`<span><span class="dot" style="background:var(${PL[p].c})"></span>${platName(p)}: ${fmt(100*now.byPlat[p].spend/ts,0)}% ${ui('صرف','Spend')} · ${fmt(100*now.byPlat[p].leads/tl,0)}% ${ui('ليدز','Leads')}</span>`).join('')}</div>` : '<div class="empty">لا توجد بيانات.</div>';
+  // day-of-week heatmap of CPL (lead campaigns)
+  const hm={}; for(const [k,date,sp,im,cl,ld] of D.rows){ if(date<S.from||date>S.to) continue; const a=ADS[k]; if(!a||!now.byAd[k]||a.goal!=='lead') continue;
+    const w=toD(date).getUTCDay(), o=(hm[a.platform] ||= {})[w] ||= {s:0,l:0}; o.s+=sp; o.l+=ld; }
+  const hp=ORDER.filter(p=>hm[p]); let vals=[]; hp.forEach(p=>Object.values(hm[p]).forEach(o=>{ if(o.l) vals.push(o.s/o.l); }));
+  const lo=Math.min(...vals), hi=Math.max(...vals);
+  $('#heat').innerHTML = hp.length ? `<thead><tr><th></th>${[0,1,2,3,4,5,6].map(d=>`<th>${dayName(d)}</th>`).join('')}</tr></thead><tbody>`+hp.map(p=>`<tr><th>${platName(p)}</th>${[0,1,2,3,4,5,6].map(w=>{ const o=hm[p][w]; const v=o&&o.l?o.s/o.l:null;
+      const a = v==null?0:(hi>lo?(v-lo)/(hi-lo):.5); return `<td style="background:color-mix(in srgb, var(--accent) ${Math.round(10+a*70)}%, var(--surface));color:${a>.55?'#fff':'var(--ink)'}" title="${platName(p)} · ${dayName(w)}: ${v==null?'—':sar(v)+' '+money()}">${v==null?'—':sar(v)}</td>`; }).join('')}</tr>`).join('')+'</tbody>'
+    : '<tbody><tr><td class="empty">ما فيه ليدز في هذي الفترة.</td></tr></tbody>';
+}
+function monthEnd(ym){ return addDays(addDays(ym+'-28',4).slice(0,8)+'01',-1); }
+function renderPace(){
+  const monthYm = S.to.slice(0,7), first = monthYm+'-01', last = monthEnd(monthYm);
+  const dim = toD(last).getUTCDate();
+  const paceFrom = S.from>first ? S.from : first;
+  let paceTo = S.to<last ? S.to : last;
+  const dropToday = paceTo===TODAY && TODAY!==MAX;
+  const completeTo = dropToday ? addDays(TODAY,-1) : paceTo;
+  const hasComplete = completeTo>=paceFrom;
+  const prevMonthEnd = addDays(first,-1), prevYm = prevMonthEnd.slice(0,7);
+  const prevLastDom = toD(prevMonthEnd).getUTCDate();
+  const prevDay = day => { const dom=toD(day).getUTCDate(); if(dom>prevLastDom) return null; return prevYm+'-'+String(dom).padStart(2,'0'); };
+  const curM={s:0,l:0}, prevSame={s:0,l:0}, todayBit={s:0,l:0};
+  const prevDays=new Set();
+  if(hasComplete){ for(let d=paceFrom; d<=completeTo; d=addDays(d,1)){ const p=prevDay(d); if(p) prevDays.add(p); } }
+  const prevList=[...prevDays].sort();
+  const prevKnown=prevList.length>0 && prevList.every(d=>d>=MIN) && !holesBetween(prevList[0], prevList[prevList.length-1]).length;
+  for(const [k,date,sp,im,cl,ld,cv=0] of D.rows){ const a=ADS[k]; if(!matchesSlice(a)) continue;
+    const add=o=>{ o.s+=sp; o.l+=ld+cv; };
+    if(hasComplete && date>=paceFrom && date<=completeTo) add(curM);
+    if(dropToday && date===TODAY) add(todayBit);
+    if(prevDays.has(date)) add(prevSame);
+  }
+  const done = hasComplete ? diffDays(paceFrom, completeTo)+1 : 0;
+  const open = hasComplete && holesBetween(paceFrom, completeTo).length;
+  const proj = !done || open ? null : {s:curM.s*dim/done, l:curM.l*dim/done};
+  const ch=(a,b)=>b?`${a>=b?'▲':'▼'} ${fmt(Math.abs(100*(a-b)/b),0)}%`:'—';
+  const mname=x=>monthName(+x.slice(5)-1);
+  const spendShown = hasComplete ? curM.s : (dropToday ? todayBit.s : null);
+  const resultShown = hasComplete ? curM.l : (dropToday ? todayBit.l : null);
+  const spendLabel = hasComplete
+    ? ui(`صرف ${mname(monthYm)} حتى الآن (${done} من ${dim} يوم)`,`${mname(monthYm)} spend so far (${done} of ${dim} days)`)
+    : ui('صرف اليوم الجزئي','Partial spend today');
+  const sameLabel = ui(`مقارنة بنفس الأيام من ${mname(prevYm)}`,`Same days versus ${mname(prevYm)}`);
+  const prevCount = prevDays.size;
+  const prevLabel = prevCount && prevCount===toD(prevMonthEnd).getUTCDate() && done===dim
+    ? ui(`${mname(prevYm)} كامل: ليدز ومحادثات`,`${mname(prevYm)} full: leads and chats`)
+    : ui(`نفس الأيام من ${mname(prevYm)}: ليدز ومحادثات`,`Same days in ${mname(prevYm)}: leads and chats`);
+  $('#pace').innerHTML = `<div class="kv">
+    <div><div class="k">${spendLabel}</div><div class="mini">${spendShown==null?'—':sar(spendShown)+' '+money()}</div></div>
+    <div><div class="k">${ui('نتائج حتى الآن','Results so far')}</div><div class="mini">${resultShown==null?'—':qty(resultShown)}</div></div>
+    <div><div class="k">${ui('توقع الصرف لنهاية الشهر','Spend forecast to month end')}</div><div class="mini">${proj?sar(proj.s)+' '+money():'—'}</div></div>
+    <div><div class="k">${ui('توقع النتائج لنهاية الشهر','Results forecast to month end')}</div><div class="mini">${proj?qty(proj.l):'—'}</div></div>
+    <div><div class="k">${sameLabel}</div><div class="mini">${open||!prevKnown?'—':ui('صرف','Spend')+' '+ch(curM.s,prevSame.s)+' · '+ui('نتائج','results')+' '+ch(curM.l,prevSame.l)}</div></div>
+    <div><div class="k">${prevLabel}</div><div class="mini">${prevKnown?qty(prevSame.l):'—'} ${ui('ليد أو محادثة','leads or chats')}</div><div class="k">${prevKnown?`${sar(prevSame.s)} ${money()} · ${ui('تكلفة النتيجة','cost per result')} ${prevSame.l?sar(prevSame.s/prevSame.l)+' '+money():'—'}`:'—'}</div></div></div>`;
+}
+function renderMonths(){
+  const m={}, plats=orderNow();
+  for(const [k,date,sp,im,cl,ld,cv=0] of D.rows){ const a=ADS[k]; if(date<S.from||date>S.to || !matchesSlice(a)) continue;
+    const ym=date.slice(0,7), o=(m[ym] ||= {})[a.platform] ||= {s:0,l:0,ls:0,ln:0,c:0}; o.s+=sp; o.l+=ld; o.c+=cv; if(a.goal==='lead'){ o.ls+=sp; o.ln+=ld; } }
+  const months=Object.keys(m).sort().reverse(), used=plats.filter(p=>months.some(ym=>m[ym][p]));
+  if(!months.length){ $('#tMonth').innerHTML='<tbody><tr><td class="empty">لا توجد بيانات.</td></tr></tbody>'; return; }
+  const cpls=[]; months.forEach(ym=>used.forEach(p=>{const o=m[ym][p]; if(o&&o.ln) cpls.push(o.ls/o.ln);})); const lo=Math.min(...cpls), hi=Math.max(...cpls);
+  const shade=v=>{ if(v==null||!isFinite(v)) return ''; const a=hi>lo?(v-lo)/(hi-lo):.5; return ` style="background:color-mix(in srgb, var(--pulse) ${Math.round(a*45)}%, transparent)"`; };
+  const name=ym=>`${monthName(+ym.slice(5)-1)} ${ym.slice(0,4)}`;
+  let h=`<thead><tr><th>الشهر</th>${used.map(p=>`<th class="n">${platName(p)} ${ui('صرف','Spend')}</th><th class="n">ليدز</th><th class="n">تكلفة الليد</th>`).join('')}<th class="n">${ui('المجموع صرف','Total spend')}</th><th class="n">ليدز</th><th class="n">تكلفة الليد</th></tr></thead><tbody>`;
+  months.forEach(ym=>{ let ts=0,tl=0,tls=0,leadN=0; h+=`<tr class="click" data-ym="${ym}" title="${ui('ركّز اللوحة على','Focus the report on')} ${name(ym)}"><td>${name(ym)}</td>`;
+    used.forEach(p=>{ const o=m[ym][p]||{s:0,l:0,ls:0,ln:0}; const c=o.ln?o.ls/o.ln:null; h+=`<td class="n">${sar(o.s)}</td><td class="n">${qty(o.l)}</td><td class="n hot"${shade(c)}>${sar(c)}</td>`; });
+    for(const o of Object.values(m[ym])){ ts+=o.s; tl+=o.l; tls+=o.ls; leadN+=o.ln||0; }
+    h+=`<td class="n"><b>${sar(ts)}</b></td><td class="n"><b>${qty(tl)}</b></td><td class="n hot"${shade(leadN?tls/leadN:null)}><b>${sar(leadN?tls/leadN:null)}</b></td></tr>`; });
+  $('#tMonth').innerHTML=h+'</tbody>';
+  $('#tMonth').querySelectorAll('tr[data-ym]').forEach(tr=>tr.onclick=()=>{ const ym=tr.dataset.ym, f=ym+'-01', t=addDays(addDays(ym+'-28',4).slice(0,8)+'01',-1);
+    S.from=clamp(f); S.to=t>TODAY?TODAY:t; S.preset=null; S.shown=24; render(); window.scrollTo({top:0,behavior:'smooth'}); });
+}
+function renderTree(now){
+  const T={}; for(const [k,o] of Object.entries(now.byAd)){ const a=ADS[k]; const l1=a.platform, l2=l1+'|'+a.campaign, l3=l2+'|'+a.group;
+    for(const [key,lab,lv,par] of [[l1,platName(l1)||l1,1,null],[l2,a.campaign,2,l1],[l3,a.group,3,l2],[k,a.name,4,l3]]){
+      const n=T[key] ||= {key,lab,lv,par,kids:new Set(),spend:0,impr:0,clicks:0,leads:0,conv:0,leadSpend:0,leadN:0,live:0,ads:0};
+      n.spend+=o.spend;n.impr+=o.impr;n.clicks+=o.clicks;n.leads+=o.leads;n.conv+=o.conv;n.leadSpend+=o.leadSpend;n.leadN+=o.leadN||0; if(lv===4){n.live=a.live;} if(par) T[par]?.kids.add(key); } }
+  // second pass for kids (parents created before children)
+  for(const n of Object.values(T)) if(n.par&&T[n.par]) T[n.par].kids.add(n.key);
+  const rows=[]; const walk=(keys)=>{ [...keys].map(k=>T[k]).sort((a,b)=>b.spend-a.spend).forEach(n=>{ rows.push(n); if(n.kids.size&&S.open.has(n.key)) walk(n.kids); }); };
+  walk(Object.values(T).filter(n=>n.lv===1 && !HIDDEN_PLAT.has(n.key)).map(n=>n.key));
+  const tot=derive(now.tot);
+  $('#tTree').innerHTML = `<thead><tr><th>الاسم</th><th class="n">الصرف</th><th class="n">الحصة</th><th class="n">الليدز</th><th class="n">تكلفة الليد</th><th class="n">محادثات</th><th class="n">الظهور</th><th class="n">نسبة النقر</th></tr></thead><tbody>`
+    + rows.map(n=>{ const d=derive(n); return `<tr class="lv${n.lv}row"><td class="name lv${n.lv}">${n.kids.size?`<button type="button" class="tg" data-k="${esc(n.key)}" aria-expanded="${S.open.has(n.key)}">${S.open.has(n.key)?'▾':'▸'}</button>`:'<span class="tg"></span>'}${n.lv===1?platCell(n.key):esc(n.lab)}${n.lv===4&&n.live?' <span class="pill st-live"><span class="dot"></span>نشط</span>':''}</td>`
+      + `<td class="n">${sar(d.spend)}</td><td class="n">${fmt(tot.spend?100*d.spend/tot.spend:0,0)}%</td><td class="n">${qty(d.leads)}</td><td class="n">${sar(d.cpl)}</td><td class="n">${fmt(d.conv)}</td><td class="n">${fmt(d.impr)}</td><td class="n">${pct(d.ctr)}</td></tr>`; }).join('')
+    + `<tr class="lv1row"><td><b>المجموع</b></td><td class="n"><b>${sar(tot.spend)}</b></td><td class="n">100%</td><td class="n"><b>${qty(tot.leads)}</b></td><td class="n"><b>${sar(tot.cpl)}</b></td><td class="n">${fmt(tot.conv)}</td><td class="n">${fmt(tot.impr)}</td><td class="n">${pct(tot.ctr)}</td></tr></tbody>`;
+  $('#tTree').querySelectorAll('.tg[data-k]').forEach(b=>b.onclick=()=>{ const k=b.dataset.k; S.open.has(k)?S.open.delete(k):S.open.add(k); renderTree(cur.now); });
+  $('#treeOpen').onclick=()=>{ Object.values(T).forEach(n=>{ if(n.lv<3) S.open.add(n.key); }); renderTree(cur.now); };
+  $('#treeClose').onclick=()=>{ S.open.clear(); renderTree(cur.now); };
+  localize();
+}
+
+// ---- export: every ad in the current filters, with its totals for the period
+function exportCSV(){
+  const head=['المنصة','القسم','الحملة','المجموعة','الإعلان','الحالة','الهدف','الصيغة','من','إلى','الصرف (ر.س)','الظهور','النقرات','الليدز','المحادثات','تكلفة الليد','نسبة النقر %','تكلفة النقرة','تكلفة الألف ظهور'].map(tr);
+  const q=v=>{ const t=v==null?'':String(v); return /[",\n]/.test(t)?'"'+t.replace(/"/g,'""')+'"':t; };
+  const n=(v,d=2)=>v==null||!isFinite(v)?'':v.toFixed(d);
+  const lines=[head.join(',')];
+  Object.entries(cur.now.byAd).map(([k,o])=>({a:ADS[k],...derive(o)})).sort((x,y)=>y.spend-x.spend).forEach(x=>{ const a=x.a;
+    lines.push([HIDDEN_PLAT.has(a.platform)?'':(platName(a.platform)||''),HIDDEN_DEPT.has(a.dept)?'':(depName(a.dept)||''),a.campaign,a.group,a.name,cleanStatus(a.status),goalName(a.goal),tr(a.format||''),S.from,S.to,
+      n(x.spend),x.impr,x.clicks,(x.leads==null||!isFinite(x.leads)?'':String(Math.round(x.leads*100)/100)),n(x.conv,0),a.goal==='lead'?n(x.cpl):'',n(x.ctr),n(x.cpc),n(x.cpm)].map(q).join(',')); });
+  const blob=new Blob(['﻿'+lines.join('\r\n')],{type:'text/csv;charset=utf-8'});
+  const url=URL.createObjectURL(blob), link=document.createElement('a');
+  link.href=url; link.download=`well-ads_${S.from}_${S.to}${S.plat!=='all'?'_'+S.plat:''}.csv`; document.body.appendChild(link); link.click();
+  setTimeout(()=>{ URL.revokeObjectURL(url); link.remove(); },1000);
+}
+$('#csv').addEventListener('click',exportCSV);
+$('#tgt').value = TARGET||'';
+$('#tgt').addEventListener('change',e=>{ const v=parseFloat(e.target.value); TARGET = v>0 ? v : null; try{ TARGET?localStorage.setItem('well-ads-target',TARGET):localStorage.removeItem('well-ads-target'); }catch(x){} render(); });
+
+// ---- creatives
+// Campaign dates: start = the campaign's first day with spend; a campaign is stopped when none of its ads is
+// live (hitting the spend cap still counts as running) and its stop day = its last day with spend.
+const campKey = a => family(a.platform)+'|'+(a.campaign||'');
+const CAMP = (()=>{ const first={}, last={}, live={}; let start=null;
+  for(const [k,date,sp] of D.rows){ const a=ADS[k]; if(!a||!sp) continue; const ck=campKey(a);
+    if(!first[ck]||date<first[ck]) first[ck]=date; if(!last[ck]||date>last[ck]) last[ck]=date; if(!start||date<start) start=date; }
+  for(const a of Object.values(ADS)){ if(a.live || /حد صرف/.test(a.status||'')) live[campKey(a)]=true; }
+  const out={}; for(const ck of Object.keys(first)) out[ck]={first:first[ck], last:last[ck], live:!!live[ck], early:first[ck]===start}; return out; })();
+function campTag(a){ const c=CAMP[campKey(a)]; if(!c) return '';
+  if(c.live) return `<span class="pill camp-on" title="${ui('أول يوم صرفت فيه الحملة','The campaign\'s first day with spend')}">${ui('الحملة شغالة من ','Campaign live since ')}${c.early?ui('قبل ','before '):''}${nice(c.first)}</span>`;
+  return `<span class="pill camp-off" title="${ui('آخر يوم صرفت فيه الحملة','The campaign\'s last day with spend')}">${ui('الحملة توقفت ','Campaign stopped ')}${nice(c.last)}</span>`; }
+function cardsList(c){
+  let list = Object.entries(c.now.byAd).map(([k,o])=>({k,...derive(o),a:ADS[k]})).filter(x=>x.a);
+  if(S.stat==='live' || S.stat==='off'){
+    const have=new Set(list.map(x=>x.k));
+    for(const [k,a] of Object.entries(ADS)) if(!have.has(k) && matchesSlice(a)) list.push({k,...derive({spend:0,impr:0,clicks:0,leads:0,conv:0,leadSpend:0}),a});
+  }
+  if(S.q){ const q=S.q.toLowerCase(); list=list.filter(x=>(x.a.name+' '+x.a.campaign+' '+x.a.group+' '+(x.a.text||'')).toLowerCase().includes(q)); }
+  const key={spend:x=>-x.spend,leads:x=>-(x.leads+x.conv),cpl:x=>(x.a.goal==='lead'?x.cpl:null)??1e12,ctr:x=>-(x.ctr??-1),impr:x=>-x.impr}[S.sort];
+  return list.sort((x,y)=>key(x)-key(y));
+}
+// Winner: the ad got 30+ leads in its first 3 days (launch day = its first day with spend or impressions).
+// Placements of one Meta ad (m123|facebook, m123|instagram) count together. Ads already running on the
+// first day of the data are skipped: their real launch day is unknown.
+const WIN_MIN_LEADS = 30, WIN_DAYS = 3;
+// Off until the CRM is linked: a winner should be judged on closed patients, not raw leads.
+const WIN_ON = false;
+const WIN = !WIN_ON ? new Set() : (()=>{
+  const base = k => String(k).split('|')[0], first={}, rows=D.rows.filter(r=>ADS[r[0]] && ADS[r[0]].goal==='lead' && (r[2]||r[3]));
+  let start=null;
+  for(const [k,date] of rows){ const b=base(k); if(!first[b]||date<first[b]) first[b]=date; if(!start||date<start) start=date; }
+  const early={};
+  for(const [k,date,,,,ld] of rows){ const b=base(k); if(date<=addDays(first[b],WIN_DAYS-1)) early[b]=(early[b]||0)+(ld||0); }
+  const won=new Set(Object.keys(early).filter(b=>first[b]>start && early[b]>=WIN_MIN_LEADS));
+  return new Set(Object.keys(ADS).filter(k=>won.has(base(k))));
+})();
+function winBadge(k){ return WIN.has(k) ? `<span class="pill win" title="${ui('جاب 30 ليد أو أكثر في أول 3 أيام من إطلاقه','30+ leads in its first 3 days')}">🏆 Winner</span>` : ''; }
+// ---- production insights
+// Idea = the same creative across ad sets / platforms: the name without the uploaded file prefix and the Spark/Own suffix.
+function ideaKey(a){
+  let n=String(a.name||'').replace(/[\u200e\u200f\u202a-\u202e]/g,'');
+  n=n.replace(/^.*?\.(mp4|mov|webm|jpe?g|png|gif)_/i,'');
+  n=n.replace(/\s*-\s*(spark|own)\s*$/i,'').replace(/\s*[-–]?\s*(copy|نسخة)(\s*\d+)?\s*$/i,'');
+  n=n.toLowerCase().replace(/\s+/g,' ').trim();
+  return n || 'ad:'+(a.name||'');
+}
+const sumVid = list => { const o={i:0,v:0,c:0,q:[0,0,0,0],n:0}; for(const a of list){ const v=a&&a.vid; if(!v||!v.v) continue; o.i+=v.i||0; o.v+=v.v; o.c+=v.c||0; (v.q||[]).forEach((x,j)=>o.q[j]+=x||0); o.n++; } return o.n?o:null; };
+const hookRate = v => v&&v.i ? 100*v.v/v.i : null;     // stopped scrolling: first 2–3 seconds ÷ impressions
+const holdRate = v => v&&v.v ? 100*v.c/v.v : null;     // watched to the end ÷ those who stopped
+function hookRow(v){ if(!v) return ''; return `<div class="hookrow"><span>${ui('وقفوا يشوفون','Hook')} <b>${pct(hookRate(v))}</b></span><span>${ui('كمّلوا للنهاية','Watched to end')} <b>${pct(holdRate(v))}</b></span></div>`; }
+// Wearing out: running ≥14 days, CTR of its last 7 active days fell 30%+ under its first 7 (1,000+ impressions each)
+const TIRED = (()=>{ const by={}; for(const [k,date,sp,im,cl] of D.rows){ if(!im) continue; (by[k]||(by[k]=[])).push([date,im,cl]); }
+  const out={}; for(const [k,list] of Object.entries(by)){ if(list.length<14) continue; list.sort((p,q)=>p[0]<q[0]?-1:1);
+    const w=xs=>{ const im=xs.reduce((s,x)=>s+x[1],0), cl=xs.reduce((s,x)=>s+x[2],0); return im>=1000?100*cl/im:null; };
+    const f=w(list.slice(0,7)), l=w(list.slice(-7)); if(f&&l!=null&&l<f*0.7) out[k]={from:f,to:l}; }
+  return out; })();
+function tiredTag(k){ const t=TIRED[k]; return t && ADS[k] && ADS[k].live ? `<span class="pill tired" title="${ui('نسبة النقر آخر 7 أيام نزلت عن أول 7 أيام','CTR in its last 7 days fell vs its first 7')}">${ui('بدأ يتعب','Wearing out')} · ${pct(t.from)} → ${pct(t.to)}</span>` : ''; }
+function ideaList(list){
+  const g={}; for(const x of list){ const id=ideaKey(x.a); const y=g[id]||(g[id]={k:'idea:'+id, id, members:[], spend:0,impr:0,clicks:0,leads:0,conv:0,leadSpend:0,leadN:0});
+    y.members.push(x); for(const f of ['spend','impr','clicks','leads','conv','leadSpend','leadN']) y[f]+=x[f]||0; }
+  return Object.values(g).map(y=>{ const lead=y.members.slice().sort((p,q)=>(q.a.thumb?1:0)-(p.a.thumb?1:0)||q.spend-p.spend)[0];
+    return {...derive(y), k:y.k, a:lead.a, members:y.members, idea:true}; });
+}
+let IDEAS={};
+function openIdea(k){
+  const y=IDEAS[k]; if(!y) return;
+  const plats=[...new Set(y.members.map(m=>platName(family(m.a.platform))))].join(ui('، ',', '));
+  const vids=y.members.some(m=>m.a.vid&&m.a.vid.v);
+  const resCell=m=>m.a.goal==='messages'?`${qty(m.conv)} <span class="sub">${ui('محادثة','chats')}</span>`:m.a.goal==='lead'?`${qty(m.leads)} <span class="sub">${ui('ليد','leads')}</span>`:'—';
+  $('#dlgBody').innerHTML = `<div class="panel-h"><h2 id="dlgTitle">${esc(y.a.name)}</h2><button type="button" class="btn" id="dlgClose">إغلاق</button></div>
+    <div class="dlg-top"><div class="thumb">${mediaHTML(y.a,true)}</div><div style="display:grid;gap:8px;min-width:0">
+      <div class="sub">${fmt(y.members.length)} ${ui('إعلان بنفس الفكرة',y.members.length===1?'ad with this idea':'ads with this idea')} · ${esc(plats)}</div>
+      ${hookRow(sumVid(y.members.map(m=>m.a)))}
+      <div class="row">${viewControl(y.a)}</div></div></div>
+    <div class="tbl"><table><thead><tr><th>${ui('الإعلان','Ad')}</th><th>${ui('المنصة','Platform')}</th><th class="n">${ui('الصرف','Spend')}</th><th class="n">${ui('النتايج','Results')}</th><th class="n">${ui('تكلفة النتيجة','Cost per result')}</th><th class="n">${ui('نسبة النقر','CTR')}</th>${vids?`<th class="n">${ui('وقفوا يشوفون','Hook')}</th>`:''}</tr></thead>
+    <tbody>${y.members.sort((p,q)=>q.spend-p.spend).map(m=>`<tr class="click" data-ad="${esc(m.k)}"><td>${esc(m.a.name)} ${WIN.has(m.k)?'🏆':''}</td><td>${platCell(m.a.platform)}</td><td class="n">${sar(m.spend)}</td><td class="n">${resCell(m)}</td><td class="n">${m.a.goal==='lead'?sar(m.cpl):m.a.goal==='messages'?sar(m.cpm2):'—'}</td><td class="n">${pct(m.ctr)}</td>${vids?`<td class="n">${m.a.vid&&m.a.vid.v?pct(hookRate(m.a.vid)):ui('صورة','Image')}</td>`:''}</tr>`).join('')}</tbody></table></div>`;
+  const dlg=$('#dlg'); if(!dlg.open) dlg.showModal(); $('#dlgClose').onclick=()=>dlg.close();
+  $('#dlgBody').onclick=e=>{ const r=e.target.closest('tr[data-ad]'); if(r) openAd(r.dataset.ad); };
+  $('#dlgBody').onkeydown=null;
+  localize();
+}
+// Compare: pick up to 4 cards
+const CMP=new Set();
+function cmpBox(k){ return `<label class="cmp" data-cmp="${esc(k)}"><input type="checkbox" ${CMP.has(k)?'checked':''}> ${ui('قارن','Compare')}</label>`; }
+function syncCmp(){ const b=$('#cmpBar'); b.hidden=CMP.size<1; $('#cmpGo').disabled=CMP.size<2;
+  $('#cmpN').textContent = CMP.size<2 ? ui(`${CMP.size} مختارة · اختر واحد ثاني على الأقل`,`${CMP.size} selected · pick at least one more`) : ui(`${CMP.size} مختارة`,`${CMP.size} selected`); }
+function cmpItem(k){
+  if(k.startsWith('idea:')){ const y=IDEAS[k]; return y && {a:y.a, x:y, vid:sumVid(y.members.map(m=>m.a)), win:y.members.some(m=>WIN.has(m.k)), n:y.members.length}; }
+  const a=ADS[k]; if(!a) return null; return {a, x:derive(cur.now.byAd[k]||{spend:0,impr:0,clicks:0,leads:0,conv:0,leadSpend:0}), vid:a.vid, win:WIN.has(k), k};
+}
+function openCompare(){
+  const items=[...CMP].map(cmpItem).filter(Boolean); if(items.length<2) return;
+  const metrics=[[ui('الصرف','Spend'),i=>i.x.spend,0],[ui('الليدز','Leads'),i=>i.x.leads,1],[ui('تكلفة الليد','CPL'),i=>i.a.goal==='lead'?i.x.cpl:null,-1],[ui('نسبة النقر','CTR'),i=>i.x.ctr,1],[ui('الظهور','Impressions'),i=>i.x.impr,0],[ui('وقفوا يشوفون','Hook'),i=>hookRate(i.vid),1],[ui('كمّلوا للنهاية','Watched to end'),i=>holdRate(i.vid),1]];
+  const best=metrics.map(([,f,dir])=>{ if(!dir) return null; const v=items.map(f).filter(x=>x!=null&&isFinite(x)); if(v.length<2) return null; return dir>0?Math.max(...v):Math.min(...v); });
+  const show=(j,v)=> j===0||j===2? sar(v) : j===1? qty(v) : j===4? fmt(v) : pct(v);
+  $('#dlgBody').innerHTML = `<div class="panel-h"><h2 id="dlgTitle">${ui('مقارنة','Compare')}</h2><button type="button" class="btn" id="dlgClose">إغلاق</button></div>
+    <div class="cmp-grid">${items.map(i=>`<div><div class="thumb">${mediaHTML(i.a,false)}</div>
+      <div class="nm" style="margin-top:6px;font-weight:700">${esc(i.a.name)} ${i.win?'🏆':''}</div>
+      <div class="sub">${platCell(i.a.platform)} ${i.n?`· ${fmt(i.n)} ${ui('إعلان',i.n===1?'ad':'ads')}`:''}</div>
+      <dl>${metrics.map(([lbl,f],j)=>{ const v=f(i); return `<dt>${lbl}</dt><dd class="${best[j]!=null&&v===best[j]?'best':''}">${v==null?'—':show(j,v)}</dd>`; }).join('')}</dl></div>`).join('')}</div>
+    <p class="sub">${ui('الأفضل في كل سطر ملوّن. الأرقام للفترة المختارة، ومقاييس الفيديو مدى الحياة.','Best in each row is highlighted. Numbers are for the selected period; video metrics are lifetime.')}</p>`;
+  const dlg=$('#dlg'); if(!dlg.open) dlg.showModal(); $('#dlgClose').onclick=()=>dlg.close(); $('#dlgBody').onclick=null; localize();
+}
+function resultCells(x){
+  const g=x.a.goal;
+  if(g==='lead') return statCell('الليدز',qty(x.leads))+statCell('تكلفة الليد',sar(x.cpl));
+  if(g==='messages') return statCell('محادثات',fmt(x.conv))+statCell('تكلفة المحادثة',sar(x.cpm2));
+  return statCell('نقرات',fmt(x.clicks))+statCell('تكلفة النقرة',sar(x.cpc));
+}
+function statCell(k,v){ return `<div><span class="k">${k}</span><span class="mini">${v}</span></div>`; }
+function liveBadge(a){
+  const on=!!a.live;
+  return `<span class="pill ${on?'st-live':'st-off'}"><span class="dot"></span>${on?ui('فعّال','Active'):ui('متوقف','Paused')}</span>`;
+}
+function usableLink(url){
+  const href=String(url||'');
+  if(!/^https?:/i.test(href)) return '';
+  // معاينة سناب على adsapi ترجع 403 في المتصفح؛ الصورة المضمّنة هي المعاينة.
+  if(/adsapi\.snapchat\.com/i.test(href)) return '';
+  return href;
+}
+// الصورة إما مضمّنة (data:) أو ملف من /thumbs/
+const isImg = t => /^(data:image|\/thumbs\/)/.test(String(t||''));
+function mediaHTML(item, play){
+  const thumb=item.thumb||'';
+  const video=item.video||'';
+  const link=usableLink(item.preview_url)||usableLink(item.link)||usableLink(item.permalink)||'';
+  const file=/\.(mp4|webm|mov)(\?|$)/i.test(video)||/\.(mp4|webm|mov)(\?|$)/i.test(link);
+  const embed=/tiktok\.com\/(embed|player)/.test(video)||/tiktok\.com\/(embed|player)/.test(link);
+  const label=item.text||item.caption||item.name||'';
+  const poster = thumb && isImg(thumb) ? ` poster="${esc(thumb)}"` : '';
+  if(play && file) return `<video controls playsinline${poster} src="${esc(video||link)}" data-media="video"></video>`;
+  if(play && embed) return `<iframe src="${esc(video||link)}" title="معاينة الفيديو" allow="fullscreen; autoplay; encrypted-media" allowfullscreen data-media="frame"></iframe>`;
+  let inner;
+  if(thumb && isImg(thumb)) inner = `<img src="${esc(thumb)}" alt="${esc(label)}" loading="lazy" data-media="img">`;
+  else if(thumb && /^https?:/i.test(thumb)) inner = `<img src="${esc(thumb)}" alt="${esc(label)}" loading="lazy" data-media="img">`;
+  else inner = `<div class="nothumb" role="img" aria-label="${esc(label)}"><svg viewBox="0 0 24 24" aria-hidden="true">${/فيديو|video/i.test(item.format||'')||file||embed?'<rect x="2" y="4" width="20" height="16" rx="3"/><path d="m10 9 5 3-5 3z"/>':'<rect x="3" y="4" width="18" height="16" rx="3"/><path d="M7 9h10M7 13h10M7 17h6"/>'}</svg><span>${ui('متحمس تعرف؟ اضغط زر «عرض الكرييتف» لمعرفته','Curious? Press «View creative» to see it')}</span></div>`;
+  if(!play && (file || embed)) inner += `<span class="play" aria-hidden="true">▶</span>`;
+  return inner;
+}
+function thumbHTML(a){ return mediaHTML(a, false); }
+function creativeAction(a){
+  const video=usableLink(a.video);
+  const page=usableLink(a.preview_url)||usableLink(a.permalink);
+  const image=usableLink(a.image_url);
+  if(video && /\.(mp4|webm|mov)(\?|$)/i.test(video)) return {type:'video', src:video, poster:a.thumb&&isImg(a.thumb)?a.thumb:''};
+  if(page) return {type:'tab', href:page};
+  if(video) return {type:'tab', href:video};
+  if(image) return {type:'tab', href:image};
+  if(a.thumb && isImg(a.thumb)) return {type:'img', src:a.thumb};
+  const link=usableLink(a.link);
+  if(link) return {type:'tab', href:link};
+  return null;
+}
+function viewControl(a){
+  const act=creativeAction(a); if(!act) return '';
+  const label=ui('عرض الكرييتف','View creative');
+  if(act.type==='tab') return `<a class="btn view" href="${esc(act.href)}" target="_blank" rel="noopener">${label}</a>`;
+  return `<button type="button" class="btn view" data-view="1">${label}</button>`;
+}
+function openCreative(a, back){
+  const act=creativeAction(a); if(!act) return;
+  if(act.type==='tab'){ window.open(act.href,'_blank','noopener'); return; }
+  const media = act.type==='video'
+    ? `<video class="fullimg" controls playsinline autoplay${act.poster?` poster="${esc(act.poster)}"`:''} src="${esc(act.src)}" data-media="video"></video>`
+    : `<img class="fullimg" src="${esc(act.src)}" alt="${esc(a.name||'')}" data-media="img">`;
+  $('#dlgBody').innerHTML = `<div class="panel-h"><h2 id="dlgTitle">${esc(a.name||labelSafe(a))}</h2><div class="row">${back?'<button type="button" class="btn" id="dlgBack">رجوع</button>':''}<button type="button" class="btn" id="dlgClose">إغلاق</button></div></div>${media}`;
+  const dlg=$('#dlg'); if(!dlg.open) dlg.showModal(); $('#dlgClose').onclick=()=>dlg.close();
+  if(back) $('#dlgBack').onclick=()=>openAd(back);
+  localize();
+}
+function labelSafe(a){ return a && (a.name||a.text||'') || ''; }
+function previewLink(a){
+  const href=usableLink(a.preview_url)||usableLink(a.permalink)||usableLink(a.video)||usableLink(a.link);
+  if(!href) return '';
+  const act=creativeAction(a); if(act && act.type==='tab' && act.href===href) return '';
+  const label = /tiktok\.com/.test(href) ? 'مشاهدة الفيديو' : family(a.platform)==='google' ? 'صفحة الهبوط' : (a.preview_url||a.permalink) ? 'فتح المنشور' : 'فتح في مدير الإعلانات';
+  return `<a href="${esc(href)}" target="_blank" rel="noopener">${label}</a>`;
+}
+function wallCard({key, wall, label, thumb, badges, title, sub, stats, flag, view}){
+  return `<div class="card" role="button" tabindex="0" data-k="${esc(key)}" data-wall="${wall}" aria-label="${esc(label)}">
+      <div class="thumb">${thumb}
+        <div class="badges">${badges}</div>
+      </div>
+      <div class="body">
+        <div class="nm">${title}</div>
+        <div class="cp">${sub}</div>
+        <div class="stats">${stats}</div>
+        ${flag||''}
+        ${view||''}
+      </div>
+    </div>`;
+}
+function renderCards(c){
+  let list = cardsList(c);
+  { list=ideaList(list); const key={spend:x=>-x.spend,leads:x=>-(x.leads+x.conv),cpl:x=>(x.a.goal==='lead'?x.cpl:null)??1e12,ctr:x=>-(x.ctr??-1),impr:x=>-x.impr}[S.sort]; list.sort((p,q)=>key(p)-key(q)); IDEAS={}; list.forEach(x=>IDEAS[x.k]=x); }
+  const show = list.slice(0,S.shown);
+  $('#cards').innerHTML = show.length ? show.map(x=>wallCard({
+    key:x.k, wall:'ad', label:ui('تفاصيل ','Details: ')+x.a.name, thumb:thumbHTML(x.a),
+    badges:`${x.idea?`<span class="pill">${fmt(x.members.length)} ${ui('إعلان',x.members.length===1?'ad':'ads')}</span>`:platCell(x.a.platform)}${liveBadge(x.idea?{live:x.members.some(m=>m.a.live)}:x.a)}${x.idea?(x.members.some(m=>WIN.has(m.k))?winBadge(x.members.find(m=>WIN.has(m.k)).k):''):winBadge(x.k)}`,
+    title:esc(x.a.name),
+    sub:`${x.idea?'':campTag(x.a)+' '+tiredTag(x.k)} ${depCell(x.a.dept)} ${goalPill(x.a.goal)} ${esc(x.a.campaign)} · ${esc(x.a.group)}${x.a.format?` · <span>${esc(tr(x.a.format))}</span>`:''}`,
+    stats:statCell('الصرف',sar(x.spend))+resultCells(x)+statCell('الظهور',fmt(x.impr))+statCell(family(x.a.platform)==='meta'&&x.a.goal==='lead'?'محادثات':'النقرات', family(x.a.platform)==='meta'&&x.a.goal==='lead'?fmt(x.conv):fmt(x.clicks))+statCell('نسبة النقر',pct(x.ctr)),
+    flag:(x.a.goal==='lead'&&x.leads===0&&x.conv===0&&x.spend>=50&&family(x.a.platform)!=='google'?`<span class="flag">${ui(`صرف ${sar(x.spend)} ${money()} بدون ليد أو محادثة`,`Spend ${sar(x.spend)} ${money()} with no lead or conversation`)}</span>`:''),
+    view:hookRow(x.idea?sumVid(x.members.map(m=>m.a)):x.a.vid)+viewControl(x.a)+cmpBox(x.k),
+  })).join('') : '<div class="empty">لا يوجد كرييتف يطابق الفلاتر في هذه الفترة.</div>';
+  $('#more').hidden = list.length<=S.shown;
+  $('#more').textContent = ui(`عرض المزيد (${fmt(list.length-S.shown)} متبقي)`,`Show more (${fmt(list.length-S.shown)} left)`);
+  localize();
+}
+const openCard = k => k.startsWith('idea:') ? openIdea(k) : openAd(k);
+function onCardClick(e){
+  if(e.target.closest('a')) return;
+  const b=e.target.closest('.card'); if(!b) return;
+  const box=e.target.closest('[data-cmp]');
+  if(box){ e.stopPropagation(); if(e.target.tagName!=='INPUT') return; const k=box.dataset.cmp;
+    if(e.target.checked){ if(CMP.size>=4){ e.target.checked=false; return; } CMP.add(k); } else CMP.delete(k); syncCmp(); return; }
+  if(e.target.closest('[data-view]')){ e.preventDefault(); const k=b.dataset.k; const a=b.dataset.wall==='post'?null:(k.startsWith('idea:')?(IDEAS[k]||{}).a:ADS[k]); if(a) openCreative(a); return; }
+  if(b.dataset.wall==='post') openOrganic(b.dataset.k); else openCard(b.dataset.k);
+}
+function onCardKey(e){
+  if(e.target.closest('a') || e.target.closest('[data-view]') || e.target.closest('[data-cmp]')) return;
+  if(e.key!=='Enter' && e.key!==' ') return;
+  const b=e.target.closest('.card'); if(!b) return;
+  e.preventDefault();
+  if(b.dataset.wall==='post') openOrganic(b.dataset.k); else openCard(b.dataset.k);
+}
+$('#cmpGo').addEventListener('click',openCompare);
+$('#cmpClear').addEventListener('click',()=>{ CMP.clear(); syncCmp(); renderCards(cur); });
+$('#cards').addEventListener('click', onCardClick);
+$('#cards').addEventListener('keydown', onCardKey);
+
+// Week by week over the ad's whole life: shows when it started to wear out
+function weekly(k){
+  const w={}; for(const [kk,date,sp,im,cl,ld] of D.rows){ if(kk!==k) continue; const d=toD(date); d.setUTCDate(d.getUTCDate()-d.getUTCDay()); const wk=toS(d); const x=w[wk]||(w[wk]={sp:0,im:0,cl:0,ld:0}); x.sp+=sp; x.im+=im; x.cl+=cl; x.ld+=ld; }
+  const rows=Object.entries(w).sort((p,q)=>p[0]<q[0]?-1:1); if(rows.length<2) return '';
+  const lead=ADS[k].goal==='lead';
+  return `<div><div class="sub">${ui('أسبوع بأسبوع من أول ما اشتغل الإعلان','Week by week since the ad started')}</div><div class="tbl"><table><thead><tr><th>${ui('الأسبوع','Week')}</th><th class="n">${ui('الصرف','Spend')}</th><th class="n">${ui('الظهور','Impressions')}</th><th class="n">${ui('نسبة النقر','CTR')}</th>${lead?`<th class="n">${ui('الليدز','Leads')}</th><th class="n">${ui('تكلفة الليد','CPL')}</th>`:''}</tr></thead><tbody>${rows.map(([wk,x])=>`<tr><td>${nice(wk)}</td><td class="n">${sar(x.sp)}</td><td class="n">${fmt(x.im)}</td><td class="n">${x.im?pct(100*x.cl/x.im):'—'}</td>${lead?`<td class="n">${qty(x.ld)}</td><td class="n">${x.ld?sar(x.sp/x.ld):'—'}</td>`:''}</tr>`).join('')}</tbody></table></div></div>`;
+}
+function openAd(k){
+  const a=ADS[k], o=derive(cur.now.byAd[k]||{spend:0,impr:0,clicks:0,leads:0,conv:0,leadSpend:0,days:{}});
+  const days=[]; for(let d=S.from; d<=S.to; d=addDays(d,1)) days.push(d);
+  const vals=days.map(d=>(cur.now.byAd[k]?.days||{})[d]||0), max=niceMax(Math.max(...vals,0));
+  const W=640,H=120,bw=W/days.length;
+  let sp=`<svg viewBox="0 0 ${W} ${H+18}" role="img" aria-label="الصرف اليومي للإعلان"><line class="grid" x1="0" x2="${W}" y1="${H}" y2="${H}"/>`;
+  vals.forEach((v,i)=>{ if(!v) return; const h=v/max*(H-6); const x=LANG==='en'?i*bw+1:W-(i+1)*bw+1; sp+=`<rect x="${x}" y="${H-h}" width="${Math.max(1,bw-2)}" height="${h}" rx="2" fill="var(${PL[a.platform].c})"><title>${nice(days[i])}: ${sar(v)} ${money()}</title></rect>`; });
+  sp+= LANG==='en'
+    ? `<text x="0" y="${H+14}" text-anchor="start">${nice(days[0])}</text><text x="${W}" y="${H+14}" text-anchor="end">${nice(days[days.length-1])}</text></svg>`
+    : `<text x="${W}" y="${H+14}" text-anchor="end">${nice(days[0])}</text><text x="0" y="${H+14}" text-anchor="start">${nice(days[days.length-1])}</text></svg>`;
+  $('#dlgBody').innerHTML = `
+    <div class="panel-h"><h2 id="dlgTitle">${esc(a.name)}</h2><button type="button" class="btn" id="dlgClose">إغلاق</button></div>
+    <div class="dlg-top">
+      ${(()=>{ const m=mediaHTML(a, true), still=!/^<(video|iframe)/.test(m)&&creativeAction(a);
+        return still ? `<div class="thumb zoom" data-view="1" role="button" tabindex="0" title="${ui('عرض الكرييتف','View creative')}">${m}</div>` : `<div class="thumb">${m}</div>`; })()}
+      <div style="display:grid;gap:8px;min-width:0">
+        <div class="row">${platCell(a.platform)}${depCell(a.dept)}${goalPill(a.goal)}${liveBadge(a)}${winBadge(k)}${campTag(a)}${tiredTag(k)}${a.format?`<span class="pill">${esc(a.format)}</span>`:''}</div>
+        <div class="sub">${tr('الحملة')}: ${esc(a.campaign)}<br>${tr('المجموعة')}: ${esc(a.group)}${(DEP[a.dept]&&!HIDDEN_DEPT.has(a.dept))?`<br>${tr('القسم')}: ${esc(depName(a.dept))} · ${a.dsrc==='ad'?tr('من اسم الإعلان'):a.dsrc==='campaign'?tr('من اسم الحملة'):tr('افتراضي')}`:''}</div>
+        ${a.text?`<pre>${esc(a.text)}</pre>`:''}
+        ${hookRow(a.vid)}
+        <div class="row">${viewControl(a)}${previewLink(a)}</div>
+      </div>
+    </div>
+    <div class="kv">
+      <div><div class="k">الصرف</div><div class="mini">${sar(o.spend)} ${money()}</div></div>
+      <div><div class="k">الليدز</div><div class="mini">${qty(o.leads)}</div></div>
+      <div><div class="k">تكلفة الليد</div><div class="mini">${a.goal==='lead'?sar(o.cpl):'—'}</div></div>
+      <div><div class="k">محادثات</div><div class="mini">${family(a.platform)==='meta'?fmt(o.conv):'—'}</div></div>
+      <div><div class="k">الظهور</div><div class="mini">${fmt(o.impr)}</div></div>
+      <div><div class="k">النقرات</div><div class="mini">${fmt(o.clicks)}</div></div>
+      <div><div class="k">نسبة النقر</div><div class="mini">${pct(o.ctr)}</div></div>
+      <div><div class="k">تكلفة النقرة</div><div class="mini">${sar(o.cpc)}</div></div>
+      <div><div class="k">تكلفة الألف ظهور</div><div class="mini">${sar(o.cpm)}</div></div>
+    </div>
+    <div><div class="sub">الصرف اليومي في الفترة المختارة</div><div class="chart">${sp}</div></div>
+    ${weekly(k)}`;
+  const dlg=$('#dlg'); if(!dlg.open) dlg.showModal(); $('#dlgClose').onclick=()=>dlg.close();
+  $('#dlgBody').onclick=e=>{ const v=e.target.closest('[data-view]'); if(!v || v.tagName==='A') return; e.preventDefault(); openCreative(a, k); };
+  $('#dlgBody').onkeydown=e=>{ if((e.key==='Enter'||e.key===' ') && e.target.matches('.thumb[data-view]')){ e.preventDefault(); openCreative(a, k); } };
+  localize();
+}
+$('#dlg').addEventListener('click',e=>{ if(e.target.id==='dlg') e.target.close(); });
+
+// ---- pages, departments
+const PAGES = () => S.mode==='organic'
+  ? [['accounts','الحسابات'],['posts','المنشورات'],['notes','طريقة الحساب']]
+  : [['overview','نظرة عامة'],['depts','الأقسام'],...DORDER.map(k=>['dept:'+k, DEP[k].ar]),['channels','المنصات والحملات'],['creative','الكرييتف'],['notes','طريقة الحساب']];
+function tabOn(id){ return id.startsWith('dept:') ? S.page==='dept' && S.dept===id.slice(5) : S.page===id; }
+function setDept(k){
+  S.dept = S.dept===k ? '' : k;
+  S.camp=''; S.shown=24; save(); render();
+}
+function aggAllDepts(from,to){
+  const keep=S.dept; S.dept=''; const r=agg(from,to); S.dept=keep;
+  const by={}, byDP={};
+  for(const [k,o] of Object.entries(r.byAd)){
+    const a=ADS[k], dk=a.dept||'brand';
+    const x=by[dk] ||= {spend:0,impr:0,clicks:0,leads:0,conv:0,leadSpend:0,leadN:0,ads:0};
+    const y=(byDP[dk] ||= {})[a.platform] ||= {spend:0,leads:0,leadSpend:0,leadN:0,conv:0,impr:0,clicks:0};
+    for(const f of ['spend','impr','clicks','leads','conv','leadSpend','leadN']){ x[f]+=o[f]||0; if(y[f]!=null) y[f]+=o[f]||0; }
+    x.ads++;
+  }
+  return {by,byDP,tot:r.tot};
+}
+function lastSpendDate(dk, inRange){
+  let m='';
+  for(const r of D.rows){
+    const a=ADS[r[0]];
+    if(!a || a.dept!==dk || !(r[2]>0)) continue;
+    if(HIDDEN_PLAT.has(a.platform) || !samePlat(a.platform) || !passesStatus(a)) continue;
+    if(S.camp && a.platform+'|'+a.campaign!==S.camp) continue;
+    if(S.goal && a.goal!==S.goal) continue;
+    if(S.fmt && (a.format||'')!==S.fmt) continue;
+    if(inRange && (r[1]<S.from || r[1]>S.to)) continue;
+    if(r[1]>m) m=r[1];
+  }
+  return m;
+}
+// ---- Wins for the selected period vs the period before it, inside the page filters
+const FIRST = (()=>{ const ad={}, camp={}; for(const [k,date,sp] of D.rows){ if(!sp||!ADS[k]) continue; const b=String(k).split('|')[0], c=ADS[k].platform+'|'+ADS[k].campaign;
+  if(!ad[b]||date<ad[b]) ad[b]=date; if(!camp[c]||date<camp[c]) camp[c]=date; } return {ad,camp}; })();
+function renderWins(){
+  const el=$('#wins'); if(!el || !cur) return;
+  const from=S.from, to=S.to, pFrom=cur.pFrom, pTo=cur.pTo, A=cur.now, B=cur.compareOk?cur.prev:null;
+  $('#winsH').textContent = cur.n===7 ? ui('نجاحات هالأسبوع',"This week's wins") : ui('نجاحات الفترة','Wins in this period');
+  $('#winsSub').textContent = B ? `${nice(from)} – ${nice(to)} ${ui('مقارنة بـ','vs')} ${nice(pFrom)} – ${nice(pTo)}` : `${nice(from)} – ${nice(to)} · ${ui('ما فيه فترة سابقة كاملة للمقارنة','no full previous period to compare')}`;
+  const a=derive(A.tot), b=B?derive(B.tot):null, out=[], ch=(x,y)=>y?100*(x-y)/Math.abs(y):null;
+  const add=(ic,title,detail)=>out.push(`<div class="win-i"><span class="ic" aria-hidden="true">${ic}</span><div><b>${title}</b><span>${detail}</span></div></div>`);
+  if(b){ const c=ch(a.leads,b.leads); if(c!=null&&c>=3) add('📈',ui(`الليدز زادت ${fmt(c,0)}%`,`Leads up ${fmt(c,0)}%`),ui(`${qty(a.leads)} ليد مقابل ${qty(b.leads)}`,`${qty(a.leads)} vs ${qty(b.leads)}`));
+    const d=ch(a.cpl,b.cpl); if(d!=null&&d<=-3) add('💰',ui(`تكلفة الليد نزلت ${fmt(-d,0)}%`,`Cost per lead down ${fmt(-d,0)}%`),ui(`${sar(a.cpl)} ريال مقابل ${sar(b.cpl)}`,`${sar(a.cpl)} vs ${sar(b.cpl)} SAR`));
+    const m=ch(a.conv,b.conv); if(m!=null&&m>=5&&a.conv>=10) add('💬',ui(`المحادثات زادت ${fmt(m,0)}%`,`Chats up ${fmt(m,0)}%`),ui(`${qty(a.conv)} محادثة مقابل ${qty(b.conv)}`,`${qty(a.conv)} vs ${qty(b.conv)}`)); }
+  const cnt=(n,one,two,few)=>n===1?one:n===2?two:`${n} ${n<=10?few:one}`;
+  const base=k=>String(k).split('|')[0], seen=new Set(), newWins=[];
+  for(const k of Object.keys(A.byAd)){ const bk=base(k); if(seen.has(bk)) continue; seen.add(bk); if(WIN.has(k) && FIRST.ad[bk]>=addDays(from,-(WIN_DAYS-1))) newWins.push(ADS[k].name); }
+  if(newWins.length) add('🏆',ui(cnt(newWins.length,'إعلان فايز جديد','إعلانين فايزين جداد','إعلانات فايزة جديدة'),`${newWins.length} new winning ads`),esc(newWins.slice(0,3).join(' · '))+(newWins.length>3?' …':''));
+  const ideas={}; for(const [k,o] of Object.entries(A.byAd)){ const a1=ADS[k]; if(a1.goal!=='lead') continue; const id=ideaKey(a1), y=ideas[id]||(ideas[id]={name:a1.name,leadSpend:0,leadN:0}); y.leadSpend+=o.leadSpend; y.leadN+=o.leadN; }
+  const best=Object.values(ideas).filter(y=>y.leadN>=10).sort((p,q)=>p.leadSpend/p.leadN-q.leadSpend/q.leadN)[0];
+  if(best) add('🎬',ui('أرخص فكرة في الفترة','Cheapest idea in this period'),`${esc(best.name)} · ${qty(best.leadN)} ${ui('ليد بـ','leads at')} ${sar(best.leadSpend/best.leadN)} ${ui('ريال','SAR')}`);
+  if(B && !S.dept){ const ad=aggAllDepts(from,to), bd=aggAllDepts(pFrom,pTo);
+    const imp=DORDER.map(k=>{ const x=derive(ad.by[k]||{}), y=derive(bd.by[k]||{}); return {k,c:(x.leadN>=10&&y.cpl)?ch(x.cpl,y.cpl):null,x,y}; }).filter(r=>r.c!=null&&r.c<=-5).sort((p,q)=>p.c-q.c)[0];
+    if(imp) add('🩺',ui(`${depName(imp.k)}: تكلفة الليد نزلت ${fmt(-imp.c,0)}%`,`${depName(imp.k)}: cost per lead down ${fmt(-imp.c,0)}%`),ui(`${sar(imp.x.cpl)} ريال مقابل ${sar(imp.y.cpl)}`,`${sar(imp.x.cpl)} vs ${sar(imp.y.cpl)} SAR`)); }
+  if(B){ const pl=Object.keys(A.byPlat).map(p=>{ const x=derive(A.byPlat[p]), y=B.byPlat[p]?derive(B.byPlat[p]):null; return {p,c:(y&&x.leadN>=10&&y.cpl)?ch(x.cpl,y.cpl):null,x,y}; }).filter(r=>r.c!=null&&r.c<=-5).sort((p,q)=>p.c-q.c)[0];
+    if(pl) add('📣',ui(`${platName(family(pl.p))}: تكلفة الليد نزلت ${fmt(-pl.c,0)}%`,`${platName(family(pl.p))}: cost per lead down ${fmt(-pl.c,0)}%`),ui(`${sar(pl.x.cpl)} ريال مقابل ${sar(pl.y.cpl)}`,`${sar(pl.x.cpl)} vs ${sar(pl.y.cpl)} SAR`)); }
+  const days=Object.entries(A.byDay).map(([d,v])=>[d,Object.values(v).reduce((s,x)=>s+x.leads,0)]).sort((p,q)=>q[1]-p[1]);
+  if(days.length){ const all=agg(MIN,addDays(from,-1));
+    const rec=Math.max(0,...Object.entries(all.byDay).map(([,v])=>Object.values(v).reduce((s,x)=>s+x.leads,0)));
+    if(days[0][1]>rec && rec>0) add('⭐',ui('أعلى يوم ليدز من بداية البيانات','Best lead day on record'),`${nice(days[0][0])} · ${qty(days[0][1])} ${ui('ليد','leads')}`); }
+  const camps=new Set(), ads=new Set();
+  for(const k of Object.keys(A.byAd)){ const a1=ADS[k]; if(FIRST.camp[a1.platform+'|'+a1.campaign]>=from) camps.add(a1.platform+'|'+a1.campaign); if(FIRST.ad[base(k)]>=from) ads.add(base(k)); }
+  const en=(n,w)=>`${n} ${w}${n===1?'':'s'}`;
+  const launched=[camps.size&&[cnt(camps.size,'حملة','حملتين','حملات'),en(camps.size,'campaign')],ads.size&&[cnt(ads.size,'إعلان جديد','إعلانين جداد','إعلانات جديدة'),en(ads.size,'new ad')]].filter(Boolean);
+  if(launched.length) add('🚀',ui(`أطلقنا ${launched.map(x=>x[0]).join(' و')}`,`Launched ${launched.map(x=>x[1]).join(' and ')}`),ui('أول صرف لها كان في هالفترة','First spend was in this period'));
+  el.innerHTML = out.length ? out.join('') : `<p class="hint">${ui('ما فيه تحسّن واضح في هالفترة مقارنة باللي قبلها.','No clear improvement vs the previous period.')}</p>`;
+}
+function renderReport(now,prev){
+  document.querySelectorAll('section[data-mode]').forEach(s=>{
+    const modes=(s.dataset.mode||'ads').split(/\s+/);
+    s.hidden = !modes.includes(S.mode) || (CREATIVE_ONLY && (s.id==='kpis' || !(s.dataset.page||'').split(/\s+/).includes('creative')));
+  });
+  const mr=$('#modeRow'); if(mr) mr.hidden = CREATIVE_ONLY;
+  const root=$('#deptRoot');
+  if(root && S.mode==='ads') root.hidden = !S.dept || S.page!=='dept' || CREATIVE_ONLY;
+  $('#depts').innerHTML = [['','كل الأقسام'],...DORDER.map(k=>[k,depName(k)])].map(([k,l])=>`<button type="button" data-v="${k}" aria-pressed="${S.dept===k}">${k?`<span class="dot" style="background:var(${DEP[k].color})"></span> `:''}${l}</button>`).join('');
+  const A=aggAllDepts(S.from,S.to), B=cur&&cur.prev?aggAllDepts(cur.pFrom,cur.pTo):null;
+  renderDeptMini(A); renderDeptCards(A,B); renderDeptPlat(A); renderDeptPage(now,prev); renderRules();
+  renderAccounts(); renderPosts();
+}
+function renderDeptMini(A){
+  const el=$('#deptMini'); if(!el) return;
+  const mx=Math.max(1,...DORDER.map(k=>A.by[k]?.spend||0)), ml=Math.max(1,...DORDER.map(k=>A.by[k]?.leads||0));
+  el.innerHTML = DORDER.map(k=>{ const o=derive(A.by[k]||{spend:0,leads:0,leadSpend:0,conv:0,impr:0,clicks:0});
+    return `<div class="dbar-row${S.dept&&S.dept!==k?' dim':''}" data-d="${k}">${depCell(k)}
+      <div style="display:grid;gap:3px"><div class="dbar"><span style="width:${100*(o.spend||0)/mx}%;background:var(${DEP[k].color})"></span></div><div class="dbar" style="height:8px"><span style="width:${100*(o.leads||0)/ml}%;background:var(--ink)"></span></div></div>
+      <span class="num">${sar2(o.spend)} ${money()} · ${qty(o.leads)} ${ui('ليد','leads')} · ${sar(o.cpl)}</span></div>`; }).join('');
+  el.querySelectorAll('[data-d]').forEach(r=>r.onclick=()=>setDept(r.dataset.d));
+}
+function renderDeptCards(A,B){
+  const el=$('#deptCards'); if(!el) return;
+  if($('#dcSub')) $('#dcSub').textContent = `${nice(S.from)} – ${nice(S.to)}`;
+  el.innerHTML = DORDER.map(k=>{ const z={spend:0,leads:0,leadSpend:0,leadN:0,conv:0,impr:0,clicks:0}; const o=derive(A.by[k]||z), p=cur&&cur.compareOk&&B?derive(B.by[k]||z):{};
+    return `<button type="button" class="dcard${S.dept&&S.dept!==k?' dim':''}" data-d="${k}" aria-pressed="${S.dept===k}" style="--dc:var(${DEP[k].color})">
+      <span class="nm">${depName(k)}</span>
+      <div class="kv"><div><div class="k">الصرف</div><div class="mini">${sar2(o.spend)} ${money()}</div></div><div><div class="k">الليدز</div><div class="mini">${qty(o.leads)}</div></div>
+      <div><div class="k">تكلفة الليد</div><div class="mini">${sar(o.cpl)}</div></div><div><div class="k">محادثات</div><div class="mini">${fmt(o.conv)}</div></div></div>
+      ${delta(o.leads,p.leads,false)}
+      ${delta(o.cpl,p.cpl,true)}
+      <span class="hint">${ui('آخر صرف','Last spend')}: ${lastSpendDate(k,true)?nice(lastSpendDate(k,true)):'—'}</span></button>`; }).join('');
+  el.querySelectorAll('button[data-d]').forEach(b=>b.onclick=()=>setDept(b.dataset.d));
+}
+function renderDeptPlat(A){
+  const el=$('#tDeptPlat'); if(!el) return;
+  const used=ORDER.filter(p=>DORDER.some(k=>A.byDP[k]?.[p]?.spend>0));
+  let h=`<thead><tr><th>القسم</th>${used.map(p=>`<th class="n">${platName(p)} ${ui('صرف','Spend')}</th><th class="n">ليدز</th><th class="n">تكلفة الليد</th>`).join('')}<th class="n">المجموع</th><th class="n">ليدز</th><th class="n">تكلفة الليد</th></tr></thead><tbody>`;
+  DORDER.forEach(k=>{ h+=`<tr class="click${S.dept===k?' lv1row':''}" data-d="${k}"><td>${depCell(k)}</td>`;
+    used.forEach(p=>{ const o=derive(A.byDP[k]?.[p]||{spend:0,leads:0,leadSpend:0,leadN:0}); h+=`<td class="n">${o.spend?sar2(o.spend):'—'}</td><td class="n">${o.spend?qty(o.leads):'—'}</td><td class="n">${sar(o.cpl)}</td>`; });
+    const t=derive(A.by[k]||{spend:0,leads:0,leadSpend:0,leadN:0}); h+=`<td class="n"><b>${sar2(t.spend)}</b></td><td class="n"><b>${qty(t.leads)}</b></td><td class="n"><b>${sar(t.cpl)}</b></td></tr>`; });
+  el.innerHTML=h+'</tbody>';
+  el.querySelectorAll('tr[data-d]').forEach(tr=>tr.onclick=()=>setDept(tr.dataset.d));
+}
+function renderDeptPage(now,prev){
+  const root=$('#deptRoot'); if(!root) return;
+  if(S.page!=='dept' || !S.dept || !DEP[S.dept]){ root.innerHTML=''; return; }
+  const rows=Object.entries(now.byPlat).filter(([p])=>!HIDDEN_PLAT.has(p)).map(([p,o])=>({p,...derive(o)})).sort((a,b)=>b.spend-a.spend);
+  const camps={};
+  for(const [id,o] of Object.entries(now.byAd)){ const a=ADS[id]; const key=a.platform+'|'+a.campaign; const c=camps[key] ||= {p:a.platform,name:a.campaign,goal:a.goal,spend:0,leads:0,conv:0,leadSpend:0,leadN:0,impr:0,clicks:0}; c.spend+=o.spend;c.leads+=o.leads;c.conv+=o.conv;c.leadSpend+=o.leadSpend;c.leadN+=o.leadN||0;c.impr+=o.impr;c.clicks+=o.clicks; }
+  const campRows=Object.values(camps).map(derive).sort((a,b)=>b.spend-a.spend);
+  const ads=Object.entries(now.byAd).map(([id,o])=>({id,...derive(o),a:ADS[id]})).filter(x=>x.spend>0).sort((x,y)=>(y.leads+y.conv)-(x.leads+x.conv)||y.spend-x.spend).slice(0,12);
+  const prevTot=cur&&cur.compareOk&&prev?derive(prev.tot):{};
+  const tot=derive(now.tot);
+  root.innerHTML = `<div class="panel-h"><h2>${depName(S.dept)}</h2><span class="sub">${ui('مقارنة بالفترة السابقة','Compared with the previous period')} · ${ui('الصرف','Spend')} ${sar2(tot.spend)} ${money()} · ${ui('الليدز','Leads')} ${qty(tot.leads)}</span></div>
+    <div class="vgrid">
+      <div class="bi-card"><h3>المنصات</h3>${rows.length?`<div class="tbl"><table><thead><tr><th>المنصة</th><th class="n">الصرف</th><th class="n">الليدز</th><th class="n">تكلفة الليد</th><th class="n">محادثات</th><th class="n">نسبة النقر</th></tr></thead><tbody>${rows.map(r=>`<tr class="click" data-p="${r.p}"><td>${platCell(r.p)}</td><td class="n">${sar2(r.spend)}</td><td class="n">${qty(r.leads)}</td><td class="n">${sar(r.cpl)}</td><td class="n">${family(r.p)==='meta'?fmt(r.conv):'—'}</td><td class="n">${pct(r.ctr)}</td></tr>`).join('')}</tbody></table></div>`:'<div class="empty">'+ui('لا يوجد صرف لهذا القسم في الفترة. آخر صرف: ','No spend for this department in this range. Last spend: ')+(lastSpendDate(S.dept,false)?nice(lastSpendDate(S.dept,false)):'—')+'</div>'}</div>
+      <div class="bi-card"><h3>مقارنة الفترة السابقة</h3><div class="kv"><div><div class="k">صرف سابق</div><div class="mini">${sar2(prevTot.spend)}</div></div><div><div class="k">ليدز سابقة</div><div class="mini">${qty(prevTot.leads)}</div></div><div><div class="k">تكلفة ليد سابقة</div><div class="mini">${sar(prevTot.cpl)}</div></div></div>${delta(tot.spend,prevTot.spend,true)}${delta(tot.leads,prevTot.leads,false)}${delta(tot.cpl,prevTot.cpl,true)}</div>
+    </div>
+    <h3>الاتجاه</h3>
+    <div class="charts"><div><div class="sub">الصرف</div><div class="chart" id="dSpend"></div></div><div><div class="sub">الليدز</div><div class="chart" id="dLeads"></div></div><div><div class="sub">تكلفة الليد</div><div class="chart" id="dCpl"></div></div></div>
+    <h3>الحملات</h3>
+    <div class="tbl"><table id="dCamp"><thead><tr><th>المنصة</th><th>الحملة</th><th class="n">الصرف</th><th class="n">الليدز</th><th class="n">تكلفة الليد</th></tr></thead><tbody>${campRows.map(r=>`<tr class="click" data-c="${esc(r.p+'|'+r.name)}"><td>${platCell(r.p)}</td><td class="name">${esc(r.name)}</td><td class="n">${sar2(r.spend)}</td><td class="n">${r.goal==='lead'?qty(r.leadN):'—'}</td><td class="n">${r.goal==='lead'?sar(r.cpl):'—'}</td></tr>`).join('')||'<tr><td class="empty">لا توجد حملات.</td></tr>'}</tbody></table></div>
+    <h3>أفضل الإعلانات</h3>
+    <div class="tbl"><table><thead><tr><th>الإعلان</th><th>المنصة</th><th class="n">الصرف</th><th class="n">ليدز</th><th class="n">محادثات</th><th class="n">تكلفة الليد</th></tr></thead><tbody>${ads.map(x=>`<tr class="click" data-k="${x.id}"><td class="name">${esc(x.a.name)}</td><td>${platCell(x.a.platform)}</td><td class="n">${sar2(x.spend)}</td><td class="n">${qty(x.leads)}</td><td class="n">${fmt(x.conv)}</td><td class="n">${x.a.goal==='lead'?sar(x.cpl):'—'}</td></tr>`).join('')||'<tr><td class="empty">لا توجد إعلانات صرفت.</td></tr>'}</tbody></table></div>`;
+  stacked($('#dSpend'), now, 'spend'); stacked($('#dLeads'), now, 'leads'); cplLine($('#dCpl'), now);
+  root.querySelectorAll('tr[data-p]').forEach(tr=>tr.onclick=()=>{ S.plat=tr.dataset.p; save(); render(); });
+  root.querySelectorAll('tr[data-c]').forEach(tr=>tr.onclick=()=>{ S.camp=tr.dataset.c; render(); });
+  root.querySelectorAll('tr[data-k]').forEach(tr=>tr.onclick=()=>openAd(tr.dataset.k));
+}
+function renderRules(){
+  const el=$('#rulesNote'); if(!el) return;
+  const hints=LANG==='en'
+    ? {iv:'IV, drips, and Hair-Vitality', midwife:'Midwife, maternity care', foot:'Foot alignment', renan:'Renan'}
+    : {iv:'IV، محاليل، و Hair-Vitality', midwife:'قابلة، رعاية الحمل، midwife', foot:'Foot Alignment، تقويم القدم', renan:'رينان'};
+  const cards=[
+    ['براندينق','هذه حملات براندينق، وتبقى ضمن الحملات والمنصات بدون قسم.'],
+    ...DORDER.map(k=>[depName(k), hints[k]||'']),
+  ];
+  el.innerHTML=`<h2>كيف تنقسم الأقسام</h2><div class="ins">${cards.map(([t,l])=>noteCard(t,l)).join('')}</div>`;
+}
+function sumField(days, field){
+  const have=new Map();
+  for(const d of days||[]){
+    if(!d.date||d.date<S.from||d.date>S.to||d[field]==null) continue;
+    have.set(d.date, (have.get(d.date)||0)+Number(d[field]));
+  }
+  if(!have.size) return null;
+  for(let d=S.from; d<=S.to; d=addDays(d,1)){ if(!have.has(d)) return null; }
+  let n=0; for(const v of have.values()) n+=v;
+  return n;
+}
+function periodMatch(page){
+  const p=page&&page.period;
+  return !!(p && p.start===S.from && p.end===S.to);
+}
+function metricOf(page, field){
+  const summed=sumField(page&&page.days, field);
+  if(summed!=null) return summed;
+  if(periodMatch(page) && page.period[field]!=null) return Number(page.period[field]);
+  return null;
+}
+function uniqueOf(page, field){
+  if(S.from===S.to){
+    const hit=(page&&page.days||[]).find(d=>d.date===S.from && d[field]!=null);
+    if(hit) return Number(hit[field]);
+  }
+  if(periodMatch(page) && page.period[field]!=null) return Number(page.period[field]);
+  return null;
+}
+function needsHTML(needs){
+  const list=(needs||[]).filter(Boolean);
+  return '';
+}
+function pendingKind(network){
+  if(network==='tiktok') return 'tiktok';
+  if(network==='ga4') return 'ga4';
+  return 'meta';
+}
+function pendingBlock(title, needs, kind){
+  needsHTML(needs);
+  return `<section class="panel pend"><div class="panel-h"><h2>${esc(title)}</h2><span class="pill pending">بانتظار البيانات</span></div><p class="hint">${esc(pendingCopy(kind||'meta'))}</p></section>`;
+}
+function pageHas(page){
+  return !!((page.days&&page.days.length) || (page.posts&&page.posts.length) || page.followers!=null);
+}
+function metricText(value, pending){
+  if(value!=null && value!=='' && isFinite(Number(value))) return fmt(Number(value));
+  return pending ? ui('بانتظار الصلاحية','Awaiting permission') : fmt(value);
+}
+function noInsightSeries(page){
+  if(page.days && page.days.length) return false;
+  const period=page.period;
+  if(period && (period.views!=null || period.reach!=null || period.engagement!=null)) return false;
+  return true;
+}
+function careBlocked(page, network){
+  return network==='facebook' && !!page && page.name==='Well Care.' && noInsightSeries(page);
+}
+function pageBlock(page, network){
+  if(!page) return '';
+  const label=platName(network)||'';
+  if((page.status==='pending' || page.status==='stale' || !page.status) && !pageHas(page)) return pendingBlock(page.name||label, page.needs, pendingKind(network));
+  const views=metricOf(page,'views'), reach=uniqueOf(page,'reach');
+  const eng = network==='instagram' ? uniqueOf(page,'engagement') : metricOf(page,'engagement');
+  const posts=(page.posts||[]).filter(p=>p.date && p.date>=S.from && p.date<=S.to && (!S.dept || p.dept===S.dept));
+  const ins = page.insights==='pending' || careBlocked(page, network);
+  const postWait = !posts.length && (page.posts_status==='pending' || (careBlocked(page, network) && !(page.posts||[]).length));
+  const banner = page.needs&&page.needs.length ? (needsHTML(page.needs), `<p class="hint">${esc(pendingCopy(pendingKind(network)))}</p>`) : '';
+  const period = !page.days?.length && page.period ? `<p class="hint">${periodMatch(page)
+    ? `${ui('أرقام النافذة','Window totals')} ${esc(page.period.start)} – ${esc(page.period.end)} ${ui('لأن المنصة أعادت إجمالاً واحداً','because the platform returned one total')}`
+    : `${ui('المنصة أعادت إجمالاً واحداً للفترة','The platform returned one total for')} ${esc(page.period.start)} – ${esc(page.period.end)} ${ui('ولا يُعرض هنا لأن الفترة مختلفة','and it is not shown because this range is different')}`}</p>` : '';
+  const flag = page.status==='pending'||page.status==='stale' ? '<span class="pill pending">بانتظار تحديث</span>' : platCell(network);
+  return `<section class="panel"><div class="panel-h"><h2>${esc(page.name||label)}</h2>${flag}</div>
+    ${banner}${period}
+    <div class="kpis">
+      <div class="kpi hero"><span class="l">المتابعون الآن</span><span class="v">${fmt(page.followers)}</span></div>
+      <div class="kpi"><span class="l">المشاهدات في الفترة</span><span class="v">${metricText(views, ins && views==null)}</span></div>
+      <div class="kpi"><span class="l">الوصول في الفترة</span><span class="v">${metricText(reach, ins && reach==null)}</span></div>
+      <div class="kpi"><span class="l">التفاعل في الفترة</span><span class="v">${metricText(eng, ins && eng==null)}</span></div>
+      <div class="kpi"><span class="l">المنشورات في الفترة</span><span class="v">${postWait?metricText(null, true):fmt(posts.length)}</span></div>
+    </div></section>`;
+}
+function organicPosts(){
+  const org=D.organic||{}, out=[];
+  const push=(p, network, page)=>{
+    const item={...p, network:p.network||network, page:p.page||page||''};
+    item.id=item.id||`${item.network}:${item.date||''}:${item.caption||''}`;
+    const eng=item.engagement!=null?item.engagement:((item.likes||0)+(item.comments||0)+(item.shares||0)+(item.saves||0));
+    item.engagement=eng;
+    item.er=item.reach>0?100*eng/item.reach:null;
+    out.push(item);
+  };
+  for(const page of org.facebook||[]) for(const p of page.posts||[]) push(p,'facebook',page.name);
+  for(const page of org.instagram||[]) for(const p of page.posts||[]) push(p,'instagram',page.name);
+  const tt=org.tiktok||{};
+  for(const p of tt.posts||[]) push(p,'tiktok',tt.name||'تيك توك');
+  return out;
+}
+function organicNeeds(){
+  const org=D.organic||{}, needs=[];
+  const add=n=>{ if(n && !needs.includes(n)) needs.push(n); };
+  const pendingPage = page => !(page.posts||[]).length && (page.posts_status==='pending' || page.status==='pending' || page.status==='stale' || !page.status);
+  const show = net => S.plat==='all' || S.plat===net;
+  if(show('facebook')) for(const page of org.facebook||[]) if(pendingPage(page)) (page.needs||[]).forEach(add);
+  if(show('instagram')) for(const page of org.instagram||[]) if(pendingPage(page)) (page.needs||[]).forEach(add);
+  if(show('tiktok')){
+    const tt=org.tiktok||{};
+    if((!tt.status || tt.status==='pending' || tt.status==='stale') && !(tt.posts||[]).length) (tt.needs||['الموصّل الحالي يسحب الإعلانات المدفوعة فقط.']).forEach(add);
+  }
+  if(S.plat==='all'){
+    const ga=org.ga4||{};
+    if((!ga.status || ga.status==='pending' || ga.status==='stale') && !(ga.days||[]).length) (ga.needs||['GA4_PROPERTY_ID','GA4_SERVICE_ACCOUNT_JSON']).forEach(add);
+  }
+  return needs;
+}
+function organicList(){
+  let list=organicPosts().filter(p=>{
+    if(!p.date || p.date<S.from||p.date>S.to) return false;
+    if(S.dept && p.dept!==S.dept) return false;
+    if(S.plat!=='all' && p.network!==S.plat) return false;
+    return true;
+  });
+  if(S.orgQ){ const q=S.orgQ.toLowerCase(); list=list.filter(p=>(`${p.caption||''} ${p.page||''} ${p.type||''}`).toLowerCase().includes(q)); }
+  const num={views:p=>p.views||0, reach:p=>p.reach||0, likes:p=>p.likes||0, comments:p=>p.comments||0, shares:p=>p.shares||0, saves:p=>p.saves||0, eng:p=>p.er==null?-1:p.er};
+  if(S.orgSort==='date') list.sort((a,b)=>(b.date||'').localeCompare(a.date||''));
+  else list.sort((a,b)=>(num[S.orgSort](b)-num[S.orgSort](a)) || (b.date||'').localeCompare(a.date||''));
+  return list;
+}
+function orgSources(){
+  const org=D.organic||{}, items=[];
+  for(const page of org.facebook||[]) items.push({network:'facebook', page});
+  for(const page of org.instagram||[]) items.push({network:'instagram', page});
+  if(org.tiktok) items.push({network:'tiktok', page:org.tiktok});
+  return items.filter(s=>S.plat==='all' || s.network===S.plat);
+}
+function gaBlock(){
+  if(S.plat!=='all') return '';
+  const ga=(D.organic||{}).ga4;
+  if(!ga) return pendingBlock('Google Analytics', ['GA4_PROPERTY_ID','GA4_SERVICE_ACCOUNT_JSON'], 'ga4');
+  const ok=ga.status==='ok' || (ga.days&&ga.days.length);
+  if(!ok) return pendingBlock(ga.name||'Google Analytics', ga.needs, 'ga4');
+  return `<section class="panel"><div class="panel-h"><h2>${esc(ga.name||'Google Analytics')}</h2><span class="pill">GA4</span></div>
+    <div class="kpis">
+      <div class="kpi hero"><span class="l">المستخدمون</span><span class="v">${fmt(S.from===S.to?metricOf(ga,'users'):null)}</span></div>
+      <div class="kpi"><span class="l">الجلسات</span><span class="v">${fmt(metricOf(ga,'sessions'))}</span></div>
+      <div class="kpi"><span class="l">مشاهدات الصفحات</span><span class="v">${fmt(metricOf(ga,'views'))}</span></div>
+    </div>
+    ${(ga.channels||[]).length && ga.window && ga.window.start===S.from && ga.window.end===S.to?`<div class="tbl"><table><thead><tr><th>القناة</th><th class="n">جلسات</th><th class="n">مستخدمون</th></tr></thead><tbody>${ga.channels.map(c=>`<tr><td>${esc(c.channel)}</td><td class="n">${fmt(c.sessions)}</td><td class="n">${fmt(c.users)}</td></tr>`).join('')}</tbody></table></div>`:'<p class="hint">'+ui('تقسيم القنوات غير متاح لهذه الفترة.','Channel split is not available for this range.')+'</p>'}
+  </section>`;
+}
+function pendingKinds(){
+  const org=D.organic||{}, kinds=[];
+  const show=net=>S.plat==='all'||S.plat===net;
+  const missing=page=>page && (page.status==='pending'||page.status==='stale'||!page.status) && !pageHas(page);
+  if((show('facebook')&&(org.facebook||[]).some(missing)) || (show('instagram')&&(org.instagram||[]).some(missing))) kinds.push('meta');
+  if(show('tiktok') && missing(org.tiktok||{})) kinds.push('tiktok');
+  if(S.plat==='all'){
+    const ga=org.ga4||{};
+    if((!ga.status || ga.status==='pending' || ga.status==='stale') && !(ga.days||[]).length) kinds.push('ga4');
+  }
+  return kinds;
+}
+function pendingLines(kinds){
+  return (kinds||pendingKinds()).map(k=>`<p class="hint">${esc(pendingCopy(k))}</p>`).join('');
+}
+function renderAccounts(){
+  const root=$('#acctPage'); if(!root) return;
+  const list=orgSources();
+  const hasFollowers=list.some(s=>s.page.followers!=null);
+  const followers=list.reduce((n,s)=>n+(s.page.followers!=null?Number(s.page.followers):0),0);
+  const add = arr => arr.length ? arr.reduce((a,b)=>a+b,0) : null;
+  const views=list.map(s=>metricOf(s.page,'views'));
+  const reach=list.map(s=>uniqueOf(s.page,'reach'));
+  const eng=list.map(s=>s.network==='instagram'?uniqueOf(s.page,'engagement'):metricOf(s.page,'engagement'));
+  const addExact = arr => arr.length && arr.every(v=>v!=null) ? arr.reduce((a,b)=>a+b,0) : null;
+  const insWait = list.length && views.every(v=>v==null) && reach.every(v=>v==null) && eng.every(v=>v==null) && list.every(s=>s.page.insights==='pending' || careBlocked(s.page, s.network) || ((s.page.status==='pending'||s.page.status==='stale') && !(s.page.days||[]).length));
+  const posts=organicPosts().filter(p=>(S.plat==='all'||p.network===S.plat) && (!S.dept || p.dept===S.dept) && p.date && p.date>=S.from && p.date<=S.to);
+  const postsWait = !posts.length && list.some(s=>s.page.posts_status==='pending' || (careBlocked(s.page, s.network) && !(s.page.posts||[]).length));
+  root.innerHTML = `<section class="kpis" aria-label="ملخص الحسابات">
+    <div class="kpi hero"><span class="l">المتابعون الآن</span><span class="v">${hasFollowers?fmt(followers):'—'}</span></div>
+    <div class="kpi"><span class="l">المشاهدات في الفترة</span><span class="v">${insWait?metricText(null,true):fmt(addExact(views))}</span></div>
+    <div class="kpi"><span class="l">الوصول في الفترة</span><span class="v">${insWait?metricText(null,true):fmt(addExact(reach))}</span></div>
+    <div class="kpi"><span class="l">التفاعل في الفترة</span><span class="v">${insWait?metricText(null,true):fmt(addExact(eng))}</span></div>
+    <div class="kpi"><span class="l">المنشورات في الفترة</span><span class="v">${postsWait?metricText(null,true):fmt(posts.length)}</span></div>
+  </section>` + list.map(s=>pageBlock(s.page, s.network)).join('') + gaBlock();
+}
+function renderPosts(){
+  const cards=$('#ocards'); if(!cards) return;
+  const all=organicPosts(), list=organicList(), needs=organicNeeds();
+  const bits=[ui(`${fmt(list.length)} منشور`,`${fmt(list.length)} posts`)];
+  if(S.dept && depName(S.dept)) bits.push(depName(S.dept));
+  if(S.plat!=='all') bits.push(platName(S.plat)||'');
+  if($('#orgCount')) $('#orgCount').textContent=bits.join(' · ');
+  if($('#osort') && document.activeElement!==$('#osort')) $('#osort').value=S.orgSort;
+  const show=list.slice(0,S.orgShown);
+  if(!all.length && needs.length){
+    needsHTML(needs);
+    cards.innerHTML=`<div class="empty"><div class="panel-h"><span>بانتظار بيانات المنشورات</span><span class="pill pending">بانتظار البيانات</span></div>${pendingLines()}</div>`;
+  }else if(!list.length){
+    cards.innerHTML='<div class="empty">لا يوجد منشور يطابق البحث أو الفلاتر في هذه الفترة.</div>';
+  }else{
+    cards.innerHTML=show.map(p=>{
+      const title=(p.caption||'').trim() || p.type || 'منشور';
+      return wallCard({
+        key:p.id, wall:'post', label:ui('تفاصيل ','Details: ')+title.slice(0,80),
+        thumb:mediaHTML({thumb:p.thumb, video:p.video, link:p.permalink, text:p.caption, name:title}, false),
+        badges:`${platCell(p.network)}<span class="pill">${p.date?nice(p.date):'—'}</span>`,
+        title:esc(title.length>110?title.slice(0,110)+'…':title),
+        sub:`${depCell(p.dept)}${p.dsrc==='default'?' <span class="jdg" title="النص لا يحدد القسم">*</span>':''} ${esc(p.page||'')} ${p.type?`· ${esc(p.type)}`:''}`,
+        stats:statCell('مشاهدات',metricText(p.views,p.insights==='pending'))+statCell('وصول',metricText(p.reach,p.insights==='pending'))+statCell('نسبة التفاعل',p.insights==='pending'&&p.er==null?metricText(null,true):pct(p.er))+statCell('إعجاب',fmt(p.likes))+statCell('تعليقات',fmt(p.comments))+statCell('مشاركات',metricText(p.shares,p.insights==='pending'))+statCell('حفظ',metricText(p.saves,p.insights==='pending')),
+      });
+    }).join('');
+  }
+  const more=$('#omore');
+  if(more){ more.hidden=list.length<=S.orgShown; more.textContent=ui(`عرض المزيد (${fmt(Math.max(0,list.length-S.orgShown))} متبقي)`,`Show more (${fmt(Math.max(0,list.length-S.orgShown))} left)`); }
+  const extra=$('#orgExtra');
+  if(extra){
+    const kinds=all.length ? pendingKinds() : [];
+    if(kinds.length) needsHTML(needs);
+    extra.innerHTML = kinds.length
+      ? `<section class="panel pend"><div class="panel-h"><h2>مصادر ناقصة</h2><span class="pill pending">بانتظار البيانات</span></div>${pendingLines(kinds)}</section>` : '';
+  }
+  localize();
+}
+function openOrganic(id){
+  const p=organicPosts().find(x=>x.id===id); if(!p) return;
+  const title=(p.caption||'').trim() || p.type || 'منشور';
+  $('#dlgBody').innerHTML = `
+    <div class="panel-h"><h2 id="dlgTitle">${esc(title.length>140?title.slice(0,140)+'…':title)}</h2><button type="button" class="btn" id="dlgClose">إغلاق</button></div>
+    <div class="dlg-top">
+      <div class="thumb">${mediaHTML({thumb:p.thumb, video:p.video, link:p.permalink, text:p.caption, caption:p.caption, name:title}, true)}</div>
+      <div style="display:grid;gap:8px;min-width:0">
+        <div class="row">${platCell(p.network)}${depCell(p.dept)}<span class="pill">${p.date?nice(p.date):'—'}</span>${p.type?`<span class="pill">${esc(p.type)}</span>`:''}</div>
+        <div class="sub">${esc(p.page||'')}${(DEP[p.dept]&&!HIDDEN_DEPT.has(p.dept))?`<br>${tr('القسم')}: ${esc(depName(p.dept))} · ${p.dsrc==='ad'?tr('من نص المنشور'):p.dsrc==='campaign'?tr('من اسم الحملة'):tr('افتراضي')}`:''}</div>
+        ${p.caption?`<pre>${esc(p.caption)}</pre>`:''}
+        ${usableLink(p.permalink)?`<a href="${esc(p.permalink)}" target="_blank" rel="noopener">${/instagram\.com\/(p|reel|tv)\//.test(p.permalink)||/\/(posts|videos|reel)\//.test(p.permalink)||/tiktok\.com\/@[^/]+\/video\//.test(p.permalink)?'فتح المنشور':'فتح الحساب'}</a>`:''}
+      </div>
+    </div>
+    <div class="kv">
+      <div><div class="k">المشاهدات</div><div class="mini">${metricText(p.views,p.insights==='pending')}</div></div>
+      <div><div class="k">الوصول</div><div class="mini">${metricText(p.reach,p.insights==='pending')}</div></div>
+      <div><div class="k">نسبة التفاعل</div><div class="mini">${p.insights==='pending'&&p.er==null?metricText(null,true):pct(p.er)}</div></div>
+      <div><div class="k">إعجاب</div><div class="mini">${fmt(p.likes)}</div></div>
+      <div><div class="k">تعليقات</div><div class="mini">${fmt(p.comments)}</div></div>
+      <div><div class="k">مشاركات</div><div class="mini">${metricText(p.shares,p.insights==='pending')}</div></div>
+      <div><div class="k">حفظ</div><div class="mini">${metricText(p.saves,p.insights==='pending')}</div></div>
+    </div>`;
+  const dlg=$('#dlg'); dlg.showModal(); $('#dlgClose').onclick=()=>dlg.close();
+  localize();
+}
+const tabsEl=$('#tabs'); if(tabsEl) tabsEl.addEventListener('click',e=>{ const b=e.target.closest('button'); if(!b) return; const p=b.dataset.p;
+  if(p.startsWith('dept:')){ S.page='dept'; S.dept=p.slice(5); S.camp=''; } else S.page=p;
+  save(); render(); window.scrollTo({top:0}); });
+$('#depts').addEventListener('click',e=>{ const b=e.target.closest('button'); if(!b) return; S.dept=b.dataset.v; S.camp=''; S.shown=24; S.orgShown=24; if(S.mode==='ads' && S.page==='dept' && !S.dept) S.page='depts'; render(); });
+$('#ocards').addEventListener('click', onCardClick);
+$('#ocards').addEventListener('keydown', onCardKey);
+$('#oq').addEventListener('input',e=>{ S.orgQ=e.target.value.trim(); S.orgShown=24; renderPosts(); });
+$('#osort').addEventListener('change',e=>{ S.orgSort=e.target.value; S.orgShown=24; save(); renderPosts(); });
+$('#omore').addEventListener('click',()=>{ S.orgShown+=24; renderPosts(); });
+window.__check = () => { const keep={...S}; S.plat='all'; S.stat='all'; S.camp=''; S.goal=''; S.fmt=''; S.dept='';
+  const A=aggAllDepts('2026-09-14','2026-10-11'); const out={};
+  for(const k of DORDER){ const o=derive(A.by[k]||{spend:0,leads:0,leadSpend:0}); out[k]={spend:+(o.spend||0).toFixed(2), leads:o.leads||0}; }
+  Object.assign(S,keep); return out; };
+
+// ---- header meta
+const failedKeys = Object.entries(D.platforms||{}).filter(([,v])=>v&&!v.ok).map(([p])=>p);
+function renderMeta(){
+  const failed = failedKeys.map(p=>platName(p)).filter(Boolean);
+  const tt = TT.state==='ok' ? ''
+    : TT.state==='loading' ? `<span class="pill">تيك توك: جاري التحميل…</span>`
+    : `<span class="pill warn">${tr('تيك توك')}: ${esc(tr(TT.msg))}</span>${TT.retry?` <button type="button" class="btn" id="ttRetry">تحميل تيك توك</button>`:''}`;
+  // نفس صيغة التاريخ في كل الموقع: "28 أكتوبر، 15:10"
+  const at = s => { try { return new Intl.DateTimeFormat(LANG==='en'?'en-GB':'ar-SA-u-nu-latn-ca-gregory',{timeZone:'Asia/Riyadh',day:'numeric',month:LANG==='en'?'short':'long',hour:'2-digit',minute:'2-digit',hour12:false}).format(new Date(s)).replace(' في ','، '); } catch(e){ return s; } };
+  // تيك توك يجي من روتين خارجي: لو تأخر أكثر من 6 ساعات ينقال بوضوح بدل ما يطلع "شغّال"
+  const tp=(D.platforms||{}).tiktok||{}, lag=tp.synced_at ? (Date.now()-new Date(tp.synced_at))/36e5 : null;
+  const late = lag!=null && lag>6 ? `<span class="pill warn">${ui(`بيانات تيك توك متأخرة ${Math.floor(lag)} ساعة`,`TikTok data is ${Math.floor(lag)}h late`)}</span>` : '';
+  $('#metaLine').innerHTML = `<span>${ui('آخر تحديث للبيانات','Data updated')} <span class="num">${at(D.generated_at)}</span></span>`
+    + tt + late + (failed.length?`<span class="pill warn">${tr('تعذّر تحديث')}: ${failed.join(ui('، ', ', '))}</span>`:'');
+  const r=$('#ttRetry'); if(r) r.onclick=()=>loadTikTok(true);
+  localize();
+}
+
+// ---- TikTok: loaded live from the viewer's TikTok for Business connector, merged into D.ads / D.rows
+const TT_SERVER = 'TikTok for Business';
+const TT_STATUS = {AD_STATUS_DELIVERY_OK:'نشط', AD_STATUS_CAMPAIGN_DISABLE:'الحملة متوقفة', AD_STATUS_CAMPAIGN_EXCEED:'حد صرف الحملة خلص', AD_STATUS_BUDGET_EXCEED:'حد صرف المجموعة خلص'};
+const TT_GOAL = {LEAD_GENERATION:'lead', WEB_CONVERSIONS:'lead', ENGAGEMENT:'profile', TRAFFIC:'traffic'};
+let TT = {state:'loading', msg:'', retry:false, at:''};
+const ttData = r => { let p=r&&(r.payload!=null?r.payload:(r.content&&r.content[0]&&r.content[0].text)); if(p&&typeof p==='object'&&!('data' in p)&&!('code' in p)&&typeof p.result==='string') p=p.result; if(typeof p==='string'){ try{p=JSON.parse(p);}catch(e){ throw {code:'tool_error',message:p}; } }
+  if(p&&typeof p.code==='number'&&p.code!==0) throw {code:'tool_error',message:p.message||('TikTok '+p.code)}; return (p&&p.data)||p||{}; };
+function ttError(e){
+  const c=e&&e.code;
+  if(c==='needs_reauth') return ['انتهى ربط الحساب، أعد ربط TikTok for Business من إعدادات claude.ai ← الموصّلات', false];
+  if(c==='server_not_connected'||c==='selection_required') return ['الموصّل غير مضاف، أضف TikTok for Business من إعدادات claude.ai ← الموصّلات', false];
+  if(c==='not_in_manifest'||c==='consent_required') return ['لم يُسمح للوحة بقراءة تيك توك، فعّله من قائمة الأذونات', false];
+  if(c==='approval_required') return ['يحتاج موافقتك', true];
+  if(c==='blocked_by_policy') return ['سياسة المؤسسة تمنع القراءة', false];
+  if(e&&e.retryable) return ['تيك توك لا يستجيب الآن', true];
+  return ['تعذّر التحميل'+(e&&e.message?': '+String(e.message).slice(0,200):''), true];
+}
+let ttMcp = null, ttBusy = false, ttStep = '';
+const ttWait = ms => new Promise(r=>setTimeout(r,ms));
+async function ttPool(tasks, n){ const out=new Array(tasks.length); let i=0;
+  await Promise.all(Array.from({length:Math.min(n,tasks.length)},async()=>{ while(i<tasks.length){ const j=i++; out[j]=await tasks[j](); } })); return out; }
+async function loadTikTok(fromClick){
+  if(ttBusy) return; ttBusy = true;
+  try{
+    if(!ttMcp) ttMcp = window.claude && window.claude.use ? await window.claude.use('mcp') : null;
+    if(!ttMcp){ const tp=(D.platforms||{}).tiktok;
+      TT = tp&&tp.ok ? {state:'ok', snap:true, msg:'', retry:false, at:String(tp.synced_at||'').replace('T',' ').slice(5,16)}
+                     : {state:'off', msg:'بيانات تيك توك غير متوفرة', retry:false, at:''};
+      renderMeta(); buildFilters(); render(); return; }
+    TT={state:'loading',msg:'',retry:false,at:''}; renderMeta();
+    const opt = fromClick ? {cache:{refresh:true}} : {cache:{staleTime:300000}};
+    const call = async (tool,input) => {
+      try{ return ttData(await ttMcp.callTool(TT_SERVER,tool,input,opt)); }
+      catch(e){ if(e&&(e.retryable||e.code==='upstream_error'||e.code==='server_unavailable')){ await ttWait((e.retryAfterMs||1500)+Math.random()*1000); return ttData(await ttMcp.callTool(TT_SERVER,tool,input,opt)); } throw e; }
+    };
+    const report = async (input) => { let out=[], page=1; for(;;){ const d=await call('report_integrated_get',{...input,page,page_size:200}); out=out.concat(d.list||[]); if(page>=((d.page_info||{}).total_page||1)) return out; page++; } };
+    ttStep='الحساب';
+    const advertisers = ((await call('auth_advertiser_get')).list||[]);
+    const adv = advertisers.find(a=>a && !ttExcludedAccount(a.advertiser_id, a.advertiser_name||a.name));
+    if(!adv) throw {code:'tool_error', message: advertisers.length ? 'حساب تيك توك المربوط مستبعد من اللوحة' : 'لا يوجد حساب إعلاني'};
+    const A = adv.advertiser_id, ALL = [{field_name:'ad_status',filter_type:'IN',filter_value:'["STATUS_ALL"]'}];
+    ttStep='الحملات'; const camps = await call('tool_execute',{tool_name:'campaign_get',params:{advertiser_id:A,page_size:1000,fields:['campaign_id','objective_type','operation_status']}});
+    ttStep='المجموعات'; const groups = await call('tool_execute',{tool_name:'adgroup_get',params:{advertiser_id:A,page_size:1000,fields:['adgroup_id','operation_status']}});
+    ttStep='الإعلانات'; const ads = await call('tool_execute',{tool_name:'ad_get',params:{advertiser_id:A,page_size:1000,exclude_field_types_in_response:['NULL_FIELD'],
+        fields:['ad_id','ad_name','campaign_id','campaign_name','adgroup_id','adgroup_name','operation_status','secondary_status','tiktok_item_id','ad_text']}});
+    ttStep='أسماء الإعلانات'; const life = await report({advertiser_id:A,report_type:'BASIC',data_level:'AUCTION_AD',dimensions:['ad_id'],metrics:['ad_name','campaign_name','campaign_id','adgroup_name','spend'],query_lifetime:true,filtering:ALL});
+    const end = TODAY, wins=[]; for(let s=MIN; s<=end; s=addDays(s,30)){ const e=addDays(s,29); wins.push([s, e>end?end:e]); }
+    ttStep='الأرقام اليومية';
+    const days = await ttPool(wins.map(([s,e])=>()=>report({advertiser_id:A,report_type:'BASIC',data_level:'AUCTION_AD',dimensions:['ad_id','stat_time_day'],metrics:['spend','impressions','clicks','conversion'],start_date:s,end_date:e,filtering:ALL})), 2);
+    const obj = {}, campOn = {}, groupOn = {};
+    (camps.list||[]).forEach(c=>{ obj[c.campaign_id]=c.objective_type; campOn[c.campaign_id]=c.operation_status; });
+    (groups.list||[]).forEach(g=>groupOn[g.adgroup_id]=g.operation_status);
+    const ttThumb = {}; // the connector gives no cover, so keep the one embedded at build time
+    for(const k of Object.keys(ADS)) if(ADS[k].platform==='tiktok'){ if(ADS[k].thumb) ttThumb[k]=ADS[k].thumb; delete ADS[k]; }
+    D.rows = D.rows.filter(r=>!String(r[0]).startsWith('t'));
+    const known = {};
+    (ads.list||[]).forEach(a=>{ if(ttExcludedAd(a)) return; known[a.ad_id]=1;
+      const live = a.operation_status==='ENABLE' && campOn[a.campaign_id]==='ENABLE' && groupOn[a.adgroup_id]==='ENABLE';
+      const word = live ? 'نشط' : ((TT_STATUS[a.secondary_status] && TT_STATUS[a.secondary_status]!=='نشط') ? TT_STATUS[a.secondary_status] : 'متوقف');
+      ADS['t'+a.ad_id] = stamp({platform:'tiktok', family:'tiktok', name:a.ad_name||a.ad_id, campaign:a.campaign_name||'', group:a.adgroup_name||'', format:'فيديو',
+        status:word, live,
+        text:a.ad_text||'', thumb:ttThumb['t'+a.ad_id]||null, link:a.tiktok_item_id?'https://www.tiktok.com/embed/v2/'+a.tiktok_item_id:null, goal:TT_GOAL[obj[a.campaign_id]]||'other'}); });
+    life.forEach(r=>{ const id=r.dimensions.ad_id, m=r.metrics||{}; if(known[id] || ttExcludedAd(m)) return;
+      ADS['t'+id] = stamp({platform:'tiktok', family:'tiktok', name:m.ad_name||id, campaign:m.campaign_name||'', group:m.adgroup_name||'', format:'فيديو', status:'محذوف', live:false,
+        text:'', thumb:ttThumb['t'+id]||null, link:null, goal:TT_GOAL[obj[m.campaign_id]]||'lead'}); });
+    let n=0;
+    days.flat().forEach(r=>{ const m=r.metrics||{}, sp=Math.round(parseFloat(m.spend||0)*100)/100, im=parseInt(m.impressions||0,10);
+      if(!sp && !im) return; const k='t'+r.dimensions.ad_id; if(!ADS[k]) return; n++;
+      D.rows.push([k, String(r.dimensions.stat_time_day).slice(0,10), sp, im, parseInt(m.clicks||0,10), parseFloat(m.conversion||0), 0]); });
+    TT = {state:'ok', msg:'', retry:false, at:new Date().toLocaleTimeString('en-GB',{hour:'2-digit',minute:'2-digit'})};
+  }catch(e){
+    console.error('[tiktok] failed at', ttStep, e);
+    const [msg,retry] = ttError(e);
+    TT = {state:'error', msg: `${msg} (المرحلة: ${ttStep}${e&&e.code?' · '+e.code:''})`, retry, at:''};
+  }finally{ ttBusy=false; }
+  renderMeta(); buildFilters(); render();
+}
+
+document.addEventListener('error', function(e){
+  const el=e.target;
+  if(!el || !el.dataset) return;
+  if(el.dataset.media==='img'){
+    const box=document.createElement('div');
+    box.className='txt';
+    box.textContent=el.getAttribute('alt')||'';
+    el.replaceWith(box);
+    return;
+  }
+  if(el.dataset.media==='video'){
+    const poster=el.getAttribute('poster');
+    if(poster){
+      const img=document.createElement('img');
+      img.src=poster; img.alt=''; img.dataset.media='img';
+      el.replaceWith(img);
+      return;
+    }
+    const box=document.createElement('div');
+    box.className='txt';
+    box.textContent='';
+    el.replaceWith(box);
+  }
+}, true);
+$('#lang').addEventListener('click',e=>{
+  const b=e.target.closest('button'); if(!b) return;
+  const v=b.dataset.v==='en'?'en':'ar';
+  if(v===LANG) return;
+  LANG=v; syncLangUrl(); render(); renderMeta();
+});
+document.addEventListener('keydown',e=>{
+  if(e.key!=='Escape') return;
+  const dlg=$('#dlg'); if(dlg&&dlg.open) return;
+  const box=$('#filterOpen'); if(box&&box.checked) box.checked=false;
+});
+syncLangUrl();
+buildFilters(); render(); renderMeta(); loadTikTok(false);
+})();
+</script>
+

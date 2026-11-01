@@ -16,7 +16,7 @@ jobs:
   # Job id must stay `ci`: the gate check is named "ci / gate".
   ci:
     # eng-policies reusable CI, pinned by commit SHA
-    uses: leen-saz/eng-policies/.github/workflows/ci.yml@79ca6e387c145aa5efba25fc7818b9532dba6a7d
+    uses: leen-saz/eng-policies/.github/workflows/ci.yml@d833f62b55b60f1421f6813ca0a7fd678470c3c6
     with:
       # Astro needs Node >= 22.23.4; the runner's Node 22 resolved to 22.23.3
       node-version: "24"
@@ -27,3 +27,11 @@ jobs:
       integration-command: "npm run test:integration"
       build-command: "npm run build"
       audit-command: "npm audit --audit-level=high"
+      # Python pipeline (phase 3), copied as-is from the old repo. Lint is correctness-only until phase 8.
+      python-version: "3.12"
+      python-requirements: pipeline/requirements.txt
+      python-lint-command: "ruff check --isolated --select E9,F63,F7,F82 pipeline supabase"
+      python-test-command: "cd pipeline && python -m unittest discover -s tests -p 'test_*.py' && python -m unittest discover -s modules -t ."
+      # Supabase migrations applied in order to a throwaway Postgres
+      db-engine: postgres
+      migrations-dir: supabase/migrations

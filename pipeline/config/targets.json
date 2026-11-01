@@ -1,0 +1,7 @@
+{
+  "_note": "الأهداف لكل منصة بالريال: cpl = تكلفة الليد، chat = تكلفة المحادثة (واتساب). null = متوسط آخر 30 يوم للمنصة. لين تعدّلها، وكل تغيير بـ PR.",
+  "meta": {"cpl": null, "chat": null},
+  "snap": {"cpl": null, "chat": null},
+  "tiktok": {"cpl": null, "chat": null},
+  "google": {"cpl": null, "chat": null}
+}

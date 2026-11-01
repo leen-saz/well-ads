@@ -1,0 +1,5 @@
+{
+  "//": "The pipeline test helper is CommonJS; the root package.json is ESM.",
+  "private": true,
+  "type": "commonjs"
+}

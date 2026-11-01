@@ -1,0 +1,24 @@
+{
+  "default": "brand",
+  "order": ["iv", "midwife", "foot", "renan", "brand"],
+  "departments": {
+    "midwife": {"ar": "القبالة / رعاية الحمل", "color": "--d-midwife"},
+    "foot": {"ar": "تقويم القدم", "color": "--d-foot"},
+    "renan": {"ar": "رينان لصحة الطفل", "color": "--d-renan"},
+    "iv": {"ar": "المحاليل الوريدية", "color": "--d-iv"},
+    "brand": {"ar": "العلامة التجارية / الوعي", "color": "--d-brand"}
+  },
+  "signals": [
+    {"id": "midwife", "pattern": "midwife|meternity|maternity|قابلة|القبالة|رعاية الحمل"},
+    {"id": "foot", "pattern": "foot\\s*alignment|foot-alignment|تقويم القدم"},
+    {"id": "renan", "pattern": "رينان"},
+    {"id": "iv", "pattern": "(?<![a-z])iv(?![a-z])|محاليل|محلول|وريدي|well services|hair[\\s_-]*vitality|حيوية الشعر"},
+    {"id": "brand", "pattern": "awareness|followers|retargeting|brand|competitor"}
+  ],
+  "notes": [
+    "اسم الإعلان أولاً، والحملة فقط إذا الاسم بلا إشارة.",
+    "بلا إشارة: العلامة التجارية / الوعي.",
+    "حيوية الشعر ضمن المحاليل الوريدية.",
+    "Hair Tonic يبقى مع المحاليل إذا الحملة فيها IV."
+  ]
+}

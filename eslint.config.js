@@ -4,7 +4,8 @@ import astro from 'eslint-plugin-astro';
 
 export default defineConfig(
   // public/assets: legacy scripts copied as-is from the live site; refactored in phase 4.
-  { ignores: ['public/assets/', 'dist/', '.astro/', '.wrangler/', 'node_modules/', 'worker-configuration.d.ts'] },
+  // pipeline/: Python pipeline and its CommonJS test helper, linted by ruff.
+  { ignores: ['public/assets/', 'pipeline/', 'dist/', '.astro/', '.wrangler/', 'node_modules/', 'worker-configuration.d.ts'] },
   ...tseslint.configs.recommended,
   ...astro.configs.recommended,
 );
