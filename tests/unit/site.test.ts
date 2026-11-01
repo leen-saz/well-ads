@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { framable, serveSite, siteKey, siteRedirect } from '../../src/lib/site';
+import { framable, metaCsp, serveSite, siteKey, siteRedirect } from '../../src/lib/site';
 
 describe('siteKey', () => {
   it('maps dashboard paths to R2 keys', () => {
@@ -60,5 +60,11 @@ describe('framable', () => {
   it('lets our own pages frame the dashboards and be framed by them', () => {
     const built = "default-src 'none'; script-src 'self' 'sha256-x'; frame-src https://www.tiktok.com https://www.instagram.com; frame-ancestors 'none'";
     expect(framable(built)).toBe("default-src 'none'; script-src 'self' 'sha256-x'; frame-src 'self' https://www.tiktok.com https://www.instagram.com; frame-ancestors 'self'");
+  });
+});
+
+describe('metaCsp', () => {
+  it('allows our frames and drops frame-ancestors (ignored in <meta>)', () => {
+    expect(metaCsp("default-src 'none'; frame-src https://www.tiktok.com; frame-ancestors 'none'")).toBe("default-src 'none'; frame-src 'self' https://www.tiktok.com");
   });
 });

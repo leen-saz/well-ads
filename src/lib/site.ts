@@ -32,6 +32,12 @@ export function framable(csp: string): string {
   return out;
 }
 
+// The page also carries the policy in a <meta> tag (build.py). Both apply, so the meta copy must allow our
+// own frames too; frame-ancestors is dropped there because browsers ignore it in <meta> and warn.
+export function metaCsp(csp: string): string {
+  return framable(csp).split(';').map(d => d.trim()).filter(d => d && !d.startsWith('frame-ancestors')).join('; ');
+}
+
 export async function serveSite(request: Request, bucket: R2Bucket): Promise<Response | null> {
   if (request.method !== 'GET' && request.method !== 'HEAD') return null;
   const url = new URL(request.url);
@@ -51,5 +57,9 @@ export async function serveSite(request: Request, bucket: R2Bucket): Promise<Res
     if (csp) headers.set('content-security-policy', framable((await csp.text()).trim()));
   }
   if (!('body' in obj)) return new Response(null, { status: 304, headers });
-  return new Response(request.method === 'HEAD' ? null : obj.body, { status: 200, headers });
+  const res = new Response(request.method === 'HEAD' ? null : obj.body, { status: 200, headers });
+  if (ext !== 'html' || typeof HTMLRewriter === 'undefined') return res;
+  return new HTMLRewriter().on('meta[http-equiv="Content-Security-Policy"]', {
+    element(el) { const c = el.getAttribute('content'); if (c) el.setAttribute('content', metaCsp(c)); },
+  }).transform(res);
 }
