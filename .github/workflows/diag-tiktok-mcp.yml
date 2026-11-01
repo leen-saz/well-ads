@@ -15,6 +15,6 @@ jobs:
           for u in https://business-api.tiktok.com/open_mcp/tt-ads-mcp-flat; do
             echo "== POST $u"; curl -sS -m 20 -D - -X POST -H 'content-type: application/json' -H 'accept: application/json, text/event-stream' --data "$init" "$u" | head -c 1500; echo
           done
-          for u in https://business-api.tiktok.com/.well-known/oauth-protected-resource/open_mcp/tt-ads-mcp-flat https://business-api.tiktok.com/.well-known/oauth-protected-resource https://business-api.tiktok.com/.well-known/oauth-authorization-server https://business-api.tiktok.com/.well-known/openid-configuration; do
-            echo "== GET $u"; curl -sS -m 20 -D - "$u" | head -c 2500; echo
+          for u in https://business-api.tiktok.com/.well-known/oauth-authorization-server/open_mcp/tt-ads-mcp-flat/oauth https://business-api.tiktok.com/open_mcp/tt-ads-mcp-flat/oauth/.well-known/oauth-authorization-server https://business-api.tiktok.com/.well-known/openid-configuration/open_mcp/tt-ads-mcp-flat/oauth; do
+            echo "== GET $u"; curl -sS -m 20 "$u" | head -c 2500; echo
           done
