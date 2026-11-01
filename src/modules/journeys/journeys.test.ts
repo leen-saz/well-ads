@@ -1,9 +1,9 @@
 // Journeys: step and contact validation, sending over WhatsApp and Gmail with stubbed APIs, and starting a run.
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import * as A from '../../src/lib/auth';
-import { cleanContact, cleanSteps, notices, send } from '../../src/lib/journeys';
-import { start } from '../../src/api/routes/journeys';
-import { WELL_COMPANY } from '../../src/lib/tenant';
+import * as A from '../../lib/auth';
+import { cleanContact, cleanSteps, notices, send } from './journeys';
+import { start } from './routes';
+import { WELL_COMPANY } from '../../lib/tenant';
 
 afterEach(() => { vi.unstubAllGlobals(); });
 

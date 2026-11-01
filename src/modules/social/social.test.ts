@@ -1,8 +1,8 @@
 // Social: validation, due rule, publishing to Facebook/Instagram with a stubbed Graph API, and company scoping.
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { validate, due, publishPost } from '../../src/lib/social';
-import { runSocial } from '../../src/lib/social-cron';
-import { WELL_COMPANY } from '../../src/lib/tenant';
+import { validate, due, publishPost } from './social';
+import { runSocial } from './cron';
+import { WELL_COMPANY } from '../../lib/tenant';
 
 const NOW = Date.parse('2026-11-01T12:00:00Z');
 const later = '2026-11-02T09:00:00Z';

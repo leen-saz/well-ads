@@ -1,6 +1,6 @@
 // Maestro: the Paperclip client (company-scoped paths, approval ownership check) and task validation. No network.
 import { describe, expect, it, vi } from 'vitest';
-import { client, cleanTask, items } from '../../src/lib/paperclip';
+import { client, cleanTask, items } from './paperclip';
 
 describe('paperclip client', () => {
   it('needs an https URL and a token', () => {

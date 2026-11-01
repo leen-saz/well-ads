@@ -1,0 +1,44 @@
+---
+import { ClientRouter } from 'astro:transitions';
+// الإعدادات ← الموديولات (المالكة): تشغيل وقفل موديولات الشركة.
+---
+<!doctype html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="robots" content="noindex,nofollow">
+<meta name="referrer" content="no-referrer">
+<meta name="theme-color" content="#F6F0E3">
+<title>الموديولات · Well</title>
+<link rel="preload" href="/assets/fonts/thmanyahsans-Regular.woff2" as="font" type="font/woff2" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@900&display=swap">
+<link rel="stylesheet" href="/assets/app.css">
+<ClientRouter />
+<style is:global>
+.mm-list{display:grid;gap:8px}
+.mm{display:flex;align-items:center;gap:12px;padding:10px 14px;border:1px solid var(--line);border-radius:14px}
+.mm .i{width:18px;height:18px}
+.mm b{flex:1}
+</style>
+</head>
+<body data-page="modmgr">
+<div class="app" id="app">
+  <aside class="side" id="side" aria-label="القائمة" transition:persist="side"></aside>
+  <div class="scrim"></div>
+  <div class="main">
+    <header class="topbar" id="top"></header>
+    <main class="content" id="content">
+      <section class="card pad" style="max-width:720px">
+        <h2>موديولات الشركة</h2>
+        <p class="muted" style="margin:0 0 12px">كل تاب موديول. اقفل اللي شركتك ما تحتاجه: يطلع بقفل في القائمة وما ينفتح لأحد.</p>
+        <div id="mods" class="mm-list"></div>
+        <div class="bar" style="margin-top:16px"><button class="btn primary" id="save">احفظ</button></div>
+        <div class="msg" id="msg" role="status"></div>
+      </section>
+    </main>
+  </div>
+</div>
+<script is:inline type="module" src="/assets/router.js"></script>
+</body>
+</html>

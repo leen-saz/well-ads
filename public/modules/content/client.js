@@ -1,5 +1,5 @@
 // إيجنت المحتوى و SEO/AEO: يحلل الموقع ويبني بلان، والماركتير يوافق على كل بند، ويكتب مسودة، وينشر (تصدير الحين).
-import { $, api, say, esc, shell, busy, LANG } from './common.js';
+import { $, api, say, esc, shell, busy, LANG } from '/assets/common.js';
 
 // Runs on every visit of this page (assets/router.js calls it after each ClientRouter navigation).
 export default async function mount() {

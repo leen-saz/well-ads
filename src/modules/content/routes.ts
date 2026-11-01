@@ -1,7 +1,7 @@
 // /api/content/*: the content + SEO/AEO agent of the user's company. Analyze -> plan -> approve each item -> draft -> publish.
 import { sb, json, readJson, handle, requireUser, audit, type AuthEnv } from '../../lib/auth';
 import { scoped, WELL_COMPANY } from '../../lib/tenant';
-import { AI_MODEL, PUBLISH, crawl, normalizeSite, plan, searchConsole, type AiRun, type Item } from '../../lib/content';
+import { AI_MODEL, PUBLISH, crawl, normalizeSite, plan, searchConsole, type AiRun, type Item } from './content';
 
 type Row = Record<string, unknown>;
 type AiEnv = AuthEnv & { AI?: { run: AiRun } };

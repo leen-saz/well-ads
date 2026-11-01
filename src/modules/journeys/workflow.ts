@@ -1,8 +1,8 @@
 // One customer inside one journey = one Workflow instance. It sleeps between steps (minutes to 90 days)
 // without a server running, and each send is its own durable step: retried on failure, never sent twice.
 import { WorkflowEntrypoint, type WorkflowEvent, type WorkflowStep } from 'cloudflare:workers';
-import { env as cfgOf, sb, type AuthEnv } from './auth';
-import { WELL_COMPANY } from './tenant';
+import { env as cfgOf, sb, type AuthEnv } from '../../lib/auth';
+import { WELL_COMPANY } from '../../lib/tenant';
 import { send, type Contact, type Step } from './journeys';
 
 export interface JourneyParams { runId: number; companyId: string; steps: Step[]; contact: Contact }

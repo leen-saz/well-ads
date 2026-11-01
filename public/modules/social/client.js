@@ -1,6 +1,6 @@
 // السوشال: إنشاء منشور مجدول لأكثر من منصة، وتقويم الأسبوعين الجايين. النشر يصير من السيرفر في وقته.
-import { $, $$, api, say, esc, shell, busy, LANG } from './common.js';
-import { t } from './i18n.js';
+import { $, $$, api, say, esc, shell, busy, LANG } from '/assets/common.js';
+import { t } from '/assets/i18n.js';
 
 // Runs on every visit of this page (assets/router.js calls it after each ClientRouter navigation).
 export default async function mount() {

@@ -1,5 +1,6 @@
 // /api/account/password. Port of web/api/account/password.js: changing the password needs the current one.
-import { sb, json, readJson, handle, requireUser, audit, PASSWORD_MIN } from '../../lib/auth';
+import { sb, json, readJson, handle, requireUser, audit, PASSWORD_MIN, can } from '../../lib/auth';
+import { MODULES } from '../../modules/registry';
 
 export const password = {
   POST: handle(async (request, e) => {
@@ -16,6 +17,9 @@ export const password = {
   }),
   GET: handle(async (request, e) => {
     const { user } = await requireUser(request, e, 'any');
-    return json(200, { email: user.email, name: user.name, role: user.role, dashboards: user.dash, departments: user.depts || [] });
+    // The sidebar draws every module from here: locked = switched off for the company, ok = this user may open it
+    const modules = MODULES.map(m => ({ key: m.key, ar: m.ar, en: m.en, icon: m.icon, group: m.group, status: m.status, does: m.does, doesEn: m.doesEn,
+      locked: !!user.off?.includes(m.key), ok: m.status === 'soon' || can(user, m.key) }));
+    return json(200, { email: user.email, name: user.name, role: user.role, dashboards: user.dash, departments: user.depts || [], modules });
   }),
 };

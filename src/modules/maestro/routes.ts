@@ -1,7 +1,7 @@
 // /api/maestro/*: the maestro tab. Agents, tasks and pending approvals of the user's company, from Paperclip.
 // Connecting a company to Paperclip and deciding approvals are owner-only; creating tasks needs the `maestro` dashboard.
 import { sb, json, readJson, handle, requireUser, audit, isOwner, type AuthEnv, type Cfg } from '../../lib/auth';
-import { client, cleanTask, STATUS, type PcEnv } from '../../lib/paperclip';
+import { client, cleanTask, STATUS, type PcEnv } from './paperclip';
 
 type Env = AuthEnv & PcEnv;
 type Co = { id: string; name: string; paperclip_company_id: string | null };

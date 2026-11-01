@@ -1,4 +1,4 @@
-// الرحلات: التحقق من الخطوات، والإرسال لكل قناة. التشغيل نفسه في src/lib/journey-workflow.ts (Cloudflare Workflows).
+// الرحلات: التحقق من الخطوات، والإرسال لكل قناة. التشغيل نفسه في src/modules/journeys/workflow.ts (Cloudflare Workflows).
 // واتساب مدفوع من Meta لكل محادثة (الاستثناء المسموح، مع تنويه بالتسعيرة). الإيميل من Gmail بحساب الشركة (OAuth).
 
 export const CHANNELS = {

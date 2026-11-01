@@ -1,6 +1,6 @@
 // Content agent: page facts, fixed SEO/AEO rules, the AI plan with a stubbed model, and safe site URLs.
 import { describe, expect, it, vi } from 'vitest';
-import { audit, crawl, facts, normalizeSite, parsePlan, plan } from '../../src/lib/content';
+import { audit, crawl, facts, normalizeSite, parsePlan, plan } from './content';
 
 const PAGE = `<html lang="ar"><head><title>رعاية منزلية في الرياض | Well</title><meta name="description" content="زيارات منزلية">
 <link rel="canonical" href="https://x.sa/"><script type="application/ld+json">{"@type":"MedicalClinic"}</script></head>
