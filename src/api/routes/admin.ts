@@ -1,22 +1,23 @@
 // /api/admin/*: users and log (Leen only). Port of web/lib/routes/admin/*.js.
 import { sb, json, readJson, handle, requireUser, audit, DASHBOARDS, DEPTS } from '../../lib/auth';
+import { scoped } from '../../lib/tenant';
 
 type Row = Record<string, unknown> & { email?: string };
 const cleanDash = (d: unknown) => [...new Set((Array.isArray(d) ? d : []).filter((x): x is string => typeof x === 'string' && x in DASHBOARDS))];
 const cleanDept = (d: unknown) => [...new Set((Array.isArray(d) ? d : []).filter((x): x is string => typeof x === 'string' && x in DEPTS))];
 
 export const log = { GET: handle(async (request, e) => {
-  const { cfg } = await requireUser(request, e, 'owner');
+  const { cfg, user } = await requireUser(request, e, 'owner');
   const url = new URL(request.url);
   const limit = Math.min(500, Math.max(1, parseInt(url.searchParams.get('limit') || '200', 10) || 200));
-  const r = await sb(cfg, `/rest/v1/audit_log?select=*&order=at.desc&limit=${limit}`, { admin: true });
+  const r = await sb(cfg, scoped(`/rest/v1/audit_log?select=*&order=at.desc&limit=${limit}`, user.co), { admin: true });
   return json(r.ok ? 200 : 500, r.ok ? { log: r.data } : { error: 'ما قدرت أقرأ السجل' });
 }) };
 
 export const users = {
   GET: handle(async (request, e) => {
-    const { cfg } = await requireUser(request, e, 'owner');
-    const r = await sb(cfg, '/rest/v1/profiles?select=id,email,name,role,dashboards,departments,active,created_at&order=created_at.asc', { admin: true });
+    const { cfg, user } = await requireUser(request, e, 'owner');
+    const r = await sb(cfg, scoped('/rest/v1/profiles?select=id,email,name,role,dashboards,departments,active,created_at&order=created_at.asc', user.co), { admin: true });
     return json(r.ok ? 200 : 500, r.ok ? { users: r.data, dashboards: DASHBOARDS, departments: DEPTS } : { error: 'ما قدرت أقرأ المستخدمين' });
   }),
   POST: handle(async (request, e) => {
@@ -33,7 +34,7 @@ export const users = {
     const inv = await sb<{ id?: string }>(cfg, `/auth/v1/invite?redirect_to=${encodeURIComponent(to)}`, { method: 'POST', admin: true, body: { email, data: { name } } });
     if (!inv.ok || !inv.data || !inv.data.id) return json(400, { error: inv.status === 422 ? 'الإيميل مسجّل من قبل' : 'ما انرسلت الدعوة' });
     const p = await sb<Row[]>(cfg, '/rest/v1/profiles', { method: 'POST', admin: true, headers: { Prefer: 'return=representation,resolution=merge-duplicates' },
-      body: { id: inv.data.id, email, name, role: 'member', dashboards, departments, active: true } });
+      body: { id: inv.data.id, email, name, role: 'member', dashboards, departments, active: true, company_id: user.co } });
     if (!p.ok) return json(500, { error: 'انرسلت الدعوة بس ما انحفظ الملف' });
     await audit(cfg, user, 'user_invited', { target: { email, dashboards, departments } });
     return json(200, { ok: true, user: p.data[0] });
@@ -49,8 +50,9 @@ export const users = {
     if ('departments' in body) patch.departments = cleanDept(body.departments);
     if ('name' in body) patch.name = String(body.name || '').trim().slice(0, 80);
     if ('active' in body) patch.active = !!body.active;
-    const before = await sb<Row[]>(cfg, `/rest/v1/profiles?id=eq.${id}&select=*`, { admin: true });
-    const r = await sb<Row[]>(cfg, `/rest/v1/profiles?id=eq.${id}`, { method: 'PATCH', admin: true, headers: { Prefer: 'return=representation' }, body: patch });
+    const before = await sb<Row[]>(cfg, scoped(`/rest/v1/profiles?id=eq.${id}&select=*`, user.co), { admin: true });
+    if (!before.ok || !before.data.length) return json(404, { error: 'مستخدم غير معروف' });
+    const r = await sb<Row[]>(cfg, scoped(`/rest/v1/profiles?id=eq.${id}`, user.co), { method: 'PATCH', admin: true, headers: { Prefer: 'return=representation' }, body: patch });
     if (!r.ok || !r.data.length) return json(400, { error: 'ما انحفظ التعديل' });
     if ('active' in patch) {
       // Disabling also blocks login in Supabase itself, not only in the dashboard
