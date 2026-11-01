@@ -4,6 +4,7 @@ import {
   env, sb, json, html, readJson, handle, requireUser, audit, sign, verify, readCookie, loadProfile, sessionFor, can,
   type AuthEnv, type Cfg, type Session,
 } from '../../lib/auth';
+import { TIKTOK_MCP_DAYS, pkce, registerClient, authorizeUrl as mcpAuthorizeUrl, exchangeCode } from '../../lib/mcp-oauth';
 import { PLATFORMS, OAUTH, byId, appCreds, authorizeUrl, exchange, oauth1, check, type Platform, type Values, type Exchanged } from '../../lib/connectors';
 
 type Row = Record<string, unknown>;
@@ -56,12 +57,12 @@ export const list = {
       for (const name of o?.needs || []) if (!required.includes(name)) required.push(name);
       const have = new Set<string>(c ? (c.names as string[]) || [] : []);
       const expires = c?.expires_at as string | null | undefined;
-      // TikTok stays on MCP (Leen's decision): its status is 'mcp' whatever is saved.
-      const status = p.mcp ? 'mcp' : !c ? 'none' : expires && new Date(expires) < new Date() ? 'expired' : required.every(n => have.has(n)) ? 'ok' : 'partial';
+      // TikTok stays on MCP: 'mcp' (Grok's branch) until it is signed in to TikTok's MCP server from here.
+      const status = p.mcp && !have.size ? 'mcp' : !c ? 'none' : expires && new Date(expires) < new Date() ? 'expired' : required.every(n => have.has(n)) ? 'ok' : 'partial';
       const shown = (c?.shown as Values | undefined) || {};
       return {
         id: p.id, name: p.name, group: p.group, fetch: !!p.fetch, mcp: !!p.mcp, docs: p.docs, help: p.help,
-        oauth: !!o, oauthReady: !!(o && appCreds(p, vars(e))), expiresNote: o?.expires || null, logo: p.logo || null, color: p.color || null,
+        oauth: !!o, oauthReady: !!(o && (o.mcpOAuth || appCreds(p, vars(e)))), expiresNote: o?.expires || null, logo: p.logo || null, color: p.color || null,
         fields: p.fields.map(f => ({ env: f.env, label: f.label, secret: f.secret, type: f.type, optional: !!f.optional, manual: !!f.manual,
           placeholder: f.placeholder || '', saved: have.has(f.env), shown: !f.secret && c ? shown[f.env] || '' : '' })),
         status, method: c && c.method, by: c && c.connected_by, at: c && c.connected_at, expires: c && c.expires_at, checked: c && c.checked,
@@ -109,12 +110,29 @@ export const disconnect = {
 };
 
 // ---- start: the "Connect" button. Signed state tied to a short SameSite=Lax nonce cookie (it comes back with the platform's redirect).
+// MCP sign-in (TikTok): register a client for this redirect, PKCE verifier in the short nonce cookie,
+// client id in the signed state.
+async function startMcp(request: Request, cfg: Cfg, uid: string, platform: string): Promise<Response> {
+  const redirect = redirectFor(request);
+  let clientId: string;
+  try { clientId = await registerClient(redirect); } catch { return html(502, 'ما قدرت أبدأ الربط مع تيك توك. جرّب بعد دقيقة.'); }
+  const { verifier, challenge } = await pkce();
+  const nonce = crypto.randomUUID();
+  const state = await sign({ uid, p: platform, n: nonce, c: clientId, exp: Date.now() + 10 * 60 * 1000 }, cfg.secret);
+  return new Response(null, { status: 302, headers: {
+    location: mcpAuthorizeUrl({ clientId, redirect, state, challenge }),
+    'set-cookie': `${OAUTH_COOKIE}=${encodeURIComponent(`${nonce}.${verifier}`)}; Path=/api/connectors/; HttpOnly; Secure; SameSite=Lax; Max-Age=600`,
+    'cache-control': 'no-store',
+  } });
+}
+
 export const start = {
   GET: handle(async (request, e) => {
     const { cfg, user } = await requireUser(request, e, 'connectors');
     const p = byId(new URL(request.url).searchParams.get('platform'));
     const o = p ? OAUTH[p.id] : undefined;
     if (!p || !o) return html(400, 'المنصة ما تدعم زر الربط.');
+    if (o.mcpOAuth) return startMcp(request, cfg, user.uid, p.id);
     const app = appCreds(p, vars(e));
     if (!app) return html(400, 'بيانات تطبيق المنصة ناقصة في إعدادات السيرفر. أضفها كأسرار في Cloudflare.');
     const nonce = crypto.randomUUID();
@@ -141,7 +159,7 @@ const back = (to: string, cookieOff: boolean) => new Response(
   { status: 200, headers: { 'content-type': 'text/html; charset=utf-8', 'cache-control': 'no-store', 'referrer-policy': 'no-referrer',
     ...(cookieOff ? { 'set-cookie': `${OAUTH_COOKIE}=; Path=/api/connectors/; HttpOnly; Secure; SameSite=Lax; Max-Age=0` } : {}) } });
 
-type State = { uid?: string; p?: string; n?: string };
+type State = { uid?: string; p?: string; n?: string; c?: string };
 
 export const callback = {
   GET: async (request: Request, e: AuthEnv): Promise<Response> => {
@@ -158,8 +176,22 @@ export const callback = {
     if (q.get('error') || q.get('denied') || !(v1 ? q.get('oauth_verifier') : code)) return back(`/connectors/?err=denied&p=${encodeURIComponent(st.p)}`, true);
     const profile = await loadProfile(cfg, st.uid);
     const user = profile && profile.active !== false ? sessionFor(profile, cfg) : null;
-    const app = p && appCreds(p, vars(e));
-    if (!user || !p || !o || !can(user, 'connectors', cfg) || !app) return back('/connectors/?err=access', true);
+    if (!user || !p || !o || !can(user, 'connectors', cfg)) return back('/connectors/?err=access', true);
+    if (o.mcpOAuth) {
+      // TikTok MCP: the code + the PKCE verifier from the nonce cookie + the client id from the signed state
+      try {
+        if (!st.c || !tokenSecret) throw new Error('no verifier');
+        const t = await exchangeCode({ clientId: st.c, code, verifier: tokenSecret, redirect: redirectFor(request) });
+        await saveValues(cfg, user, p, 'oauth', { TIKTOK_MCP_CLIENT_ID: st.c, TIKTOK_MCP_REFRESH_TOKEN: t.refresh },
+          { expiresIn: TIKTOK_MCP_DAYS * 86400, checked: 'انربط مع سيرفر MCP حق تيك توك' });
+      } catch (err) {
+        console.error('connector mcp oauth', p.id, err instanceof Error ? err.message : 'error');
+        return back(`/connectors/?err=exchange&p=${encodeURIComponent(p.id)}`, true);
+      }
+      return back(`/connectors/?ok=${encodeURIComponent(p.id)}`, true);
+    }
+    const app = appCreds(p, vars(e));
+    if (!app) return back('/connectors/?err=access', true);
     try {
       let got: Exchanged;
       if (v1) {

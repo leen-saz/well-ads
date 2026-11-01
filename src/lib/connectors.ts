@@ -25,7 +25,7 @@ export const PLATFORMS: Platform[] = [
     fields: [ID('GOOGLE_ADS_CUSTOMER_ID', 'رقم الحساب (Customer ID)', { placeholder: '123-456-7890' }), ID('GOOGLE_ADS_LOGIN_CUSTOMER_ID', 'رقم حساب المدير (MCC)', { optional: true }),
       F('GOOGLE_ADS_DEVELOPER_TOKEN', 'Developer Token', { optional: true }),
       F('GOOGLE_ADS_CLIENT_ID', 'OAuth Client ID', { manual: true }), F('GOOGLE_ADS_CLIENT_SECRET', 'OAuth Client Secret', { manual: true }), F('GOOGLE_ADS_REFRESH_TOKEN', 'Refresh Token', { manual: true })] },
-  { id: 'tiktok', name: 'TikTok', group: 'ads', fetch: true, mcp: true, docs: 'https://ads.tiktok.com/', help: 'مربوط عن طريق موصّل TikTok for Business في Claude (MCP).', fields: [] },
+  { id: 'tiktok', name: 'TikTok', group: 'ads', fetch: true, mcp: true, docs: 'https://ads.tiktok.com/', help: 'زر "اربط" يسجّل دخولك على سيرفر MCP الرسمي حق TikTok for Business (بدون تطبيق مطوّرين). الدخول يخلص كل 30 يوم. بدونه يكمّل السحب من فرع tiktok-data.', fields: [] },
   { id: 'x', name: 'X (تويتر)', group: 'ads', docs: 'https://developer.x.com/en/portal/dashboard', help: 'X Developer Portal ← تطبيق بصلاحية Ads API (مدفوع) ← Keys and tokens.',
     fields: [F('X_ADS_CONSUMER_KEY', 'API Key', { manual: true }), F('X_ADS_CONSUMER_SECRET', 'API Key Secret', { manual: true }), F('X_ADS_ACCESS_TOKEN', 'Access Token', { manual: true }), F('X_ADS_ACCESS_SECRET', 'Access Token Secret', { manual: true }), ID('X_ADS_ACCOUNT_ID', 'رقم الحساب الإعلاني')] },
   { id: 'linkedin', name: 'LinkedIn', group: 'ads', docs: 'https://www.linkedin.com/developers/apps', help: 'LinkedIn Developers ← تطبيق بمنتج Advertising API (يحتاج موافقة) ← Auth.',
@@ -170,6 +170,7 @@ export interface OAuthCfg {
   exchange?: (a: ExchangeArgs) => Promise<Exchanged>;
   // bare: رابط التفويض يستخدم app_id و state و redirect_uri فقط (تيك توك). needs: أسماء الخزنة اللازمة لحالة «مربوط».
   bare?: boolean; idName?: string; needs?: string[];
+  mcpOAuth?: boolean; // MCP authorization (dynamic registration + PKCE): no app credentials needed
 }
 const GOOGLE = (scope: string, refresh: string): OAuthCfg => ({ authorize: 'https://accounts.google.com/o/oauth2/v2/auth', token: 'https://oauth2.googleapis.com/token', scope,
   extra: { access_type: 'offline', prompt: 'consent', include_granted_scopes: 'true' }, app: ['GOOGLE_ADS_CLIENT_ID', 'GOOGLE_ADS_CLIENT_SECRET'], store: { refresh } });
@@ -210,9 +211,9 @@ export const OAUTH: Record<string, OAuthCfg> = {
   // X Ads API: OAuth 1.0a (مو 2.0). الخطوة الأولى request token من السيرفر
   x: { v1: true, request: 'https://api.x.com/oauth/request_token', authorize: 'https://api.x.com/oauth/authorize', access: 'https://api.x.com/oauth/access_token',
     app: ['X_ADS_CONSUMER_KEY', 'X_ADS_CONSUMER_SECRET'], store: { token: 'X_ADS_ACCESS_TOKEN', secret: 'X_ADS_ACCESS_SECRET', id: 'X_ADS_CONSUMER_KEY', key: 'X_ADS_CONSUMER_SECRET' } },
-  // المفتاح طويل المدى. أرقام المعلنين أعداد أكبر من Number.MAX_SAFE_INTEGER، فتُقرأ من نص الرد كما هي.
-  tiktok: { authorize: 'https://business-api.tiktok.com/portal/auth', bare: true, idName: 'app_id',
-    app: ['TIKTOK_APP_ID', 'TIKTOK_APP_SECRET'], needs: ['TIKTOK_ACCESS_TOKEN', 'TIKTOK_ADVERTISER_IDS'], exchange: tiktokExchange },
+  // TikTok: the official hosted MCP server (src/lib/mcp-oauth.ts). No developer app, no TikTok API token.
+  tiktok: { authorize: 'https://business-api.tiktok.com/portal/mcp-tt4b-authorize', app: [], mcpOAuth: true, expires: 'بعد 30 يوم',
+    needs: ['TIKTOK_MCP_CLIENT_ID', 'TIKTOK_MCP_REFRESH_TOKEN'] },
 };
 
 // بيانات تطبيق المنصة (Client ID/Secret) من بيئة السيرفر. ناقصة = زر الربط ما يشتغل والبديل اليدوي يطلع.
@@ -250,40 +251,6 @@ export async function exchange(p: Platform, { code, redirect, id, secret }: Exch
   if (st.id) values[st.id] = id;
   if (st.secret) values[st.secret] = secret;
   return { values, expiresIn: !t.refresh_token && t.expires_in ? Number(t.expires_in) : null };
-}
-
-// Spring Rose0406 حساب منفصل ولا يُحفظ مع حسابات ويل. نفس المعرّف في pipeline/tiktok/merge.py.
-const TIKTOK_EXCLUDED_ADVERTISERS = new Set(['6948010864247046146']);
-
-function tiktokAdvertiserIds(text: string): string[] {
-  const m = text.match(/"advertiser_ids"\s*:\s*\[([\s\S]*?)\]/);
-  const body = m?.[1];
-  if (!body) return [];
-  const ids: string[] = [];
-  for (const part of body.split(',')) {
-    const id = part.trim().replace(/^"|"$/g, '');
-    if (!/^\d+$/.test(id) || TIKTOK_EXCLUDED_ADVERTISERS.has(id) || ids.includes(id)) continue;
-    ids.push(id);
-  }
-  return ids;
-}
-
-async function tiktokExchange({ code, id, secret }: ExchangeArgs): Promise<Exchanged> {
-  const r = await fetch('https://business-api.tiktok.com/open_api/v1.3/oauth2/access_token/', {
-    method: 'POST',
-    headers: { 'content-type': 'application/json' },
-    body: JSON.stringify({ app_id: id, secret, auth_code: code }),
-  });
-  const text = await r.text();
-  let parsed: Record<string, unknown> = {};
-  try { parsed = text ? JSON.parse(text) as Record<string, unknown> : {}; } catch { parsed = {}; }
-  const data = (parsed.data && typeof parsed.data === 'object' ? parsed.data : {}) as Record<string, unknown>;
-  const token = typeof data.access_token === 'string' ? data.access_token.trim() : '';
-  const okCode = parsed.code === 0 || parsed.code === '0';
-  const advertisers = tiktokAdvertiserIds(text);
-  // رسالة الخطأ عامة: جسم الرد فيه المفتاح، وما ينطبع ولا يرجع للمتصفح.
-  if (!r.ok || !okCode || !token || !advertisers.length) throw new Error('oauth tiktok');
-  return { values: { TIKTOK_ACCESS_TOKEN: token, TIKTOK_ADVERTISER_IDS: advertisers.join(',') } };
 }
 
 async function metaExchange({ code, redirect, id, secret }: ExchangeArgs, env = 'META_ACCESS_TOKEN'): Promise<Exchanged> {

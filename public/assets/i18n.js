@@ -367,6 +367,11 @@ const EN = {
   'رقم صفحة فيسبوك': 'Facebook page ID',
   'رقم حساب انستقرام (Business)': 'Instagram account ID (Business)',
   'مفتاح الصفحة': 'Page token',
+  // تيك توك MCP
+  'زر "اربط" يسجّل دخولك على سيرفر MCP الرسمي حق TikTok for Business (بدون تطبيق مطوّرين). الدخول يخلص كل 30 يوم. بدونه يكمّل السحب من فرع tiktok-data.': 'Connect signs you in to the official TikTok for Business MCP server (no developer app). The sign-in lasts 30 days. Without it the pull keeps reading the tiktok-data branch.',
+  'بعد 30 يوم': 'after 30 days',
+  'انربط مع سيرفر MCP حق تيك توك': 'Connected to the TikTok MCP server',
+  'ما قدرت أبدأ الربط مع تيك توك. جرّب بعد دقيقة.': 'Could not start connecting to TikTok. Try again in a minute.',
   // أخطاء السيرفر
   'طلب مرفوض': 'Request refused', 'سجّل الدخول': 'Please sign in', 'الحساب موقوف': 'Account disabled', 'ما عندك صلاحية': 'You don\'t have access',
   'صار خطأ، جرّب مرة ثانية': 'Something went wrong, try again', 'صار خطأ': 'Something went wrong', 'الإعداد غير مكتمل': 'Setup is incomplete',
