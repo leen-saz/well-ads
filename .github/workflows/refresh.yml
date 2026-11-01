@@ -74,6 +74,17 @@ jobs:
           key: ads-data-${{ github.run_id }}
           restore-keys: ads-data-
 
+      # TikTok through its official MCP server (Connectors page sign-in). Discovery for now: lists the tools, read-only.
+      - name: TikTok via MCP
+        continue-on-error: true
+        env:
+          TIKTOK_MCP_CLIENT_ID: ${{ env.V_TIKTOK_MCP_CLIENT_ID }}
+          TIKTOK_MCP_REFRESH_TOKEN: ${{ env.V_TIKTOK_MCP_REFRESH_TOKEN }}
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+        working-directory: pipeline
+        run: python -m tiktok.mcp
+
       - name: Fetch ads data
         env:
           META_ACCESS_TOKEN: ${{ env.V_META_ACCESS_TOKEN || secrets.META_ACCESS_TOKEN }}
