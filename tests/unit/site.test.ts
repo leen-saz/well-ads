@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { serveSite, siteKey, siteRedirect } from '../../src/lib/site';
+import { framable, serveSite, siteKey, siteRedirect } from '../../src/lib/site';
 
 describe('siteKey', () => {
   it('maps dashboard paths to R2 keys', () => {
@@ -38,7 +38,7 @@ describe('serveSite', () => {
   it('serves the dashboard with the CSP from the build', async () => {
     const r = await serveSite(new Request('https://x/'), b);
     expect(r?.status).toBe(200);
-    expect(r?.headers.get('content-security-policy')).toBe("script-src 'self'");
+    expect(r?.headers.get('content-security-policy')).toBe("script-src 'self'; frame-src 'self'");
     expect(r?.headers.get('cache-control')).toBe('private, no-cache');
     expect(await r?.text()).toBe('<p>x</p>');
   });
@@ -53,5 +53,12 @@ describe('serveSite', () => {
   it('passes other paths and non-GET methods on', async () => {
     expect(await serveSite(new Request('https://x/login/'), b)).toBeNull();
     expect(await serveSite(new Request('https://x/', { method: 'POST' }), b)).toBeNull();
+  });
+});
+
+describe('framable', () => {
+  it('lets our own pages frame the dashboards and be framed by them', () => {
+    const built = "default-src 'none'; script-src 'self' 'sha256-x'; frame-src https://www.tiktok.com https://www.instagram.com; frame-ancestors 'none'";
+    expect(framable(built)).toBe("default-src 'none'; script-src 'self' 'sha256-x'; frame-src 'self' https://www.tiktok.com https://www.instagram.com; frame-ancestors 'self'");
   });
 });

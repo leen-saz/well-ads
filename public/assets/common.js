@@ -1,6 +1,7 @@
 // أدوات مشتركة: الطلبات، والأيقونات، والتواريخ، وهيكل التطبيق (القائمة الجانبية والشريط العلوي)
 import { LANG, t, langSwitch } from './i18n.js';
 import { SOON } from './tabs.js';
+import { keepTabs } from './keep.js';
 export { LANG, t, langSwitch };
 export const $ = (s, el = document) => el.querySelector(s);
 export const $$ = (s, el = document) => [...el.querySelectorAll(s)];
@@ -83,6 +84,7 @@ export async function shell({ active, title, badge = '', tools = '' }) {
   btn.onclick = e => { e.stopPropagation(); menu.hidden = !menu.hidden; btn.setAttribute('aria-expanded', String(!menu.hidden)); };
   document.addEventListener('click', e => { if (!menu.hidden && !menu.contains(e.target)) { menu.hidden = true; btn.setAttribute('aria-expanded', 'false'); } });
   $('#burger').onclick = () => app.classList.add('open');
+  keepTabs($('#side', app));
   $('.scrim', app).onclick = () => app.classList.remove('open');
   return me;
 }
