@@ -19,15 +19,18 @@ class JoinTests(unittest.TestCase):
         crm = join.attach(data, [
             lead(),                                                            # meta → first placement key
             lead(ad_id="444", status="booked", booked_at="2026-10-23T15:30:00Z", amount_paid_sar=500, booking_value_sar=5000),
+            lead(lead_id="L-9", ad_id="444", status="cancelled", booked_at="2026-10-23T15:30:00Z", booking_value_sar=800),
             lead(source_platform="snapchat_form", ad_id="222"),
             lead(source_platform="tiktok_form", ad_id="1.87649E+15", ad_id_quality="broken_by_import", ad_name="Doula video v2"),
             lead(source_platform="whatsapp_organic", ad_id=None),             # no ad: unmatched
             lead(source_platform="cold_outreach", ad_id="111"),               # not marketing: unmatched
         ])
         keys = [r[0] for r in crm["rows"]]
-        self.assertEqual(keys, ["m111|fb", "m444", "s222", "t333"])
+        self.assertEqual(keys, ["m111|fb", "m444", "m444", "s222", "t333"])
         self.assertEqual(crm["unmatched"], 2)
-        self.assertEqual(crm["total"], 6)
+        self.assertEqual(crm["total"], 7)
+        self.assertEqual(crm["rows"][2][2:], [0, 0.0, 0.0])  # cancelled booking: not a closing, no value
+        self.assertEqual(crm["stats"]["by_source"]["meta_form"][2], 1)
         self.assertEqual(crm["rows"][1][2:], [1, 500.0, 5000.0])
         self.assertIs(data["crm"], crm)
 

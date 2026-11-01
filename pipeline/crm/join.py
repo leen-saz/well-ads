@@ -55,17 +55,37 @@ def match(row, by_id, tt_names):
     return None
 
 
+def stats(leads, matched_ids):
+    """Counts for the run log, to compare with the CRM: by source, matched or not, and closings by month."""
+    by_src, by_month = {}, {}
+    for r in leads:
+        src = r.get("source_platform") or "?"
+        s = by_src.setdefault(src, [0, 0, 0])  # leads, matched, closings
+        s[0] += 1
+        s[1] += 1 if r.get("lead_id") in matched_ids else 0
+        if r.get("status") in ("booked", "attended"):
+            s[2] += 1
+            m = str(r.get("booked_at") or r.get("created_at"))[:7]
+            by_month[m] = by_month.get(m, 0) + 1
+    status = {}
+    for r in leads:
+        status[r.get("status") or "?"] = status.get(r.get("status") or "?", 0) + 1
+    return {"by_source": by_src, "closings_by_booking_month": dict(sorted(by_month.items())), "status": status}
+
+
 def attach(data, leads):
     by_id, tt_names = index(data.get("ads"))
-    out, unmatched = [], 0
+    out, unmatched, matched_ids = [], 0, set()
     for r in leads:
         key = match(r, by_id, tt_names)
         if not key:
             unmatched += 1
             continue
-        booked = 1 if r.get("booked_at") or r.get("status") in ("booked", "attended") else 0
+        matched_ids.add(r.get("lead_id"))
+        # A closing is a live booking: status booked/attended. A cancelled booking keeps booked_at, so it is not one.
+        booked = 1 if r.get("status") in ("booked", "attended") else 0
         out.append([key, day_of(r), booked, float(r.get("amount_paid_sar") or 0), float(r.get("booking_value_sar") or 0) if booked else 0.0])
-    data["crm"] = {"rows": out, "unmatched": unmatched, "total": len(leads),
+    data["crm"] = {"rows": out, "unmatched": unmatched, "total": len(leads), "stats": stats(leads, matched_ids),
                    "synced": datetime.now(RIYADH).isoformat(timespec="minutes"), "caveats": CAVEATS}
     return data["crm"]
 
@@ -89,6 +109,10 @@ def attach_from_db(data):
     try:
         crm = attach(data, load())
         print(f"crm: {len(crm['rows'])} leads matched to ads | {crm['unmatched']} without an ad")
+        st = crm["stats"]
+        print("crm status:", st["status"])
+        print("crm by source [leads, matched to an ad, closings]:", st["by_source"])
+        print("crm closings by booking month:", st["closings_by_booking_month"])
         return crm
     except Exception as ex:  # noqa: BLE001 - the dashboard must still build
         print("crm: skipped —", str(ex)[:160])
