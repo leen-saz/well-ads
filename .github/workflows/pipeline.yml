@@ -1,6 +1,6 @@
 name: pipeline
 
-# Phase 3.2: hourly read-only export of data.json from Supabase to the R2 bucket of staging.
+# Phase 3: hourly read-only export of data.json and the covers from Supabase to the R2 bucket of staging.
 # The old site's refresh-and-deploy (minute 7) stays the only writer to Supabase until cutover,
 # so this runs at minute 37 and only reads. Production gets its own run at cutover (phase 7).
 
@@ -43,6 +43,22 @@ jobs:
           node-version: "24"
           cache: npm
       - run: npm ci
+      # Cover names are content hashes, so a name already listed in thumbs/index.txt never changes.
+      # Only new covers are uploaded, before data.json, so every cover it references exists.
+      - name: Upload new covers to R2
+        run: |
+          set -euo pipefail
+          npx wrangler r2 object get "$BUCKET/thumbs/index.txt" --file prev.txt --remote >/dev/null 2>&1 || : > prev.txt
+          ls pipeline/thumbs > now.txt
+          new=0
+          while read -r f; do
+            case "$f" in *.jpg) t=image/jpeg ;; *.png) t=image/png ;; *.webp) t=image/webp ;; *.gif) t=image/gif ;; *) continue ;; esac
+            npx wrangler r2 object put "$BUCKET/thumbs/$f" --file "pipeline/thumbs/$f" --content-type "$t" --remote >/dev/null
+            new=$((new + 1))
+          done < <(sort now.txt | comm -13 <(sort prev.txt) -)
+          sort -u prev.txt now.txt > index.txt
+          npx wrangler r2 object put "$BUCKET/thumbs/index.txt" --file index.txt --content-type text/plain --remote >/dev/null
+          echo "::notice title=covers::$new new, $(wc -l < now.txt) in use"
       - name: Upload data.json to R2
         run: |
           npx wrangler r2 object put "$BUCKET/data.json" --file pipeline/data.json \

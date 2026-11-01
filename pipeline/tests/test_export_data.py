@@ -40,6 +40,27 @@ class ExportTests(unittest.TestCase):
         self.assertEqual(data["rows"], [["m1", "2026-10-30", 10.0, 100, 5, 1.0, 0]])
         self.assertEqual({m for m, _ in calls}, {"GET"})
 
+    def test_inline_thumbs_become_files(self):
+        png = "data:image/png;base64,iVBORw0KGgo="
+
+        def transport(method, url, data, headers):
+            if "/ads?" in url:
+                return [{"ad_key": "m1", "platform": "meta", "live": True, "doc": {"thumb": png}},
+                        {"ad_key": "m2", "platform": "meta", "live": True, "doc": {"thumb": "https://x/y.jpg"}}]
+            if "/ad_metrics?" in url:
+                return [{"ad_key": "m1", "day": "2026-10-30"}]
+            return [{"id": 1, "doc": {"organic": {"instagram": [{"posts": [{"thumb": png}]}]}}}]
+
+        with tempfile.TemporaryDirectory() as tmp:
+            thumbs = os.path.join(tmp, "thumbs")
+            data = export_data.export(os.path.join(tmp, "data.json"), transport=transport, thumbs_dir=thumbs)
+            files = os.listdir(thumbs)
+        self.assertEqual(len(files), 1)
+        self.assertTrue(files[0].endswith(".png"))
+        self.assertEqual(data["ads"]["m1"]["thumb"], "/thumbs/" + files[0])
+        self.assertEqual(data["ads"]["m2"]["thumb"], "https://x/y.jpg")
+        self.assertEqual(data["organic"]["instagram"][0]["posts"][0]["thumb"], "/thumbs/" + files[0])
+
     def test_empty_database_fails(self):
         def empty(method, url, data, headers):
             return []

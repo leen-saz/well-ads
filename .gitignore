@@ -17,3 +17,4 @@ test-results/
 # pipeline outputs
 pipeline/data.json
 pipeline/cache_ads.json
+pipeline/thumbs/
