@@ -1,0 +1,7 @@
+{
+  "_note": "مفتاح تشغيل لكل موديول. الموديول الغايب أو false ما يشتغل.",
+  "targets": true,
+  "suggest": true,
+  "critic": true,
+  "execute": true
+}
