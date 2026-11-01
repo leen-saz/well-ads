@@ -1,5 +1,6 @@
 // صفحة الربط: حالة كل منصة، وزر "اربط" (OAuth) أو الخانات اليدوية حسب توثيق المنصة.
 // القيم السرية تروح للسيرفر وما ترجع أبداً: الخانة المحفوظة تطلع "محفوظ" بس.
+import { t } from './i18n.js';
 import { $, $$, api, esc, icon, shell, say, toast, busy, when } from './common.js';
 
 const S = { list: [], q: '', open: null, fallback: new Set() };
@@ -86,7 +87,7 @@ $('#list').addEventListener('click', async e => {
   if (x) { S.open = null; render(); }
   if (d) {
     const p = S.list.find(y => y.id === d.dataset.drop);
-    if (!confirm(`فك ربط ${p.name}؟ المفاتيح المحفوظة تنمسح من الخزنة.`)) return;
+    if (!confirm(t(`فك ربط ${p.name}؟ المفاتيح المحفوظة تنمسح من الخزنة.`))) return;
     busy(d, true);
     try { await api('/api/connectors/disconnect', { method: 'POST', body: { platform: p.id } }); toast(`انفك ربط ${p.name}`); await load(); }
     catch (err) { busy(d, false); say($('#msg'), err.message); }
