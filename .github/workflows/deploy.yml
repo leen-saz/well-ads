@@ -96,7 +96,9 @@ jobs:
           if [ "$TARGET" = staging ]; then
             url="https://well-ads-staging.${{ steps.sub.outputs.sub }}.workers.dev"
           else
-            # Production has no workers.dev address; the Pages project in proxy/ is its public link
+            # Production has no workers.dev address; the Pages project in proxy/ is its public link.
+            # The Astro build's redirect file is only for the Worker deploy; Pages must read proxy/wrangler.jsonc.
+            rm -f .wrangler/deploy/config.json
             npx wrangler pages project list | grep -qw well-ads || npx wrangler pages project create well-ads --production-branch main
             (cd proxy && npx wrangler pages deploy --branch main --commit-dirty=true)
             res="$(curl -sS -H "Authorization: Bearer $CLOUDFLARE_API_TOKEN" \
