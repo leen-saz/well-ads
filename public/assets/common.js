@@ -2,6 +2,10 @@
 import { LANG, t, langSwitch } from './i18n.js';
 import { SOON } from './tabs.js';
 export { LANG, t, langSwitch };
+// Pages switch with Astro's ClientRouter: listeners on document/window of one page are removed when it leaves
+let PAGE = new AbortController();
+document.addEventListener('astro:before-swap', () => { PAGE.abort(); PAGE = new AbortController(); });
+export const pageSignal = () => PAGE.signal;
 export const $ = (s, el = document) => el.querySelector(s);
 export const $$ = (s, el = document) => [...el.querySelectorAll(s)];
 export const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
@@ -65,9 +69,14 @@ export function toast(text) {
 }
 export function busy(btn, on) { if (!btn) return; btn.classList.toggle('loading', on); btn.disabled = on; }
 
+let ME = null;
+// The dashboards (/ and /?view=…) are pipeline-built pages outside Astro: open them with a full load
+const FULL = h => (h === '/' || h.startsWith('/?')) ? ' data-astro-reload' : '';
 // الهيكل: قائمة جانبية بأيقونات + شريط علوي. tools = HTML لأدوات الشريط.
 export async function shell({ active, title, badge = '', tools = '' }) {
-  const me = await api('/api/account/password');
+  // The user's name and dashboards, read once and kept 5 minutes while moving between tabs
+  if (!ME || Date.now() - ME.t > 5 * 60 * 1000) ME = { t: Date.now(), v: await api('/api/account/password') };
+  const me = ME.v;
   // كل الأقسام تطلع للكل، واللي ما له صلاحية عليه يطلع مقفل
   const owner = me.role === 'owner';
   const items = [['/', 'التحليلات', 'chart', 'ceo', me.dashboards.includes('ceo')], ['/?view=creative', 'الكرييتف', 'image', 'creative', me.dashboards.includes('creative')], ['/maestro/', 'المايسترو', 'star', 'maestro', me.dashboards.includes('maestro')],
@@ -75,8 +84,8 @@ export async function shell({ active, title, badge = '', tools = '' }) {
     ['/connectors/', 'الربط', 'plug', 'connectors', me.dashboards.includes('connectors')]];
   const initials = (me.name || me.email).trim().split(/\s+/).map(w => w[0]).join('').slice(0, 2).toUpperCase();
   const app = $('#app');
-  $('#side', app).innerHTML = `<a class="brand mark" href="/" aria-label="Well">Well<i>.</i></a>
-    ${items.map(([h, t, ic, k, ok]) => ok ? `<a class="navi" href="${h}"${k === active ? ' aria-current="page"' : ''}>${icon(ic)}<span>${t}</span></a>`
+  $('#side', app).innerHTML = `<a class="brand mark" href="/" data-astro-reload aria-label="Well">Well<i>.</i></a>
+    ${items.map(([h, t, ic, k, ok]) => ok ? `<a class="navi" href="${h}"${FULL(h)}${k === active ? ' aria-current="page"' : ''}>${icon(ic)}<span>${t}</span></a>`
       : `<span class="navi locked" aria-disabled="true" data-tip="ما عندك صلاحية">${icon(ic)}<span>${t}</span>${icon('lock', 'lk')}</span>`).join('')}
     ${SOON.map(s => `<a class="navi soon" href="/soon/?t=${s.key}"${active === 'soon:' + s.key ? ' aria-current="page"' : ''}><svg class="i" viewBox="0 0 24 24" aria-hidden="true">${s.icon}</svg><span>${LANG === 'en' ? s.en : s.ar}</span><small class="tag">${LANG === 'en' ? 'Soon' : 'قريباً'}</small></a>`).join('')}
     <div class="grow"></div>
@@ -87,7 +96,7 @@ export async function shell({ active, title, badge = '', tools = '' }) {
   $('#top', app).innerHTML = `<div class="t"><button class="btn icon ghost burger" id="burger" aria-label="القائمة">${icon('menu')}</button><h1>${esc(title)}</h1>${badge}</div><div class="tools"><span id="tools">${tools}</span>${langSwitch()}</div>`;
   const menu = $('#meMenu'), btn = $('#meBtn');
   btn.onclick = e => { e.stopPropagation(); menu.hidden = !menu.hidden; btn.setAttribute('aria-expanded', String(!menu.hidden)); };
-  document.addEventListener('click', e => { if (!menu.hidden && !menu.contains(e.target)) { menu.hidden = true; btn.setAttribute('aria-expanded', 'false'); } });
+  document.addEventListener('click', e => { if (!menu.hidden && !menu.contains(e.target)) { menu.hidden = true; btn.setAttribute('aria-expanded', 'false'); } }, { signal: pageSignal() });
   $('#burger').onclick = () => app.classList.add('open');
   $('.scrim', app).onclick = () => app.classList.remove('open');
   return me;

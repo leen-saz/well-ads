@@ -1,4 +1,5 @@
 ---
+import { ClientRouter } from 'astro:transitions';
 // السوشال: تقويم المنشورات لكل شركة. النشر يشغّله Cron في الـ Worker (src/lib/social-cron.ts).
 ---
 <!doctype html>
@@ -13,6 +14,7 @@
 <link rel="preload" href="/assets/fonts/thmanyahsans-Regular.woff2" as="font" type="font/woff2" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@900&display=swap">
 <link rel="stylesheet" href="/assets/app.css">
+<ClientRouter />
 <style is:global>
 .so-grid{display:grid;grid-template-columns:minmax(0,420px) minmax(0,1fr);gap:16px;align-items:start}
 @media (max-width:1000px){.so-grid{grid-template-columns:1fr}}
@@ -26,9 +28,9 @@
 .so-note{font-size:13px;margin:8px 0 0;padding:10px 12px;border-radius:12px;background:var(--tint)}
 </style>
 </head>
-<body>
+<body data-page="social">
 <div class="app" id="app">
-  <aside class="side" id="side" aria-label="القائمة"></aside>
+  <aside class="side" id="side" aria-label="القائمة" transition:persist="side"></aside>
   <div class="scrim"></div>
   <div class="main">
     <header class="topbar" id="top"></header>
@@ -58,6 +60,6 @@
     </main>
   </div>
 </div>
-<script is:inline type="module" src="/assets/social.js"></script>
+<script is:inline type="module" src="/assets/router.js"></script>
 </body>
 </html>

@@ -1,4 +1,5 @@
 ---
+import { ClientRouter } from 'astro:transitions';
 // Ported as-is from well-ads-dashboard web/public/control/new/index.html
 ---
 <!doctype html>
@@ -13,10 +14,11 @@
 <link rel="preload" href="/assets/fonts/thmanyahsans-Regular.woff2" as="font" type="font/woff2" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@900&display=swap">
 <link rel="stylesheet" href="/assets/app.css">
+<ClientRouter />
 </head>
-<body>
+<body data-page="launch">
 <div class="app" id="app">
-  <aside class="side" id="side" aria-label="القائمة"></aside>
+  <aside class="side" id="side" aria-label="القائمة" transition:persist="side"></aside>
   <div class="scrim"></div>
   <div class="main">
     <header class="topbar" id="top"></header>
@@ -26,6 +28,6 @@
     </main>
   </div>
 </div>
-<script is:inline type="module" src="/assets/launch.js"></script>
+<script is:inline type="module" src="/assets/router.js"></script>
 </body>
 </html>
