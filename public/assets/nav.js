@@ -13,6 +13,7 @@ const P = {
   calendar: '<rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/>',
   route: '<circle cx="6" cy="19" r="3"/><path d="M9 19h8.5a3.5 3.5 0 0 0 0-7h-11a3.5 3.5 0 0 1 0-7H15"/><circle cx="18" cy="5" r="3"/>',
   pen: '<path d="M12 20h9"/><path d="M16.4 3.6a2 2 0 0 1 3 3L7 19l-4 1 1-4Z"/>',
+  star: '<path d="M12 3l1.9 5.8L20 11l-6.1 2.2L12 19l-1.9-5.8L4 11l6.1-2.2Z"/>',
   user: '<circle cx="12" cy="8" r="4"/><path d="M20 21a8 8 0 0 0-16 0"/>',
   out: '<path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><path d="m16 17 5-5-5-5"/><path d="M21 12H9"/>',
   lock: '<rect x="4" y="11" width="16" height="10" rx="2"/><path d="M8 11V7a4 4 0 0 1 8 0v4"/>',
@@ -33,7 +34,7 @@ if (!me) {
 if (me) {
   const creative = /view=creative/.test(location.search) || location.pathname.startsWith('/creative');
   const has = k => me.dashboards.includes(k), owner = me.role === 'owner';
-  const items = [['/', L('التحليلات', 'Analytics'), 'chart', !creative, has('ceo')], ['/?view=creative', L('الكرييتف', 'Creative'), 'image', creative, has('creative')],
+  const items = [['/', L('التحليلات', 'Analytics'), 'chart', !creative, has('ceo')], ['/?view=creative', L('الكرييتف', 'Creative'), 'image', creative, has('creative')], ['/maestro/', L('المايسترو', 'Maestro'), 'star', false, has('maestro')],
     ['/control/', L('لوحة القرارات', 'Decision board'), 'gavel', false, has('control')], ['/social/', L('السوشال', 'Social'), 'calendar', false, has('social')], ['/journeys/', L('الرحلات والرسائل', 'Journeys'), 'route', false, has('journeys')], ['/content/', L('المحتوى و SEO', 'Content & SEO'), 'pen', false, has('content')],
     ['/connectors/', L('الربط', 'Connectors'), 'plug', false, has('connectors')], ['/admin/', L('الصلاحيات والدخول', 'Access & sign-in'), 'users', false, owner]];
   const initials = (me.name || me.email).trim().split(/\s+/).map(w => w[0]).join('').slice(0, 2).toUpperCase();

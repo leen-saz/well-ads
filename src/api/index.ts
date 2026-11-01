@@ -8,6 +8,7 @@ import * as control from './routes/control';
 import * as social from './routes/social';
 import * as journeys from './routes/journeys';
 import * as content from './routes/content';
+import * as maestro from './routes/maestro';
 
 type Group = Record<string, Partial<Record<string, Handler>>>;
 const notFound = () => json(404, { error: 'غير موجود' });
@@ -30,5 +31,6 @@ api.all('/control/:action', group(control));
 api.all('/social/:action', group(social));
 api.all('/journeys/:action', group(journeys));
 api.all('/content/:action', group(content));
+api.all('/maestro/:action', group(maestro));
 
 api.notFound(() => json(404, { ok: false, error: 'not_found' }));

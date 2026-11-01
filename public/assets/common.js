@@ -26,6 +26,7 @@ const P = {
   calendar: '<rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/>',
   route: '<circle cx="6" cy="19" r="3"/><path d="M9 19h8.5a3.5 3.5 0 0 0 0-7h-11a3.5 3.5 0 0 1 0-7H15"/><circle cx="18" cy="5" r="3"/>',
   pen: '<path d="M12 20h9"/><path d="M16.4 3.6a2 2 0 0 1 3 3L7 19l-4 1 1-4Z"/>',
+  star: '<path d="M12 3l1.9 5.8L20 11l-6.1 2.2L12 19l-1.9-5.8L4 11l6.1-2.2Z"/>',
   user: '<circle cx="12" cy="8" r="4"/><path d="M20 21a8 8 0 0 0-16 0"/>',
   out: '<path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><path d="m16 17 5-5-5-5"/><path d="M21 12H9"/>',
   menu: '<path d="M4 6h16M4 12h16M4 18h16"/>',
@@ -69,7 +70,7 @@ export async function shell({ active, title, badge = '', tools = '' }) {
   const me = await api('/api/account/password');
   // كل الأقسام تطلع للكل، واللي ما له صلاحية عليه يطلع مقفل
   const owner = me.role === 'owner';
-  const items = [['/', 'التحليلات', 'chart', 'ceo', me.dashboards.includes('ceo')], ['/?view=creative', 'الكرييتف', 'image', 'creative', me.dashboards.includes('creative')],
+  const items = [['/', 'التحليلات', 'chart', 'ceo', me.dashboards.includes('ceo')], ['/?view=creative', 'الكرييتف', 'image', 'creative', me.dashboards.includes('creative')], ['/maestro/', 'المايسترو', 'star', 'maestro', me.dashboards.includes('maestro')],
     ['/control/', 'لوحة القرارات', 'gavel', 'control', me.dashboards.includes('control')], ['/social/', 'السوشال', 'calendar', 'social', me.dashboards.includes('social')], ['/journeys/', 'الرحلات والرسائل', 'route', 'journeys', me.dashboards.includes('journeys')], ['/content/', 'المحتوى و SEO', 'pen', 'content', me.dashboards.includes('content')],
     ['/connectors/', 'الربط', 'plug', 'connectors', me.dashboards.includes('connectors')], ['/admin/', 'الصلاحيات والدخول', 'users', 'admin', owner]];
   const initials = (me.name || me.email).trim().split(/\s+/).map(w => w[0]).join('').slice(0, 2).toUpperCase();
