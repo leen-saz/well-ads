@@ -18,3 +18,5 @@ test-results/
 pipeline/data.json
 pipeline/cache_ads.json
 pipeline/thumbs/
+pipeline/web/
+pipeline/well-ads-dashboard.html

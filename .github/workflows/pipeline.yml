@@ -38,6 +38,15 @@ jobs:
           SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
           SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
         run: python export_data.py
+      # Phase 4.1: the same pages the live site serves (build.py), so staging shows identical numbers
+      - name: Build the dashboards (build.py)
+        working-directory: pipeline
+        run: |
+          set -euo pipefail
+          pip install --disable-pip-version-check -q "Pillow==11.3.0"
+          python build.py
+          jq -r '.headers[0].headers[] | select(.key == "Content-Security-Policy") | .value' web/vercel.json > web/csp.txt
+          test -s web/csp.txt
       - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
         with:
           node-version: "24"
@@ -59,6 +68,17 @@ jobs:
           sort -u prev.txt now.txt > index.txt
           npx wrangler r2 object put "$BUCKET/thumbs/index.txt" --file index.txt --content-type text/plain --remote >/dev/null
           echo "::notice title=covers::$new new, $(wc -l < now.txt) in use"
+      - name: Upload the dashboards to R2
+        working-directory: pipeline/web
+        run: |
+          set -euo pipefail
+          put() { npx wrangler r2 object put "$BUCKET/site/$1" --file "$2" --content-type "$3" --remote >/dev/null; }
+          put csp.txt csp.txt "text/plain; charset=utf-8"
+          put control/ads.json public/control/ads.json "application/json"
+          for f in public/c/index.html public/dept/*/index.html public/index.html; do
+            put "${f#public/}" "$f" "text/html; charset=utf-8"
+          done
+          echo "::notice title=dashboards::$(find public -name index.html | wc -l) pages uploaded"
       - name: Upload data.json to R2
         run: |
           npx wrangler r2 object put "$BUCKET/data.json" --file pipeline/data.json \
