@@ -114,6 +114,16 @@ jobs:
           fi
           python build.py
 
+      # Well CRM (Marketing API v1, read-only): leads, bookings and Moyasar payments per ad, upserted by lead_id
+      - name: CRM leads
+        continue-on-error: true
+        working-directory: pipeline
+        env:
+          CRM_API_KEY: ${{ secrets.CRM_API_KEY }}
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+        run: python -m crm.fetch
+
       - name: Decision board suggestions (read-only on ad accounts)
         continue-on-error: true
         env:
