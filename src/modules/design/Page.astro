@@ -1,0 +1,101 @@
+---
+import { ClientRouter } from 'astro:transitions';
+// التصميم: بريف من أفضل إعلاناتنا، نصوص مفحوصة، ومعاينة لكل مقاس (النص طبقة فوق الصورة).
+---
+<!doctype html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="robots" content="noindex,nofollow">
+<meta name="referrer" content="no-referrer">
+<meta name="theme-color" content="#F6F0E3">
+<title>التصميم · Well</title>
+<link rel="preload" href="/assets/fonts/thmanyahsans-Regular.woff2" as="font" type="font/woff2" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@900&display=swap">
+<link rel="stylesheet" href="/assets/app.css">
+<ClientRouter />
+<style is:global>
+.dg-sum{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,180px),1fr));gap:12px;margin:0 0 16px}
+.dg-sum .card{padding:14px 16px;display:grid;gap:2px}
+.dg-sum b{font:700 26px var(--f-num);color:var(--ink)}
+.dg-sum span{font-size:13px;color:var(--muted)}
+.dg-list{display:grid;gap:10px}
+.dg-f{padding:14px 16px;display:grid;gap:6px;border-inline-start:4px solid var(--soft)}
+.dg-f.critical{border-inline-start-color:var(--pulse)}
+.dg-f.warn{border-inline-start-color:var(--accent)}
+.dg-f h3{margin:0;font-size:15px}
+.dg-f p{margin:0;font-size:14px}
+.dg-fix{padding:8px 12px;border-radius:12px;background:var(--tint);font-size:14px}
+.dg-tag{font-size:12px;padding:2px 10px;border-radius:999px;background:var(--tint-2);justify-self:start}
+.dg-plat{width:100%;border-collapse:collapse;font-size:14px}
+.dg-plat th,.dg-plat td{padding:8px 10px;text-align:start;border-bottom:1px solid var(--line)}
+.dg-plat td.n{font-family:var(--f-num)}
+.dg-ok{padding:18px;text-align:center}
+.cp-q{margin:0;padding:8px 12px;border-radius:12px;background:var(--tint);font-size:14px;white-space:pre-wrap}
+.cp-q mark{background:color-mix(in srgb,var(--pulse) 22%,transparent);color:inherit;border-radius:4px;padding:0 2px}
+.cp-hit{display:grid;gap:4px;padding:10px 0;border-top:1px solid var(--line)}
+.cp-hit:first-of-type{border-top:0}
+.ls-kw{display:flex;gap:6px;flex-wrap:wrap;margin:0 0 14px}
+.ls-x{border:0;background:none;cursor:pointer;font-size:15px;line-height:1;padding:0 2px;color:var(--muted);min-width:24px;min-height:24px}
+.ls-out{display:grid;gap:16px;min-width:0}
+.so-grid{display:grid;grid-template-columns:minmax(0,420px) minmax(0,1fr);gap:16px;align-items:start}
+@media (max-width:1000px){.so-grid{grid-template-columns:1fr}}
+.dz-sizes{border:0;padding:0;margin:12px 0 0;display:grid;gap:6px}.dz-sizes legend{font-weight:600;margin-bottom:6px}
+.dz-sizes label{display:flex;gap:8px;align-items:center;min-height:32px}
+.dz-vars{display:grid;gap:8px}
+.dz-var{position:relative;padding:12px 14px;display:grid;gap:4px;cursor:pointer;border:1px solid transparent}
+.dz-var.on{border-color:var(--accent)}
+.dz-var input{position:absolute;opacity:0;pointer-events:none}
+.dz-var:focus-within{outline:2px solid var(--accent);outline-offset:2px}
+.dz-flag{font-size:12px;color:#B42318}
+.dz-edit{display:grid;gap:4px;margin-top:12px}
+.dz-prev{display:grid;grid-template-columns:repeat(auto-fill,minmax(min(100%,240px),1fr));gap:14px;align-items:start}
+.dz-fig{margin:0;display:grid;gap:8px}
+.dz-fig canvas{width:100%;height:auto;border-radius:16px;box-shadow:var(--shadow)}
+.dz-fig figcaption{display:flex;justify-content:space-between;align-items:center;gap:8px;font-size:13px;flex-wrap:wrap}
+#addKw{flex-wrap:wrap;flex:1 1 280px;min-width:0;max-width:460px}
+#addKw input{flex:1 1 140px;min-width:0;margin:0}
+.ls-out h2{margin:0 0 10px}
+.ls-topics{display:flex;gap:6px;flex-wrap:wrap}
+.ls-post{padding:12px 14px;display:grid;gap:8px}
+.ls-alert td{font-weight:700}
+.cp-meta{display:flex;gap:8px;flex-wrap:wrap;align-items:center;font-size:13px}
+</style>
+</head>
+<body data-page="design" data-module>
+<div class="app" id="app">
+  <aside class="side" id="side" aria-label="القائمة" transition:persist="side"></aside>
+  <div class="scrim"></div>
+  <div class="main">
+    <header class="topbar" id="top"></header>
+    <main class="content" id="content">
+      <p class="muted" style="margin:0 0 14px">يبني بريف التصميم من أفضل إعلاناتنا، ويقترح نصوص مفحوصة على قواعد الامتثال، ويرسم معاينة لكل مقاس. النص دايم طبقة فوق الصورة، والصورة ما تطلع من جهازك.</p>
+      <div class="so-grid">
+        <section class="card pad">
+          <h2>البريف</h2>
+          <form id="f" novalidate>
+            <label for="type">النوع</label><select id="type"><option value="ad">إعلان</option><option value="post">بوست عضوي</option><option value="story">ستوري</option></select>
+            <label for="offer">وش نعلن عنه</label><input id="offer" type="text" placeholder="مثال: جلسة فيتامين سي بالوريد في البيت">
+            <label for="aud">الفئة المستهدفة</label><input id="aud" type="text" placeholder="مثال: الموظفين اللي يحسون بإرهاق">
+            <label for="dept">القسم</label><select id="dept"><option value="">بدون</option><option value="المحاليل الوريدية">المحاليل الوريدية</option><option value="القبالة / رعاية الحمل">القبالة / رعاية الحمل</option><option value="تقويم القدم">تقويم القدم</option><option value="رينان لصحة الطفل">رينان لصحة الطفل</option></select>
+            <fieldset class="dz-sizes"><legend>المقاسات</legend>
+              <label><input type="checkbox" name="size" value="square" checked> مربع 1080×1080</label>
+              <label><input type="checkbox" name="size" value="story" checked> ستوري 1080×1920</label>
+              <label><input type="checkbox" name="size" value="portrait"> طولي 1080×1350</label>
+              <label><input type="checkbox" name="size" value="landscape"> عرضي 1200×628</label></fieldset>
+            <label for="photo">صورة المنتج أو الخدمة <span class="muted">(تبقى في جهازك)</span></label><input id="photo" type="file" accept="image/*">
+            <div class="bar" style="margin-top:14px"><button class="btn primary" type="submit">جهّز البريف</button></div>
+            <div class="msg" id="msg" role="status"></div>
+          </form>
+        </section>
+        <div class="ls-out"><section class="card pad" id="ref"><p class="muted">املأ البريف واضغط "جهّز البريف".</p></section><section class="card pad" id="vars"></section></div>
+      </div>
+      <h2 style="margin:18px 0 10px">المعاينة</h2>
+      <div class="dz-prev" id="prev"></div>
+    </main>
+  </div>
+</div>
+<script is:inline type="module" src="/assets/router.js"></script>
+</body>
+</html>
