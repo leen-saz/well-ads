@@ -564,10 +564,13 @@ const EN = {
   'ميتا · جوجل · سناب شات · تيك توك — كل المبالغ بالريال السعودي':'Meta · Google · Snapchat · TikTok — amounts in Saudi riyals',
   'ميتا · سناب شات · تيك توك — كل المبالغ بالريال السعودي':'Meta · Snapchat · TikTok — amounts in Saudi riyals',
   'قارن جنب بعض':'Compare side by side',
-  'الاقفالات (CRM)':'Closings (CRM)',
+  'الاقفالات (مدفوعة)':'Closings (paid)',
+  'المدفوع':'Paid',
+  'الاقفالات حسب':'Closings by',
+  'يوم الليد':'Lead day',
+  'يوم الدفع':'Payment day',
   'تكلفة الاقفالة':'Cost per closing',
   'نسبة الاقفال':'Close rate',
-  'قيمة الحجوزات':'Booking value',
   'الاقفالات':'Closings',
   'مسح':'Clear',
   'صفحات فيسبوك · إنستغرام · تيك توك · تحليلات الموقع':'Facebook · Instagram · TikTok pages · site analytics',
@@ -1032,7 +1035,7 @@ function modeFromUrl(){
 }
 // /creative (or ?view=creative): only the creative wall and the KPIs above it
 const CREATIVE_ONLY = /^\/(creative|c)\/?$/.test(location.pathname) || new URLSearchParams(location.search).get('view')==='creative';
-const S = {mode:CREATIVE_ONLY?'ads':modeFromUrl(), page:CREATIVE_ONLY?'creative':'overview', dept:'', from:addDays(MAX,-6), to:MAX, preset:'7', plat:'all', stat:'all', wall:'all', q:'', sort:'spend', shown:24, orgQ:'', orgSort:'date', orgShown:24, camp:'', goal:'', fmt:'', gran:'auto', open:new Set()};
+const S = {mode:CREATIVE_ONLY?'ads':modeFromUrl(), page:CREATIVE_ONLY?'creative':'overview', dept:'', from:addDays(MAX,-6), to:MAX, preset:'7', plat:'all', stat:'all', wall:'all', q:'', sort:'spend', shown:24, orgQ:'', orgSort:'date', orgShown:24, camp:'', goal:'', fmt:'', gran:'auto', open:new Set(), crmBy:'lead'};
 try{ const p=JSON.parse(localStorage.getItem('well-ads-ui')||'{}'); if(p.preset){const pr=PRESETS.find(x=>x[0]===p.preset); if(pr){[S.from,S.to]=pr[2]();S.preset=p.preset;}} else if(/^\d{4}-\d{2}-\d{2}$/.test(p.from||'') && /^\d{4}-\d{2}-\d{2}$/.test(p.to||'')){ S.from=clamp(p.from); S.to=clamp(p.to); if(S.from>S.to)[S.from,S.to]=[S.to,S.from]; S.preset=null; } if(p.plat) S.plat=p.plat; if(p.sort) S.sort=p.sort; if(p.orgSort) S.orgSort=p.orgSort; if(p.stat==='live'||p.stat==='off'){ S.stat=p.stat; S.wall=p.stat==='live'?'on':'off'; } }catch(e){}
 if(HIDDEN_PLAT.has(S.plat)) S.plat='all';
 if(HIDDEN_DEPT.has(S.dept)) S.dept='';
@@ -1144,14 +1147,15 @@ function agg(from,to){
     const d = byDay[date] ||= {}; const dp = d[a.platform] ||= {spend:0,leads:0,ls:0,ln:0}; dp.spend+=sp; dp.leads+=ld; dp.ls+=lg; dp.ln+=ln;
     const p = byPlat[a.platform] ||= {spend:0,impr:0,clicks:0,leads:0,conv:0,leadSpend:0,leadN:0,ads:new Set()}; p.spend+=sp;p.impr+=im;p.clicks+=cl;p.leads+=ld;p.conv+=cv;p.leadSpend+=lg;p.leadN+=ln;p.ads.add(k);
   }
-  // CRM (pipeline/crm/join.py): leads matched to ads, by lead day: closings, Moyasar paid, booking value
-  for(const [k,date,bk,paid,val] of ((D.crm&&D.crm.rows)||[])){
-    if(date<from||date>to) continue;
-    const a = ADS[k]; if(!a || !matchesSlice(a)) continue;
-    const o = byAd[k] ||= {spend:0,impr:0,clicks:0,leads:0,conv:0,leadSpend:0,leadN:0,days:{}};
-    o.crmLeads=(o.crmLeads||0)+1; o.booked=(o.booked||0)+bk; o.paid=(o.paid||0)+paid; o.value=(o.value||0)+val;
-    const p = byPlat[a.platform] ||= {spend:0,impr:0,clicks:0,leads:0,conv:0,leadSpend:0,leadN:0,ads:new Set()};
-    p.crmLeads=(p.crmLeads||0)+1; p.booked=(p.booked||0)+bk; p.paid=(p.paid||0)+paid; p.value=(p.value||0)+val;
+  // CRM (pipeline/crm/join.py): leads matched to ads. A closing is a payment; its value is the amount paid.
+  // Leads count on their own day; closings on the lead's day or on the payment day (S.crmBy), as Leen picks.
+  const add = (k,f,v) => { const a = ADS[k]; if(!a || !matchesSlice(a)) return;
+    const o = byAd[k] ||= {spend:0,impr:0,clicks:0,leads:0,conv:0,leadSpend:0,leadN:0,days:{}}; o[f]=(o[f]||0)+v;
+    const p = byPlat[a.platform] ||= {spend:0,impr:0,clicks:0,leads:0,conv:0,leadSpend:0,leadN:0,ads:new Set()}; p[f]=(p[f]||0)+v; };
+  for(const [k,leadDay,paidDay,paid,amount] of ((D.crm&&D.crm.rows)||[])){
+    if(leadDay>=from && leadDay<=to) add(k,'crmLeads',1);
+    const d = S.crmBy==='paid' ? paidDay : leadDay;
+    if(paid && d && d>=from && d<=to){ add(k,'booked',1); add(k,'value',amount); }
   }
   const tot = {spend:0,impr:0,clicks:0,leads:0,conv:0,leadSpend:0,leadN:0,crmLeads:0,booked:0,paid:0,value:0};
   for(const p of Object.values(byPlat)){for(const f in tot) tot[f]+=(p[f]||0);}
@@ -1276,6 +1280,7 @@ function delta(a,b,lowerIsBetter){
   const up = ch>0, good = lowerIsBetter ? !up : up;
   return `<span class="delta ${good?'good':'bad'}">${up?'▲':'▼'} ${fmt(Math.abs(ch),1)}% <span style="color:var(--muted)">${tr('عن الفترة السابقة')}</span></span>`;
 }
+document.addEventListener('click', e => { const b = e.target.closest && e.target.closest('[data-crmby]'); if(!b) return; S.crmBy = b.dataset.crmby; render(); });
 function renderKpis(now,prev){
   const a=derive(now.tot), b=cur&&cur.compareOk&&prev?derive(prev.tot):{};
   const K=[
@@ -1283,10 +1288,10 @@ function renderKpis(now,prev){
     ['الليدز',qty(a.leads),'',delta(a.leads,b.leads,false)],
     ['تكلفة الليد',sar(a.cpl),money(),delta(a.cpl,b.cpl,true)],
     ...(D.crm ? [
-      ['الاقفالات (CRM)',fmt(a.booked||0),'',delta(a.booked,b.booked,false)],
+      ['الاقفالات (مدفوعة)',fmt(a.booked||0),'',delta(a.booked,b.booked,false)],
       ['تكلفة الاقفالة',sar(a.cpb),money(),delta(a.cpb,b.cpb,true)],
       ['نسبة الاقفال',pct(a.closeRate),'',delta(a.closeRate,b.closeRate,false)],
-      ['قيمة الحجوزات',sar(a.value||0),money(),delta(a.value,b.value,false)],
+      ['المدفوع',sar(a.value||0),money(),delta(a.value,b.value,false)],
       ['ROAS',a.roas==null?'—':fmt(a.roas,2)+'×','',delta(a.roas,b.roas,false)],
     ] : []),
     ['محادثات واتساب وماسنجر',fmt(a.conv),'',delta(a.conv,b.conv,false)],
@@ -1296,7 +1301,10 @@ function renderKpis(now,prev){
     ['تكلفة النقرة',sar(a.cpc),money(),delta(a.cpc,b.cpc,true)],
     ['تكلفة الألف ظهور',sar(a.cpm),money(),delta(a.cpm,b.cpm,true)],
   ];
-  $('#kpis').innerHTML = K.map(([l,v,u,d,hero])=>`<div class="kpi${hero?' hero':''}"><span class="l">${l}</span><span class="v">${v}${u?`<small>${u}</small>`:''}</span>${d.replace('class="delta','class="delta').replace(/delta (good|bad)">/, (m,g)=> l==='الصرف' ? 'delta flat">' : m)}</div>`).join('');
+  const by = D.crm ? `<div class="kpi crm-by"><span class="l">${tr('الاقفالات حسب')}</span><span class="seg" role="group">`
+    + [['lead','يوم الليد'],['paid','يوم الدفع']].map(([v,l])=>`<button type="button" data-crmby="${v}" aria-pressed="${(S.crmBy||'lead')===v}">${tr(l)}</button>`).join('')
+    + `</span></div>` : '';
+  $('#kpis').innerHTML = by + K.map(([l,v,u,d,hero])=>`<div class="kpi${hero?' hero':''}"><span class="l">${l}</span><span class="v">${v}${u?`<small>${u}</small>`:''}</span>${d.replace('class="delta','class="delta').replace(/delta (good|bad)">/, (m,g)=> l==='الصرف' ? 'delta flat">' : m)}</div>`).join('');
 }
 
 function noteCard(title, line, alert){
