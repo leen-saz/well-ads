@@ -15,6 +15,15 @@ import { ClientRouter } from 'astro:transitions';
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@900&display=swap">
 <link rel="stylesheet" href="/assets/app.css">
 <ClientRouter />
+<style is:global>
+.acc{display:grid;grid-template-columns:repeat(auto-fill,minmax(230px,1fr));gap:8px;margin:6px 0 0}
+.acc-row{display:flex;align-items:center;gap:8px;padding:6px 10px;border:1px solid var(--line);border-radius:12px}
+.acc-row span{flex:1;font-size:14px}
+.acc-row select{width:auto;margin:0;height:34px;padding:0 10px;font-size:13px}
+.acc-presets{display:flex;gap:6px;flex-wrap:wrap;margin:6px 0 0}
+.acc-sum{display:flex;gap:4px;flex-wrap:wrap}
+.acc-edit td{background:var(--tint)}
+</style>
 </head>
 <body data-page="admin">
 <div class="app" id="app">
@@ -31,7 +40,7 @@ import { ClientRouter } from 'astro:transitions';
             <div style="flex:1;min-width:220px"><label for="email">الإيميل</label><input type="email" id="email" required></div>
             <div style="flex:1;min-width:180px"><label for="name">الاسم</label><input type="text" id="name"></div>
           </div>
-          <label>اللوحات المسموحة</label><div class="checks" id="dashChecks"></div>
+          <label>الصلاحيات <span class="muted">(لكل تاب: مشاهدة، تعديل، أو موافقة)</span></label><div class="acc-presets" id="presets"></div><div class="acc" id="dashChecks"></div>
           <label>الأقسام المسموحة <span class="muted">(بدون تحديد = كل الأقسام. مدير القسم يشوف تحليلات قسمه بس)</span></label><div class="checks" id="deptChecks"></div>
           <div class="bar" style="margin-top:20px"><button class="btn primary" type="submit">أرسل الدعوة</button></div>
           <div class="msg" id="addMsg" role="status"></div>

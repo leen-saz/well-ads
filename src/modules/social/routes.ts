@@ -1,6 +1,6 @@
 // /api/social/*: the post calendar of the user's company. Reads need the `social` dashboard, writes are same-origin.
 // Publishing itself runs from the Worker cron (src/modules/social/cron.ts), never from the browser.
-import { sb, json, readJson, handle, requireUser, audit } from '../../lib/auth';
+import { sb, json, readJson, handle, requireUser, audit, atLeast, NO_APPROVE } from '../../lib/auth';
 import { scoped } from '../../lib/tenant';
 import { SOCIAL, validate } from './social';
 
@@ -33,6 +33,7 @@ export const posts = {
     const body = await readJson(request);
     const id = parseInt(String(body.id), 10);
     const act = String(body.action || '');
+    if (act === 'approve' && !atLeast(user, 'social', 'approve', cfg)) return json(403, { error: NO_APPROVE });
     if (!id || !['approve', 'cancel'].includes(act)) return json(400, { error: 'طلب غير صحيح' });
     const patch = act === 'approve' ? { approved_by: user.email, approved_at: new Date().toISOString() } : { status: 'cancelled' };
     const r = await sb<Row[]>(cfg, scoped(`/rest/v1/social_posts?id=eq.${id}&status=eq.scheduled`, user.co), { method: 'PATCH', admin: true, headers: { Prefer: 'return=representation' }, body: patch });

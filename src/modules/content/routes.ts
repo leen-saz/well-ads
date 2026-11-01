@@ -1,5 +1,5 @@
 // /api/content/*: the content + SEO/AEO agent of the user's company. Analyze -> plan -> approve each item -> draft -> publish.
-import { sb, json, readJson, handle, requireUser, audit, type AuthEnv } from '../../lib/auth';
+import { sb, json, readJson, handle, requireUser, audit, atLeast, NO_APPROVE, type AuthEnv } from '../../lib/auth';
 import { scoped, WELL_COMPANY } from '../../lib/tenant';
 import { AI_MODEL, PUBLISH, crawl, normalizeSite, plan, searchConsole, type AiRun, type Item } from './content';
 
@@ -39,6 +39,7 @@ export const analyze = { POST: handle(async (request, e: AiEnv) => {
 export const item = { PATCH: handle(async (request, e: AiEnv) => {
   const { cfg, user } = await requireUser(request, e, 'content', { write: true });
   const body = await readJson(request);
+  if (['approve', 'reject'].includes(String(body.action)) && !atLeast(user, 'content', 'approve', cfg)) return json(403, { error: NO_APPROVE });
   const id = parseInt(String(body.plan), 10), itemId = String(body.item || ''), act = String(body.action || '');
   if (!id || !itemId || !['approve', 'reject', 'done', 'draft'].includes(act)) return json(400, { error: 'طلب غير صحيح' });
   const got = await sb<Row[]>(cfg, scoped(`/rest/v1/content_plans?id=eq.${id}&select=*`, user.co), { admin: true });

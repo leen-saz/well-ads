@@ -14,8 +14,14 @@ export const DASHBOARDS: Record<string, string> = { ...CORE, ...Object.fromEntri
 export const DEPTS = { iv: 'المحاليل الوريدية', midwife: 'القبالة / رعاية الحمل', foot: 'تقويم القدم', renan: 'رينان لصحة الطفل' } as const;
 export const PASSWORD_MIN = 10;
 export const LOCKED = 'هالموديول مقفل لشركتك';
+export const VIEW_ONLY = 'صلاحيتك هنا مشاهدة بس';
+export const NO_APPROVE = 'الموافقة تحتاج صلاحية موافقة';
 
 export type Dashboard = string;
+// Per dashboard/module: view < edit < approve. Owners have approve everywhere.
+export const LEVELS = ['view', 'edit', 'approve'] as const;
+export type Level = typeof LEVELS[number];
+const rank = (l: string | undefined) => (l ? LEVELS.indexOf(l as Level) : -1);
 export type Dept = keyof typeof DEPTS;
 export type Need = Dashboard | 'any' | 'owner' | 'media';
 
@@ -32,6 +38,7 @@ export interface Session {
   dash: Dashboard[]; depts: Dept[];
   co: string; // company id (SaaS); owner = owner of this company only
   off?: string[]; // modules locked for this company (companies.disabled_modules)
+  lvl?: Record<string, Level>; // level per dashboard (profiles.access)
   exp: number; chk: number;
   stale?: boolean;
 }
@@ -40,6 +47,7 @@ export interface Profile {
   dashboards?: string[] | null; departments?: string[] | null; active?: boolean | null;
   company_id?: string | null;
   company?: { disabled_modules?: string[] | null } | null;
+  access?: Record<string, string> | null;
 }
 
 export function env(e: AuthEnv): Cfg {
@@ -140,13 +148,22 @@ export function home(s: Session, cfg?: Cfg): string {
 export const safePath = (p: unknown): string =>
   typeof p === 'string' && /^\/(?!\/)[^\s\\]*$/.test(p) ? p : '';
 
+export function levelsOf(p: Profile): Record<string, Level> {
+  const src = p.access && Object.keys(p.access).length ? p.access : Object.fromEntries((p.dashboards || []).map(d => [d, 'approve']));
+  return Object.fromEntries(Object.entries(src).filter(([k, l]) => k in DASHBOARDS && rank(l) >= 0)) as Record<string, Level>;
+}
+// The user's level on a dashboard/module is at least `min`
+export const atLeast = (s: Session, key: string, min: Level, cfg?: Cfg): boolean => isOwner(s, cfg) || rank(s.lvl?.[key]) >= rank(min);
 export function sessionFor(profile: Profile, cfg: Cfg, now = Date.now()): Session {
   const email = String(profile.email || '').toLowerCase();
   const owner = email === cfg.owner || profile.role === 'owner';
+  // access wins; profiles without it (before migration 012) keep full use of their dashboards, as before
+  const lvl = owner ? Object.fromEntries(Object.keys(DASHBOARDS).map(k => [k, 'approve' as Level])) : levelsOf(profile);
   return {
     uid: profile.id, email, name: profile.name || '',
     role: owner ? 'owner' : 'member',
-    dash: owner ? (Object.keys(DASHBOARDS) as Dashboard[]) : ((profile.dashboards || []).filter(d => d in DASHBOARDS) as Dashboard[]),
+    dash: Object.keys(lvl),
+    lvl,
     depts: owner ? [] : ((profile.departments || []).filter(d => d in DEPTS) as Dept[]),
     co: companyOf(profile.company_id),
     off: (profile.company?.disabled_modules || []).filter(isModule),
@@ -221,7 +238,7 @@ export async function readJson(request: Request, limit = 20000): Promise<Record<
 }
 
 // For the API: cookie + permissions re-read from the DB every time (the source of truth). Throws a Response on refusal.
-export async function requireUser(request: Request, e: AuthEnv, need: Need, { write = false } = {}): Promise<{ cfg: Cfg; user: Session }> {
+export async function requireUser(request: Request, e: AuthEnv, need: Need, { write = false, approve = false } = {}): Promise<{ cfg: Cfg; user: Session }> {
   let cfg: Cfg;
   try { cfg = env(e); } catch { throw json(503, { error: 'الإعداد غير مكتمل' }); }
   if (write && !sameOrigin(request)) throw json(403, { error: 'طلب مرفوض' });
@@ -232,6 +249,9 @@ export async function requireUser(request: Request, e: AuthEnv, need: Need, { wr
   const user = sessionFor(profile, cfg);
   if (locked(user, need)) throw json(403, { error: LOCKED });
   if (!can(user, need, cfg)) throw json(403, { error: 'ما عندك صلاحية' });
+  // Writes need edit and approvals need approve on that dashboard (owner/any/media checks stay as they are)
+  if (need in DASHBOARDS && approve && !atLeast(user, need, 'approve', cfg)) throw json(403, { error: NO_APPROVE });
+  if (need in DASHBOARDS && write && !atLeast(user, need, 'edit', cfg)) throw json(403, { error: VIEW_ONLY });
   return { cfg, user };
 }
 

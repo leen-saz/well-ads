@@ -50,7 +50,8 @@ export const suggestions = {
     return json(200, { open: open.data, done: done.data });
   }),
   POST: handle(async (request, e) => {
-    const { cfg, user } = await requireUser(request, e, 'control', { write: true });
+    // Deciding suggestions is an approval: it needs the approve level on the decisions board
+    const { cfg, user } = await requireUser(request, e, 'control', { write: true, approve: true });
     const body = await readJson(request);
     if (body.decision === 'revert') return revert(cfg, user, body);
     const status = DECISIONS[String(body.decision)];
