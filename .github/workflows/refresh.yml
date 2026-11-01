@@ -1,0 +1,204 @@
+name: refresh
+
+# Phase 7: the full hourly run that replaces the old site's refresh-and-deploy at cutover: fetch the ad platforms
+# (connect-tab keys from Supabase Vault win over GitHub secrets), store in Supabase, suggestions, learning loop,
+# critic, the guarded executor (Meta ad pause, canary campaigns only), build, upload to the production bucket,
+# data health. Steps copied from well-ads-dashboard/.github/workflows/refresh-deploy.yml; Vercel replaced by R2.
+#
+# PAUSED until cutover: manual run only. Two pipelines must never write to Supabase at the same time, so the
+# cutover runbook disables the old workflow first, then adds the schedule below (minute 7).
+
+on:
+  workflow_dispatch:
+    inputs:
+      full:
+        description: "Full pull from the start of the accounts"
+        type: boolean
+        default: false
+
+permissions:
+  contents: read
+
+concurrency:
+  group: refresh
+  cancel-in-progress: false
+
+jobs:
+  refresh:
+    runs-on: ubuntu-24.04
+    environment: production
+    timeout-minutes: 30
+    env:
+      CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+      CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+      BUCKET: well-ads-files
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      # احتياط تيك توك إذا غابت أسرار الواجهة أو فشل الطلب. الفرع بلا توكنات.
+      - name: Get TikTok data
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        continue-on-error: true
+        with:
+          ref: tiktok-data
+          path: pipeline/tiktok-data
+          persist-credentials: false
+
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        with:
+          python-version: "3.12"
+
+      - name: Install Python deps
+        run: pip install --disable-pip-version-check -q "Pillow==11.3.0"
+
+      # مفاتيح صفحة الربط (Supabase Vault) تغلب أسرار GitHub. القيم تنخفى من السجل.
+      - name: Load connections from the Connectors page
+        continue-on-error: true
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+        working-directory: pipeline
+        run: python -m modules.core.connections
+
+      # البيانات السابقة تُحفظ في كاش Actions الخاص بالمستودع، مو في git
+      - name: Restore previous data
+        uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: |
+            pipeline/data.json
+            pipeline/cache_ads.json
+          key: ads-data-${{ github.run_id }}
+          restore-keys: ads-data-
+
+      - name: Fetch ads data
+        env:
+          META_ACCESS_TOKEN: ${{ env.V_META_ACCESS_TOKEN || secrets.META_ACCESS_TOKEN }}
+          META_AD_ACCOUNT_ID: ${{ env.V_META_AD_ACCOUNT_ID || secrets.META_AD_ACCOUNT_ID }}
+          GOOGLE_ADS_CLIENT_ID: ${{ env.V_GOOGLE_ADS_CLIENT_ID || secrets.GOOGLE_ADS_CLIENT_ID }}
+          GOOGLE_ADS_CLIENT_SECRET: ${{ env.V_GOOGLE_ADS_CLIENT_SECRET || secrets.GOOGLE_ADS_CLIENT_SECRET }}
+          GOOGLE_ADS_REFRESH_TOKEN: ${{ env.V_GOOGLE_ADS_REFRESH_TOKEN || secrets.GOOGLE_ADS_REFRESH_TOKEN }}
+          GOOGLE_ADS_LOGIN_CUSTOMER_ID: ${{ env.V_GOOGLE_ADS_LOGIN_CUSTOMER_ID || secrets.GOOGLE_ADS_LOGIN_CUSTOMER_ID }}
+          GOOGLE_ADS_CUSTOMER_ID: ${{ env.V_GOOGLE_ADS_CUSTOMER_ID || secrets.GOOGLE_ADS_CUSTOMER_ID }}
+          SNAP_CLIENT_ID: ${{ env.V_SNAP_CLIENT_ID || secrets.SNAP_CLIENT_ID }}
+          SNAP_CLIENT_SECRET: ${{ env.V_SNAP_CLIENT_SECRET || secrets.SNAP_CLIENT_SECRET }}
+          SNAP_REFRESH_TOKEN: ${{ env.V_SNAP_REFRESH_TOKEN || secrets.SNAP_REFRESH_TOKEN }}
+          SNAP_AD_ACCOUNT_ID: ${{ env.V_SNAP_AD_ACCOUNT_ID || secrets.SNAP_AD_ACCOUNT_ID }}
+          SNAP_ORGANIZATION_ID: ${{ env.V_SNAP_ORGANIZATION_ID || secrets.SNAP_ORGANIZATION_ID }}
+          TIKTOK_ACCESS_TOKEN: ${{ secrets.TIKTOK_ACCESS_TOKEN }}
+          TIKTOK_ADVERTISER_IDS: ${{ secrets.TIKTOK_ADVERTISER_IDS }}
+          GA4_PROPERTY_ID: ${{ env.V_GA4_PROPERTY_ID || secrets.GA4_PROPERTY_ID }}
+          GA4_SERVICE_ACCOUNT_JSON: ${{ env.V_GA4_SERVICE_ACCOUNT_JSON || secrets.GA4_SERVICE_ACCOUNT_JSON }}
+          GA4_REFRESH_TOKEN: ${{ env.V_GA4_REFRESH_TOKEN }}
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+          FULL: ${{ inputs.full && '1' || '0' }}
+        working-directory: pipeline
+        run: |
+          # سحب يدوي كامل، أو أول تشغيل بلا ملف وبلا Supabase: التاريخ كامل.
+          # الساعة 5: آخر 90 يوم. مع Supabase باقي الساعات آخر 3 أيام، وبدونها آخر 8.
+          # إذا غابت أسرار القاعدة يبقى الملف المحلي والكاش كما هما.
+          hour="$(TZ=Asia/Riyadh date +%H)"
+          if [ "$FULL" = "1" ]; then
+            python fetch_data.py
+          elif [ -n "$SUPABASE_URL" ] && [ -n "$SUPABASE_SERVICE_ROLE_KEY" ]; then
+            if [ "$hour" = "05" ]; then RECENT=90 python fetch_data.py; else RECENT=3 python fetch_data.py; fi
+          elif [ ! -f data.json ]; then
+            python fetch_data.py
+          elif [ "$hour" = "05" ]; then
+            RECENT=90 python fetch_data.py
+          else
+            RECENT=8 python fetch_data.py
+          fi
+          python build.py
+
+      - name: Decision board suggestions (read-only on ad accounts)
+        continue-on-error: true
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+        working-directory: pipeline
+        run: python suggest.py
+
+      - name: Learning loop — platform moves, outcomes, lessons (read-only on ad accounts)
+        continue-on-error: true
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+          META_ACCESS_TOKEN: ${{ env.V_META_ACCESS_TOKEN || secrets.META_ACCESS_TOKEN }}
+          META_AD_ACCOUNT_ID: ${{ env.V_META_AD_ACCOUNT_ID || secrets.META_AD_ACCOUNT_ID }}
+          GOOGLE_ADS_CLIENT_ID: ${{ env.V_GOOGLE_ADS_CLIENT_ID || secrets.GOOGLE_ADS_CLIENT_ID }}
+          GOOGLE_ADS_CLIENT_SECRET: ${{ env.V_GOOGLE_ADS_CLIENT_SECRET || secrets.GOOGLE_ADS_CLIENT_SECRET }}
+          GOOGLE_ADS_REFRESH_TOKEN: ${{ env.V_GOOGLE_ADS_REFRESH_TOKEN || secrets.GOOGLE_ADS_REFRESH_TOKEN }}
+          GOOGLE_ADS_CUSTOMER_ID: ${{ env.V_GOOGLE_ADS_CUSTOMER_ID || secrets.GOOGLE_ADS_CUSTOMER_ID }}
+          GOOGLE_ADS_LOGIN_CUSTOMER_ID: ${{ env.V_GOOGLE_ADS_LOGIN_CUSTOMER_ID || secrets.GOOGLE_ADS_LOGIN_CUSTOMER_ID }}
+        working-directory: pipeline
+        run: |
+          python -m modules.observe.run
+          python -m modules.outcomes.run
+          python -m modules.learn.run
+
+      - name: Critic review of open suggestions (read-only on ad accounts)
+        continue-on-error: true
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+        working-directory: pipeline
+        run: python -m modules.critic.run
+
+      - name: Execute approved decisions (Meta ad pause only, trial campaigns only)
+        continue-on-error: true
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+          META_ACCESS_TOKEN: ${{ env.V_META_ACCESS_TOKEN || secrets.META_ACCESS_TOKEN }}
+        working-directory: pipeline
+        run: python -m modules.execute.run
+
+      - name: Meta key permissions (names only)
+        continue-on-error: true
+        env:
+          META_ACCESS_TOKEN: ${{ env.V_META_ACCESS_TOKEN || secrets.META_ACCESS_TOKEN }}
+        working-directory: pipeline
+        run: python -m modules.core.meta_scopes
+
+      - name: Save data for next run
+        if: always()
+        uses: actions/cache/save@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: |
+            pipeline/data.json
+            pipeline/cache_ads.json
+          key: ads-data-${{ github.run_id }}
+
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: "24"
+          cache: npm
+      - run: npm ci
+      # build.py (run in the fetch step) wrote the pages, control/ads.json and the covers under pipeline/web/
+      - name: Upload covers, dashboards and data.json to R2
+        run: |
+          set -euo pipefail
+          cd pipeline/web
+          jq -r '.headers[0].headers[] | select(.key == "Content-Security-Policy") | .value' vercel.json > csp.txt
+          test -s csp.txt
+          npx wrangler r2 object get "$BUCKET/thumbs/index.txt" --file prev.txt --remote >/dev/null 2>&1 || : > prev.txt
+          ls public/thumbs > now.txt
+          while read -r f; do
+            case "$f" in *.jpg) t=image/jpeg ;; *.png) t=image/png ;; *.webp) t=image/webp ;; *.gif) t=image/gif ;; *) continue ;; esac
+            npx wrangler r2 object put "$BUCKET/thumbs/$f" --file "public/thumbs/$f" --content-type "$t" --remote >/dev/null
+          done < <(sort now.txt | comm -13 <(sort prev.txt) -)
+          sort -u prev.txt now.txt > index.txt
+          npx wrangler r2 object put "$BUCKET/thumbs/index.txt" --file index.txt --content-type text/plain --remote >/dev/null
+          put() { npx wrangler r2 object put "$BUCKET/site/$1" --file "$2" --content-type "$3" --remote >/dev/null; }
+          put csp.txt csp.txt "text/plain; charset=utf-8"
+          put control/ads.json public/control/ads.json "application/json"
+          for f in public/c/index.html public/dept/*/index.html public/index.html; do put "${f#public/}" "$f" "text/html; charset=utf-8"; done
+          npx wrangler r2 object put "$BUCKET/data.json" --file ../data.json --content-type application/json --remote >/dev/null
+          echo "::notice title=refresh::$(wc -l < now.txt) covers in use, $(find public -name index.html | wc -l) pages uploaded"
+
+      - name: Data health (email alert on failure)
+        working-directory: pipeline
+        run: python health.py
