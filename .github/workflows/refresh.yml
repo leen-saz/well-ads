@@ -5,10 +5,12 @@ name: refresh
 # critic, the guarded executor (Meta ad pause, canary campaigns only), build, upload to the production bucket,
 # data health. Steps copied from well-ads-dashboard/.github/workflows/refresh-deploy.yml; Vercel replaced by R2.
 #
-# PAUSED until cutover: manual run only. Two pipelines must never write to Supabase at the same time, so the
-# cutover runbook disables the old workflow first, then adds the schedule below (minute 7).
+# Live since the cutover (2026-11-01): the old site's refresh-and-deploy is disabled, so this is the only
+# writer to Supabase. Never re-enable the old one while this schedule is on (rollback: docs/cutover.md).
 
 on:
+  schedule:
+    - cron: "7 * * * *"
   workflow_dispatch:
     inputs:
       full:
