@@ -1,7 +1,6 @@
 // نفس القائمة الجانبية حق لوحة القرارات، فوق اللوحات (/ و/creative): موقع واحد.
 // كل الأقسام تطلع للكل، واللي ما له صلاحية عليه يطلع مقفل. في الجوال: زر قائمة يفتح درج.
 import { SOON } from './tabs.js';
-import { keepTabs } from './keep.js';
 const EN = (() => { try { return new URLSearchParams(location.search).get('lang') === 'en' || localStorage.getItem('well-ads-lang') === 'en'; } catch { return false; } })();
 const L = (ar, en) => EN ? en : ar;
 const P = {
@@ -92,5 +91,4 @@ if (me) {
   }`;
   document.head.appendChild(css);
   document.body.append(side, scrim, burger);
-  keepTabs(side);
 }
