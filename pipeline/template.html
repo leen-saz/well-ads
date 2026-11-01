@@ -158,27 +158,31 @@ input[type=search]{width:min(240px,100%)}
 .knote{margin:0;font-size:.8rem;color:var(--muted)}
 .kpis.kout{grid-template-columns:repeat(auto-fit,minmax(min(100%,160px),1fr))}
 .kout .kpi.hero .v{font-size:1.6rem}
-.journey{display:flex;align-items:stretch;gap:0}
-.fstage{flex:1 1 0;min-width:0;background:var(--surface);box-shadow:var(--lift);border-radius:var(--r);padding:12px 14px;display:grid;gap:8px;align-content:start}
-.fhead{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
-.fhead b{width:22px;height:22px;border-radius:50%;background:var(--accent);color:#fff;display:grid;place-items:center;font-size:.75rem}
-.fhead span{font-weight:600;color:var(--ink)}
-.fhead em{font-style:normal;font-size:.75rem;color:var(--muted);flex-basis:100%}
-.jbar{height:8px;border-radius:999px;background:color-mix(in srgb,var(--accent) 12%,transparent);overflow:hidden}
-.jbar i{display:block;height:100%;background:var(--accent);border-radius:999px}
-.fstage .kpi{box-shadow:none;background:transparent;padding:0}
-.fstage .kpi.main .v{font-size:1.5rem}
-.fsubs{display:grid;gap:6px;border-top:1px solid var(--line);padding-top:8px}
-.fstage .kpi.sub{display:flex;flex-wrap:wrap;align-items:baseline;justify-content:space-between;gap:2px 8px}
-.fstage .kpi.sub .v{font-size:.95rem}
-.fstage .kpi.sub .delta{flex-basis:100%;font-size:.72rem}
-.frate{flex:0 0 84px;z-index:1;display:grid;place-items:center;padding:0 4px;position:relative}
-.frate::before{content:'';position:absolute;inset-inline:0;top:50%;border-top:2px dashed var(--line)}
-.frate .kpi{position:relative;background:var(--surface);box-shadow:var(--lift);border-radius:12px;padding:6px 8px;text-align:center;gap:0}
-.frate .kpi .l{font-size:.68rem}
-.frate .kpi .v{font-size:1rem}
-.frate .kpi .delta{font-size:.65rem}
-@media (max-width:900px){.journey{flex-direction:column}.frate{flex-basis:auto;padding:4px 0}.frate::before{inset-inline:50%;top:0;bottom:0;border-top:0;border-inline-start:2px dashed var(--line)}}
+.ffun{display:grid;gap:0;background:var(--surface);box-shadow:var(--lift);border-radius:var(--r);padding:16px 14px}
+.flayer{display:grid;grid-template-columns:minmax(120px,1fr) minmax(0,2.4fr) minmax(140px,1fr);align-items:center;gap:14px}
+.fname{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+.fname b{width:24px;height:24px;border-radius:50%;background:var(--accent);color:#fff;display:grid;place-items:center;font-size:.78rem}
+.fname span{font-weight:600;color:var(--ink)}
+.fname em{font-style:normal;font-size:.75rem;color:var(--muted);flex-basis:100%}
+.fband-wrap{display:flex;justify-content:center}
+.fband{width:var(--w);min-width:180px;clip-path:polygon(0 0,100% 0,94% 100%,6% 100%);background:color-mix(in srgb,var(--accent) calc(100% - var(--k) * 14%),#1b1240);padding:12px 18px 14px;text-align:center}
+.fband .kpi{background:transparent;box-shadow:none;padding:0;justify-items:center}
+.fband .kpi .l,.fband .kpi .v,.fband .kpi .v small,.fband .delta,.fband .delta span{color:#fff!important}
+.fband .kpi .l{opacity:.85}
+.fband .kpi .v{font-size:1.5rem}
+.fband .delta{opacity:.85;font-size:.75rem}
+.fcost{display:grid;gap:6px}
+.fcost .kpi{background:transparent;box-shadow:none;padding:0;display:flex;flex-wrap:wrap;align-items:baseline;justify-content:space-between;gap:2px 8px}
+.fcost .kpi .l{font-size:.78rem}
+.fcost .kpi .v{font-size:.95rem}
+.fcost .kpi .delta{flex-basis:100%;font-size:.7rem}
+.flink{display:flex;justify-content:center;align-items:center;gap:8px;padding:6px 0}
+.flink .farrow{color:var(--accent);font-weight:700}
+.flink .kpi{display:flex;align-items:baseline;gap:6px;background:color-mix(in srgb,var(--accent) 10%,transparent);box-shadow:none;border-radius:999px;padding:3px 12px}
+.flink .kpi .l{font-size:.75rem}
+.flink .kpi .v{font-size:.9rem}
+.flink .kpi .delta{font-size:.68rem}
+@media (max-width:760px){.flayer{grid-template-columns:1fr;gap:6px}.fband{min-width:0}.fname em{flex-basis:auto}.fcost{grid-template-columns:1fr 1fr;gap:4px 12px}.flink .kpi{flex-wrap:wrap;justify-content:center}}
 .kpis{display:grid;grid-template-columns:repeat(auto-fill,minmax(min(100%,210px),1fr));gap:10px}
 .kpi{background:var(--surface);border:0;box-shadow:var(--lift);border-radius:var(--r);padding:12px 14px;display:grid;gap:2px;min-width:0}
 .kpi .l{font-size:.82rem;color:var(--muted)}
@@ -1378,12 +1382,16 @@ function renderKpis(now,prev){
      sub:[kpi('اقفالات من الإعلانات',fmt(a.booked||0),'',delta(a.booked,b.booked,false),'sub'), kpi('العائد من الإعلانات',a.roas==null?'—':fmt(a.roas,2)+'×','',delta(a.roas,b.roas,false),'sub')],
      rate:kpi('من ليد إلى اقفالة',pct(leadToSale),'',delta(leadToSale,leadToSaleB,false),'rate')}] : []),
   ];
-  const funnel = stages.map((st,i)=>`${st.rate?`<div class="frate">${st.rate}</div>`:''}<div class="fstage"><div class="fhead"><b>${i+1}</b><span>${st.n}</span><em>${st.hint}</em></div>`
-    + `<div class="jbar"><i style="width:${w(vol[i])}%;opacity:${1-i*0.16}"></i></div>${st.main}<div class="fsubs">${st.sub.join('')}</div></div>`).join('');
+  // A real funnel: each layer narrower than the one above; stage name on one side, its cost on the other, the rate between layers
+  const widths = [100, 84, 68, 52];
+  const funnel = stages.map((st,i)=>(st.rate?`<div class="flink"><span class="farrow" aria-hidden="true">↓</span>${st.rate}</div>`:'')
+    + `<div class="flayer"><div class="fname"><b>${i+1}</b><span>${st.n}</span><em>${st.hint}</em></div>`
+    + `<div class="fband-wrap"><div class="fband" style="--w:${widths[i]}%;--k:${i}">${st.main}</div></div>`
+    + `<div class="fcost">${st.sub.join('')}</div></div>`).join('');
   $('#kpis').innerHTML =
     `<div class="kgroup"><div class="khead"><h3>النتيجة</h3>${toggle}</div><div class="kpis kout">${outcome}</div>`
     + (crm ? `<p class="knote">${tr('الاقفالات والمدفوع من كل المصادر في نظام العملاء (مدفوعات ميسّر). العائد على الصرف = المدفوع ÷ الصرف. تكلفة العميل = الصرف ÷ الاقفالات.')}</p>` : '') + `</div>`
-    + `<div class="kgroup"><div class="khead"><h3>رحلة العميل</h3></div><div class="journey">${funnel}</div></div>`;
+    + `<div class="kgroup"><div class="khead"><h3>رحلة العميل</h3></div><div class="ffun">${funnel}</div></div>`;
 }
 
 function noteCard(title, line, alert){
