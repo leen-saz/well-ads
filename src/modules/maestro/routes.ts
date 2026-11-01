@@ -1,6 +1,6 @@
 // /api/maestro/*: the maestro tab. Agents, tasks and pending approvals of the user's company, from Paperclip.
 // Connecting a company to Paperclip is owner-only; creating tasks needs edit and deciding approvals needs approve on `maestro`.
-import { sb, json, readJson, handle, requireUser, audit, isOwner, type AuthEnv, type Cfg } from '../../lib/auth';
+import { sb, json, readJson, handle, requireUser, audit, isOwner, atLeast, type AuthEnv, type Cfg } from '../../lib/auth';
 import { client, cleanTask, STATUS, type PcEnv } from './paperclip';
 
 type Env = AuthEnv & PcEnv;
@@ -19,7 +19,7 @@ export const state = { GET: handle(async (request, e: Env) => {
   const c = await companyOf(cfg, user.co);
   if (!c?.paperclip_company_id) return json(200, { connected: false, owner: isOwner(user, cfg), statuses: STATUS });
   const [agents, issues, approvals] = await Promise.all([pc.agents(c.paperclip_company_id), pc.issues(c.paperclip_company_id), pc.approvals(c.paperclip_company_id)]);
-  return json(200, { connected: true, owner: isOwner(user, cfg), statuses: STATUS, agents, issues, approvals });
+  return json(200, { connected: true, owner: isOwner(user, cfg), canApprove: atLeast(user, 'maestro', 'approve', cfg), canEdit: atLeast(user, 'maestro', 'edit', cfg), statuses: STATUS, agents, issues, approvals });
 }) };
 
 export const connect = { POST: handle(async (request, e: Env) => {
