@@ -225,3 +225,27 @@ describe('oauth1 (X)', () => {
     expect(auth).toMatch(/^OAuth .*oauth_signature_method="HMAC-SHA1".*oauth_signature="[^"]+"/);
   });
 });
+
+describe('meta_pages exchange', () => {
+  it('stores the page token, page id and linked Instagram id from the granted page', async () => {
+    const { exchange, byId } = await import('../../src/lib/connectors');
+    const urls: string[] = [];
+    vi.stubGlobal('fetch', vi.fn(async (url: string) => {
+      urls.push(url);
+      if (url.includes('/oauth/access_token') && url.includes('code=')) return new Response(JSON.stringify({ access_token: 'short' }));
+      if (url.includes('fb_exchange_token')) return new Response(JSON.stringify({ access_token: 'long', expires_in: 5184000 }));
+      if (url.includes('/me/accounts')) return new Response(JSON.stringify({ data: [{ id: '111', name: 'Well', access_token: 'page-tok', instagram_business_account: { id: '222' } }] }));
+      return new Response('{}', { status: 404 });
+    }));
+    const p = byId('meta_pages');
+    expect(p).not.toBeNull();
+    const got = await exchange(p!, { code: 'c', redirect: 'https://x/cb', id: 'app', secret: 's' });
+    expect(got).toEqual({ values: { META_PAGE_ID: '111', META_PAGE_ACCESS_TOKEN: 'page-tok', IG_USER_ID: '222' }, expiresIn: null });
+    expect(urls.some(u => u.includes('/me/accounts') && u.includes('access_token=long'))).toBe(true);
+  });
+  it('fails when no page was granted', async () => {
+    const { exchange, byId } = await import('../../src/lib/connectors');
+    vi.stubGlobal('fetch', vi.fn(async (url: string) => new Response(JSON.stringify(url.includes('/me/accounts') ? { data: [] } : { access_token: 't' }))));
+    await expect(exchange(byId('meta_pages')!, { code: 'c', redirect: 'r', id: 'a', secret: 's' })).rejects.toThrow('no page');
+  });
+});
