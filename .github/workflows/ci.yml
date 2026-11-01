@@ -16,7 +16,7 @@ jobs:
   # Job id must stay `ci`: the gate check is named "ci / gate".
   ci:
     # eng-policies reusable CI, pinned by commit SHA
-    uses: leen-saz/eng-policies/.github/workflows/ci.yml@fe234a6dcffdcf62245f6aa91b5fc6d9c4fc301d
+    uses: leen-saz/eng-policies/.github/workflows/ci.yml@d833f62b55b60f1421f6813ca0a7fd678470c3c6
     with:
       # Astro needs Node >= 22.23.4; the runner's Node 22 resolved to 22.23.3
       node-version: "24"
