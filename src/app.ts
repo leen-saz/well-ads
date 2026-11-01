@@ -5,13 +5,14 @@ import { api } from './api/index';
 import { gate } from './lib/gate';
 import type { AuthEnv } from './lib/auth';
 import { withSecurityHeaders } from './lib/headers';
+import { serveSite } from './lib/site';
 
 type Bindings = Env & AuthEnv;
 
 // Requests produced by a gateway rewrite (department or creative copy) skip the gateway the second time.
 const REWRITTEN = new WeakSet<Request>();
 
-// One Worker: the gateway runs first, then Hono serves /api/*, then Astro renders every page.
+// One Worker: the gateway runs first, then Hono serves /api/*, then the dashboards from R2, then Astro pages.
 const app = new Hono<{ Bindings: Bindings }>();
 
 app.use(async (c, next) => {
@@ -30,6 +31,8 @@ app.use(async (c, next) => {
   return next();
 });
 app.route('/', api);
+// Dashboards built by the pipeline, from R2 (phase 4.1)
+app.use(async (c, next) => (await serveSite(c.req.raw, c.env.FILES)) ?? next());
 app.use(cf());
 app.use(notFound());
 app.use(actions());
