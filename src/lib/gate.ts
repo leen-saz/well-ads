@@ -15,6 +15,7 @@ export function need(pathname: string, search: string): Need | null {
   if (/^\/(api\/)?connectors(\/|$)/.test(pathname)) return 'connectors';
   if (/^\/(api\/)?social(\/|$)/.test(pathname)) return 'social';
   if (/^\/(api\/)?journeys(\/|$)/.test(pathname)) return 'journeys';
+  if (/^\/(api\/)?content(\/|$)/.test(pathname)) return 'content';
   if (/^\/(api\/)?account(\/|$)/.test(pathname)) return 'any';
   if (/^\/soon\/?$/.test(pathname)) return 'any';
   if (/^\/creative\/?$/.test(pathname)) return 'creative';
