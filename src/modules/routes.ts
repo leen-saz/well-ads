@@ -5,5 +5,6 @@ import * as journeys from './journeys/routes';
 import * as content from './content/routes';
 import * as debuggerRoutes from './debugger/routes';
 import * as compliance from './compliance/routes';
+import * as listening from './listening/routes';
 
-export const ROUTES = { maestro, social, journeys, content, debugger: debuggerRoutes, compliance };
+export const ROUTES = { maestro, social, journeys, content, debugger: debuggerRoutes, compliance, listening };
