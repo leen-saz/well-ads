@@ -25,6 +25,9 @@ def scrub_status(status):
     return text
 
 data = without_spring_rose(json.load(open(os.path.join(HERE, "data.json"), encoding="utf-8")))
+# CRM leads matched to ads (closings, revenue, ROAS on the dashboard). Skipped without Supabase.
+from crm.join import attach_from_db
+attach_from_db(data)
 for plat in (data.get("platforms") or {}).values():
     if isinstance(plat, dict):
         for k in ("balance", "disable_reason", "account_status", "currency"):

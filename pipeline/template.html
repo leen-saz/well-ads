@@ -564,6 +564,11 @@ const EN = {
   'ميتا · جوجل · سناب شات · تيك توك — كل المبالغ بالريال السعودي':'Meta · Google · Snapchat · TikTok — amounts in Saudi riyals',
   'ميتا · سناب شات · تيك توك — كل المبالغ بالريال السعودي':'Meta · Snapchat · TikTok — amounts in Saudi riyals',
   'قارن جنب بعض':'Compare side by side',
+  'الاقفالات (CRM)':'Closings (CRM)',
+  'تكلفة الاقفالة':'Cost per closing',
+  'نسبة الاقفال':'Close rate',
+  'قيمة الحجوزات':'Booking value',
+  'الاقفالات':'Closings',
   'مسح':'Clear',
   'صفحات فيسبوك · إنستغرام · تيك توك · تحليلات الموقع':'Facebook · Instagram · TikTok pages · site analytics',
   'العرض':'View',
@@ -1139,13 +1144,23 @@ function agg(from,to){
     const d = byDay[date] ||= {}; const dp = d[a.platform] ||= {spend:0,leads:0,ls:0,ln:0}; dp.spend+=sp; dp.leads+=ld; dp.ls+=lg; dp.ln+=ln;
     const p = byPlat[a.platform] ||= {spend:0,impr:0,clicks:0,leads:0,conv:0,leadSpend:0,leadN:0,ads:new Set()}; p.spend+=sp;p.impr+=im;p.clicks+=cl;p.leads+=ld;p.conv+=cv;p.leadSpend+=lg;p.leadN+=ln;p.ads.add(k);
   }
-  const tot = {spend:0,impr:0,clicks:0,leads:0,conv:0,leadSpend:0,leadN:0};
-  for(const p of Object.values(byPlat)){for(const f in tot) tot[f]+=p[f];}
+  // CRM (pipeline/crm/join.py): leads matched to ads, by lead day: closings, Moyasar paid, booking value
+  for(const [k,date,bk,paid,val] of ((D.crm&&D.crm.rows)||[])){
+    if(date<from||date>to) continue;
+    const a = ADS[k]; if(!a || !matchesSlice(a)) continue;
+    const o = byAd[k] ||= {spend:0,impr:0,clicks:0,leads:0,conv:0,leadSpend:0,leadN:0,days:{}};
+    o.crmLeads=(o.crmLeads||0)+1; o.booked=(o.booked||0)+bk; o.paid=(o.paid||0)+paid; o.value=(o.value||0)+val;
+    const p = byPlat[a.platform] ||= {spend:0,impr:0,clicks:0,leads:0,conv:0,leadSpend:0,leadN:0,ads:new Set()};
+    p.crmLeads=(p.crmLeads||0)+1; p.booked=(p.booked||0)+bk; p.paid=(p.paid||0)+paid; p.value=(p.value||0)+val;
+  }
+  const tot = {spend:0,impr:0,clicks:0,leads:0,conv:0,leadSpend:0,leadN:0,crmLeads:0,booked:0,paid:0,value:0};
+  for(const p of Object.values(byPlat)){for(const f in tot) tot[f]+=(p[f]||0);}
   return {byAd,byDay,byPlat,tot};
 }
 const derive = o => {
   const leadN = o.leadN==null ? o.leads : o.leadN;
-  return {...o, cpl:leadN?(o.leadSpend??o.spend)/leadN:null, cpm2:o.conv?o.spend/o.conv:null, ctr:o.impr?100*o.clicks/o.impr:null, cpc:o.clicks?o.spend/o.clicks:null, cpm:o.impr?1000*o.spend/o.impr:null};
+  return {...o, cpb:o.booked?o.spend/o.booked:null, closeRate:o.crmLeads?100*(o.booked||0)/o.crmLeads:null, roas:o.spend&&o.value?o.value/o.spend:null,
+    cpl:leadN?(o.leadSpend??o.spend)/leadN:null, cpm2:o.conv?o.spend/o.conv:null, ctr:o.impr?100*o.clicks/o.impr:null, cpc:o.clicks?o.spend/o.clicks:null, cpm:o.impr?1000*o.spend/o.impr:null};
 };
 
 // ---- UI: filters
@@ -1267,6 +1282,13 @@ function renderKpis(now,prev){
     ['الصرف',sar(a.spend),money(),delta(a.spend,b.spend,null),true],
     ['الليدز',qty(a.leads),'',delta(a.leads,b.leads,false)],
     ['تكلفة الليد',sar(a.cpl),money(),delta(a.cpl,b.cpl,true)],
+    ...(D.crm ? [
+      ['الاقفالات (CRM)',fmt(a.booked||0),'',delta(a.booked,b.booked,false)],
+      ['تكلفة الاقفالة',sar(a.cpb),money(),delta(a.cpb,b.cpb,true)],
+      ['نسبة الاقفال',pct(a.closeRate),'',delta(a.closeRate,b.closeRate,false)],
+      ['قيمة الحجوزات',sar(a.value||0),money(),delta(a.value,b.value,false)],
+      ['ROAS',a.roas==null?'—':fmt(a.roas,2)+'×','',delta(a.roas,b.roas,false)],
+    ] : []),
     ['محادثات واتساب وماسنجر',fmt(a.conv),'',delta(a.conv,b.conv,false)],
     ['الظهور',fmt(a.impr),'',delta(a.impr,b.impr,false)],
     ['نقرات الرابط والسوايب',fmt(a.clicks),'',delta(a.clicks,b.clicks,false)],
@@ -1372,7 +1394,8 @@ function renderPlat(now,prev){
 const TC = {k:'spend',dir:-1};
 function renderCamp(now){
   const m={};
-  for(const [k,o] of Object.entries(now.byAd)){ const a=ADS[k]; const key=a.platform+'|'+a.campaign; const c=m[key] ||= {p:a.platform,name:a.campaign,goal:a.goal,spend:0,impr:0,clicks:0,leads:0,conv:0,leadSpend:0,leadN:0,ads:0,live:0}; c.spend+=o.spend;c.impr+=o.impr;c.clicks+=o.clicks;c.leads+=o.leads;c.conv+=o.conv;c.leadSpend+=o.leadSpend;c.leadN+=o.leadN||0;c.ads++; if(a.live)c.live++; }
+  for(const [k,o] of Object.entries(now.byAd)){ const a=ADS[k]; const key=a.platform+'|'+a.campaign; const c=m[key] ||= {p:a.platform,name:a.campaign,goal:a.goal,spend:0,impr:0,clicks:0,leads:0,conv:0,leadSpend:0,leadN:0,ads:0,live:0}; c.spend+=o.spend;c.impr+=o.impr;c.clicks+=o.clicks;c.leads+=o.leads;c.conv+=o.conv;c.leadSpend+=o.leadSpend;c.leadN+=o.leadN||0;c.ads++; if(a.live)c.live++;
+    c.crmLeads=(c.crmLeads||0)+(o.crmLeads||0); c.booked=(c.booked||0)+(o.booked||0); c.paid=(c.paid||0)+(o.paid||0); c.value=(c.value||0)+(o.value||0); }
   const rows = Object.values(m).map(derive);
   $('#campCount').textContent = ui(`${fmt(rows.length)} حملة صرفت في الفترة`, `${fmt(rows.length)} campaigns with spend in this range`);
   const cols=[
@@ -1382,6 +1405,11 @@ function renderCamp(now){
     {k:'spend',l:'الصرف',n:1,f:r=>sar(r.spend)},
     {k:'leads',l:'الليدز',n:1,f:r=>r.goal==='lead'?qty(r.leadN):'—'},
     {k:'cpl',l:'تكلفة الليد',n:1,asc:1,f:r=>r.goal==='lead'?tgtCell(r.cpl):'—'},
+    ...(D.crm ? [
+      {k:'booked',l:'الاقفالات',n:1,f:r=>fmt(r.booked||0)},
+      {k:'cpb',l:'تكلفة الاقفالة',n:1,asc:1,f:r=>sar(r.cpb)},
+      {k:'roas',l:'ROAS',n:1,f:r=>r.roas==null?'—':fmt(r.roas,2)+'×'},
+    ] : []),
     {k:'conv',l:'محادثات',n:1,f:r=>family(r.p)==='meta'?fmt(r.conv):'—'},
     {k:'impr',l:'الظهور',n:1,f:r=>fmt(r.impr)},
     {k:'ctr',l:'نسبة النقر',n:1,f:r=>pct(r.ctr)},
