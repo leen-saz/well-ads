@@ -5,6 +5,7 @@ import * as A from '../../src/lib/auth';
 import { gate, need, type Decision } from '../../src/lib/gate';
 import * as authRoutes from '../../src/api/routes/auth';
 import { api } from '../../src/api/index';
+import { LIVE } from '../../src/modules/registry';
 
 const E: A.AuthEnv = {
   SUPABASE_URL: 'https://sb.example', SUPABASE_SERVICE_ROLE_KEY: 'service',
@@ -51,7 +52,8 @@ describe('auth', () => {
 
   it('owner gets every dashboard, members only what Leen picked', () => {
     const owner = A.sessionFor({ id: member.id, email: 'LEEN@example.com', dashboards: [] }, cfg);
-    expect([...owner.dash].sort()).toEqual(['ceo', 'connectors', 'content', 'control', 'creative', 'journeys', 'maestro', 'social']);
+    // core dashboards plus every live module (a module that goes live joins this list by itself)
+    expect([...owner.dash].sort()).toEqual(['ceo', 'connectors', 'control', 'creative', ...LIVE].sort());
     const s = A.sessionFor({ ...member, dashboards: ['creative', 'bogus'] }, cfg);
     expect(s.dash).toEqual(['creative']);
     expect(A.can(s, 'creative', cfg)).toBe(true);
