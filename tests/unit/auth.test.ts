@@ -70,6 +70,7 @@ describe('auth', () => {
     expect(need('/admin/', '')).toBe('owner');
     expect(need('/api/admin/users', '')).toBe('owner');
     expect(need('/account/', '')).toBe('any');
+    expect(need('/settings/', '')).toBe('any');
     expect(need('/soon/', '?t=seo')).toBe('any');
   });
 

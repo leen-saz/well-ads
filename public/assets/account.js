@@ -1,6 +1,6 @@
-import { $, api, say, esc, shell, busy } from './common.js';
+import { $, api, say, esc, shell, busy, settingsTabs } from './common.js';
 
-shell({ active: 'account', title: 'حسابي' }).then(me => { $('#who').textContent = `${me.name ? me.name + ' · ' : ''}${me.email}`; }).catch(() => {});
+shell({ active: 'settings', title: 'الإعدادات' }).then(me => { settingsTabs('account', me); $('#who').textContent = `${me.name ? me.name + ' · ' : ''}${me.email}`; }).catch(() => {});
 $('#f').addEventListener('submit', async e => {
   e.preventDefault();
   if ($('#p1').value !== $('#p2').value) { say($('#msg'), 'الباسووردين مو نفس بعض'); return; }

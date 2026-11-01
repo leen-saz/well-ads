@@ -23,6 +23,7 @@ const P = {
   image: '<rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="9" cy="9" r="2"/><path d="m21 15-3.1-3.1a2 2 0 0 0-2.8 0L6 21"/>',
   gavel: '<path d="m14 13-7.5 7.5a2.1 2.1 0 0 1-3-3L11 10"/><path d="m16 16 6-6"/><path d="m8 8 6-6"/><path d="m9 7 8 8"/><path d="m21 11-8-8"/>',
   users: '<path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.9"/><path d="M16 3.1a4 4 0 0 1 0 7.8"/>',
+  settings: '<path d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.39a2 2 0 0 0-.73-2.73l-.15-.08a2 2 0 0 1-1-1.74v-.5a2 2 0 0 1 1-1.74l.15-.09a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z"/><circle cx="12" cy="12" r="3"/>',
   user: '<circle cx="12" cy="8" r="4"/><path d="M20 21a8 8 0 0 0-16 0"/>',
   out: '<path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><path d="m16 17 5-5-5-5"/><path d="M21 12H9"/>',
   menu: '<path d="M4 6h16M4 12h16M4 18h16"/>',
@@ -68,7 +69,7 @@ export async function shell({ active, title, badge = '', tools = '' }) {
   const owner = me.role === 'owner';
   const items = [['/', 'التحليلات', 'chart', 'ceo', me.dashboards.includes('ceo')], ['/?view=creative', 'الكرييتف', 'image', 'creative', me.dashboards.includes('creative')],
     ['/control/', 'لوحة القرارات', 'gavel', 'control', me.dashboards.includes('control')],
-    ['/connectors/', 'الربط', 'plug', 'connectors', me.dashboards.includes('connectors')], ['/admin/', 'الصلاحيات والدخول', 'users', 'admin', owner]];
+    ['/connectors/', 'الربط', 'plug', 'connectors', me.dashboards.includes('connectors')], ['/settings/', 'الإعدادات', 'settings', 'settings', true]];
   const initials = (me.name || me.email).trim().split(/\s+/).map(w => w[0]).join('').slice(0, 2).toUpperCase();
   const app = $('#app');
   $('#side', app).innerHTML = `<a class="brand mark" href="/" aria-label="Well">Well<i>.</i></a>
@@ -87,4 +88,13 @@ export async function shell({ active, title, badge = '', tools = '' }) {
   keepTabs($('#side', app));
   $('.scrim', app).onclick = () => app.classList.remove('open');
   return me;
+}
+
+// تبويبات الإعدادات فوق المحتوى: حسابي للكل، والصلاحيات والدخول للمالكة بس
+export function settingsTabs(current, me) {
+  const tabs = [['/account/', 'حسابي', 'user', 'account', true], ['/admin/', 'الصلاحيات والدخول', 'users', 'admin', me.role === 'owner']];
+  const nav = document.createElement('nav');
+  nav.className = 'tabs settings-tabs'; nav.setAttribute('aria-label', 'الإعدادات');
+  nav.innerHTML = tabs.filter(x => x[4]).map(([h, t, ic, k]) => `<a href="${h}"${k === current ? ' aria-current="page"' : ''}>${icon(ic)}<span>${t}</span></a>`).join('');
+  $('#content').prepend(nav);
 }

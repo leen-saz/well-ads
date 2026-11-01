@@ -11,7 +11,7 @@ document.documentElement.dir = LANG === 'en' ? 'ltr' : 'rtl';
 
 const EN = {
   // التنقل والهيكل
-  'التحليلات': 'Analytics', 'الكرييتف': 'Creative', 'لوحة القرارات': 'Decision board', 'الصلاحيات والدخول': 'Access & sign-in',
+  'التحليلات': 'Analytics', 'الكرييتف': 'Creative', 'لوحة القرارات': 'Decision board', 'الصلاحيات والدخول': 'Access & sign-in', 'الإعدادات': 'Settings',
   'حسابي': 'My account', 'خروج': 'Sign out', 'المالكة': 'Owner', 'عضو': 'Member', 'القائمة': 'Menu', 'التنقل': 'Navigation',
   'عربي': 'عربي', 'English': 'English', 'اللغة': 'Language',
   // الدخول

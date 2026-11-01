@@ -10,6 +10,7 @@ const P = {
   image: '<rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="9" cy="9" r="2"/><path d="m21 15-3.1-3.1a2 2 0 0 0-2.8 0L6 21"/>',
   gavel: '<path d="m14 13-7.5 7.5a2.1 2.1 0 0 1-3-3L11 10"/><path d="m16 16 6-6"/><path d="m8 8 6-6"/><path d="m9 7 8 8"/><path d="m21 11-8-8"/>',
   users: '<path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.9"/><path d="M16 3.1a4 4 0 0 1 0 7.8"/>',
+  settings: '<path d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.39a2 2 0 0 0-.73-2.73l-.15-.08a2 2 0 0 1-1-1.74v-.5a2 2 0 0 1 1-1.74l.15-.09a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z"/><circle cx="12" cy="12" r="3"/>',
   user: '<circle cx="12" cy="8" r="4"/><path d="M20 21a8 8 0 0 0-16 0"/>',
   out: '<path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><path d="m16 17 5-5-5-5"/><path d="M21 12H9"/>',
   lock: '<rect x="4" y="11" width="16" height="10" rx="2"/><path d="M8 11V7a4 4 0 0 1 8 0v4"/>',
@@ -32,7 +33,7 @@ if (me) {
   const has = k => me.dashboards.includes(k), owner = me.role === 'owner';
   const items = [['/', L('التحليلات', 'Analytics'), 'chart', !creative, has('ceo')], ['/?view=creative', L('الكرييتف', 'Creative'), 'image', creative, has('creative')],
     ['/control/', L('لوحة القرارات', 'Decision board'), 'gavel', false, has('control')],
-    ['/connectors/', L('الربط', 'Connectors'), 'plug', false, has('connectors')], ['/admin/', L('الصلاحيات والدخول', 'Access & sign-in'), 'users', false, owner]];
+    ['/connectors/', L('الربط', 'Connectors'), 'plug', false, has('connectors')], ['/settings/', L('الإعدادات', 'Settings'), 'settings', false, true]];
   const initials = (me.name || me.email).trim().split(/\s+/).map(w => w[0]).join('').slice(0, 2).toUpperCase();
   const role = owner ? L('المالكة', 'Owner') : (me.departments || []).length ? L('مدير قسم', 'Department manager') : L('عضو', 'Member');
   const side = document.createElement('aside');
@@ -42,7 +43,6 @@ if (me) {
       : `<span class="wl-navi wl-locked" aria-disabled="true" title="${L('ما عندك صلاحية', 'No access')}">${I(ic)}<span>${t}</span>${I('lock')}</span>`).join('')}
     ${SOON.map(s => `<a class="wl-navi wl-soon" href="/soon/?t=${s.key}"><svg class="wl-i" viewBox="0 0 24 24" aria-hidden="true">${s.icon}</svg><span>${L(s.ar, s.en)}</span><small class="wl-tag">${L('قريباً', 'Soon')}</small></a>`).join('')}
     <div class="wl-grow"></div>
-    <a class="wl-navi" href="/account/">${I('user')}<span>${L('حسابي', 'My account')}</span></a>
     <form method="post" action="/api/auth/logout" class="wl-out"><button type="submit" class="wl-navi">${I('out')}<span>${L('خروج', 'Sign out')}</span></button></form>
     <div class="wl-me"><span class="wl-av">${esc(initials)}</span><span><b>${esc(me.name || me.email)}</b><small>${role}</small></span></div>`;
   const burger = document.createElement('button');

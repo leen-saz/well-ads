@@ -17,6 +17,8 @@ export function siteKey(pathname: string): string | null {
 export function siteRedirect(pathname: string): string | null {
   if (/^\/organic\/?$/.test(pathname)) return '/?mode=organic';
   if (/^\/creative\/?$/.test(pathname)) return '/?view=creative';
+  // Settings opens on its first tab (my account); access & sign-in is the second tab
+  if (/^\/settings\/?$/.test(pathname)) return '/account/';
   return null;
 }
 
