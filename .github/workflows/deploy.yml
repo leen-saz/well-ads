@@ -23,8 +23,11 @@ concurrency:
 
 jobs:
   ci:
-    uses: leen-saz/eng-policies/.github/workflows/ci.yml@79ca6e387c145aa5efba25fc7818b9532dba6a7d
+    # Same gates as ci.yml (kept identical)
+    uses: leen-saz/eng-policies/.github/workflows/ci.yml@d833f62b55b60f1421f6813ca0a7fd678470c3c6
     with:
+      # Astro needs Node >= 22.23.4; the runner's Node 22 resolved to 22.23.3
+      node-version: "24"
       install-command: "npm ci"
       lint-command: "npm run lint"
       typecheck-command: "npm run typecheck"
@@ -32,6 +35,14 @@ jobs:
       integration-command: "npm run test:integration"
       build-command: "npm run build"
       audit-command: "npm audit --audit-level=high"
+      # Python pipeline (phase 3), copied as-is from the old repo. Lint is correctness-only until phase 8.
+      python-version: "3.12"
+      python-requirements: pipeline/requirements.txt
+      python-lint-command: "ruff check --isolated --select E9,F63,F7,F82 pipeline supabase"
+      python-test-command: "cd pipeline && python -m unittest discover -s tests -p 'test_*.py' && python -m unittest discover -s modules -t ."
+      # Supabase migrations applied in order to a throwaway Postgres
+      db-engine: postgres
+      migrations-dir: supabase/migrations
 
   deploy:
     needs: ci
@@ -82,15 +93,23 @@ jobs:
           CLOUDFLARE_ENV: ${{ env.TARGET }}
         run: |
           npx wrangler deploy
-          name="well-ads"; [ "$TARGET" = staging ] && name="well-ads-staging"
-          url="https://$name.${{ steps.sub.outputs.sub }}.workers.dev"
+          if [ "$TARGET" = staging ]; then
+            url="https://well-ads-staging.${{ steps.sub.outputs.sub }}.workers.dev"
+          else
+            # Production has no workers.dev address; the Pages project in proxy/ is its public link
+            npx wrangler pages project list | grep -qw well-ads || npx wrangler pages project create well-ads --production-branch main
+            (cd proxy && npx wrangler pages deploy --branch main --commit-dirty=true)
+            res="$(curl -sS -H "Authorization: Bearer $CLOUDFLARE_API_TOKEN" \
+              "https://api.cloudflare.com/client/v4/accounts/$CLOUDFLARE_ACCOUNT_ID/pages/projects/well-ads")"
+            url="https://$(jq -r '.result.subdomain' <<<"$res")"
+          fi
           echo "::notice title=deployed::$url"
           echo "url=$url" >> "$GITHUB_OUTPUT"
       - name: Smoke test
         env:
           URL: ${{ steps.deploy.outputs.url }}
         run: |
-          for i in 1 2 3 4 5; do
+          for i in 1 2 3 4 5 6 7 8 9 10; do
             body="$(curl -fsS "$URL/api/health" || true)"; [ "$body" = '{"ok":true}' ] && break; sleep 5
           done
           [ "$body" = '{"ok":true}' ] || { echo "::error title=smoke::health check failed at $URL: $body"; exit 1; }
