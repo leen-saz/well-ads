@@ -38,7 +38,9 @@ import { ClientRouter } from 'astro:transitions';
 .cp-hit:first-of-type{border-top:0}
 .ls-kw{display:flex;gap:6px;flex-wrap:wrap;margin:0 0 14px}
 .ls-x{border:0;background:none;cursor:pointer;font-size:15px;line-height:1;padding:0 2px;color:var(--muted);min-width:24px;min-height:24px}
-.ls-out{display:grid;gap:16px}
+.ls-out{display:grid;gap:16px;min-width:0}
+.content>section,.content>.ls-out>section{min-width:0;max-width:100%}
+.tbl{overflow-x:auto;max-width:100%}
 #addKw{flex-wrap:wrap;flex:1 1 280px;min-width:0;max-width:460px}
 #addKw input{flex:1 1 140px;min-width:0;margin:0}
 .ls-out h2{margin:0 0 10px}
