@@ -1,12 +1,13 @@
 // صفحة التاب اللي لسا ما جهز: اسمه، وتاق "قريباً"، ووش بيسوي لما يجهز.
-import { $, esc, shell, LANG } from './common.js';
-import { SOON } from './tabs.js';
+import { $, esc, shell, LANG, api } from './common.js';
 
 // Runs on every visit of this page (assets/router.js calls it after each ClientRouter navigation).
 export default async function mount() {
 
   const en = LANG === 'en';
-  const s = SOON.find(x => x.key === new URLSearchParams(location.search).get('t')) || SOON[0];
+  const soon = ((await api('/api/account/password')).modules || []).filter(m => m.status === 'soon');
+  const s = soon.find(x => x.key === new URLSearchParams(location.search).get('t')) || soon[0];
+  if (!s) return;
   const name = en ? s.en : s.ar;
   document.title = name + ' · Well';
   await shell({ active: 'soon:' + s.key, title: name, badge: `<span class="chip brand">${en ? 'Coming soon' : 'قريباً'}</span>` });

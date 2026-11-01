@@ -106,6 +106,8 @@ input[type=checkbox]{width:16px;height:16px;accent-color:var(--ink);margin:0;cur
 .navi .tag{margin-inline-start:auto;flex:none;font:500 11px/1 var(--f-ar);padding:4px 8px;border-radius:999px;background:var(--tint-2);color:var(--text)}
 .navi[aria-current] .tag{background:color-mix(in srgb,#FFFFFF 25%,transparent);color:#FFFFFF}
 .side .grow{flex:1}
+.side-sec{display:flex;flex-direction:column;gap:2px;margin:0 0 10px}
+.side-h{font:500 11px/1 var(--f-ar);letter-spacing:.04em;color:var(--muted);opacity:.75;padding:6px 16px}
 .me{display:flex;align-items:center;gap:10px;padding:8px;border-radius:var(--r-sm);border:0;background:transparent;color:var(--text);cursor:pointer;width:100%;text-align:start;font:inherit}
 .me:hover{background:var(--tint)}
 .avatar{width:34px;height:34px;border-radius:50%;background:var(--ink);color:#FFFFFF;display:grid;place-items:center;font:600 13px var(--f-num);flex:none}

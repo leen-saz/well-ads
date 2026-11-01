@@ -5,10 +5,7 @@ import * as account from './routes/account';
 import * as admin from './routes/admin';
 import * as connectors from './routes/connectors';
 import * as control from './routes/control';
-import * as social from './routes/social';
-import * as journeys from './routes/journeys';
-import * as content from './routes/content';
-import * as maestro from './routes/maestro';
+import { ROUTES } from '../modules/routes';
 
 type Group = Record<string, Partial<Record<string, Handler>>>;
 const notFound = () => json(404, { error: 'غير موجود' });
@@ -28,9 +25,7 @@ api.all('/admin/:action', group(admin));
 api.all('/account/:action', group(account));
 api.all('/connectors/:action', group(connectors));
 api.all('/control/:action', group(control));
-api.all('/social/:action', group(social));
-api.all('/journeys/:action', group(journeys));
-api.all('/content/:action', group(content));
-api.all('/maestro/:action', group(maestro));
+// One route group per live module (src/modules/routes.ts)
+for (const [key, routes] of Object.entries(ROUTES)) api.all(`/${key}/:action`, group(routes));
 
 api.notFound(() => json(404, { ok: false, error: 'not_found' }));

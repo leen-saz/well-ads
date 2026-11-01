@@ -1,6 +1,7 @@
 // Port of well-ads-dashboard web/middleware.js: nothing opens without login, and each user sees
 // only the dashboards Leen picked. Returns a Response (redirect / refusal) or a pass decision.
-import { env, verify, readCookie, SESSION, can, home, html, json, type AuthEnv, type Cfg, type Need } from './auth';
+import { env, verify, readCookie, SESSION, can, home, html, json, type AuthEnv, type Cfg, type Need, locked, LOCKED } from './auth';
+import { LIVE } from '../modules/registry';
 
 export type Pass = { pass: true; rewrite?: string };
 export type Decision = Pass | Response;
@@ -13,10 +14,9 @@ export function need(pathname: string, search: string): Need | null {
   if (/^\/(api\/)?admin(\/|$)/.test(pathname)) return 'owner';
   if (/^\/(api\/)?control(\/|$)/.test(pathname)) return 'control';
   if (/^\/(api\/)?connectors(\/|$)/.test(pathname)) return 'connectors';
-  if (/^\/(api\/)?social(\/|$)/.test(pathname)) return 'social';
-  if (/^\/(api\/)?journeys(\/|$)/.test(pathname)) return 'journeys';
-  if (/^\/(api\/)?content(\/|$)/.test(pathname)) return 'content';
-  if (/^\/(api\/)?maestro(\/|$)/.test(pathname)) return 'maestro';
+  // Live modules: /<key>/ and /api/<key>/* need the module's own dashboard
+  const mod = pathname.match(/^\/(?:api\/)?([a-z]+)(?:\/|$)/)?.[1];
+  if (mod && LIVE.includes(mod)) return mod;
   if (/^\/(api\/)?account(\/|$)/.test(pathname)) return 'any';
   if (/^\/settings\/?$/.test(pathname)) return 'any';
   if (/^\/soon\/?$/.test(pathname)) return 'any';
@@ -55,6 +55,7 @@ export async function gate(request: Request, e: AuthEnv): Promise<Decision> {
   }
   // Images: any user with at least one dashboard
   if (want === 'media') return (s.dash || []).length || s.role === 'owner' ? { pass: true } : html(403, 'ما عندك صلاحية');
+  if (locked(s, want)) return api ? json(403, { error: LOCKED }) : html(403, LOCKED);
   if (can(s, want, cfg)) {
     // Department manager: analytics and creative open from their department copy only
     const scope: string[] = Array.isArray(s.depts) ? s.depts : [];

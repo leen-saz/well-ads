@@ -1,0 +1,67 @@
+---
+import { ClientRouter } from 'astro:transitions';
+// إيجنت المحتوى و SEO/AEO: ربط ← تحليل ← بلان ← موافقة ← نشر.
+---
+<!doctype html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="robots" content="noindex,nofollow">
+<meta name="referrer" content="no-referrer">
+<meta name="theme-color" content="#F6F0E3">
+<title>المحتوى و SEO · Well</title>
+<link rel="preload" href="/assets/fonts/thmanyahsans-Regular.woff2" as="font" type="font/woff2" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@900&display=swap">
+<link rel="stylesheet" href="/assets/app.css">
+<ClientRouter />
+<style is:global>
+.so-grid{display:grid;grid-template-columns:minmax(0,420px) minmax(0,1fr);gap:16px;align-items:start}
+@media (max-width:1000px){.so-grid{grid-template-columns:1fr}}
+.so-cnt{font-size:12px;margin:4px 0 0}.so-cnt.over{color:#C0392B}
+.so-day{margin:18px 0 8px;font-size:15px}
+.so-post{padding:14px 16px;display:grid;gap:8px}
+.so-top{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+.so-chip{font-size:12px;padding:3px 10px;border-radius:999px;background:var(--tint)}
+.so-st{margin-inline-start:auto;font-size:12px}
+.so-body{white-space:pre-wrap;margin:0}
+.so-note{font-size:13px;margin:8px 0 0;padding:10px 12px;border-radius:12px;background:var(--tint)}
+.ct-flow{display:flex;gap:8px;list-style:none;padding:0;margin:0 0 16px;flex-wrap:wrap;counter-reset:s}
+.ct-flow li{counter-increment:s;padding:6px 14px;border-radius:999px;background:var(--tint);font-size:13px;color:var(--muted)}
+.ct-flow li::before{content:counter(s) ". "}
+.ct-flow li.on{background:var(--accent);color:#fff}
+.ct-item{padding:14px 16px;display:grid;gap:6px}
+.ct-item.rejected{opacity:.5}
+.ct-draft{white-space:pre-wrap;font-size:14px;max-height:320px;overflow:auto;padding:12px;border-radius:12px;background:var(--tint);margin:0}
+.ct-pos{margin:0 0 12px}
+</style>
+</head>
+<body data-page="content" data-module>
+<div class="app" id="app">
+  <aside class="side" id="side" aria-label="القائمة" transition:persist="side"></aside>
+  <div class="scrim"></div>
+  <div class="main">
+    <header class="topbar" id="top"></header>
+    <main class="content" id="content">
+      <ol class="ct-flow" aria-label="المراحل"><li data-s="1">ربط</li><li data-s="2">تحليل</li><li data-s="3">بلان</li><li data-s="4">موافقة</li><li data-s="5">نشر</li></ol>
+      <div class="so-grid">
+        <section class="card pad">
+          <h2>حلّل الموقع</h2>
+          <form id="f" novalidate>
+            <label for="site">الموقع</label><input type="url" id="site" dir="ltr" placeholder="https://wellcare.sa">
+            <label for="niche">النيش <span class="muted">(اختياري)</span></label><input type="text" id="niche" placeholder="مثال: رعاية منزلية ومحاليل وريدية في الرياض">
+            <label for="comp">منافسين يعجبك أسلوبهم <span class="muted">(سطر لكل واحد، مرجع للنبرة)</span></label><textarea id="comp" rows="3"></textarea>
+            <p class="so-note">يقرا الموقع وأرقام Search Console لو مربوطة من صفحة الربط، ويبني البلان بالذكاء الاصطناعي المجاني في Cloudflare.</p>
+            <div class="bar" style="margin-top:16px"><button class="btn primary" type="submit">حلّل وابنِ البلان</button></div>
+            <div class="msg" id="msg" role="status"></div>
+          </form>
+          <h3 style="margin:20px 0 8px">البلانات السابقة</h3><div id="history"></div>
+        </section>
+        <section id="plan"></section>
+      </div>
+    </main>
+  </div>
+</div>
+<script is:inline type="module" src="/assets/router.js"></script>
+</body>
+</html>

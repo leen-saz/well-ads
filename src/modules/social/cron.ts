@@ -1,7 +1,7 @@
 // Every 5 minutes (Worker cron): publish the posts that are due. Each post is claimed first
 // (scheduled -> publishing) so two runs never publish it twice.
-import { env, sb, type AuthEnv } from './auth';
-import { WELL_COMPANY } from './tenant';
+import { env, sb, type AuthEnv } from '../../lib/auth';
+import { WELL_COMPANY } from '../../lib/tenant';
 import { due, publishPost, type Draft } from './social';
 
 type Row = Draft & { id: number; company_id: string; status: string; approved_at?: string | null };

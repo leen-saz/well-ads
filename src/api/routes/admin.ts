@@ -1,5 +1,6 @@
 // /api/admin/*: users and log (Leen only). Port of web/lib/routes/admin/*.js.
 import { sb, json, readJson, handle, requireUser, audit, DASHBOARDS, DEPTS } from '../../lib/auth';
+import { MODULES, isModule } from '../../modules/registry';
 import { scoped } from '../../lib/tenant';
 
 type Row = Record<string, unknown> & { email?: string };
@@ -60,5 +61,25 @@ export const users = {
     }
     await audit(cfg, user, 'user_updated', { target: { id, email: r.data[0]?.email }, before: before.ok ? before.data[0] : null, after: r.data[0] });
     return json(200, { ok: true, user: r.data[0] });
+  }),
+};
+
+// The company's modules: the owner switches off the ones the company does not need (locked for everyone in it)
+export const modules = {
+  GET: handle(async (request, e) => {
+    const { cfg, user } = await requireUser(request, e, 'owner');
+    const r = await sb<{ disabled_modules?: string[] }[]>(cfg, `/rest/v1/companies?id=eq.${user.co}&select=disabled_modules`, { admin: true });
+    if (!r.ok) return json(500, { error: 'ما قدرت أقرأ الموديولات' });
+    const off = r.data[0]?.disabled_modules || [];
+    return json(200, { modules: MODULES.map(m => ({ key: m.key, ar: m.ar, en: m.en, icon: m.icon, status: m.status, on: !off.includes(m.key) })) });
+  }),
+  PATCH: handle(async (request, e) => {
+    const { cfg, user } = await requireUser(request, e, 'owner', { write: true });
+    const body = await readJson(request);
+    const off = [...new Set((Array.isArray(body.off) ? body.off : []).filter((k): k is string => typeof k === 'string' && isModule(k)))];
+    const r = await sb(cfg, `/rest/v1/companies?id=eq.${user.co}`, { method: 'PATCH', admin: true, body: { disabled_modules: off } });
+    if (!r.ok) return json(500, { error: 'ما انحفظ' });
+    await audit(cfg, user, 'modules_changed', { after: { off } });
+    return json(200, { ok: true, off });
   }),
 };

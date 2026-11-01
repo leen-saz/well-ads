@@ -3,7 +3,8 @@
 async function run() {
   const name = document.body.dataset.page;
   if (!name || !/^[a-z]+$/.test(name)) return;
-  const mod = await import(`/assets/${name}.js`);
+  // Tabs built as modules keep their script in public/modules/<name>/client.js (src/modules/README.md)
+  const mod = await import('module' in document.body.dataset ? `/modules/${name}/client.js` : `/assets/${name}.js`);
   await mod.default();
 }
 document.addEventListener('astro:page-load', run);

@@ -1,0 +1,73 @@
+---
+import { ClientRouter } from 'astro:transitions';
+// الرحلات: بناء رحلة (انتظر، واتساب، إيميل، إشعار) وتشغيلها لعميل. التشغيل على Cloudflare Workflows.
+---
+<!doctype html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="robots" content="noindex,nofollow">
+<meta name="referrer" content="no-referrer">
+<meta name="theme-color" content="#F6F0E3">
+<title>الرحلات والرسائل · Well</title>
+<link rel="preload" href="/assets/fonts/thmanyahsans-Regular.woff2" as="font" type="font/woff2" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@900&display=swap">
+<link rel="stylesheet" href="/assets/app.css">
+<ClientRouter />
+<style is:global>
+.so-grid{display:grid;grid-template-columns:minmax(0,420px) minmax(0,1fr);gap:16px;align-items:start}
+@media (max-width:1000px){.so-grid{grid-template-columns:1fr}}
+.so-cnt{font-size:12px;margin:4px 0 0}.so-cnt.over{color:#C0392B}
+.so-day{margin:18px 0 8px;font-size:15px}
+.so-post{padding:14px 16px;display:grid;gap:8px}
+.so-top{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+.so-chip{font-size:12px;padding:3px 10px;border-radius:999px;background:var(--tint)}
+.so-st{margin-inline-start:auto;font-size:12px}
+.so-body{white-space:pre-wrap;margin:0}
+.so-note{font-size:13px;margin:8px 0 0;padding:10px 12px;border-radius:12px;background:var(--tint)}
+.jr-steps{display:grid;gap:8px;margin:0 0 10px}
+.jr-step{display:grid;gap:6px;padding:12px;border:1px solid var(--line);border-radius:12px}
+.jr-step .bar{justify-content:space-between}
+.jr-step input,.jr-step textarea{margin:0}
+</style>
+</head>
+<body data-page="journeys" data-module>
+<div class="app" id="app">
+  <aside class="side" id="side" aria-label="القائمة" transition:persist="side"></aside>
+  <div class="scrim"></div>
+  <div class="main">
+    <header class="topbar" id="top"></header>
+    <main class="content" id="content">
+      <div class="so-grid">
+        <section class="card pad">
+          <h2 id="formTitle">رحلة جديدة</h2>
+          <form id="f" novalidate>
+            <input type="hidden" id="jid">
+            <label for="name">اسم الرحلة</label><input type="text" id="name" placeholder="مثال: متابعة ليد المحاليل">
+            <label for="trigger">تبدأ</label>
+            <select id="trigger"><option value="manual">يدوي (أنت تضيف العميل)</option><option value="lead_created">لما يجي ليد جديد</option></select>
+            <label>الخطوات</label><div id="steps" class="jr-steps"></div>
+            <div class="bar"><select id="addType" style="max-width:180px"></select><button class="btn sm secondary" type="button" id="add">أضف خطوة</button></div>
+            <label>طريقة التشغيل</label>
+            <div class="seg" role="group" aria-label="طريقة التشغيل"><button type="button" data-mode="manual" aria-pressed="true">يدوي</button><button type="button" data-mode="auto" aria-pressed="false">تلقائي</button></div>
+            <p class="so-note" id="modeNote">ما تبدأ لأي عميل إلا لما تضغط تشغيل.</p>
+            <label class="checks"><span><input type="checkbox" id="active"> مفعّلة</span></label>
+            <div class="bar" style="margin-top:16px"><button class="btn primary" type="submit">احفظ</button><button class="btn ghost" type="button" id="reset">جديدة</button></div>
+            <div class="msg" id="msg" role="status"></div>
+            <div id="notices"></div>
+          </form>
+        </section>
+        <section>
+          <h2 style="margin:0 0 12px">الرحلات</h2>
+          <div id="list" style="display:grid;gap:10px"></div>
+          <h2 style="margin:24px 0 12px">آخر التشغيلات</h2>
+          <div class="tbl" id="runs"></div>
+        </section>
+      </div>
+    </main>
+  </div>
+</div>
+<script is:inline type="module" src="/assets/router.js"></script>
+</body>
+</html>

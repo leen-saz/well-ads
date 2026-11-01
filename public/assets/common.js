@@ -1,6 +1,6 @@
 // أدوات مشتركة: الطلبات، والأيقونات، والتواريخ، وهيكل التطبيق (القائمة الجانبية والشريط العلوي)
 import { LANG, t, langSwitch } from './i18n.js';
-import { SOON } from './tabs.js';
+import { sections, TIP } from './sidebar.js';
 export { LANG, t, langSwitch };
 // Pages switch with Astro's ClientRouter: listeners on document/window of one page are removed when it leaves
 let PAGE = new AbortController();
@@ -31,6 +31,7 @@ const P = {
   route: '<circle cx="6" cy="19" r="3"/><path d="M9 19h8.5a3.5 3.5 0 0 0 0-7h-11a3.5 3.5 0 0 1 0-7H15"/><circle cx="18" cy="5" r="3"/>',
   pen: '<path d="M12 20h9"/><path d="M16.4 3.6a2 2 0 0 1 3 3L7 19l-4 1 1-4Z"/>',
   star: '<path d="M12 3l1.9 5.8L20 11l-6.1 2.2L12 19l-1.9-5.8L4 11l6.1-2.2Z"/>',
+  grid: '<rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/>',
   user: '<circle cx="12" cy="8" r="4"/><path d="M20 21a8 8 0 0 0-16 0"/>',
   out: '<path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><path d="m16 17 5-5-5-5"/><path d="M21 12H9"/>',
   menu: '<path d="M4 6h16M4 12h16M4 18h16"/>',
@@ -77,17 +78,16 @@ export async function shell({ active, title, badge = '', tools = '' }) {
   // The user's name and dashboards, read once and kept 5 minutes while moving between tabs
   if (!ME || Date.now() - ME.t > 5 * 60 * 1000) ME = { t: Date.now(), v: await api('/api/account/password') };
   const me = ME.v;
-  // كل الأقسام تطلع للكل، واللي ما له صلاحية عليه يطلع مقفل
-  const owner = me.role === 'owner';
-  const items = [['/', 'التحليلات', 'chart', 'ceo', me.dashboards.includes('ceo')], ['/?view=creative', 'الكرييتف', 'image', 'creative', me.dashboards.includes('creative')], ['/maestro/', 'المايسترو', 'star', 'maestro', me.dashboards.includes('maestro')],
-    ['/control/', 'لوحة القرارات', 'gavel', 'control', me.dashboards.includes('control')], ['/social/', 'السوشال', 'calendar', 'social', me.dashboards.includes('social')], ['/journeys/', 'الرحلات والرسائل', 'route', 'journeys', me.dashboards.includes('journeys')], ['/content/', 'المحتوى و SEO', 'pen', 'content', me.dashboards.includes('content')],
-    ['/connectors/', 'الربط', 'plug', 'connectors', me.dashboards.includes('connectors')]];
+  // كل الأقسام تطلع للكل: اللي ما له صلاحية عليه أو مقفل لشركته يطلع بقفل
+  const L = (ar, en) => (LANG === 'en' ? en : ar);
   const initials = (me.name || me.email).trim().split(/\s+/).map(w => w[0]).join('').slice(0, 2).toUpperCase();
   const app = $('#app');
   $('#side', app).innerHTML = `<a class="brand mark" href="/" data-astro-reload aria-label="Well">Well<i>.</i></a>
-    ${items.map(([h, t, ic, k, ok]) => ok ? `<a class="navi" href="${h}"${FULL(h)}${k === active ? ' aria-current="page"' : ''}>${icon(ic)}<span>${t}</span></a>`
-      : `<span class="navi locked" aria-disabled="true" data-tip="ما عندك صلاحية">${icon(ic)}<span>${t}</span>${icon('lock', 'lk')}</span>`).join('')}
-    ${SOON.map(s => `<a class="navi soon" href="/soon/?t=${s.key}"${active === 'soon:' + s.key ? ' aria-current="page"' : ''}><svg class="i" viewBox="0 0 24 24" aria-hidden="true">${s.icon}</svg><span>${LANG === 'en' ? s.en : s.ar}</span><small class="tag">${LANG === 'en' ? 'Soon' : 'قريباً'}</small></a>`).join('')}
+    ${sections(me, L).map(sec => `<div class="side-sec"><small class="side-h">${esc(sec.label)}</small>${sec.items.map(it => {
+      const ic = it.svg ? `<svg class="i" viewBox="0 0 24 24" aria-hidden="true">${it.svg}</svg>` : icon(it.ic);
+      if (it.state === 'ok' || it.state === 'soon') return `<a class="navi${it.state === 'soon' ? ' soon' : ''}" href="${it.href}"${FULL(it.href)}${it.key === active ? ' aria-current="page"' : ''}>${ic}<span>${esc(it.text)}</span>${it.state === 'soon' ? `<small class="tag">${L('قريباً', 'Soon')}</small>` : ''}</a>`;
+      return `<span class="navi locked" aria-disabled="true" data-tip="${L(...TIP[it.state])}">${ic}<span>${esc(it.text)}</span>${icon('lock', 'lk')}</span>`;
+    }).join('')}</div>`).join('')}
     <div class="grow"></div>
     <a class="navi" href="/settings/"${active === 'settings' ? ' aria-current="page"' : ''}>${icon('settings')}<span>الإعدادات</span></a>
     <button class="me" id="meBtn" aria-haspopup="menu" aria-expanded="false"><span class="avatar">${esc(initials)}</span>
@@ -104,7 +104,8 @@ export async function shell({ active, title, badge = '', tools = '' }) {
 
 // تبويبات الإعدادات فوق المحتوى: حسابي للكل، والصلاحيات والدخول للمالكة بس
 export function settingsTabs(current, me) {
-  const tabs = [['/account/', 'حسابي', 'user', 'account', true], ['/admin/', 'الصلاحيات والدخول', 'users', 'admin', me.role === 'owner']];
+  const tabs = [['/account/', 'حسابي', 'user', 'account', true], ['/admin/', 'الصلاحيات والدخول', 'users', 'admin', me.role === 'owner'],
+    ['/admin/modules/', 'الموديولات', 'grid', 'modules', me.role === 'owner']];
   const nav = document.createElement('nav');
   nav.className = 'tabs settings-tabs'; nav.setAttribute('aria-label', 'الإعدادات');
   nav.innerHTML = tabs.filter(x => x[4]).map(([h, t, ic, k]) => `<a href="${h}"${k === current ? ' aria-current="page"' : ''}>${icon(ic)}<span>${t}</span></a>`).join('');

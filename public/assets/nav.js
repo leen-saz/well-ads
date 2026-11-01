@@ -1,6 +1,6 @@
 // نفس القائمة الجانبية حق لوحة القرارات، فوق اللوحات (/ و/creative): موقع واحد.
 // كل الأقسام تطلع للكل، واللي ما له صلاحية عليه يطلع مقفل. في الجوال: زر قائمة يفتح درج.
-import { SOON } from './tabs.js';
+import { sections, TIP } from './sidebar.js';
 const EN = (() => { try { return new URLSearchParams(location.search).get('lang') === 'en' || localStorage.getItem('well-ads-lang') === 'en'; } catch { return false; } })();
 const L = (ar, en) => EN ? en : ar;
 const P = {
@@ -24,7 +24,7 @@ const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': 
 
 // The sidebar needs the user's name and dashboards on every page. Kept for 5 minutes in this tab, so moving
 // between tabs does not wait on the database each time (the server still checks every request).
-const ME_KEY = 'well-me';
+const ME_KEY = 'well-me-2'; // v2: carries the modules list
 let me = null;
 try { const c = JSON.parse(sessionStorage.getItem(ME_KEY) || 'null'); if (c && Date.now() - c.t < 5 * 60 * 1000) me = c.v; } catch { /* storage blocked */ }
 if (!me) {
@@ -33,18 +33,18 @@ if (!me) {
 }
 if (me) {
   const creative = /view=creative/.test(location.search) || location.pathname.startsWith('/creative');
-  const has = k => me.dashboards.includes(k), owner = me.role === 'owner';
-  const items = [['/', L('التحليلات', 'Analytics'), 'chart', !creative, has('ceo')], ['/?view=creative', L('الكرييتف', 'Creative'), 'image', creative, has('creative')], ['/maestro/', L('المايسترو', 'Maestro'), 'star', false, has('maestro')],
-    ['/control/', L('لوحة القرارات', 'Decision board'), 'gavel', false, has('control')], ['/social/', L('السوشال', 'Social'), 'calendar', false, has('social')], ['/journeys/', L('الرحلات والرسائل', 'Journeys'), 'route', false, has('journeys')], ['/content/', L('المحتوى و SEO', 'Content & SEO'), 'pen', false, has('content')],
-    ['/connectors/', L('الربط', 'Connectors'), 'plug', false, has('connectors')]];
+  const owner = me.role === 'owner';
+  const here = creative ? 'creative' : 'ceo';
   const initials = (me.name || me.email).trim().split(/\s+/).map(w => w[0]).join('').slice(0, 2).toUpperCase();
   const role = owner ? L('المالكة', 'Owner') : (me.departments || []).length ? L('مدير قسم', 'Department manager') : L('عضو', 'Member');
   const side = document.createElement('aside');
   side.className = 'wl-side'; side.setAttribute('aria-label', L('القائمة', 'Menu'));
   side.innerHTML = `<a class="wl-mark" href="/">Well<i>.</i></a>
-    ${items.map(([h, t, ic, on, ok]) => ok ? `<a class="wl-navi" href="${h}"${on ? ' aria-current="page"' : ''}>${I(ic)}<span>${t}</span></a>`
-      : `<span class="wl-navi wl-locked" aria-disabled="true" title="${L('ما عندك صلاحية', 'No access')}">${I(ic)}<span>${t}</span>${I('lock')}</span>`).join('')}
-    ${SOON.map(s => `<a class="wl-navi wl-soon" href="/soon/?t=${s.key}"><svg class="wl-i" viewBox="0 0 24 24" aria-hidden="true">${s.icon}</svg><span>${L(s.ar, s.en)}</span><small class="wl-tag">${L('قريباً', 'Soon')}</small></a>`).join('')}
+    ${sections(me, L).map(sec => `<div class="wl-sec"><small class="wl-h">${esc(sec.label)}</small>${sec.items.map(it => {
+      const ic = it.svg ? `<svg class="wl-i" viewBox="0 0 24 24" aria-hidden="true">${it.svg}</svg>` : I(it.ic);
+      if (it.state === 'ok' || it.state === 'soon') return `<a class="wl-navi${it.state === 'soon' ? ' wl-soon' : ''}" href="${it.href}"${it.key === here ? ' aria-current="page"' : ''}>${ic}<span>${esc(it.text)}</span>${it.state === 'soon' ? `<small class="wl-tag">${L('قريباً', 'Soon')}</small>` : ''}</a>`;
+      return `<span class="wl-navi wl-locked" aria-disabled="true" title="${L(...TIP[it.state])}">${ic}<span>${esc(it.text)}</span>${I('lock')}</span>`;
+    }).join('')}</div>`).join('')}
     <div class="wl-grow"></div>
     <a class="wl-navi" href="/settings/">${I('settings')}<span>${L('الإعدادات', 'Settings')}</span></a>
     <form method="post" action="/api/auth/logout" class="wl-out"><button type="submit" class="wl-navi">${I('out')}<span>${L('خروج', 'Sign out')}</span></button></form>
@@ -79,6 +79,8 @@ if (me) {
   .wl-soon{height:40px;font-size:14px}
   .wl-tag{margin-inline-start:auto;flex:none;font:500 11px/1 "Thmanyah Sans",system-ui,sans-serif;padding:4px 8px;border-radius:999px;background:rgba(126,87,253,.12);color:#1D1069}
   .wl-grow{flex:1}
+  .wl-sec{display:flex;flex-direction:column;gap:2px;margin:0 0 10px}
+  .wl-h{font:500 11px/1 "Thmanyah Sans",system-ui,sans-serif;letter-spacing:.04em;color:rgba(29,16,105,.45);padding:6px 16px 6px}
   .wl-me{display:flex;align-items:center;gap:10px;padding:10px 8px 0;border-top:1px solid rgba(172,166,225,.35);margin-top:6px}
   .wl-me b{display:block;font-size:14px;font-weight:700;max-width:170px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.wl-me small{color:rgba(29,16,105,.62);font-size:12px}
   .wl-av{width:34px;height:34px;border-radius:50%;background:#1D1069;color:#FFFFFF;display:grid;place-items:center;font-size:13px;font-weight:700;flex:none}

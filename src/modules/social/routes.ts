@@ -1,8 +1,8 @@
 // /api/social/*: the post calendar of the user's company. Reads need the `social` dashboard, writes are same-origin.
-// Publishing itself runs from the Worker cron (src/lib/social-cron.ts), never from the browser.
+// Publishing itself runs from the Worker cron (src/modules/social/cron.ts), never from the browser.
 import { sb, json, readJson, handle, requireUser, audit } from '../../lib/auth';
 import { scoped } from '../../lib/tenant';
-import { SOCIAL, validate } from '../../lib/social';
+import { SOCIAL, validate } from './social';
 
 type Row = Record<string, unknown>;
 const rows = (d: unknown): Row[] => (Array.isArray(d) ? (d as Row[]) : []);

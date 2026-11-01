@@ -1,5 +1,5 @@
 // الرحلات: بناء الخطوات، والحفظ، وتشغيل رحلة لعميل (جوال أو إيميل). الإرسال يصير من السيرفر خطوة خطوة.
-import { $, $$, api, say, esc, shell, busy } from './common.js';
+import { $, $$, api, say, esc, shell, busy } from '/assets/common.js';
 
 // Runs on every visit of this page (assets/router.js calls it after each ClientRouter navigation).
 export default async function mount() {

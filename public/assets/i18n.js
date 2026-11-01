@@ -13,7 +13,7 @@ document.addEventListener('astro:after-swap', () => { document.documentElement.l
 
 const EN = {
   // التنقل والهيكل
-  'التحليلات': 'Analytics', 'الكرييتف': 'Creative', 'لوحة القرارات': 'Decision board', 'الصلاحيات والدخول': 'Access & sign-in', 'السوشال': 'Social', 'الرحلات والرسائل': 'Journeys', 'المحتوى و SEO': 'Content & SEO', 'المايسترو': 'Maestro', 'الإعدادات': 'Settings',
+  'التحليلات': 'Analytics', 'الكرييتف': 'Creative', 'لوحة القرارات': 'Decision board', 'الصلاحيات والدخول': 'Access & sign-in', 'السوشال': 'Social', 'الرحلات والرسائل': 'Journeys', 'المحتوى و SEO': 'Content & SEO', 'المايسترو': 'Maestro', 'الموديولات': 'Modules', 'موديولات الشركة': 'Company modules', 'الإعدادات': 'Settings',
   'حسابي': 'My account', 'خروج': 'Sign out', 'المالكة': 'Owner', 'عضو': 'Member', 'القائمة': 'Menu', 'التنقل': 'Navigation',
   'عربي': 'عربي', 'English': 'English', 'اللغة': 'Language',
   // الدخول

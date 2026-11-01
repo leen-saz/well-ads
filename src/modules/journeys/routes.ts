@@ -1,8 +1,8 @@
 // /api/journeys/*: the journeys of the user's company. Starting one creates a Cloudflare Workflow instance per customer.
 import { sb, json, readJson, handle, requireUser, audit, type AuthEnv } from '../../lib/auth';
 import { scoped } from '../../lib/tenant';
-import { CHANNELS, cleanContact, cleanSteps, notices } from '../../lib/journeys';
-import type { JourneyParams } from '../../lib/journey-workflow';
+import { CHANNELS, cleanContact, cleanSteps, notices } from './journeys';
+import type { JourneyParams } from './workflow';
 
 type Row = Record<string, unknown>;
 type WfEnv = AuthEnv & { JOURNEY?: { create(o: { id: string; params: JourneyParams }): Promise<unknown> } };

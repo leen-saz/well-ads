@@ -2,16 +2,20 @@
 // Email + password via Supabase Auth, session in an HMAC-signed cookie. Web Crypto only.
 
 import { companyOf } from './tenant';
+import { MODULES, LIVE, isModule } from '../modules/registry';
 
 export const SESSION = '__Host-well_session';
 export const SESSION_HOURS = 12;
 export const RECHECK_MS = 10 * 60 * 1000; // pages re-read the user's permissions every 10 minutes
-export const DASHBOARDS = { ceo: 'التحليلات', creative: 'الكرييتف', control: 'لوحة القرارات', connectors: 'الربط', social: 'السوشال', journeys: 'الرحلات', content: 'المحتوى و SEO', maestro: 'المايسترو' } as const;
+// Core dashboards, then one per live module (src/modules/registry.ts)
+const CORE = { ceo: 'التحليلات', creative: 'الكرييتف', control: 'لوحة القرارات', connectors: 'الربط' };
+export const DASHBOARDS: Record<string, string> = { ...CORE, ...Object.fromEntries(MODULES.filter(m => LIVE.includes(m.key)).map(m => [m.key, m.ar])) };
 // Department scope: empty = all departments. A department manager sees only their department.
 export const DEPTS = { iv: 'المحاليل الوريدية', midwife: 'القبالة / رعاية الحمل', foot: 'تقويم القدم', renan: 'رينان لصحة الطفل' } as const;
 export const PASSWORD_MIN = 10;
+export const LOCKED = 'هالموديول مقفل لشركتك';
 
-export type Dashboard = keyof typeof DASHBOARDS;
+export type Dashboard = string;
 export type Dept = keyof typeof DEPTS;
 export type Need = Dashboard | 'any' | 'owner' | 'media';
 
@@ -27,6 +31,7 @@ export interface Session {
   role: 'owner' | 'member';
   dash: Dashboard[]; depts: Dept[];
   co: string; // company id (SaaS); owner = owner of this company only
+  off?: string[]; // modules locked for this company (companies.disabled_modules)
   exp: number; chk: number;
   stale?: boolean;
 }
@@ -34,6 +39,7 @@ export interface Profile {
   id: string; email?: string | null; name?: string | null; role?: string | null;
   dashboards?: string[] | null; departments?: string[] | null; active?: boolean | null;
   company_id?: string | null;
+  company?: { disabled_modules?: string[] | null } | null;
 }
 
 export function env(e: AuthEnv): Cfg {
@@ -109,9 +115,12 @@ export const clearCookie = (): string => `${SESSION}=; Path=/; HttpOnly; Secure;
 
 export const isOwner = (s: Session | null | undefined, cfg?: Cfg): boolean =>
   !!s && (s.role === 'owner' || (!!cfg && s.email === cfg.owner));
+// A module the company switched off: locked for everyone in it, the owner included
+export const locked = (s: Session, need: Need): boolean => isModule(need) && !!s.off?.includes(need);
 export function can(s: Session | null | undefined, need: Need, cfg?: Cfg): boolean {
   if (!s) return false;
   if (need === 'any') return true;
+  if (locked(s, need)) return false;
   if (isOwner(s, cfg)) return true;
   if (need === 'owner') return false;
   return Array.isArray(s.dash) && (s.dash as string[]).includes(need);
@@ -140,6 +149,7 @@ export function sessionFor(profile: Profile, cfg: Cfg, now = Date.now()): Sessio
     dash: owner ? (Object.keys(DASHBOARDS) as Dashboard[]) : ((profile.dashboards || []).filter(d => d in DASHBOARDS) as Dashboard[]),
     depts: owner ? [] : ((profile.departments || []).filter(d => d in DEPTS) as Dept[]),
     co: companyOf(profile.company_id),
+    off: (profile.company?.disabled_modules || []).filter(isModule),
     exp: now + SESSION_HOURS * 3600 * 1000, chk: now,
   };
 }
@@ -171,7 +181,7 @@ export function keyKind(k: string): string {
 }
 
 export async function loadProfile(cfg: Cfg, uid: string): Promise<Profile | null> {
-  const r = await sb<Profile[]>(cfg, `/rest/v1/profiles?id=eq.${encodeURIComponent(uid)}&select=*`, { admin: true });
+  const r = await sb<Profile[]>(cfg, `/rest/v1/profiles?id=eq.${encodeURIComponent(uid)}&select=*,company:companies(disabled_modules)`, { admin: true });
   return r.ok && Array.isArray(r.data) ? r.data[0] || null : null;
 }
 
@@ -220,6 +230,7 @@ export async function requireUser(request: Request, e: AuthEnv, need: Need, { wr
   const profile = await loadProfile(cfg, s.uid);
   if (!profile || profile.active === false) throw json(401, { error: 'الحساب موقوف' }, { 'set-cookie': clearCookie() });
   const user = sessionFor(profile, cfg);
+  if (locked(user, need)) throw json(403, { error: LOCKED });
   if (!can(user, need, cfg)) throw json(403, { error: 'ما عندك صلاحية' });
   return { cfg, user };
 }
