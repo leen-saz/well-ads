@@ -223,7 +223,7 @@ def _describe(item, objectives, camp_on, group_on):
     )
 
 
-def pull(env, start, end, transport):
+def pull(env, start, end, transport, audience_due=False):
     """يسحب الإعلانات والصفوف داخل [start, end] فقط. يرمي عند الفشل ولا يرجّع أصفاراً."""
     token = str((env or {}).get("TIKTOK_ACCESS_TOKEN") or "").strip()
     ids = [i for i in parse_advertiser_ids((env or {}).get("TIKTOK_ADVERTISER_IDS")) if not is_spring_rose_account(i, "")]
@@ -353,6 +353,16 @@ def pull(env, start, end, transport):
             continue
         deduped[(row[0], row[1])] = row
     rows = [deduped[k] for k in sorted(deduped)]
+    if audience_due:   # تفاصيل المشاهدين، اختيارية: فشلها ما يوقف سحب تيك توك
+        try:
+            import audience
+            got = audience.attach(ads, "t", audience.tiktok(
+                lambda p, q: _get(transport, token, p, q), lambda p, q: _pages(transport, token, p, q),
+                [(str(a["advertiser_id"]), a.get("currency")) for a in accounts], spend_sar,
+                datetime.strptime(end_s, "%Y-%m-%d")))
+            _log(f"tiktok: تفاصيل المشاهدين لـ {got} إعلان")
+        except Exception as ex:
+            _log("tiktok: تفاصيل المشاهدين ما انسحبت — " + scrub(ex, token)[:160])
     # إعلان بلا تفاصيل يبقى ليُكمَل لاحقاً باسم «إعلان محذوف» إن لم يصل اسمه.
     cleaned = without_spring_rose({"ads": ads, "rows": rows})
     return cleaned["ads"], cleaned["rows"]
@@ -466,7 +476,7 @@ def assemble(prev, fresh_ads, fresh_rows, recent, start_s, today_s, carry, branc
     return cleaned["ads"], cleaned["rows"]
 
 
-def ingest_tiktok(env, prev, recent, start, end, today_s, path, transport, now, carry):
+def ingest_tiktok(env, prev, recent, start, end, today_s, path, transport, now, carry, audience_due=False):
     """يرجع ads و rows و status و organic_blob و pending.
 
     pending=True يعني تبقى جملة «بيانات تيك توك غير متوفرة».
@@ -484,7 +494,7 @@ def ingest_tiktok(env, prev, recent, start, end, today_s, path, transport, now, 
     if secrets_ready(env):
         attempted = True
         try:
-            fresh_ads, fresh_rows = pull(env, start, end, transport)
+            fresh_ads, fresh_rows = pull(env, start, end, transport, audience_due)
             ads, rows = assemble(
                 prev, fresh_ads, fresh_rows, bool(recent), start_s, today_s, carry, branch_ads, branch_rows,
             )

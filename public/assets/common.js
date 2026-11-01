@@ -1,5 +1,6 @@
 // أدوات مشتركة: الطلبات، والأيقونات، والتواريخ، وهيكل التطبيق (القائمة الجانبية والشريط العلوي)
 import { LANG, t, langSwitch } from './i18n.js';
+import { SOON } from './tabs.js';
 export { LANG, t, langSwitch };
 export const $ = (s, el = document) => el.querySelector(s);
 export const $$ = (s, el = document) => [...el.querySelectorAll(s)];
@@ -72,6 +73,7 @@ export async function shell({ active, title, badge = '', tools = '' }) {
   $('#side', app).innerHTML = `<a class="brand mark" href="/" aria-label="Well">Well<i>.</i></a>
     ${items.map(([h, t, ic, k, ok]) => ok ? `<a class="navi" href="${h}"${k === active ? ' aria-current="page"' : ''}>${icon(ic)}<span>${t}</span></a>`
       : `<span class="navi locked" aria-disabled="true" data-tip="ما عندك صلاحية">${icon(ic)}<span>${t}</span>${icon('lock', 'lk')}</span>`).join('')}
+    ${SOON.map(s => `<a class="navi soon" href="/soon/?t=${s.key}"${active === 'soon:' + s.key ? ' aria-current="page"' : ''}><svg class="i" viewBox="0 0 24 24" aria-hidden="true">${s.icon}</svg><span>${LANG === 'en' ? s.en : s.ar}</span><small class="tag">${LANG === 'en' ? 'Soon' : 'قريباً'}</small></a>`).join('')}
     <div class="grow"></div>
     <button class="me" id="meBtn" aria-haspopup="menu" aria-expanded="false"><span class="avatar">${esc(initials)}</span>
       <span class="who"><b>${esc(me.name || me.email)}</b><span class="muted">${me.role === 'owner' ? 'المالكة' : (me.departments || []).length ? 'مدير قسم' : 'عضو'}</span></span></button>

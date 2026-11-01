@@ -94,12 +94,15 @@ input[type=checkbox]{width:16px;height:16px;accent-color:var(--ink);margin:0;cur
 
 /* ---- الهيكل */
 .app{display:grid;grid-template-columns:var(--side) 1fr;min-height:100vh}
-.side{position:sticky;top:0;height:100vh;display:flex;flex-direction:column;gap:4px;padding:24px 16px;background:color-mix(in srgb,#FFFFFF 55%,transparent);-webkit-backdrop-filter:blur(12px);backdrop-filter:blur(12px)}
+.side{position:sticky;top:0;height:100vh;overflow-y:auto;display:flex;flex-direction:column;gap:4px;padding:24px 16px;background:color-mix(in srgb,#FFFFFF 55%,transparent);-webkit-backdrop-filter:blur(12px);backdrop-filter:blur(12px)}
 .side .brand{padding:4px 10px 18px}
 .navi{display:flex;align-items:center;gap:12px;height:44px;padding:0 16px;border-radius:999px;text-decoration:none;color:var(--muted);font-size:15px;position:relative;transition:background var(--ease),color var(--ease)}
 .navi:hover{background:var(--tint);color:var(--text)}
 .navi.locked{opacity:.45;cursor:not-allowed}.navi.locked:hover{background:transparent;color:var(--muted)}.navi .lk{width:14px;height:14px;margin-inline-start:auto}
 .navi[aria-current]{background:var(--accent);color:#FFFFFF;font-weight:500;box-shadow:0 6px 18px color-mix(in srgb,var(--accent) 28%,transparent)}
+.navi.soon{height:40px;font-size:14px}.navi.soon .i{flex:none}
+.navi .tag{margin-inline-start:auto;flex:none;font:500 11px/1 var(--f-ar);padding:4px 8px;border-radius:999px;background:var(--tint-2);color:var(--text)}
+.navi[aria-current] .tag{background:color-mix(in srgb,#FFFFFF 25%,transparent);color:#FFFFFF}
 .side .grow{flex:1}
 .me{display:flex;align-items:center;gap:10px;padding:8px;border-radius:var(--r-sm);border:0;background:transparent;color:var(--text);cursor:pointer;width:100%;text-align:start;font:inherit}
 .me:hover{background:var(--tint)}
