@@ -156,10 +156,29 @@ input[type=search]{width:min(240px,100%)}
 .khead h3{margin:0;font-size:.95rem;font-weight:600;color:var(--ink)}
 .seg-sm button{font-size:.78rem;padding:3px 10px}
 .knote{margin:0;font-size:.8rem;color:var(--muted)}
-.kstrip{display:flex;flex-wrap:wrap;gap:6px 22px;background:var(--surface);box-shadow:var(--lift);border-radius:var(--r);padding:10px 14px}
-.kstrip>div{display:flex;align-items:baseline;gap:6px}
-.kstrip .l{font-size:.8rem;color:var(--muted)}
-.kstrip .v{font-size:.95rem;font-weight:600;color:var(--ink)}
+.kpis.kout{grid-template-columns:repeat(auto-fit,minmax(min(100%,160px),1fr))}
+.kout .kpi.hero .v{font-size:1.6rem}
+.journey{display:flex;align-items:stretch;gap:0}
+.fstage{flex:1 1 0;min-width:0;background:var(--surface);box-shadow:var(--lift);border-radius:var(--r);padding:12px 14px;display:grid;gap:8px;align-content:start}
+.fhead{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+.fhead b{width:22px;height:22px;border-radius:50%;background:var(--accent);color:#fff;display:grid;place-items:center;font-size:.75rem}
+.fhead span{font-weight:600;color:var(--ink)}
+.fhead em{font-style:normal;font-size:.75rem;color:var(--muted);flex-basis:100%}
+.jbar{height:8px;border-radius:999px;background:color-mix(in srgb,var(--accent) 12%,transparent);overflow:hidden}
+.jbar i{display:block;height:100%;background:var(--accent);border-radius:999px}
+.fstage .kpi{box-shadow:none;background:transparent;padding:0}
+.fstage .kpi.main .v{font-size:1.5rem}
+.fsubs{display:grid;gap:6px;border-top:1px solid var(--line);padding-top:8px}
+.fstage .kpi.sub{display:flex;flex-wrap:wrap;align-items:baseline;justify-content:space-between;gap:2px 8px}
+.fstage .kpi.sub .v{font-size:.95rem}
+.fstage .kpi.sub .delta{flex-basis:100%;font-size:.72rem}
+.frate{flex:0 0 84px;z-index:1;display:grid;place-items:center;padding:0 4px;position:relative}
+.frate::before{content:'';position:absolute;inset-inline:0;top:50%;border-top:2px dashed var(--line)}
+.frate .kpi{position:relative;background:var(--surface);box-shadow:var(--lift);border-radius:12px;padding:6px 8px;text-align:center;gap:0}
+.frate .kpi .l{font-size:.68rem}
+.frate .kpi .v{font-size:1rem}
+.frate .kpi .delta{font-size:.65rem}
+@media (max-width:900px){.journey{flex-direction:column}.frate{flex-basis:auto;padding:4px 0}.frate::before{inset-inline:50%;top:0;bottom:0;border-top:0;border-inline-start:2px dashed var(--line)}}
 .kpis{display:grid;grid-template-columns:repeat(auto-fill,minmax(min(100%,210px),1fr));gap:10px}
 .kpi{background:var(--surface);border:0;box-shadow:var(--lift);border-radius:var(--r);padding:12px 14px;display:grid;gap:2px;min-width:0}
 .kpi .l{font-size:.82rem;color:var(--muted)}
@@ -576,11 +595,25 @@ const EN = {
   'قارن جنب بعض':'Compare side by side',
   'الاقفالات (مدفوعة)':'Closings (paid)',
   'المدفوع':'Paid',
-  'المبيعات':'Sales',
-  'الوصول والتفاعل':'Reach and engagement',
+  'النتيجة':'Outcome',
+  'رحلة العميل':'Customer journey',
+  'العائد على الصرف':'Return on spend',
+  'تكلفة العميل':'Cost per customer',
+  'الوعي':'Awareness',
+  'الاهتمام':'Interest',
+  'التحويل':'Conversion',
+  'البيع':'Sale',
+  'كم شخص شاف الإعلان':'How many saw the ad',
+  'كم واحد ضغط':'How many clicked',
+  'كم واحد ترك بياناته أو راسلنا':'How many left details or messaged us',
+  'كم واحد دفع':'How many paid',
+  'اقفالات مدفوعة':'Paid closings',
+  'العائد من الإعلانات':'ROAS from ads',
+  'من نقرة إلى ليد':'Click to lead',
+  'من ليد إلى اقفالة':'Lead to closing',
+  'الاقفالات والمدفوع من كل المصادر في نظام العملاء (مدفوعات ميسّر). العائد على الصرف = المدفوع ÷ الصرف. تكلفة العميل = الصرف ÷ الاقفالات.':'Closings and paid come from every source in the CRM (Moyasar payments). Return on spend = paid ÷ spend. Cost per customer = spend ÷ closings.',
   'اقفالات من الإعلانات':'Closings from ads',
   'العائد على الإعلان':'ROAS',
-  'ولا اقفالة مدفوعة مربوطة بإعلان في هالفترة':'No paid closing is linked to an ad in this period',
   'الاقفالات (كل المصادر)':'Closings (all sources)',
   'المدفوع (كل المصادر)':'Paid (all sources)',
   'الاقفالات حسب':'Closings by',
@@ -1304,38 +1337,53 @@ function delta(a,b,lowerIsBetter){
   return `<span class="delta ${good?'good':'bad'}">${up?'▲':'▼'} ${fmt(Math.abs(ch),1)}% <span style="color:var(--muted)">${tr('عن الفترة السابقة')}</span></span>`;
 }
 document.addEventListener('click', e => { const b = e.target.closest && e.target.closest('[data-crmby]'); if(!b) return; S.crmBy = b.dataset.crmby; render(); });
+// Full-funnel summary (awareness → interest → conversion → sale), then the outcome: the usual way to read ad performance.
 function renderKpis(now,prev){
   const a=derive(now.tot), b=cur&&cur.compareOk&&prev?derive(prev.tot):{};
-  // A card: [label, value, unit, delta, hero]. No comparison → no line (less noise).
-  const card = ([l,v,u,d,hero]) => `<div class="kpi${hero?' hero':''}"><span class="l">${l}</span><span class="v">${v}${u?`<small>${u}</small>`:''}</span>${/لا مقارنة/.test(d)?'':(l==='الصرف'?d.replace(/delta (good|bad)">/,'delta flat">'):d)}</div>`;
-  const group = (title, cards, tools='', note='') => `<div class="kgroup"><div class="khead"><h3>${title}</h3>${tools}</div><div class="kpis">${cards.map(card).join('')}</div>${note?`<p class="knote">${note}</p>`:''}</div>`;
-  const ads = [
-    ['الصرف',sar(a.spend),money(),delta(a.spend,b.spend,null),true],
-    ['الليدز',qty(a.leads),'',delta(a.leads,b.leads,false)],
-    ['تكلفة الليد',sar(a.cpl),money(),delta(a.cpl,b.cpl,true)],
-    ['محادثات واتساب وماسنجر',fmt(a.conv),'',delta(a.conv,b.conv,false)],
+  const dl = d => /لا مقارنة/.test(d) ? '' : d;   // no comparison → no line
+  const kpi = (l,v,u,d,cls='') => `<div class="kpi ${cls}"><span class="l">${l}</span><span class="v">${v}${u?`<small>${u}</small>`:''}</span>${dl(d)}</div>`;
+  const ratio = (x,y) => x!=null && y ? x/y : null;
+  const allN = a.allPaidN||0, allP = a.allPaid||0;
+  const mer = ratio(allP, a.spend), merB = ratio(b.allPaid, b.spend);
+  const cac = allN ? a.spend/allN : null, cacB = b.allPaidN ? b.spend/b.allPaidN : null;
+  const crm = !!(D.crm && D.crm.paid_all);
+  // 1) Outcome
+  const toggle = D.crm ? `<span class="seg seg-sm" role="group" aria-label="${tr('الاقفالات حسب')}">`
+    + [['lead','يوم الليد'],['paid','يوم الدفع']].map(([v,l])=>`<button type="button" data-crmby="${v}" aria-pressed="${(S.crmBy||'lead')===v}">${tr(l)}</button>`).join('') + `</span>` : '';
+  const spend = delta(a.spend,b.spend,null).replace(/delta (good|bad)">/,'delta flat">');
+  const outcome = [
+    kpi('الصرف',sar(a.spend),money(),spend,'hero'),
+    ...(crm ? [
+      kpi('الاقفالات',fmt(allN),'',delta(allN,b.allPaidN,false),'hero'),
+      kpi('المدفوع',sar(allP),money(),delta(allP,b.allPaid,false),'hero'),
+      kpi('العائد على الصرف',mer==null?'—':fmt(mer,2)+'×','',delta(mer,merB,false),'hero'),
+      kpi('تكلفة العميل',sar(cac),money(),delta(cac,cacB,true),'hero'),
+    ] : []),
+  ].join('');
+  // 2) Funnel: each stage has its volume, its cost, and the rate that carries people to the next stage
+  const vol = [a.impr||0, a.clicks||0, (a.leads||0)+(a.conv||0), crm ? allN : (a.booked||0)];
+  const top = Math.max(...vol, 1), w = v => v>0 ? Math.max(8, 100*Math.log10(v+1)/Math.log10(top+1)) : 4;
+  const clickToLead = ratio(100*((a.leads||0)+(a.conv||0)), a.clicks), clickToLeadB = ratio(100*((b.leads||0)+(b.conv||0)), b.clicks);
+  const leadToSale = a.closeRate, leadToSaleB = b.closeRate;   // ad-linked paid closings ÷ ad-linked CRM leads: both sides from ads
+  const stages = [
+    {n:'الوعي', hint:'كم شخص شاف الإعلان', main:kpi('الظهور',fmt(a.impr),'',delta(a.impr,b.impr,false),'main'),
+     sub:[kpi('تكلفة الألف ظهور',sar(a.cpm),money(),delta(a.cpm,b.cpm,true),'sub')]},
+    {n:'الاهتمام', hint:'كم واحد ضغط', main:kpi('نقرات الرابط والسوايب',fmt(a.clicks),'',delta(a.clicks,b.clicks,false),'main'),
+     sub:[kpi('تكلفة النقرة',sar(a.cpc),money(),delta(a.cpc,b.cpc,true),'sub')],
+     rate:kpi('نسبة النقر',pct(a.ctr),'',delta(a.ctr,b.ctr,false),'rate')},
+    {n:'التحويل', hint:'كم واحد ترك بياناته أو راسلنا', main:kpi('الليدز',qty(a.leads),'',delta(a.leads,b.leads,false),'main'),
+     sub:[kpi('تكلفة الليد',sar(a.cpl),money(),delta(a.cpl,b.cpl,true),'sub'), kpi('محادثات واتساب وماسنجر',fmt(a.conv),'',delta(a.conv,b.conv,false),'sub')],
+     rate:kpi('من نقرة إلى ليد',pct(clickToLead),'',delta(clickToLead,clickToLeadB,false),'rate')},
+    ...(D.crm ? [{n:'البيع', hint:'كم واحد دفع', main:kpi('اقفالات مدفوعة',fmt(crm?allN:(a.booked||0)),'',delta(crm?allN:a.booked,crm?b.allPaidN:b.booked,false),'main'),
+     sub:[kpi('اقفالات من الإعلانات',fmt(a.booked||0),'',delta(a.booked,b.booked,false),'sub'), kpi('العائد من الإعلانات',a.roas==null?'—':fmt(a.roas,2)+'×','',delta(a.roas,b.roas,false),'sub')],
+     rate:kpi('من ليد إلى اقفالة',pct(leadToSale),'',delta(leadToSale,leadToSaleB,false),'rate')}] : []),
   ];
-  let sales = '';
-  if(D.crm){
-    const fromAds = (a.booked||0) > 0 || (b.booked||0) > 0;
-    const cards = [
-      ...(D.crm.paid_all ? [
-        ['الاقفالات',fmt(a.allPaidN||0),'',delta(a.allPaidN,b.allPaidN,false),true],
-        ['المدفوع',sar(a.allPaid||0),money(),delta(a.allPaid,b.allPaid,false)],
-      ] : []),
-      ...(fromAds ? [
-        ['اقفالات من الإعلانات',fmt(a.booked||0),'',delta(a.booked,b.booked,false)],
-        ['تكلفة الاقفالة',sar(a.cpb),money(),delta(a.cpb,b.cpb,true)],
-        ['العائد على الإعلان',a.roas==null?'—':fmt(a.roas,2)+'×','',delta(a.roas,b.roas,false)],
-      ] : []),
-    ];
-    const tools = `<span class="seg seg-sm" role="group" aria-label="${tr('الاقفالات حسب')}">`
-      + [['lead','يوم الليد'],['paid','يوم الدفع']].map(([v,l])=>`<button type="button" data-crmby="${v}" aria-pressed="${(S.crmBy||'lead')===v}">${tr(l)}</button>`).join('') + `</span>`;
-    sales = group('المبيعات', cards, tools, fromAds ? '' : 'ولا اقفالة مدفوعة مربوطة بإعلان في هالفترة');
-  }
-  const reach = [['الظهور',fmt(a.impr)],['النقرات',fmt(a.clicks)],['نسبة النقر',pct(a.ctr)],['تكلفة النقرة',sar(a.cpc)+' '+money()],['تكلفة الألف ظهور',sar(a.cpm)+' '+money()]];
-  $('#kpis').innerHTML = group('الإعلانات', ads) + sales
-    + `<div class="kgroup"><div class="khead"><h3>الوصول والتفاعل</h3></div><div class="kstrip">${reach.map(([l,v])=>`<div><span class="l">${l}</span><span class="v num">${v}</span></div>`).join('')}</div></div>`;
+  const funnel = stages.map((st,i)=>`${st.rate?`<div class="frate">${st.rate}</div>`:''}<div class="fstage"><div class="fhead"><b>${i+1}</b><span>${st.n}</span><em>${st.hint}</em></div>`
+    + `<div class="jbar"><i style="width:${w(vol[i])}%;opacity:${1-i*0.16}"></i></div>${st.main}<div class="fsubs">${st.sub.join('')}</div></div>`).join('');
+  $('#kpis').innerHTML =
+    `<div class="kgroup"><div class="khead"><h3>النتيجة</h3>${toggle}</div><div class="kpis kout">${outcome}</div>`
+    + (crm ? `<p class="knote">${tr('الاقفالات والمدفوع من كل المصادر في نظام العملاء (مدفوعات ميسّر). العائد على الصرف = المدفوع ÷ الصرف. تكلفة العميل = الصرف ÷ الاقفالات.')}</p>` : '') + `</div>`
+    + `<div class="kgroup"><div class="khead"><h3>رحلة العميل</h3></div><div class="journey">${funnel}</div></div>`;
 }
 
 function noteCard(title, line, alert){
