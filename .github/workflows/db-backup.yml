@@ -1,0 +1,32 @@
+# Manual Supabase backup (public tables + Auth users) before any move or big change. Ported from the old repo.
+# The output is a private artifact that deletes itself after 3 days. It holds emails: download it and keep it
+# yourself; it never goes into the repo.
+name: db-backup
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  backup:
+    runs-on: ubuntu-24.04
+    environment: production
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: Dump Supabase
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+        run: |
+          PYTHONPATH=pipeline python3 supabase/backup.py
+          cp -r supabase/migrations backup/
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: well-db-backup-${{ github.run_id }}
+          path: backup/
+          retention-days: 3
