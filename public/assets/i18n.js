@@ -396,6 +396,17 @@ const EN = {
   'المواضيع اللي تشد': 'Topics that draw people', 'منشورات تفاعلها ضعف المعتاد': 'Posts with twice the usual engagement', 'منشورات فيها نقاش': 'Posts with conversation',
   'يحتاج منشورات أكثر.': 'Needs more posts.', 'ما فيه منشورات عضوية للحين.': 'No organic posts yet.', 'متوسط التفاعل للمنشور': 'Average engagement per post',
   'المصدر': 'Source', 'هالأسبوع': 'This week', 'الأسبوع اللي قبله': 'Week before', 'انتبه:': 'Note:', 'ما فيه ليدز آخر أسبوعين.': 'No leads in the last two weeks.', 'افتح': 'Open',
+  // التصميم (design)
+  'التصميم': 'Design', 'التصميم · Well': 'Design · Well',
+  'يبني بريف التصميم من أفضل إعلاناتنا، ويقترح نصوص مفحوصة على قواعد الامتثال، ويرسم معاينة لكل مقاس. النص دايم طبقة فوق الصورة، والصورة ما تطلع من جهازك.': 'Builds the design brief from our best ads, suggests copy checked against the compliance rules, and draws a preview for every size. Text is always a layer over the photo, and the photo never leaves your device.',
+  'البريف': 'Brief', 'النوع': 'Type', 'بوست عضوي': 'Organic post', 'وش نعلن عنه': 'What we advertise',
+  'مثال: جلسة فيتامين سي بالوريد في البيت': 'Example: an IV vitamin C session at home', 'الفئة المستهدفة': 'Audience', 'مثال: الموظفين اللي يحسون بإرهاق': 'Example: employees who feel drained',
+  'بدون': 'None', 'المقاسات': 'Sizes', 'صورة المنتج أو الخدمة': 'Product or service photo', '(تبقى في جهازك)': '(stays on your device)', 'جهّز البريف': 'Prepare the brief',
+  'املأ البريف واضغط "جهّز البريف".': 'Fill in the brief and press "Prepare the brief".', 'المعاينة': 'Preview', 'وش نجح عندنا آخر 30 يوم': 'What worked for us in the last 30 days',
+  'الصيغة': 'Format', 'النصوص المقترحة': 'Suggested copy', '· ذكاء اصطناعي': '· AI', '· قوالب': '· templates',
+  'السطر الثاني': 'Second line', 'الزر': 'Button', 'نزّل PNG': 'Download PNG', 'اختر مقاس واحد على الأقل.': 'Pick at least one size.',
+  'يجهز البريف…': 'Preparing the brief…', 'جاهز. عدّل النص أو اختر خيار ثاني، والمعاينة تتحدث.': 'Ready. Edit the copy or pick another option, and the preview updates.',
+  'ما فيه إعلانات ليدز بثلاث ليدز أو أكثر آخر 30 يوم، فالنصوص من القوالب.': 'No lead ads with three or more leads in the last 30 days, so the copy comes from templates.',
   // أخطاء السيرفر
   'طلب مرفوض': 'Request refused', 'سجّل الدخول': 'Please sign in', 'الحساب موقوف': 'Account disabled', 'ما عندك صلاحية': 'You don\'t have access',
   'صار خطأ، جرّب مرة ثانية': 'Something went wrong, try again', 'صار خطأ': 'Something went wrong', 'الإعداد غير مكتمل': 'Setup is incomplete',
