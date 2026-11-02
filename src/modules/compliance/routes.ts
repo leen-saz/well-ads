@@ -4,9 +4,9 @@ import { sb, json, readJson, handle, requireUser, type AuthEnv } from '../../lib
 import { scoped } from '../../lib/tenant';
 import { check as checkText, scan as scanAds, rewritePrompt, RULES, type AdText } from './compliance';
 import { knowledgeFor, rulesFor, withKnowledge } from '../knowledge/knowledge';
-import { AI_MODEL, type AiRun } from '../content/content';
+import { generate, pick, type LlmEnv } from '../../lib/llm';
 
-type AiEnv = AuthEnv & { AI?: { run: AiRun } };
+type AiEnv = AuthEnv & LlmEnv;
 
 export const scan = { GET: handle(async (request, e) => {
   const { cfg, user } = await requireUser(request, e, 'compliance');
@@ -34,11 +34,11 @@ export const rewrite = { POST: handle(async (request, e: AiEnv) => {
   const extra = await rulesFor(cfg, user.co);
   const hits = checkText(text, extra).filter(h => h.level !== 'info');
   if (!hits.length) return json(200, { text, hits: [], same: true });
-  if (!e.AI) return json(503, { error: 'إعادة الصياغة بالذكاء الاصطناعي غير مفعّلة في هالبيئة' });
+  if (!pick(e, 'content')) return json(503, { error: 'إعادة الصياغة بالذكاء الاصطناعي غير مفعّلة في هالبيئة' });
   let out: unknown;
-  try { out = await e.AI.run(AI_MODEL, { messages: withKnowledge([{ role: 'user', content: rewritePrompt(text, hits) }], await knowledgeFor(cfg, user.co, 'content')), max_tokens: 700 }); }
+  try { out = await generate(e, 'content', { messages: withKnowledge([{ role: 'user', content: rewritePrompt(text, hits) }], await knowledgeFor(cfg, user.co, 'content')), max_tokens: 700 }); }
   catch { return json(503, { error: 'الذكاء الاصطناعي ما رد الحين، جرّب بعد دقيقة' }); }
   const next = String((out as { response?: unknown })?.response ?? '').trim().replace(/^["«]|["»]$/g, '').slice(0, 3000);
   if (!next) return json(502, { error: 'ما رجع نص، جرّب مرة ثانية' });
-  return json(200, { text: next, hits: checkText(next, extra) });
+  return json(200, { text: next, hits: checkText(next, extra), engine: (out as { engine?: string }).engine });
 }) };

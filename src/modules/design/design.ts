@@ -45,8 +45,8 @@ export function templates(offer: string, audience: string): Variant[] {
   return base.map(v => ({ ...v, flags: flagsOf(v) }));
 }
 
-// The model answers with JSON lines; anything unparsable falls back to the templates
-export function parseVariants(raw: string, offer: string, audience: string): Variant[] {
+// The model answers with JSON lines: only well-formed, length-capped variants are kept ([] when none)
+export function variantsFrom(raw: string): Variant[] {
   const out: Variant[] = [];
   const m = raw.match(/\[[\s\S]*\]/);
   if (m) {
@@ -57,7 +57,12 @@ export function parseVariants(raw: string, offer: string, audience: string): Var
       }
     } catch { /* fall through */ }
   }
-  return out.length ? out.slice(0, 4) : templates(offer, audience);
+  return out.slice(0, 4);
+}
+// Anything unparsable falls back to the templates
+export function parseVariants(raw: string, offer: string, audience: string): Variant[] {
+  const out = variantsFrom(raw);
+  return out.length ? out : templates(offer, audience);
 }
 
 // Reference images (product photo and style references): Workers AI vision describes each one in a short line.

@@ -69,6 +69,18 @@ export default async function mount() {
     } catch (err) { $('#upMsg').textContent = err.message; e.target.value = ''; }
   });
 
+  // Write the idea in the text box, then let the social model write the post (it is checked, and you edit it before scheduling)
+  $('#suggest').addEventListener('click', async e => {
+    const btn = e.currentTarget; busy(btn, true); $('#notices').innerHTML = '';
+    try {
+      const r = await api('/api/social/suggest', { method: 'POST', body: { brief: $('#body').value, platforms: $$('input[name="pl"]:checked').map(x => x.value) } });
+      $('#body').value = r.body; $('#body').dispatchEvent(new Event('input'));
+      say($('#msg'), `${r.engine === 'xai' ? 'كتبه Grok' : 'كتبه الذكاء الاصطناعي'}. راجعه قبل ما تجدوله.`, true);
+      $('#notices').innerHTML = block(r.body, r.compliance || []);
+    } catch (err) { say($('#msg'), err.message); }
+    busy(btn, false);
+  });
+
   $('#f').addEventListener('submit', async e => {
     e.preventDefault();
     const btn = e.submitter; busy(btn, true); $('#notices').innerHTML = '';

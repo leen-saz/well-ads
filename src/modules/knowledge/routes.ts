@@ -5,9 +5,9 @@ import { scoped } from '../../lib/tenant';
 import { AI_MODULES, KINDS, clean, loadKnowledge, normalize, systemPrompt, type Entry } from './knowledge';
 import { QUESTIONS, answerRow, followUp, nextQuestion } from './training';
 import { check, type Hit } from '../compliance/compliance';
-import type { AiRun } from '../content/content';
+import { aiFor, type LlmEnv } from '../../lib/llm';
 
-type AiEnv = AuthEnv & { AI?: { run: AiRun } };
+type AiEnv = AuthEnv & LlmEnv;
 const rows = (d: unknown): Entry[] => (Array.isArray(d) ? (d as Entry[]) : []);
 // Claims, references and winning ads the AI will learn from: checked like any ad copy, as a notice (forbidden words are not ad copy)
 const comply = (row: Pick<Entry, 'kind' | 'body'>): Hit[] => (row.kind === 'forbidden' ? [] : check(row.body));
@@ -81,7 +81,7 @@ export const train = {
     let next = nextQuestion(entries, skip);
     // The AI asks only for someone who can answer, and only after the fixed questions
     if (!next && atLeast(user, 'knowledge', 'edit', cfg)) {
-      next = await followUp(e.AI ? (m, i) => e.AI!.run(m, i) : undefined, entries.filter(x => x.active), history.map(h => String(h.question || '')));
+      next = await followUp(aiFor(e, 'content'), entries.filter(x => x.active), history.map(h => String(h.question || '')));
     }
     const covered = QUESTIONS.filter(q => entries.some(x => x.topic === q.topic)).length;
     return json(200, { history, next, covered, total: QUESTIONS.length, canEdit: atLeast(user, 'knowledge', 'edit', cfg) });
