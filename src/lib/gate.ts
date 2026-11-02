@@ -6,7 +6,7 @@ import { LIVE } from '../modules/registry';
 export type Pass = { pass: true; rewrite?: string };
 export type Decision = Pass | Response;
 
-const PUBLIC = [/^\/login\/?$/, /^\/reset\/?$/, /^\/api\/auth\//, /^\/api\/health\/?$/, /^\/api\/connectors\/callback\/?$/,
+const PUBLIC = [/^\/login\/?$/, /^\/reset\/?$/, /^\/welcome\/?$/, /^\/api\/auth\//, /^\/api\/health\/?$/, /^\/api\/connectors\/callback\/?$/,
   /^\/assets\//, /^\/_astro\//, /^\/m\/[0-9a-f-]{36}\/[0-9a-f]{32}\.(jpg|png|webp|mp4|mov)$/i, /^\/robots\.txt$/, /^\/favicon/];
 
 export function need(pathname: string, search: string): Need | null {
@@ -14,6 +14,8 @@ export function need(pathname: string, search: string): Need | null {
   if (/^\/(api\/)?admin(\/|$)/.test(pathname)) return 'owner';
   if (/^\/(api\/)?control(\/|$)/.test(pathname)) return 'control';
   if (/^\/(api\/)?connectors(\/|$)/.test(pathname)) return 'connectors';
+  // Dashboard data: the route picks the user's copy (analytics, creative or their department)
+  if (/^\/api\/dash\//.test(pathname)) return 'any';
   // Live modules: /<key>/ and /api/<key>/* need the module's own dashboard
   const mod = pathname.match(/^\/(?:api\/)?([a-z]+)(?:\/|$)/)?.[1];
   if (mod && LIVE.includes(mod)) return mod;
