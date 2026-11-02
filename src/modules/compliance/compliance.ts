@@ -12,7 +12,7 @@ export const RULES: Rule[] = [
     fix: 'قل "النتائج تختلف من شخص لآخر" بدل الضمان.', re: /(مضمون[هة]?|نتائج مؤكد[هة]|100\s?%|١٠٠\s?٪|guarantee[ds]?)/i },
   { id: 'cure', level: 'critical', title: 'ادعاء شفاء أو علاج نهائي',
     why: 'ادعاء الشفاء أو العلاج النهائي ممنوع في الإعلان الصحي.',
-    fix: 'اكتب الفائدة بدون ادعاء: "يساعد على…" أو "جلسات لدعم…".', re: /(علاج نهائي|يشفي|شفاء (تام|نهائي)|يقضي على|تخلص (نهائي|للأبد)|\bcures?\b)/i },
+    fix: 'اكتب الفائدة بدون ادعاء: "يساعد على…" أو "جلسات لدعم…".', re: /(علاجا? نهائيا?|يشفي|شفاء (تام|نهائي)|يقضي على|تخلص (نهائي|للأبد)|\bcures?\b)/i },
   { id: 'before_after', level: 'critical', title: 'قبل وبعد',
     why: 'صور أو عبارات "قبل وبعد" ممنوعة في إعلانات الصحة والتجميل عند ميتا وتيك توك.',
     fix: 'اعرض تجربة الخدمة نفسها بدل المقارنة.', re: /(قبل\s*و\s*بعد|before\s*(and|&|\/)\s*after)/i },
@@ -45,7 +45,8 @@ export const RULES: Rule[] = [
 const SHOUT = /[!؟?]{3,}/;
 
 export function check(text: string): Hit[] {
-  const t = String(text || '').slice(0, 5000);
+  // Diacritics and tatweel do not change the meaning: "علاجاً نهائياً" reads as "علاجا نهائيا"
+  const t = String(text || '').slice(0, 5000).replace(/[\u064B-\u0652\u0640]/g, '');
   const out: Hit[] = [];
   for (const r of RULES) {
     if (r.id === 'discount' && /(لين|حتى|ينتهي|لأول|لفترة|until|ends)/i.test(t)) continue; // the offer already has terms

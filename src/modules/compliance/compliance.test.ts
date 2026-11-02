@@ -7,6 +7,7 @@ describe('compliance', () => {
     const ids = (t: string) => check(t).map(h => h.rule);
     expect(ids('نتائج مضمونة 100% من أول جلسة')).toContain('guarantee');
     expect(ids('علاج نهائي لتساقط الشعر')).toContain('cure');
+    expect(ids('خدمات تشمل علاجاً نهائياً')).toContain('cure'); // tanween and diacritics
     expect(ids('شوف قبل وبعد')).toContain('before_after');
     expect(ids('نزّل 10 كيلو بالشهر')).toContain('weight');
     expect(check('Guaranteed results')[0]?.level).toBe('critical');
