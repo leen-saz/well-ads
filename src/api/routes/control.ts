@@ -201,7 +201,8 @@ export const compliance = {
 
 // ---- campaigns: a new-campaign request from the form. Checks Leen's rules and files it on the board
 // (kind = new_campaign). Launches nothing on a platform; a new campaign always needs Leen's approval.
-const AI_FIELDS = ['budget', 'end', 'wa_message', 'primary', 'headline', 'cta', 'qualify', 'keywords', 'negatives', 'headlines', 'descriptions'];
+// Optional fields of the campaign form: left empty, they show as missing on the decision card
+const OPTIONAL = ['budget', 'end', 'wa_message', 'primary', 'headline', 'cta', 'qualify', 'keywords', 'negatives', 'headlines', 'descriptions'];
 
 const hex = (buf: ArrayBuffer) => [...new Uint8Array(buf)].map(b => b.toString(16).padStart(2, '0')).join('');
 async function digest(o: unknown): Promise<string> {
@@ -230,14 +231,15 @@ export const campaigns = {
     const hits = comply(copyOf(f), await rulesFor(cfg, user.co));
     const moh = hits.filter(h => h.level !== 'info').map(h => h.match);
     for (const h of hits.filter(x => x.level !== 'info')) issues.push(notice(h));
-    const aiPending = AI_FIELDS.filter(k => k in f && (f[k] === '' || f[k] == null));
+    const missing = OPTIONAL.filter(k => k in f && (f[k] === '' || f[k] == null));
+    if (missing.length) issues.push(`خانات فاضية لازم تنعبّى قبل الإطلاق: ${missing.join('، ')}`);
     const name = (typeof f.name === 'string' && f.name) || `${platform}_${dept}_${start.slice(8, 10)}${start.slice(5, 7)}`;
     const after = { status: 'PAUSED', note: 'تنطلق موقوفة، وتتشغّل بعد موافقة لين' };
     const s: Row = {
       platform, level: 'campaign', target_id: 'draft-' + Date.now().toString(36), target_name: name, campaign: name, kind: 'new_campaign',
       params: { ...f, objective: f.objective, platform }, reason: `طلب حملة جديدة لقسم ${DEPTS[dept as keyof typeof DEPTS]} من ${user.email}`,
-      evidence: { moh, compliance: hits, ai_pending: aiPending, dept }, priority: 70, source: 'manual', status: 'open',
-      before: null, after, risk: [...(moh.length ? ['وزارة الصحة'] : []), ...(aiPending.length ? ['يحتاج تعبئة كلود'] : [])],
+      evidence: { moh, compliance: hits, missing, dept }, priority: 70, source: 'manual', status: 'open',
+      before: null, after, risk: [...(moh.length ? ['وزارة الصحة'] : []), ...(missing.length ? ['خانات فاضية'] : [])],
       expect: {}, measure_plan: 'أول 3 أيام: الصرف وتكلفة الليد مقابل هدف المنصة، وبعد 7 أيام القرار: تكمل أو تتوقف.',
       reversal_plan: 'إيقاف الحملة (pause_campaign).', revision: 1, requested_by: user.email,
     };

@@ -7,7 +7,7 @@ import { t } from '/assets/i18n.js';
 export default async function mount() {
 
   const ST = { draft: 'مسودة', scheduled: 'مجدول', publishing: 'ينشر الحين', published: 'انتشر', partial: 'انتشر جزئياً', failed: 'ما انتشر', cancelled: 'ملغي' };
-  let PLATS = {}, mode = 'manual';
+  let PLATS = {}, APPR = { approvers: [], canApprove: false, owner: false, people: [] };
   const fmtDay = d => new Intl.DateTimeFormat((LANG === 'en' ? 'en-GB' : 'ar-SA-u-nu-latn'), { weekday: 'long', day: 'numeric', month: 'long', timeZone: 'Asia/Riyadh' }).format(d);
   const fmtTime = d => new Intl.DateTimeFormat((LANG === 'en' ? 'en-GB' : 'ar-SA-u-nu-latn'), { hour: 'numeric', minute: '2-digit', timeZone: 'Asia/Riyadh' }).format(d);
 
@@ -22,14 +22,14 @@ export default async function mount() {
 
   function postCard(p) {
     const at = new Date(p.publish_at);
-    const waiting = p.status === 'scheduled' && p.mode === 'manual' && !p.approved_at;
+    const waiting = p.status === 'scheduled' && !p.approved_at;
     const errs = Object.entries(p.results || {}).filter(([, r]) => !r.ok).map(([k, r]) => `${PLATS[k]?.name || k}: ${r.error}`);
     return `<article class="card so-post" data-id="${p.id}">
       <div class="so-top">${p.platforms.map(k => `<span class="so-chip">${esc(PLATS[k]?.name || k)}</span>`).join('')}
-        <span class="muted">${fmtTime(at)}</span><span class="so-st muted">${waiting ? 'ينتظر موافقتك' : ST[p.status] || p.status}${p.mode === 'auto' ? ' · تلقائي' : ''}</span></div>
+        <span class="muted">${fmtTime(at)}</span><span class="so-st muted">${waiting ? 'ينتظر الاعتماد' : p.status === 'scheduled' ? `معتمد · ${esc(p.approved_by || '')}` : ST[p.status] || p.status}</span></div>
       ${p.body ? (p.compliance?.length ? block(p.body, p.compliance) : `<p class="so-body">${esc(p.body)}</p>`) : ''}
       ${errs.length ? `<p class="so-note">${errs.map(esc).join('<br>')}</p>` : ''}
-      ${p.status === 'scheduled' ? `<div class="bar">${waiting ? '<button class="btn sm primary" data-act="approve">وافق</button>' : ''}<button class="btn sm ghost" data-act="cancel">ألغِ</button></div>` : ''}
+      ${p.status === 'scheduled' ? `<div class="bar">${waiting && APPR.canApprove ? '<button class="btn sm primary" data-act="approve">اعتمد</button>' : ''}<button class="btn sm ghost" data-act="cancel">ألغِ</button></div>` : ''}
     </article>`;
   }
 
@@ -49,11 +49,20 @@ export default async function mount() {
     counter();
   }
 
-  $$('.seg [data-mode]').forEach(b => b.onclick = () => {
-    mode = b.dataset.mode;
-    $$('.seg [data-mode]').forEach(x => x.setAttribute('aria-pressed', String(x === b)));
-    $('#modeNote').textContent = mode === 'auto' ? 'تنبيه: ينشر لحاله في وقته بدون موافقة. تأكد من النص والامتثال.' : 'ينتظر موافقتك قبل ما ينشر.';
-  });
+  // Who approves: named in the tab by the owner; the form says who will approve the post
+  async function loadApprovers() {
+    APPR = await api('/api/social/approvers');
+    const names = APPR.approvers.map(e => APPR.people.find(p => p.email === e)?.name || e);
+    $('#who').textContent = APPR.approvers.length ? `ينتظر اعتماد ${names.join(' أو ')} قبل ما ينشر.` : 'ينتظر اعتماد المالك قبل ما ينشر.';
+    $('#appr').hidden = !APPR.owner;
+    if (APPR.owner) $('#apprList').innerHTML = APPR.people.map(p => `<label><input type="checkbox" name="ap" value="${esc(p.email)}"${APPR.approvers.includes(p.email) ? ' checked' : ''}> ${esc(p.name || p.email)} <span class="muted" dir="ltr">${esc(p.email)}</span></label>`).join('');
+  }
+  $('#apprSave').onclick = async e => {
+    busy(e.currentTarget, true);
+    try { await api('/api/social/approvers', { method: 'PUT', body: { approvers: $$('input[name="ap"]:checked').map(x => x.value) } }); say($('#apprMsg'), 'انحفظ.', true); await loadApprovers(); await load(); }
+    catch (err) { say($('#apprMsg'), err.message); }
+    busy(e.currentTarget, false);
+  };
   $('#body').addEventListener('input', counter);
   // Upload the chosen photo/video right away; its public link goes into the post (Meta reads it from there)
   let uploaded = null;
@@ -85,7 +94,7 @@ export default async function mount() {
     e.preventDefault();
     const btn = e.submitter; busy(btn, true); $('#notices').innerHTML = '';
     const local = $('#at').value; // Riyadh time (UTC+3, no DST)
-    const body = { platforms: $$('input[name="pl"]:checked').map(x => x.value), body: $('#body').value, mode,
+    const body = { platforms: $$('input[name="pl"]:checked').map(x => x.value), body: $('#body').value,
       media: uploaded ? [uploaded] : $('#media').value ? [{ url: $('#media').value, type: /\.(mp4|mov|webm)(\?|$)/i.test($('#media').value) ? 'video' : 'image' }] : [],
       publish_at: local ? new Date(local + ':00+03:00').toISOString() : '' };
     try {
@@ -105,5 +114,5 @@ export default async function mount() {
     catch (err) { say($('#msg'), err.message); busy(b, false); }
   });
 
-  shell({ active: 'social', title: 'السوشال' }).then(load).catch(err => say($('#msg'), err.message));
+  shell({ active: 'social', title: 'السوشال' }).then(loadApprovers).then(load).catch(err => say($('#msg'), err.message));
 }
