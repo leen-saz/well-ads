@@ -18,7 +18,8 @@ class DashTemplateTests(unittest.TestCase):
 
     def test_one_script_inside_the_iife(self):
         html = template()
-        self.assertEqual(len(re.findall(r"<script>\n\(function\(\)\{\n", html)), 1)
+        # async since #80: the data may come from /dash.json
+        self.assertEqual(len(re.findall(r"<script>\n\(async function\(\)\{\n", html)), 1)
         self.assertIn("\n})();\n</script>", html)
 
 
