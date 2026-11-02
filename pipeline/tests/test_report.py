@@ -8,6 +8,7 @@ from channels import google_platform, meta_key
 from media import label_unsplit_google, media_kind
 from classify import classify_pair
 from organic import collect_organic, metric_day, pending_shell
+from dash_template import template
 
 FIXTURE = os.path.join(ROOT, "tests", "fixtures", "prototype_slim.json")
 WIN = ("2026-09-14", "2026-10-11")
@@ -210,7 +211,7 @@ class OrganicTests(unittest.TestCase):
 
 class BillingTests(unittest.TestCase):
     def test_template_has_no_billing_copy(self):
-        html = open(os.path.join(ROOT, "template.html"), encoding="utf-8").read()
+        html = template()
         for phrase in (
             "زيدي الرصيد", "رصيد الحساب", "سددي من", "Billing",
             "account_status", "disable_reason", "شحن الرصيد", "PENDING_BILLING",
@@ -459,7 +460,7 @@ class PreviewTests(unittest.TestCase):
         self.assertEqual(pick_preview({"image_url": "https://cdn.example/ad.jpg"}), "https://cdn.example/ad.jpg")
 
     def test_dashboard_has_paused_filter_and_creative_button(self):
-        html = open(os.path.join(ROOT, "template.html"), encoding="utf-8").read()
+        html = template()
         self.assertIn('id="stat"', html)
         self.assertIn('data-v="off"', html)
         self.assertIn("function passesStatus", html)
@@ -723,7 +724,7 @@ class DateAccuracyTests(unittest.TestCase):
         self.assertEqual(tiktok_coverage_end("not-a-date", []), "")
 
     def test_template_keeps_the_date_accuracy_guards(self):
-        html = open(os.path.join(ROOT, "template.html"), encoding="utf-8").read()
+        html = template()
         for piece in (
             "leadN", "function uniqueOf", "function holesBetween", "function coverEnd",
             "prevKnown", "function periodMatch", "بيانات ناقصة", "coverage_end",

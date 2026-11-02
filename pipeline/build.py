@@ -77,7 +77,8 @@ for _post in organic_posts(data):
     externalize(_post)
 print("صور:", len(os.listdir(THUMBS)), "ملف")
 blob = json.dumps(data, ensure_ascii=False, separators=(",", ":")).replace("</", "<\\/")
-tpl = open(os.path.join(HERE, "template.html"), encoding="utf-8").read()
+from dash_template import template
+tpl = template()
 page = tpl.replace("/*__DATA__*/", blob)
 
 # ---- Vercel: one dashboard. /organic/ only redirects into organic mode.

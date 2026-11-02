@@ -3,7 +3,7 @@
 //   npm run test:parity                      check against golden.json
 //   UPDATE_GOLDEN=1 npm run test:parity      rewrite golden.json from the pipeline page (only on purpose)
 import { test, expect, type Page } from '@playwright/test';
-import { readFileSync, writeFileSync, mkdtempSync, existsSync } from 'node:fs';
+import { readFileSync, writeFileSync, mkdtempSync, existsSync, readdirSync } from 'node:fs';
 import { join } from 'node:path';
 import { tmpdir } from 'node:os';
 
@@ -19,11 +19,20 @@ function fixture(): unknown {
   return data;
 }
 
+// The template with its script from pipeline/dash/*.js in order, as pipeline/dash_template.py assembles it
+function template(): string {
+  const dir = join(ROOT, 'pipeline/dash');
+  const app = readdirSync(dir).filter(f => /^\d\d-.*\.js$/.test(f)).sort().map(f => readFileSync(join(dir, f), 'utf8')).join('');
+  const tpl = readFileSync(join(ROOT, 'pipeline/template.html'), 'utf8');
+  if (tpl.split('/*__APP__*/\n').length !== 2) throw new Error('template.html needs exactly one /*__APP__*/ line');
+  return tpl.replace('/*__APP__*/\n', () => app);
+}
+
 // The pipeline page exactly as build.py makes it (data pasted into the template)
 let oldPage = '';
 function pipelinePage(): string {
   if (oldPage) return oldPage;
-  const tpl = readFileSync(join(ROOT, 'pipeline/template.html'), 'utf8');
+  const tpl = template();
   const blob = JSON.stringify(fixture()).replace(/<\//g, '<\\/');
   const dir = mkdtempSync(join(tmpdir(), 'parity-'));
   oldPage = join(dir, 'index.html');
