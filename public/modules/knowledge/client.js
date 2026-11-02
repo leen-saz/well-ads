@@ -62,9 +62,76 @@ export default async function mount() {
   }
   function tab(t) {
     $$('[data-tab]').forEach(x => x.setAttribute('aria-pressed', String(x.dataset.tab === t)));
-    $('#train').hidden = t !== 'train'; $('#all').hidden = t !== 'all';
-    if (t === 'train') chat(); else load();
+    $('#train').hidden = t !== 'train'; $('#all').hidden = t !== 'all'; $('#brand').hidden = t !== 'brand';
+    if (t === 'train') chat(); else if (t === 'brand') brandLoad(); else load();
   }
+
+  // الهوية والبصريات: files in R2 per company, same approval rule as the entries, no delete
+  let B = { assets: [], kinds: {} };
+  const KAR = { logo: 'الشعار', colors: 'الألوان', font: 'خط', guide: 'دليل العلامة', reference: 'صورة مرجعية' };
+  const fileUrl = id => `/api/knowledge/brandfile?id=${id}`;
+  // Some browsers give fonts no type: take it from the extension
+  const BYEXT = { woff2: 'font/woff2', woff: 'font/woff', ttf: 'font/ttf', otf: 'font/otf', pdf: 'application/pdf', svg: 'image/svg+xml' };
+  function brandDraw() {
+    $('#blist').innerHTML = B.assets.length ? B.assets.map(a => `<article class="card kn-e${a.active ? '' : ' off'}">
+      <div class="kn-top"><span class="kn-chip">${esc(KAR[a.kind] || a.kind)}</span>${a.title ? `<b>${esc(a.title)}</b>` : ''}${a.active ? '' : '<span class="kn-chip wait">موقوف</span>'}
+        <span class="kn-act">${B.canApprove ? `<button class="btn" type="button" data-bon="${a.id}" data-v="${!a.active}">${a.active ? 'أوقف' : 'فعّل'}</button>` : ''}</span></div>
+      ${a.kind === 'colors' ? `<div class="kn-sw">${String(a.value || '').split(' ').map(c => `<i style="background:${/^#[0-9a-f]{6}$/i.test(c) ? c : 'transparent'}" title="${esc(c)}"></i>`).join('')}</div>`
+        : a.kind === 'logo' || a.kind === 'reference' ? `<img class="kn-thumb" alt="${esc(a.title || KAR[a.kind])}" src="${fileUrl(a.id)}" loading="lazy">`
+        : `<a href="${fileUrl(a.id)}" target="_blank" rel="noopener">افتح الملف</a>`}
+      ${a.description ? `<span class="muted" style="font-size:13px">${esc(a.description)}</span>` : ''}
+      <span class="muted" style="font-size:12px">${esc(a.updated_by || a.created_by || '')} · ${when(a.updated_at || a.created_at)}</span></article>`).join('')
+      : '<div class="card pad"><b>ما فيه ملفات هوية للحين.</b><p class="muted" style="margin:6px 0 0">ابدأ بالشعار والألوان.</p></div>';
+    $$('[data-bon]').forEach(b => b.addEventListener('click', async () => {
+      busy(b, true);
+      try { await api('/api/knowledge/brand', { method: 'PATCH', body: { id: +b.dataset.bon, active: b.dataset.v === 'true' } }); await brandLoad(); }
+      catch (err) { say($('#bmsg'), err.message); busy(b, false); }
+    }));
+  }
+  function bhint() {
+    const k = B.kinds[$('#bkind').value];
+    if (!k) return;
+    $('#bfile').accept = k.types.join(',');
+    $('#bhint').textContent = `الصيغ: ${k.types.map(t => t.split('/')[1]).join('، ')} · الحد ${k.max / 1048576} ميقا`;
+  }
+  async function brandLoad() {
+    try {
+      B = await api('/api/knowledge/brand');
+      if (!$('#bkind').options.length) { $('#bkind').innerHTML = Object.entries(B.kinds).map(([k, v]) => `<option value="${k}">${esc(v.ar)}</option>`).join(''); bhint(); }
+      $('#bf').hidden = $('#cf').hidden = !B.canEdit;
+      brandDraw();
+    } catch (err) { $('#blist').innerHTML = `<p class="msg err">${esc(err.message)}</p>`; }
+  }
+  // Images are downscaled in the browser first (logos keep PNG transparency); fonts, PDFs and SVG go as they are
+  async function prepared(file, kind) {
+    if (!/^image\/(png|jpeg|webp)$/.test(file.type) || !['logo', 'reference'].includes(kind)) return file;
+    const img = await new Promise((ok, no) => { const i = new Image(); i.onload = () => ok(i); i.onerror = no; i.src = URL.createObjectURL(file); });
+    const max = kind === 'logo' ? 512 : 1024, s = Math.min(1, max / Math.max(img.width, img.height));
+    const c = document.createElement('canvas'); c.width = Math.max(1, Math.round(img.width * s)); c.height = Math.max(1, Math.round(img.height * s));
+    c.getContext('2d').drawImage(img, 0, 0, c.width, c.height);
+    const type = kind === 'logo' ? 'image/png' : 'image/jpeg';
+    return new Promise(ok => c.toBlob(b => ok(b || file), type, 0.85));
+  }
+  $('#bkind').addEventListener('change', bhint);
+  $('#bf').addEventListener('submit', async e => {
+    e.preventDefault(); const f = $('#bfile').files[0]; if (!f) { say($('#bmsg'), 'اختر ملف'); return; }
+    const btn = $('#bsave'); busy(btn, true);
+    try {
+      const kind = $('#bkind').value, blob = await prepared(f, kind);
+      const res = await fetch(`/api/knowledge/brandfile?kind=${encodeURIComponent(kind)}&title=${encodeURIComponent($('#btitle').value)}`,
+        { method: 'POST', headers: { 'content-type': blob.type || f.type || BYEXT[(f.name.split('.').pop() || '').toLowerCase()] || '' }, body: blob, credentials: 'same-origin' });
+      const j = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(j.error || 'ما انرفع الملف');
+      say($('#bmsg'), j.pending ? 'انرفع، وينتظر اعتماد المدير.' : 'انرفع، والتصميم بيستخدمه من الحين.', true);
+      $('#bf').reset(); bhint(); await brandLoad();
+    } catch (err) { say($('#bmsg'), err.message); }
+    busy(btn, false);
+  });
+  $('#cf').addEventListener('submit', async e => {
+    e.preventDefault();
+    try { const r = await api('/api/knowledge/brandcolors', { method: 'POST', body: { colors: $('#colors').value } }); say($('#bmsg'), r.pending ? 'انحفظت، وتنتظر اعتماد المدير.' : 'انحفظت.', true); $('#colors').value = ''; await brandLoad(); }
+    catch (err) { say($('#bmsg'), err.message); }
+  });
   $$('[data-tab]').forEach(b => b.addEventListener('click', () => tab(b.dataset.tab)));
   $('#tf').addEventListener('submit', async e => {
     e.preventDefault(); if (!Q) return; const btn = $('#send'); busy(btn, true);

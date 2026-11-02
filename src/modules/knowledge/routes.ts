@@ -5,6 +5,8 @@ import { scoped } from '../../lib/tenant';
 import { AI_MODULES, KINDS, clean, loadKnowledge, normalize, systemPrompt, type Entry } from './knowledge';
 import { QUESTIONS, answerRow, followUp, nextQuestion } from './training';
 import { check, type Hit } from '../compliance/compliance';
+import { BRAND_KINDS, brandKey, checkFile, cleanColors, serveFile, type Asset } from './brand';
+import { VISION_MODEL, VISION_PROMPT } from '../design/design';
 import { aiFor, type LlmEnv } from '../../lib/llm';
 
 type AiEnv = AuthEnv & LlmEnv;
@@ -97,5 +99,93 @@ export const train = {
     const row = rows(r.data)[0];
     await audit(cfg, user, 'knowledge_train', { target: { id: row?.id, topic: a.row.topic, active } });
     return json(200, { ok: true, entry: row, pending: !active, compliance: comply(a.row) });
+  }),
+};
+
+// ---- الهوية والبصريات (brand files). Same rule as the entries: edit uploads, approve switches on/off; no delete.
+type BrandEnv = AuthEnv & { FILES?: R2Bucket; AI?: { run: (model: string, input: Record<string, unknown>) => Promise<unknown> } };
+const assets = (d: unknown): Asset[] => (Array.isArray(d) ? (d as Asset[]) : []);
+
+export const brand = {
+  GET: handle(async (request, e) => {
+    const { cfg, user } = await requireUser(request, e, 'knowledge');
+    const r = await sb<Asset[]>(cfg, scoped('/rest/v1/brand_assets?select=*&order=active.desc,kind.asc,updated_at.desc&limit=200', user.co), { admin: true });
+    if (!r.ok) return json(500, { error: 'ما قدرت أقرأ ملفات الهوية' });
+    return json(200, { assets: r.data, kinds: Object.fromEntries(Object.entries(BRAND_KINDS).map(([k, v]) => [k, { ar: v.ar, types: Object.keys(v.types), max: v.max }])),
+      canEdit: atLeast(user, 'knowledge', 'edit', cfg), canApprove: atLeast(user, 'knowledge', 'approve', cfg) });
+  }),
+  // { id, active } switches (approve); { id, title } renames (edit, back to waiting without approve)
+  PATCH: handle(async (request, e) => {
+    const { cfg, user } = await requireUser(request, e, 'knowledge', { write: true });
+    const b = await readJson(request);
+    const id = parseInt(String(b.id), 10);
+    if (!id) return json(400, { error: 'طلب غير صحيح' });
+    const approver = atLeast(user, 'knowledge', 'approve', cfg);
+    let patch: Record<string, unknown>;
+    if (typeof b.active === 'boolean') {
+      if (!approver) return json(403, { error: NO_APPROVE });
+      patch = { active: b.active };
+    } else if (typeof b.value === 'string') {
+      const colors = cleanColors(b.value);
+      if (!colors.length) return json(400, { error: 'اكتب الألوان بصيغة hex مثل #1D1069' });
+      patch = { value: colors.join(' '), ...(approver ? {} : { active: false }) };
+    } else patch = { title: String(b.title || '').trim().slice(0, 120), ...(approver ? {} : { active: false }) };
+    const r = await sb<Asset[]>(cfg, scoped(`/rest/v1/brand_assets?id=eq.${id}`, user.co), { method: 'PATCH', admin: true, headers: { Prefer: 'return=representation' },
+      body: { ...patch, updated_by: user.email, updated_at: new Date().toISOString() } });
+    const row = r.ok ? assets(r.data)[0] : undefined;
+    if (!row) return json(r.ok ? 404 : 500, { error: r.ok ? 'غير موجود' : 'ما انحفظ' });
+    await audit(cfg, user, 'brand_edit', { target: { id, kind: row.kind, active: row.active } });
+    return json(200, { ok: true, asset: row });
+  }),
+};
+
+// Brand colours: typed hex codes, no file
+export const brandcolors = { POST: handle(async (request, e) => {
+  const { cfg, user } = await requireUser(request, e, 'knowledge', { write: true });
+  const colors = cleanColors((await readJson(request)).colors);
+  if (!colors.length) return json(400, { error: 'اكتب الألوان بصيغة hex مثل #1D1069' });
+  const active = atLeast(user, 'knowledge', 'approve', cfg);
+  const r = await sb<Asset[]>(cfg, '/rest/v1/brand_assets', { method: 'POST', admin: true, headers: { Prefer: 'return=representation' },
+    body: { company_id: user.co, kind: 'colors', title: 'ألوان العلامة', value: colors.join(' '), active, created_by: user.email, updated_by: user.email } });
+  if (!r.ok) return json(500, { error: 'ما انحفظ' });
+  const row = assets(r.data)[0];
+  await audit(cfg, user, 'brand_add', { target: { id: row?.id, kind: 'colors', active } });
+  return json(200, { ok: true, asset: row, pending: !active });
+}) };
+
+// GET ?id= serves a file (any of this company's, for the knowledge tab). POST ?kind=&title= stores one: the body is the raw
+// file and its type is the content-type (as in social upload). Reference images get a one-line description once, here.
+export const brandfile = {
+  GET: handle(async (request, e: BrandEnv) => {
+    const { cfg, user } = await requireUser(request, e, 'knowledge');
+    return serveFile(cfg, user.co, parseInt(new URL(request.url).searchParams.get('id') || '', 10) || 0, e.FILES, false);
+  }),
+  POST: handle(async (request, e: BrandEnv) => {
+    const { cfg, user } = await requireUser(request, e, 'knowledge', { write: true });
+    if (!e.FILES) return json(503, { error: 'رفع الملفات مو مفعّل في هالبيئة' });
+    const q = new URL(request.url).searchParams, kind = q.get('kind') || '';
+    const type = (request.headers.get('content-type') || '').split(';')[0]!.trim().toLowerCase();
+    const pre = checkFile(kind, type, Number(request.headers.get('content-length') || 1));
+    if (pre.error) return json(pre.error.includes('الحد') ? 413 : 415, { error: pre.error });
+    const body = await request.arrayBuffer();
+    const c = checkFile(kind, type, body.byteLength);
+    if (!c.ext) return json(c.error?.includes('الحد') ? 413 : 400, { error: c.error });
+    const key = brandKey(user.co, c.ext);
+    await e.FILES.put(key, body, { httpMetadata: { contentType: type } });
+    let description: string | null = null;
+    if (kind === 'reference' && e.AI && body.byteLength <= 400_000) {
+      try {
+        const o = await e.AI.run(VISION_MODEL, { image: [...new Uint8Array(body)], prompt: VISION_PROMPT, max_tokens: 90 }) as { description?: unknown; response?: unknown };
+        description = String(o?.description ?? o?.response ?? '').trim().slice(0, 300) || null;
+      } catch { /* the description is optional */ }
+    }
+    const active = atLeast(user, 'knowledge', 'approve', cfg);
+    const r = await sb<Asset[]>(cfg, '/rest/v1/brand_assets', { method: 'POST', admin: true, headers: { Prefer: 'return=representation' },
+      body: { company_id: user.co, kind, title: String(q.get('title') || '').trim().slice(0, 120), r2_key: key, mime: type, size: body.byteLength,
+        description, active, created_by: user.email, updated_by: user.email } });
+    if (!r.ok) { await e.FILES.delete(key).catch(() => {}); return json(500, { error: 'ما انحفظ' }); }
+    const row = assets(r.data)[0];
+    await audit(cfg, user, 'brand_add', { target: { id: row?.id, kind, size: body.byteLength, active } });
+    return json(200, { ok: true, asset: row, pending: !active });
   }),
 };
