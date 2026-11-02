@@ -1,6 +1,6 @@
 // Social listening: source parsing, dedupe, sentiment parsing, watch cleaning, the cron/refresh flow and scoping.
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { adLibraryUrl, cleanWatch, dedupe, due, missingTable, normUrl, parseNews, parseReddit, parseSentiment, parseX, parseYouTube, query, sentimentPrompt } from './social';
+import { adLibraryUrl, cleanWatch, dedupe, due, missingTable, normUrl, parseBing, parseNews, parseReddit, parseSentiment, parseX, parseYouTube, query, sentimentPrompt, sources, terms } from './social';
 import { collect, store } from './fetcher';
 // The page's own maths (plain JS in public/)
 import { summarize, filterMentions } from '../../../public/modules/listening/social.js';
@@ -26,6 +26,17 @@ describe('sources', () => {
     expect(y[0]).toMatchObject({ url: 'https://www.youtube.com/watch?v=abc', author: 'قناة', source: 'youtube' });
     expect(parseReddit(null, 1)).toEqual([]);
     expect(parseYouTube('x', 1)).toEqual([]);
+  });
+  it('reads Bing News RSS and takes the article out of the click link', () => {
+    const xml = `<rss><channel><item><title>ايفركير تنشر مراجعة</title><link>http://www.bing.com/news/apiclick.aspx?ref=FexRss&amp;url=https%3a%2f%2fnews.example.com%2fa&amp;mkt=ar-sa</link>
+<description>نص الخبر</description><pubDate>Wed, 14 Oct 2026 14:37:25 GMT</pubDate><News:Source>صحيفة</News:Source></item>
+<item><title>بحث</title><link>https://www.bing.com/news/search?q=x</link></item></channel></rss>`;
+    expect(parseBing(xml, 4)).toEqual([{ watch_id: 4, source: 'news', url: 'https://news.example.com/a', title: 'ايفركير تنشر مراجعة', snippet: 'نص الخبر', author: 'صحيفة', published_at: '2026-10-14T14:37:25.000Z' }]);
+    expect(terms({ kind: 'competitor', name: 'ايفر كير', keywords: ['"evercare"', 'ايفر كير', 'a', 'b'] })).toEqual(['ايفر كير', 'evercare', 'a']);
+  });
+  it('turns Reddit on only with its app keys', () => {
+    expect(sources({}).reddit).toBe(false);
+    expect(sources({ REDDIT_CLIENT_ID: 'a', REDDIT_CLIENT_SECRET: 'b' }).reddit).toBe(true);
   });
   it('keeps only real X links from Grok', () => {
     const x = parseX('هذي النتائج: [{"url":"https://x.com/a/status/1","text":"ويل ممتازة","author":"@a","date":"2026-11-01"},{"url":"https://evil.example/x"}]', 3);
@@ -73,15 +84,39 @@ describe('sentiment', () => {
 
 describe('fetch flow', () => {
   const cfg = { url: 'https://sb.example', service: 'k', secret: 'x'.repeat(40), owner: 'o@x' };
-  it('collects from the free sources and skips the keyed ones without keys', async () => {
+  it('collects the news and skips the keyed sources without keys', async () => {
     const seen: string[] = [];
     const f = (async (u: string) => { seen.push(String(u));
       if (String(u).includes('news.google')) return new Response(RSS, { status: 200 });
-      if (String(u).includes('reddit')) return new Response(JSON.stringify({ data: { children: [] } }), { status: 200 });
       return new Response('', { status: 500 }); }) as unknown as typeof fetch;
     const r = await collect({ id: 9, kind: 'brand', name: 'Well', keywords: [] }, {} as never, f);
-    expect(r.bySource).toEqual({ news: 1, reddit: 0 });
-    expect(seen.some(u => u.includes('youtube') || u.includes('x.ai'))).toBe(false);
+    expect(r.bySource).toEqual({ google: 1 });
+    expect(seen.some(u => /bing|reddit|youtube|x\.ai/.test(u))).toBe(false);
+  });
+  it('falls back to Bing, one term each, when Google refuses, and says why', async () => {
+    const seen: string[] = [];
+    const bing = (n: number) => `<rss><item><title>t${n}</title><link>http://www.bing.com/news/apiclick.aspx?url=https%3a%2f%2fn.example%2f${n}</link></item></rss>`;
+    let n = 0;
+    const f = (async (u: string) => { seen.push(String(u));
+      if (String(u).includes('news.google')) return new Response('', { status: 503 });
+      if (String(u).includes('bing.com')) return new Response(bing(n++), { status: 200 });
+      return new Response('', { status: 500 }); }) as unknown as typeof fetch;
+    const r = await collect({ id: 9, kind: 'competitor', name: 'ايفر كير', keywords: ['evercare'] }, {} as never, f);
+    expect(r.bySource).toEqual({ google: 'error 503', bing: 2 });
+    expect(r.found.map(m => m.url)).toEqual(['https://n.example/0', 'https://n.example/1']);
+    expect(seen.filter(u => u.includes('bing.com'))).toHaveLength(2);
+  });
+  it('searches Reddit with an app token when the keys exist', async () => {
+    const seen: { u: string; auth: string }[] = [];
+    const f = (async (u: string, init?: RequestInit) => { seen.push({ u: String(u), auth: String((init?.headers as Record<string, string>)?.authorization || '') });
+      if (String(u).includes('access_token')) return new Response(JSON.stringify({ access_token: 'tok' }), { status: 200 });
+      if (String(u).includes('oauth.reddit.com')) return new Response(JSON.stringify({ data: { children: [{ data: { permalink: '/r/x/1', title: 'a' } }] } }), { status: 200 });
+      if (String(u).includes('news.google')) return new Response(RSS, { status: 200 });
+      return new Response('', { status: 500 }); }) as unknown as typeof fetch;
+    const r = await collect({ id: 9, kind: 'brand', name: 'Well', keywords: [] }, { REDDIT_CLIENT_ID: 'id', REDDIT_CLIENT_SECRET: 'sec' } as never, f);
+    expect(r.bySource).toEqual({ google: 1, reddit: 1 });
+    expect(seen.find(s => s.u.includes('access_token'))!.auth).toBe(`Basic ${btoa('id:sec')}`);
+    expect(seen.find(s => s.u.includes('oauth.reddit.com'))!.auth).toBe('Bearer tok');
   });
   it('stores mentions with the company id and scores them in one call', async () => {
     const calls: { url: string; method: string; body: unknown }[] = [];
