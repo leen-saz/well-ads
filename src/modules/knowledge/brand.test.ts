@@ -3,7 +3,8 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import * as A from '../../lib/auth';
 import { brandFor, brandKey, checkFile, cleanColors } from './brand';
-import { brand, brandcolors, brandfile } from './routes';
+import { brand, brandcolors, brandfile, brandguide } from './routes';
+import { guidePrompt, guideText, parseProposals } from './guide';
 import { brandfile as designFile, options } from '../design/routes';
 
 const E: A.AuthEnv = { SUPABASE_URL: 'https://sb.example', SUPABASE_SERVICE_ROLE_KEY: 's', SESSION_SECRET: 'x'.repeat(40), OWNER_EMAIL: 'leen@example.com' };
@@ -23,7 +24,7 @@ const stub = (p: A.Profile, rest: (url: string, init: RequestInit) => unknown = 
 };
 const bucket = () => {
   const store = new Map<string, ArrayBuffer>();
-  return { store, put: vi.fn(async (k: string, v: ArrayBuffer) => { store.set(k, v); }), get: vi.fn(async (k: string) => (store.has(k) ? { body: new Blob([store.get(k)!]).stream() } : null)), delete: vi.fn(async () => {}) };
+  return { store, put: vi.fn(async (k: string, v: ArrayBuffer) => { store.set(k, v); }), get: vi.fn(async (k: string) => (store.has(k) ? { body: new Blob([store.get(k)!]).stream(), arrayBuffer: async () => store.get(k)! } : null)), delete: vi.fn(async () => {}) };
 };
 afterEach(() => { vi.unstubAllGlobals(); });
 
@@ -98,5 +99,38 @@ describe('brand files', () => {
   it('no table yet = no brand, not an error', async () => {
     vi.stubGlobal('fetch', vi.fn(async () => new Response('{"message":"relation does not exist"}', { status: 404 })));
     expect(await brandFor(cfg, CO)).toEqual({ colors: [], logo: null, fonts: [], refs: [], notes: [] });
+  });
+});
+
+describe('brand guide → knowledge', () => {
+  it('keeps only valid proposals of the allowed kinds', () => {
+    const p = parseProposals('هذي البنود: [{"kind":"voice","title":"النبرة","body":"ودود وواثق"},{"kind":"forbidden","body":"الأفضل"},{"kind":"service","body":"x"},{"kind":"voice","body":"ودود وواثق"},{"kind":"note","body":""}]');
+    expect(p).toEqual([{ kind: 'voice', title: 'النبرة', body: 'ودود وواثق' }, { kind: 'forbidden', title: '', body: 'الأفضل' }]);
+    expect(parseProposals('no json')).toEqual([]);
+    expect(guidePrompt('x'.repeat(50000)).length).toBeLessThan(26000);
+  });
+  it('a PDF with no text says so', async () => {
+    expect((await guideText(async () => ({ format: 'markdown', data: '  ' }), new ArrayBuffer(1))).error).toContain('ما فيه نص');
+    expect((await guideText(async () => ({ format: 'error', error: 'x' }), new ArrayBuffer(1))).error).toBeTruthy();
+    expect((await guideText(async () => { throw new Error('down'); }, new ArrayBuffer(1))).error).toContain('جرّب');
+  });
+  it('saves every proposal switched off, once per guide, for this company only', async () => {
+    const ed = member({ knowledge: 'edit' });
+    const FILES = bucket();
+    FILES.store.set(`brand/${CO}/g.pdf`, new Uint8Array([37, 80, 68, 70]).buffer);
+    const toMarkdown = vi.fn(async () => ({ format: 'markdown', data: 'دليل Well: نبرتنا ودودة. لا نستخدم كلمة الأفضل. ألواننا #1D1069.' }));
+    const run = vi.fn(async () => ({ response: '[{"kind":"voice","title":"النبرة","body":"ودودة"},{"kind":"forbidden","title":"","body":"الأفضل"},{"kind":"note","title":"الألوان","body":"#1D1069"}]' }));
+    const calls = stub(ed, url => (url.includes('/brand_assets') ? [{ id: 7, r2_key: `brand/${CO}/g.pdf` }] : url.includes('topic=eq.guide-7') ? [] : [{ id: 1 }, { id: 2 }, { id: 3 }]));
+    const r = await brandguide.POST(req('/api/knowledge/brandguide', await cookieFor(ed), { method: 'POST', body: JSON.stringify({ id: 7 }) }), { ...E, FILES, AI: { run, toMarkdown } } as A.AuthEnv);
+    expect(r.status).toBe(200);
+    const saved = calls.find(c => c.method === 'POST' && c.url.endsWith('/knowledge'))?.body as unknown as Record<string, unknown>[];
+    expect(saved).toHaveLength(3);
+    for (const x of saved) expect(x).toMatchObject({ active: false, source: 'brand_file', topic: 'guide-7', company_id: CO });
+    // read before: refused
+    stub(ed, url => (url.includes('/brand_assets') ? [{ id: 7, r2_key: `brand/${CO}/g.pdf` }] : [{ id: 1 }]));
+    expect((await brandguide.POST(req('/api/knowledge/brandguide', await cookieFor(ed), { method: 'POST', body: JSON.stringify({ id: 7 }) }), { ...E, FILES, AI: { run, toMarkdown } } as A.AuthEnv)).status).toBe(409);
+    // a file of another company is not read
+    stub(ed, url => (url.includes('/brand_assets') ? [{ id: 8, r2_key: 'brand/11111111-1111-1111-1111-111111111111/g.pdf' }] : []));
+    expect((await brandguide.POST(req('/api/knowledge/brandguide', await cookieFor(ed), { method: 'POST', body: JSON.stringify({ id: 8 }) }), { ...E, FILES, AI: { run, toMarkdown } } as A.AuthEnv)).status).toBe(404);
   });
 });

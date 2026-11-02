@@ -21,7 +21,7 @@ export const AI_MODULES = ['content', 'design', 'voice', 'social', 'maestro', 'j
 
 export interface Entry {
   id: number; kind: Kind; title: string; body: string; price: number | null; modules: string[]; active: boolean;
-  source?: 'manual' | 'training'; topic?: string | null; question?: string | null;
+  source?: 'manual' | 'training' | 'brand_file'; topic?: string | null; question?: string | null;
   created_by?: string | null; updated_by?: string | null; created_at?: string; updated_at?: string;
 }
 

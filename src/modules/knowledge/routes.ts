@@ -7,7 +7,8 @@ import { QUESTIONS, answerRow, followUp, nextQuestion } from './training';
 import { check, type Hit } from '../compliance/compliance';
 import { BRAND_KINDS, brandKey, checkFile, cleanColors, serveFile, type Asset } from './brand';
 import { VISION_MODEL, VISION_PROMPT } from '../design/design';
-import { aiFor, type LlmEnv } from '../../lib/llm';
+import { guidePrompt, guideText, parseProposals, type ToMarkdown } from './guide';
+import { aiFor, generate, pick as pickModel, type LlmEnv } from '../../lib/llm';
 
 type AiEnv = AuthEnv & LlmEnv;
 const rows = (d: unknown): Entry[] => (Array.isArray(d) ? (d as Entry[]) : []);
@@ -189,3 +190,33 @@ export const brandfile = {
     return json(200, { ok: true, asset: row, pending: !active });
   }),
 };
+
+// Brand guide (PDF) → proposed knowledge entries, all saved switched off (source brand_file) for a manager to review.
+// A guide is read once (topic guide-<id>); its text never leaves our Worker except to the content model.
+export const brandguide = { POST: handle(async (request, e: BrandEnv & LlmEnv & { AI?: { toMarkdown?: ToMarkdown } }) => {
+  const { cfg, user } = await requireUser(request, e, 'knowledge', { write: true });
+  const id = parseInt(String((await readJson(request)).id), 10);
+  if (!id) return json(400, { error: 'طلب غير صحيح' });
+  if (!e.FILES || !e.AI?.toMarkdown) return json(503, { error: 'قراءة الملفات مو مفعّلة في هالبيئة' });
+  if (!pickModel(e, 'content')) return json(503, { error: 'الذكاء الاصطناعي مو مفعّل في هالبيئة' });
+  const g = await sb<Asset[]>(cfg, scoped(`/rest/v1/brand_assets?id=eq.${id}&kind=eq.guide&select=id,r2_key`, user.co), { admin: true });
+  const a = g.ok ? assets(g.data)[0] : undefined;
+  if (!a?.r2_key || !a.r2_key.startsWith(`brand/${user.co}/`)) return json(404, { error: 'دليل غير معروف' });
+  const topic = `guide-${id}`;
+  const done = await sb<Entry[]>(cfg, scoped(`/rest/v1/knowledge?topic=eq.${topic}&select=id&limit=1`, user.co), { admin: true });
+  if (done.ok && rows(done.data).length) return json(409, { error: 'هالدليل انقرا قبل. بنوده في «كل المعرفة».' });
+  const obj = await e.FILES.get(a.r2_key);
+  if (!obj) return json(404, { error: 'الملف مو موجود' });
+  const t = await guideText(d => e.AI!.toMarkdown!(d), await obj.arrayBuffer());
+  if (!t.text) return json(422, { error: t.error });
+  let raw: string;
+  try { raw = (await generate(e, 'content', { messages: [{ role: 'user', content: guidePrompt(t.text) }], max_tokens: 3000 })).response; }
+  catch { return json(503, { error: 'الذكاء الاصطناعي ما رد الحين، جرّب بعد دقيقة' }); }
+  const list = parseProposals(raw);
+  if (!list.length) return json(422, { error: 'ما طلعت بنود واضحة من الدليل، جرّب مرة ثانية' });
+  const r = await sb<Entry[]>(cfg, '/rest/v1/knowledge', { method: 'POST', admin: true, headers: { Prefer: 'return=representation' },
+    body: list.map(x => ({ ...x, price: null, modules: [], company_id: user.co, active: false, source: 'brand_file', topic, question: 'من دليل العلامة', created_by: user.email, updated_by: user.email })) });
+  if (!r.ok) return json(500, { error: 'ما انحفظت البنود' });
+  await audit(cfg, user, 'knowledge_from_guide', { target: { guide: id, entries: list.length } });
+  return json(200, { ok: true, added: rows(r.data).length });
+}) };
