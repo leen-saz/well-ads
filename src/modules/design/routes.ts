@@ -2,6 +2,7 @@
 import { sb, json, readJson, handle, requireUser, type Cfg } from '../../lib/auth';
 import { scoped } from '../../lib/tenant';
 import { AI_MODEL, type AiRun } from '../content/content';
+import { knowledgeFor, withKnowledge } from '../knowledge/knowledge';
 import { SIZES, TYPES, VISION_MODEL, VISION_PROMPT, images, parseVariants, prompt, stylePrompt, templates, winners, type AdIn, type MetIn } from './design';
 
 type AiEnv = { AI?: { run: AiRun & ((model: string, input: { image: number[]; prompt: string; max_tokens: number }) => Promise<unknown>) } };
@@ -46,7 +47,7 @@ export const brief = { POST: handle(async (request, e: AiEnv & Parameters<typeof
   }
   if (e.AI) {
     try {
-      const out = await e.AI.run(AI_MODEL, { messages: [{ role: 'user', content: prompt(input, ref.hooks, looks) }], max_tokens: 700 });
+      const out = await e.AI.run(AI_MODEL, { messages: withKnowledge([{ role: 'user', content: prompt(input, ref.hooks, looks) }], await knowledgeFor(cfg, user.co, 'design')), max_tokens: 700 });
       variants = parseVariants(String((out as { response?: unknown })?.response ?? ''), input.offer, input.audience);
       engine = 'workers-ai';
     } catch { /* templates stay */ }
