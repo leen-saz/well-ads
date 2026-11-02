@@ -126,7 +126,8 @@ async function main() {
     const month = await text(page, '#tMonth');
     check(month.includes('165') && month.includes('17.50') && month.includes('8.67') && !month.includes('185'), 'month table follows the selected days', month);
     const pace = await text(page, '#pace');
-    check(pace.includes('2 من 31') && pace.includes('2,558') && pace.includes('20.50'), 'pace uses the selected days inside the month', pace);
+    // Two complete days: no month-end forecast yet (it needs 3), the spend so far still follows the selection
+    check(pace.includes('2 من 31') && pace.includes('20.50') && pace.includes('يطلع بعد 3 أيام') && !pace.includes('2,558'), 'pace uses the selected days inside the month', pace);
     check(pace.includes('— ليد أو محادثة'), 'previous month before the data start is missing, not zero', pace);
     const tree = await text(page, '#tTree');
     check(tree.includes('8.67') && !tree.includes('3.71'), 'drill-down CPL uses lead-goal leads', tree);
