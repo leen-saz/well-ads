@@ -54,19 +54,32 @@ export default async function mount() {
     $('#modeNote').textContent = mode === 'auto' ? 'تنبيه: ينشر لحاله في وقته بدون موافقة. تأكد من النص والامتثال.' : 'ينتظر موافقتك قبل ما ينشر.';
   });
   $('#body').addEventListener('input', counter);
+  // Upload the chosen photo/video right away; its public link goes into the post (Meta reads it from there)
+  let uploaded = null;
+  const showPrev = m => { const el = $('#prev'); el.hidden = !m; el.innerHTML = !m ? '' : m.type === 'video' ? `<video src="${esc(m.url)}" controls muted></video>` : `<img src="${esc(m.url)}" alt="">`; };
+  $('#file').addEventListener('change', async e => {
+    const f = e.target.files[0]; uploaded = null; showPrev(null); if (!f) { $('#upMsg').textContent = ''; return; }
+    $('#upMsg').textContent = 'يرفع…';
+    try {
+      const res = await fetch('/api/social/upload', { method: 'POST', headers: { 'content-type': f.type }, body: f, credentials: 'same-origin' });
+      const j = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(j.error || 'ما انرفع الملف');
+      uploaded = { url: j.url, type: j.type }; $('#media').value = ''; showPrev(uploaded); $('#upMsg').textContent = 'انرفع ✓';
+    } catch (err) { $('#upMsg').textContent = err.message; e.target.value = ''; }
+  });
 
   $('#f').addEventListener('submit', async e => {
     e.preventDefault();
     const btn = e.submitter; busy(btn, true); $('#notices').innerHTML = '';
     const local = $('#at').value; // Riyadh time (UTC+3, no DST)
     const body = { platforms: $$('input[name="pl"]:checked').map(x => x.value), body: $('#body').value, mode,
-      media: $('#media').value ? [{ url: $('#media').value, type: /\.(mp4|mov|webm)(\?|$)/i.test($('#media').value) ? 'video' : 'image' }] : [],
+      media: uploaded ? [uploaded] : $('#media').value ? [{ url: $('#media').value, type: /\.(mp4|mov|webm)(\?|$)/i.test($('#media').value) ? 'video' : 'image' }] : [],
       publish_at: local ? new Date(local + ':00+03:00').toISOString() : '' };
     try {
       const r = await api('/api/social/posts', { method: 'POST', body });
       say($('#msg'), 'انجدول.', true);
       $('#notices').innerHTML = (r.notices || []).map(n => `<p class="so-note">${esc(n)}</p>`).join('');
-      $('#body').value = ''; $('#media').value = ''; await load();
+      $('#body').value = ''; $('#media').value = ''; $('#file').value = ''; uploaded = null; showPrev(null); $('#upMsg').textContent = ''; await load();
     } catch (err) { say($('#msg'), err.message); }
     busy(btn, false);
   });

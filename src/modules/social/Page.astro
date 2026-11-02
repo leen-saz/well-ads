@@ -25,6 +25,9 @@ import { ClientRouter } from 'astro:transitions';
 .so-chip{font-size:12px;padding:3px 10px;border-radius:999px;background:var(--tint)}
 .so-st{margin-inline-start:auto;font-size:12px}
 .so-body{white-space:pre-wrap;margin:0}
+.so-up{display:flex;gap:10px;align-items:center;flex-wrap:wrap}.so-up input{margin:0;max-width:100%}
+.so-prev{margin:8px 0 0}.so-prev img,.so-prev video{max-width:100%;max-height:220px;border-radius:12px;display:block}
+.so-link{margin:8px 0 0}.so-link summary{cursor:pointer;font-size:13px}
 .so-note{font-size:13px;margin:8px 0 0;padding:10px 12px;border-radius:12px;background:var(--tint)}
 </style>
 </head>
@@ -42,7 +45,10 @@ import { ClientRouter } from 'astro:transitions';
             <label>المنصات</label><div class="checks" id="plats"></div>
             <label for="body">النص</label><textarea id="body" rows="6"></textarea>
             <p class="so-cnt muted" id="cnt"></p>
-            <label for="media">رابط صورة أو فيديو <span class="muted">(اختياري، https)</span></label><input type="url" id="media" dir="ltr" placeholder="https://">
+            <label for="file">صورة أو فيديو <span class="muted">(اختياري)</span></label>
+            <div class="so-up"><input type="file" id="file" accept="image/jpeg,image/png,image/webp,video/mp4,video/quicktime"><span class="muted" id="upMsg"></span></div>
+            <div class="so-prev" id="prev" hidden></div>
+            <details class="so-link"><summary class="muted">أو حط رابط</summary><input type="url" id="media" dir="ltr" placeholder="https://"></details>
             <label for="at">وقت النشر</label><input type="datetime-local" id="at" required>
             <label>طريقة النشر</label>
             <div class="seg" role="group" aria-label="طريقة النشر"><button type="button" data-mode="manual" aria-pressed="true">يدوي (بموافقة)</button><button type="button" data-mode="auto" aria-pressed="false">تلقائي</button></div>

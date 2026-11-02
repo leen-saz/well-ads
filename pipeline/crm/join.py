@@ -14,8 +14,10 @@ import supabase_store  # noqa: E402
 
 RIYADH = timezone(timedelta(hours=3))
 PREFIX = {"meta_form": "m", "meta_ctwa": "m", "whatsapp_ad_prefill": "m", "snapchat_form": "s", "tiktok_form": "t"}
-COLUMNS = "lead_id,created_at,platform_created_at,source_platform,ad_id,ad_id_quality,ad_name,status,booked_at,amount_paid_sar,booking_value_sar,paid_at,payment_status"
-CAVEATS = ["الاقفالة = ليد دفع، وقيمتها = المبلغ المدفوع", "الدفع من ميسّر بس (تابي والكاش ما يطلعون للحين)"]
+COLUMNS = "lead_id,customer_id,created_at,platform_created_at,source_platform,ad_id,ad_id_quality,ad_name,status,booked_at,amount_paid_sar,booking_value_sar,paid_at,payment_status"
+CAVEATS = ["الاقفالة = ليد دفع، وقيمتها = المبلغ المدفوع", "الدفع من ميسّر بس (تابي والكاش ما يطلعون للحين)",
+           "اقفالة بدون إعلان (يدوي، واتساب عضوي…) تنحسب لآخر إعلان جاب نفس العميل خلال 90 يوم قبلها"]
+LOOKBACK_DAYS = 90
 
 
 def day_of(row):
@@ -96,20 +98,50 @@ def last_days(rows, today, days=30):
     return {"from": start, "to": today, "closings": len(got), "paid_sar": round(sum(r[2] for r in got), 2)}
 
 
+def by_customer(r, ad_leads):
+    """The same customer's last ad lead in the LOOKBACK_DAYS before this one (its row), or None.
+    In the CRM a customer who came from an ad is often booked on a new manual / organic-WhatsApp lead,
+    so the payment loses its ad. customer_id ties the two back together (last ad touch wins)."""
+    cid, day = r.get("customer_id"), day_of(r)
+    if not cid:
+        return None
+    start = (datetime.fromisoformat(day) - timedelta(days=LOOKBACK_DAYS)).strftime("%Y-%m-%d")
+    seen = [x for x in ad_leads.get(cid, []) if start <= x[1] <= day]
+    return max(seen, key=lambda x: x[1]) if seen else None
+
+
 def attach(data, leads):
     by_id, tt_names = index(data.get("ads"))
-    out, unmatched, matched_ids = [], 0, set()
+    out, unmatched, matched_ids, ad_leads, later = [], 0, set(), {}, []
     for r in leads:
         key = match(r, by_id, tt_names)
         if not key:
             unmatched += 1
+            if is_paid(r):
+                later.append(r)
             continue
         matched_ids.add(r.get("lead_id"))
         # A closing is a payment (Leen): payment_status paid with an amount; its value is the amount paid
         amount = float(r.get("amount_paid_sar") or 0)
         paid = 1 if is_paid(r) else 0
-        out.append([key, day_of(r), riyadh_day(r.get("paid_at")) if paid else "", paid, amount if paid else 0.0])
+        row = [key, day_of(r), riyadh_day(r.get("paid_at")) if paid else "", paid, amount if paid else 0.0]
+        out.append(row)
+        if r.get("customer_id"):
+            ad_leads.setdefault(r["customer_id"], []).append(row)
+    # Paid leads with no ad of their own: credit the customer's last ad lead (the lead stays counted once)
+    via_customer = 0
+    for r in later:
+        row = by_customer(r, ad_leads)
+        if not row:
+            continue
+        via_customer += 1
+        amount, paid_day = float(r.get("amount_paid_sar") or 0), riyadh_day(r.get("paid_at"))
+        if row[3]:  # that ad lead already paid once: a second payment is its own closing
+            out.append([row[0], row[1], paid_day, 1, amount])
+        else:
+            row[2], row[3], row[4] = paid_day, 1, amount
     data["crm"] = {"rows": out, "paid_all": paid_all(leads), "unmatched": unmatched, "total": len(leads), "stats": stats(leads, matched_ids),
+                   "via_customer": via_customer,
                    "synced": datetime.now(RIYADH).isoformat(timespec="minutes"), "caveats": CAVEATS}
     return data["crm"]
 
@@ -132,7 +164,7 @@ def attach_from_db(data):
         return None
     try:
         crm = attach(data, load())
-        print(f"crm: {len(crm['rows'])} leads matched to ads | {crm['unmatched']} without an ad")
+        print(f"crm: {len(crm['rows'])} leads matched to ads | {crm['unmatched']} without an ad | {crm['via_customer']} paid leads credited to the same customer's ad")
         st = crm["stats"]
         print("crm status:", st["status"])
         print("crm by source [leads, matched to an ad, closings]:", st["by_source"])

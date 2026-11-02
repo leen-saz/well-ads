@@ -3,6 +3,7 @@
 import { sb, json, readJson, handle, requireUser, audit, atLeast, NO_APPROVE } from '../../lib/auth';
 import { scoped } from '../../lib/tenant';
 import { SOCIAL, validate } from './social';
+import { MEDIA_TYPES, MEDIA_MAX, mediaKey } from './media';
 
 type Row = Record<string, unknown>;
 const rows = (d: unknown): Row[] => (Array.isArray(d) ? (d as Row[]) : []);
@@ -42,3 +43,24 @@ export const posts = {
     return json(200, { ok: true, post: rows(r.data)[0] });
   }),
 };
+
+// Upload a photo or video for a post: stored in R2 under social/<company>/<random>.<ext> and served at /m/… (public,
+// unguessable name) so Meta can fetch it when the post goes out. The body is the raw file; its type is the content-type.
+type FilesEnv = { FILES?: R2Bucket };
+export const upload = { POST: handle(async (request, e) => {
+  const { user } = await requireUser(request, e, 'social', { write: true });
+  const files = (e as unknown as FilesEnv).FILES;
+  if (!files) return json(503, { error: 'رفع الملفات مو مفعّل في هالبيئة' });
+  const type = (request.headers.get('content-type') || '').split(';')[0]!.trim().toLowerCase();
+  const ext = MEDIA_TYPES[type];
+  if (!ext) return json(415, { error: 'الملف لازم صورة (JPG / PNG / WebP) أو فيديو (MP4 / MOV)' });
+  const size = Number(request.headers.get('content-length') || 0);
+  if (size > MEDIA_MAX) return json(413, { error: 'الملف أكبر من 95 ميقا' });
+  const body = await request.arrayBuffer();
+  if (!body.byteLength) return json(400, { error: 'الملف فاضي' });
+  if (body.byteLength > MEDIA_MAX) return json(413, { error: 'الملف أكبر من 95 ميقا' });
+  const key = mediaKey(user.co, ext);
+  await files.put(key, body, { httpMetadata: { contentType: type, cacheControl: 'public, max-age=31536000, immutable' } });
+  const url = new URL('/m/' + key.slice('social/'.length), request.url).toString();
+  return json(200, { ok: true, url, type: type.startsWith('video/') ? 'video' : 'image' });
+}) };
