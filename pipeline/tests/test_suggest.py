@@ -30,10 +30,18 @@ class Rules(unittest.TestCase):
         self.assertFalse({k for k in got if k[1] == "pause"})
 
     def test_budget_up_for_cheap_winners(self):
+        # TikTok: target 100/20 = 5, the winner costs 3 per lead
+        rows = [["t0", "2026-10-10", 100.0, 1000, 10, 20.0, 0], ["t3", "2026-10-26", 30.0, 900, 9, 10.0, 0]]
+        ads = {"t0": {"platform": "tiktok", "goal": "lead", "live": False, "name": "old", "campaign": "C"},
+               "t3": {"platform": "tiktok", "goal": "lead", "live": True, "name": "w"}}
+        up = [s for s in suggest.build(data(rows, ads)) if s["kind"] == "budget_up"]
+        self.assertEqual(up[0]["params"], {"pct": 20, "scope": "adset"})
+
+    def test_no_budget_up_from_cheap_snap_leads(self):
+        # Leen: Snap leads are not real leads, so cheap ones never raise the budget
         got = suggest.build(data(self.base_rows + [["s3", "2026-10-26", 30.0, 900, 9, 10.0, 0]],
                                  {**self.ads, "s3": {"platform": "snap", "goal": "lead", "live": True, "name": "w"}}))
-        up = [s for s in got if s["kind"] == "budget_up"]
-        self.assertEqual(up[0]["params"], {"pct": 20, "scope": "adset"})
+        self.assertFalse([s for s in got if s["kind"] == "budget_up"])
 
     def test_traffic_campaign(self):
         got = self.kinds([["t9", "2026-10-26", 5.0, 100, 1, 0.0, 0]], {"t9": {"platform": "tiktok", "goal": "traffic", "live": True, "name": "x", "campaign": "WA_Traffic"}})

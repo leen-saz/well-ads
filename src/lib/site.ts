@@ -1,5 +1,6 @@
 // Phase 4.1: the dashboards as the pipeline builds them (pipeline/build.py), served from R2 behind the gateway.
 // Same pages and numbers as the live site; later pieces replace them with Astro pages one by one.
+import { mediaPath } from '../modules/social/media';
 
 // Pages the pipeline uploads under site/ (see .github/workflows/pipeline.yml)
 export function siteKey(pathname: string): string | null {
@@ -43,6 +44,14 @@ export function metaCsp(csp: string): string {
 export async function serveSite(request: Request, bucket: R2Bucket): Promise<Response | null> {
   if (request.method !== 'GET' && request.method !== 'HEAD') return null;
   const url = new URL(request.url);
+  // Post media (public, unguessable name): Meta fetches it from here when the post is published
+  const media = mediaPath(url.pathname);
+  if (media) {
+    const obj = await bucket.get(media);
+    if (!obj) return new Response('غير موجود', { status: 404, headers: { 'content-type': 'text/plain; charset=utf-8' } });
+    const h = new Headers({ 'content-type': obj.httpMetadata?.contentType || 'application/octet-stream', 'cache-control': 'public, max-age=31536000, immutable', etag: obj.httpEtag });
+    return new Response(request.method === 'HEAD' ? null : obj.body, { headers: h });
+  }
   const to = siteRedirect(url.pathname);
   if (to) return new Response(null, { status: 302, headers: { location: to, 'cache-control': 'no-store' } });
   const key = siteKey(url.pathname);

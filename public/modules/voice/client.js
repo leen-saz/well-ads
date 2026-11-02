@@ -1,10 +1,10 @@
-// الصوت: دليل صوت العلامة، فاحص النص، مدة الفويس أوفر، إعادة كتابة بالذكاء الاصطناعي، وتوليد صوت بلهجة سعودية من Gemini (WAV).
+// الصوت: دليل صوت العلامة، فاحص النص، مدة الفويس أوفر، إعادة كتابة بالذكاء الاصطناعي، وتوليد صوت بلهجة سعودية من .
 import { $, $$, api, say, esc, shell, busy, fmt } from '/assets/common.js';
 
 const DIALECT = { saudi: 'سعودي', msa: 'فصحى', mixed: 'خليط', neutral: 'محايد' };
 
 
-// Gemini returns 16-bit PCM (audio/L16;rate=24000) as base64; wrap it in a WAV header so it plays and downloads.
+// The voice engine returns 16-bit PCM (audio/L16;rate=24000) as base64; wrap it in a WAV header so it plays and downloads.
 export function wav(b64, mime) {
   const rate = +((/rate=(\d+)/.exec(mime || '') || [])[1] || 24000);
   const bin = atob(b64), n = bin.length, buf = new ArrayBuffer(44 + n), v = new DataView(buf), u8 = new Uint8Array(buf);
@@ -83,7 +83,7 @@ export default async function mount() {
     $('#gv').innerHTML = t.voices.map(v => `<option value="${esc(v.id)}">${esc(v.ar)}</option>`).join('');
     $('#ga').innerHTML = Object.entries(t.accents).map(([k, v]) => `<option value="${k}">${esc(v)}</option>`).join('');
     $('#gt').innerHTML = Object.entries(t.tones).map(([k, v]) => `<option value="${k}">${esc(v)}</option>`).join('');
-    if (!t.ready) { $('#speak').disabled = true; $('#genNote').textContent = 'توليد الصوت يحتاج مفتاح Gemini (GEMINI_API_KEY) في إعدادات Cloudflare.'; }
+    if (!t.ready) { $('#speak').disabled = true; $('#genNote').textContent = 'توليد الصوت مو مفعّل للحين، تواصل مع مسؤولة النظام.'; }
     $('#guide').innerHTML = g.guide.map(x => `<div class="vc-g"><b>${esc(x.title)}</b><span><span class="vc-yes">نعم:</span> ${esc(x.do)}</span><span class="muted"><span class="vc-no">لا:</span> ${esc(x.dont)}</span></div>`).join('');
   } catch (err) { say($('#msg'), err.message); }
 }
