@@ -380,6 +380,13 @@ const EN = {
   'ليد في الـ CRM آخر 30 يوم': 'CRM leads, last 30 days', 'ليدز المنصة': 'Platform leads', 'ليدز الـ CRM': 'CRM leads',
   'آخر يوم فيه أرقام': 'Last day with numbers', 'ما فيه أرقام آخر 14 يوم.': 'No numbers in the last 14 days.',
   'ما لقيت مشاكل في التتبع.': 'No tracking issues found.', 'الأرقام توصل من كل المنصات والليدز مربوطة بإعلاناتها.': 'Numbers arrive from every platform and leads are tied to their ads.',
+  // الامتثال (compliance)
+  'الامتثال': 'Compliance', 'الامتثال · Well': 'Compliance · Well',
+  'يفحص نصوص الإعلانات على قواعد الإعلان الصحي في السعودية وسياسات المنصات. تنويه بس، ما يمنع النشر.': 'Checks ad copy against Saudi health-ad rules and platform policies. A notice only; it never blocks publishing.',
+  'افحص نص قبل ما تنشره': 'Check a text before you publish it', 'نص الإعلان': 'Ad text', 'الصق نص الإعلان هنا': 'Paste the ad text here', 'افحص النص': 'Check the text',
+  'إعلاناتنا': 'Our ads', 'أي إعلانات': 'Which ads', 'النشطة': 'Active', 'كلها': 'All', 'مخالفة': 'Violation', 'انتبه': 'Caution',
+  'إعلان انفحص': 'Ads checked', 'الأسلم:': 'Safer:', 'ما لقيت مخالفات في نصوص الإعلانات.': 'No issues found in the ad copy.', 'النص سليم حسب القواعد.': 'The text passes the rules.', 'سليم': 'Clean',
+  'الصق نص الإعلان أول': 'Paste the ad text first', 'ما قدرت أقرأ الإعلانات': 'Could not read the ads',
   // أخطاء السيرفر
   'طلب مرفوض': 'Request refused', 'سجّل الدخول': 'Please sign in', 'الحساب موقوف': 'Account disabled', 'ما عندك صلاحية': 'You don\'t have access',
   'صار خطأ، جرّب مرة ثانية': 'Something went wrong, try again', 'صار خطأ': 'Something went wrong', 'الإعداد غير مكتمل': 'Setup is incomplete',
