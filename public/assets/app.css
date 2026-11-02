@@ -266,7 +266,6 @@ tbody tr:last-child td{border-bottom:0}
 .fld label{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
 .fld .muted{margin-top:4px;font-size:12px}
 .req{color:var(--accent)}
-.chip.ai{height:22px;font-size:11px;padding:0 8px}
 .locked{display:flex;align-items:center;gap:8px;height:46px;padding:0 14px;border-radius:var(--r-sm);background:var(--tint);color:var(--muted)}
 .toggle{display:flex;align-items:center;gap:10px;height:46px;margin:0}
 .launch-foot{position:sticky;bottom:12px;z-index:5}
@@ -303,7 +302,8 @@ body{background:
 [dir=rtl] .navi[aria-current]::before{border-radius:4px 0 0 4px}
 .navi[aria-current] .i,.navi[aria-current] svg{color:var(--accent)}
 .navi[aria-current] .tag{background:var(--tint-2);color:var(--ink)}
-.topbar{background:transparent;-webkit-backdrop-filter:none;backdrop-filter:none}
+/* The top bar stays on top while scrolling: frosted, so the page under it never shows through the title */
+.topbar{background:color-mix(in srgb,#F3F0FB 72%,transparent);-webkit-backdrop-filter:var(--glass-blur);backdrop-filter:var(--glass-blur)}
 .menu{background:var(--glass-strong);border:1px solid var(--glass-edge);-webkit-backdrop-filter:var(--glass-blur);backdrop-filter:var(--glass-blur)}
 @media (max-width:900px){.app{grid-template-columns:1fr}.side{margin:0;height:100vh;top:0;border-radius:0 26px 26px 0}[dir=rtl] .side{border-radius:26px 0 0 26px}}
 @media (prefers-reduced-transparency:reduce){.card,.side,.menu{background:#FFFFFF;-webkit-backdrop-filter:none;backdrop-filter:none}}

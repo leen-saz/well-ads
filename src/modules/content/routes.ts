@@ -1,6 +1,7 @@
 // /api/content/*: the content + SEO/AEO agent of the user's company. Analyze -> plan -> approve each item -> draft -> publish.
 import { sb, json, readJson, handle, requireUser, audit, atLeast, NO_APPROVE, type AuthEnv } from '../../lib/auth';
 import { scoped, WELL_COMPANY } from '../../lib/tenant';
+import { knowledgeFor, withKnowledge } from '../knowledge/knowledge';
 import { AI_MODEL, PUBLISH, crawl, normalizeSite, plan, searchConsole, type AiRun, type Item } from './content';
 
 type Row = Record<string, unknown>;
@@ -27,7 +28,7 @@ export const analyze = { POST: handle(async (request, e: AiEnv) => {
   const v = user.co === WELL_COMPANY ? await sb<{ name: string; value: string }[]>(cfg, '/rest/v1/rpc/connector_env', { method: 'POST', admin: true, body: {} }) : null;
   const t = Object.fromEntries((v?.ok && Array.isArray(v.data) ? v.data : []).map(x => [x.name, x.value]));
   const gsc = await searchConsole(site, t).catch(() => []);
-  const p = await plan(aiOf(e), site, niche, competitors, pages, gsc);
+  const p = await plan(aiOf(e), site, niche, competitors, pages, gsc, await knowledgeFor(cfg, user.co, 'content'));
   // Nothing to propose: say so instead of saving an empty plan
   if (!p.items.length) return json(422, { error: p.analysis && 'ai' in p.analysis ? 'التحليل ما طلع بنود هالمرة، جرّب مرة ثانية بعد دقيقة' : 'الموقع ما فيه ملاحظات واضحة هالمرة. جرّب تكتب النيش والمنافسين عشان يطلع لك أفكار محتوى' });
   const r = await sb<Row[]>(cfg, '/rest/v1/content_plans', { method: 'POST', admin: true, headers: { Prefer: 'return=representation' },
@@ -54,9 +55,9 @@ export const item = { PATCH: handle(async (request, e: AiEnv) => {
     if (it.status !== 'approved') return json(409, { error: 'وافق على البند أول' });
     const ai = aiOf(e);
     if (!ai) return json(503, { error: 'الكتابة بالذكاء الاصطناعي غير مفعّلة في هالبيئة' });
-    const out = await ai(AI_MODEL, { max_tokens: 2500, messages: [{ role: 'user', content:
+    const out = await ai(AI_MODEL, { max_tokens: 2500, messages: withKnowledge([{ role: 'user', content:
       `اكتب ${it.kind === 'faq' ? 'أسئلة وأجوبة شائعة (8 أسئلة)' : it.kind === 'page' ? 'نص صفحة خدمة' : 'مقال'} بالعربي السعودي الواضح لموقع ${p.site} بعنوان: "${it.title}". السبب: ${it.why}.
-النبرة مثل: ${(p.competitors as string[]).join('، ') || 'ودودة ومهنية'}. بدون ادعاءات طبية مضمونة (وزارة الصحة). استخدم عناوين فرعية، واختم بدعوة للحجز. Markdown فقط.` }] });
+النبرة مثل: ${(p.competitors as string[]).join('، ') || 'ودودة ومهنية'}. بدون ادعاءات طبية مضمونة (وزارة الصحة). استخدم عناوين فرعية، واختم بدعوة للحجز. Markdown فقط.` }], await knowledgeFor(cfg, user.co, 'content')) });
     it.draft = String((out as { response?: unknown })?.response ?? '').slice(0, 20000);
   } else it.status = act === 'approve' ? 'approved' : act === 'reject' ? 'rejected' : 'done';
   const r = await sb(cfg, scoped(`/rest/v1/content_plans?id=eq.${id}`, user.co), { method: 'PATCH', admin: true, body: { items } });

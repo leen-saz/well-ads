@@ -1,4 +1,4 @@
-// فورم إطلاق حملة جديدة: تختار المنصة وتطلع خيارات إعلاناتها هي. الخانة الفاضية يعبيها كلود.
+// فورم إطلاق حملة جديدة: تختار المنصة وتطلع خيارات إعلاناتها هي. الخانة الاختيارية اللي تنترك فاضية تطلع «ناقص» في طلب القرار.
 // الإرسال يسوي طلب "حملة جديدة" في لوحة القرارات، يمر على المراجع، ويحتاج موافقة لين. ما يطلق شي على المنصة بنفسه.
 import { $, $$, esc, api, icon, shell, toast, busy, say } from './common.js';
 
@@ -16,20 +16,20 @@ export default async function mount() {
     C('dept', 'القسم / الخدمة', 'select', { options: DEPTS, required: true }),
     C('name', 'اسم الحملة', 'text', { hint: 'الصيغة: Platform_service_DDMM. تتعبّى لحالها.' }),
     C('objective', 'الهدف', 'seg', { options: { leads: 'Leads', sales: 'Sales' }, value: 'leads', hint: 'Sales أو Leads بس. Traffic ممنوع.' }),
-    C('budget', 'الميزانية اليومية (ريال)', 'number', { ai: true }),
+    C('budget', 'الميزانية اليومية (ريال)', 'number', { optional: true }),
     C('start', 'تاريخ البداية', 'date', { required: true }),
-    C('end', 'تاريخ النهاية', 'date', { ai: true }),
+    C('end', 'تاريخ النهاية', 'date', { optional: true }),
     C('geo', 'الموقع', 'locked', { value: 'الرياض بس' }),
     C('age_min', 'العمر من', 'number', { value: 30, min: 30 }),
     C('age_max', 'إلى', 'select', { options: { '45': '45', '55': '55', '65': '65+' }, value: '65' }),
     C('gender', 'الجنس', 'seg', { options: { all: 'الكل', female: 'نساء', male: 'رجال' }, value: 'all' }),
     C('lang', 'لغة الإعلان', 'seg', { options: { ar: 'عربي', en: 'إنجليزي' }, value: 'ar' }),
     C('influencer', 'المؤثرة (اختياري)', 'text'),
-    C('wa_message', 'رسالة واتساب الخاصة', 'text', { hint: 'لكل مؤثرة رسالة مختلفة عشان نعرف مصدر المحادثة.', ai: true }),
+    C('wa_message', 'رسالة واتساب الخاصة', 'text', { hint: 'لكل مؤثرة رسالة مختلفة عشان نعرف مصدر المحادثة.', optional: true }),
     C('creative', 'رابط الكرييتف (فيديو أو صورة)', 'url', { required: true }),
-    C('primary', 'النص الأساسي', 'textarea', { ai: true }),
-    C('headline', 'العنوان', 'text', { ai: true }),
-    C('cta', 'زر الدعوة', 'select', { options: { whatsapp: 'راسلنا واتساب', book: 'احجز الآن', learn: 'اعرف أكثر', signup: 'سجّل' }, ai: true }),
+    C('primary', 'النص الأساسي', 'textarea', { optional: true }),
+    C('headline', 'العنوان', 'text', { optional: true }),
+    C('cta', 'زر الدعوة', 'select', { options: { whatsapp: 'راسلنا واتساب', book: 'احجز الآن', learn: 'اعرف أكثر', signup: 'سجّل' }, optional: true }),
   ];
   const PLAT = {
     meta: [
@@ -44,7 +44,7 @@ export default async function mount() {
     snap: [
       C('ad_type', 'نوع الإعلان', 'seg', { options: { single: 'صورة أو فيديو', story: 'ستوري', collection: 'كولكشن' }, value: 'single' }),
       C('goal', 'الهدف في سناب', 'select', { options: { lead_form: 'نموذج ليد داخل سناب', website: 'سوايب للموقع', pixel_purchase: 'شراء (Pixel)' }, value: 'lead_form' }),
-      C('qualify', 'سؤال التأهيل في النموذج', 'text', { hint: 'مثل: متى تبي الجلسة؟', ai: true }),
+      C('qualify', 'سؤال التأهيل في النموذج', 'text', { hint: 'مثل: متى تبي الجلسة؟', optional: true }),
       C('bid', 'المزايدة', 'seg', { options: { auto: 'تلقائي', target: 'تكلفة مستهدفة' }, value: 'auto' }),
     ],
     tiktok: [
@@ -56,10 +56,10 @@ export default async function mount() {
     ],
     google: [
       C('type', 'نوع الحملة', 'locked', { value: 'Search' }),
-      C('keywords', 'الكلمات', 'textarea', { hint: 'كلمة في كل سطر.', ai: true }),
-      C('negatives', 'كلمات سلبية', 'textarea', { value: 'وظائف\nتوظيف\nراتب\nدورة\nمجاني\nPDF', ai: true }),
-      C('headlines', 'العناوين (8 إلى 15)', 'textarea', { hint: 'عنوان في كل سطر، 30 حرف بالكثير.', ai: true }),
-      C('descriptions', 'الأوصاف (2 إلى 4)', 'textarea', { ai: true }),
+      C('keywords', 'الكلمات', 'textarea', { hint: 'كلمة في كل سطر.', optional: true }),
+      C('negatives', 'كلمات سلبية', 'textarea', { value: 'وظائف\nتوظيف\nراتب\nدورة\nمجاني\nPDF', optional: true }),
+      C('headlines', 'العناوين (8 إلى 15)', 'textarea', { hint: 'عنوان في كل سطر، 30 حرف بالكثير.', optional: true }),
+      C('descriptions', 'الأوصاف (2 إلى 4)', 'textarea', { optional: true }),
       C('final_url', 'رابط الصفحة', 'url', { value: 'https://wellcare.sa/' }),
       C('bidding', 'المزايدة', 'select', { options: { max_conv: 'أكبر عدد تحويلات', tcpa: 'تكلفة تحويل مستهدفة' }, value: 'max_conv' }),
     ],
@@ -70,17 +70,16 @@ export default async function mount() {
 
   function field(f) {
     const v = f.value ?? '';
-    const ai = f.ai ? `<span class="chip line ai" data-tip="إذا خليتها فاضية يعبيها كلود">${icon('pen')}يعبيها كلود</span>` : '';
-    const lab = `<label for="${f.id}">${f.label}${f.required ? ' <span class="req">*</span>' : ''} ${ai}</label>`;
+    const lab = `<label for="${f.id}">${f.label}${f.required ? ' <span class="req">*</span>' : ''}${f.optional ? ' <span class="muted">(اختياري)</span>' : ''}</label>`;
     const hint = f.hint ? `<div class="muted">${f.hint}</div>` : '';
     let input;
-    if (f.type === 'select') input = `<select id="${f.id}" name="${f.id}">${f.ai ? '<option value="">— كلود يختار —</option>' : ''}${Object.entries(f.options).map(([k, t]) => `<option value="${k}"${String(v) === k ? ' selected' : ''}>${t}</option>`).join('')}</select>`;
+    if (f.type === 'select') input = `<select id="${f.id}" name="${f.id}">${f.optional ? '<option value="">— اختر —</option>' : ''}${Object.entries(f.options).map(([k, t]) => `<option value="${k}"${String(v) === k ? ' selected' : ''}>${t}</option>`).join('')}</select>`;
     else if (f.type === 'seg') input = `<span class="seg" role="radiogroup" data-seg="${f.id}">${Object.entries(f.options).map(([k, t]) => `<button type="button" data-v="${k}" aria-pressed="${v === k}">${t}</button>`).join('')}</span><input type="hidden" name="${f.id}" value="${v}">`;
     else if (f.type === 'checks') input = `<div class="checks">${Object.entries(f.options).map(([k, t]) => `<label><input type="checkbox" name="${f.id}" value="${k}"${(v || []).includes(k) ? ' checked' : ''}> ${t}</label>`).join('')}</div>`;
     else if (f.type === 'toggle') input = `<label class="toggle"><input type="checkbox" name="${f.id}"${v ? ' checked' : ''}> <span>نعم</span></label>`;
     else if (f.type === 'locked') input = `<div class="locked">${icon('lock')}<span>${esc(v)}</span></div>`;
-    else if (f.type === 'textarea') input = `<textarea id="${f.id}" name="${f.id}" placeholder="${f.ai ? 'فاضي = يعبيه كلود' : ''}">${esc(v)}</textarea>`;
-    else input = `<input type="${f.type === 'url' ? 'url' : f.type}" id="${f.id}" name="${f.id}" value="${esc(v)}"${f.min ? ` min="${f.min}"` : ''} placeholder="${f.ai ? 'فاضي = يعبيه كلود' : ''}"${f.type === 'number' ? ' inputmode="decimal"' : ''}>`;
+    else if (f.type === 'textarea') input = `<textarea id="${f.id}" name="${f.id}">${esc(v)}</textarea>`;
+    else input = `<input type="${f.type === 'url' ? 'url' : f.type}" id="${f.id}" name="${f.id}" value="${esc(v)}"${f.min ? ` min="${f.min}"` : ''}${f.type === 'number' ? ' inputmode="decimal"' : ''}>`;
     return `<div class="fld fld-${f.type}">${lab}${input}${hint}</div>`;
   }
 

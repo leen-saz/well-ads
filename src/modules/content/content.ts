@@ -1,3 +1,5 @@
+import { withKnowledge } from '../knowledge/knowledge';
+
 // إيجنت المحتوى و SEO/AEO: يقرا الموقع (الصفحة الرئيسية + sitemap)، ويطلع الملاحظات بقواعد ثابتة،
 // وبعدين يبني بلان بـ Workers AI (مجاني ضمن حد Cloudflare اليومي). لو الذكاء الاصطناعي ما اشتغل، البلان من القواعد بس.
 // كل بند يحتاج موافقة الماركتير قبل النشر (أو تلقائي مع تنبيه).
@@ -111,11 +113,12 @@ const PLAN_SCHEMA = { type: 'json_schema', json_schema: { type: 'object', requir
 // The model's answer: an object in JSON mode, or text with a JSON object inside
 const answer = (out: unknown): string => { const r = (out as { response?: unknown })?.response; return typeof r === 'string' ? r : r ? JSON.stringify(r) : ''; };
 
-export async function plan(ai: AiRun | undefined, site: string, niche: string, competitors: string[], pages: PageFacts[], gsc: Gsc[]) {
+// system = the company's knowledge (src/modules/knowledge), sent as its own system message
+export async function plan(ai: AiRun | undefined, site: string, niche: string, competitors: string[], pages: PageFacts[], gsc: Gsc[], system = '') {
   const rules = audit(pages);
   if (!ai) return { engine: 'rules', analysis: { pages: pages.length }, items: rules };
   try {
-    const messages = [{ role: 'user', content: prompt(site, niche, competitors, pages, gsc, rules) }];
+    const messages = withKnowledge([{ role: 'user', content: prompt(site, niche, competitors, pages, gsc, rules) }], system);
     let parsed = parsePlan(answer(await ai(AI_MODEL, { messages, max_tokens: 3000, response_format: PLAN_SCHEMA })));
     // One more try without JSON mode before giving up
     if (!parsed?.items.length) parsed = parsePlan(answer(await ai(AI_MODEL, { messages, max_tokens: 3000 }))) || parsed;
