@@ -1,0 +1,115 @@
+{
+ "facebook": [
+  {
+   "status": "ok",
+   "name": "Well Care.",
+   "followers": 42421,
+   "insights": "ok",
+   "posts_status": "ok",
+   "days": [
+    {
+     "date": "2026-10-15",
+     "views": 10,
+     "reach": 8,
+     "engagement": 3
+    },
+    {
+     "date": "2026-10-16",
+     "views": 20,
+     "reach": 7,
+     "engagement": 4
+    }
+   ],
+   "posts": [
+    {
+     "id": "in",
+     "date": "2026-10-15",
+     "caption": "POST IN RANGE",
+     "dept": "iv",
+     "reach": 10,
+     "likes": 2,
+     "views": 100,
+     "comments": 0,
+     "shares": 0,
+     "saves": 0
+    },
+    {
+     "id": "out",
+     "date": "2026-10-13",
+     "caption": "POST OUT",
+     "dept": "iv",
+     "reach": 4,
+     "likes": 1,
+     "views": 10
+    },
+    {
+     "id": "foot",
+     "date": "2026-10-16",
+     "caption": "POST FOOT",
+     "dept": "foot",
+     "reach": 0,
+     "likes": 5,
+     "views": 50,
+     "comments": 0,
+     "shares": 0,
+     "saves": 0
+    },
+    {
+     "id": "none",
+     "caption": "UNDATED POST",
+     "dept": "iv",
+     "reach": 10,
+     "likes": 5,
+     "views": 50
+    }
+   ]
+  }
+ ],
+ "instagram": [
+  {
+   "status": "ok",
+   "name": "@wellcare.sa",
+   "followers": 88001,
+   "insights": "ok",
+   "posts_status": "ok",
+   "days": [],
+   "period": {
+    "start": "2026-10-01",
+    "end": "2026-10-16",
+    "views": 999,
+    "reach": 111,
+    "engagement": 91
+   },
+   "posts": []
+  }
+ ],
+ "ga4": {
+  "status": "ok",
+  "name": "GA4",
+  "days": [
+   {
+    "date": "2026-10-15",
+    "users": 5,
+    "sessions": 10,
+    "views": 100
+   },
+   {
+    "date": "2026-10-16",
+    "users": 9,
+    "sessions": 3,
+    "views": 40
+   }
+  ],
+  "channels": [
+   {
+    "channel": "Organic Search",
+    "sessions": 4242,
+    "users": 1000
+   }
+  ],
+  "window": {
+   "start": "2026-10-01",
+   "end": "2026-10-16"
+  }
+ }
+}

@@ -1,0 +1,44 @@
+name: parity
+
+# Phase 4.1 (docs/phase-4.md): the dashboard numbers must match tests/parity/golden.json.
+on:
+  pull_request:
+    paths:
+      - pipeline/template.html
+      - pipeline/build.py
+      - public/assets/**
+      - src/pages/**
+      - tests/parity/**
+      - playwright.config.ts
+      - package-lock.json
+      - .github/workflows/parity.yml
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: parity-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  parity:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "24"
+          cache: npm
+      - run: npm ci
+      - run: npx playwright install --with-deps chromium
+      - run: npm run test:parity
+      - name: Keep the failure details
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: parity-results
+          path: test-results/
+          retention-days: 7

@@ -9,7 +9,9 @@
     "typecheck": "astro check && tsc --noEmit",
     "lint": "eslint .",
     "test:unit": "vitest run",
-    "test:integration": "vitest run --config vitest.integration.config.ts --passWithNoTests"
+    "test:integration": "vitest run --config vitest.integration.config.ts --passWithNoTests",
+    "test:parity": "playwright test",
+    "test:parity:update": "UPDATE_GOLDEN=1 playwright test --workers=1"
   },
   "dependencies": {
     "@astrojs/cloudflare": "^14.4.3",
@@ -18,6 +20,7 @@
   },
   "devDependencies": {
     "@astrojs/check": "^0.9.12",
+    "@playwright/test": "^1.56.1",
     "eslint": "^10.14.0",
     "eslint-plugin-astro": "^3.2.1",
     "typescript": "^6.0.3",
