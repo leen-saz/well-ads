@@ -1,12 +1,17 @@
 // @ts-check
 import { defineConfig } from 'astro/config';
 import cloudflare from '@astrojs/cloudflare';
+import react from '@astrojs/react';
+import tailwindcss from '@tailwindcss/vite';
 
 export default defineConfig({
   output: 'server',
   // No Astro sessions (auth is our own signed cookie) and no image service: no KV or Images binding needed.
   adapter: cloudflare({ imageService: 'passthrough' }),
   session: false,
+  // React islands for the shadcn/ui pieces (src/components/ui), Tailwind for their styles (src/styles/ui.css, loaded only by those pages)
+  integrations: [react()],
+  vite: { plugins: [tailwindcss()] },
   // Links prepare the next page on hover; with the ClientRouter tabs switch without a full reload
   prefetch: { prefetchAll: true, defaultStrategy: 'hover' },
   security: {
