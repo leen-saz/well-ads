@@ -5,7 +5,7 @@ import {
   type AuthEnv, type Cfg, type Session,
 } from '../../lib/auth';
 import { TIKTOK_MCP_DAYS, pkce, registerClient, authorizeUrl as mcpAuthorizeUrl, exchangeCode } from '../../lib/mcp-oauth';
-import { PLATFORMS, OAUTH, byId, appCreds, authorizeUrl, exchange, oauth1, check, type Platform, type Values, type Exchanged } from '../../lib/connectors';
+import { PLATFORMS, OAUTH, byId, appCreds, authorizeUrl, exchange, oauth1, check, type Platform, type Values, type Exchanged, CORE } from '../../lib/connectors';
 
 type Row = Record<string, unknown>;
 const rows = (d: unknown): Row[] => (Array.isArray(d) ? (d as Row[]) : []);
@@ -61,7 +61,7 @@ export const list = {
       const status = p.mcp && !have.size ? 'mcp' : !c ? 'none' : expires && new Date(expires) < new Date() ? 'expired' : required.every(n => have.has(n)) ? 'ok' : 'partial';
       const shown = (c?.shown as Values | undefined) || {};
       return {
-        id: p.id, name: p.name, group: p.group, fetch: !!p.fetch, mcp: !!p.mcp, docs: p.docs, help: p.help,
+        id: p.id, name: p.name, group: p.group, core: CORE[p.id] || null, fetch: !!p.fetch, mcp: !!p.mcp, docs: p.docs, help: p.help,
         oauth: !!o, oauthReady: !!(o && (o.mcpOAuth || appCreds(p, vars(e)))), expiresNote: o?.expires || null, logo: p.logo || null, color: p.color || null,
         fields: p.fields.map(f => ({ env: f.env, label: f.label, secret: f.secret, type: f.type, optional: !!f.optional, manual: !!f.manual,
           placeholder: f.placeholder || '', saved: have.has(f.env), shown: !f.secret && c ? shown[f.env] || '' : '' })),

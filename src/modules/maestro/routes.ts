@@ -10,7 +10,7 @@ async function companyOf(cfg: Cfg, co: string): Promise<Co | null> {
   const r = await sb<Co[]>(cfg, `/rest/v1/companies?id=eq.${co}&select=id,name,paperclip_company_id`, { admin: true });
   return r.ok && Array.isArray(r.data) ? r.data[0] || null : null;
 }
-const notSet = () => json(503, { error: 'المايسترو (Paperclip) مو مربوط بالسيرفر للحين', setup: true });
+const notSet = () => json(503, { error: 'المايسترو مو جاهز للحين، تواصل مع مسؤولة النظام', setup: true });
 
 export const state = { GET: handle(async (request, e: Env) => {
   const { cfg, user } = await requireUser(request, e, 'maestro');
@@ -18,7 +18,9 @@ export const state = { GET: handle(async (request, e: Env) => {
   if (!pc) return notSet();
   const c = await companyOf(cfg, user.co);
   if (!c?.paperclip_company_id) return json(200, { connected: false, owner: isOwner(user, cfg), statuses: STATUS });
-  const [agents, issues, approvals] = await Promise.all([pc.agents(c.paperclip_company_id), pc.issues(c.paperclip_company_id), pc.approvals(c.paperclip_company_id)]);
+  let agents: unknown[] = [], issues: unknown[] = [], approvals: unknown[] = [];
+  try { [agents, issues, approvals] = await Promise.all([pc.agents(c.paperclip_company_id), pc.issues(c.paperclip_company_id), pc.approvals(c.paperclip_company_id)]); }
+  catch (err) { console.error('maestro_state_failed', (err as Error).message); return json(502, { error: 'المايسترو مو متاح الحين، جرّب بعد شوي' }); }
   return json(200, { connected: true, owner: isOwner(user, cfg), canApprove: atLeast(user, 'maestro', 'approve', cfg), canEdit: atLeast(user, 'maestro', 'edit', cfg), statuses: STATUS, agents, issues, approvals });
 }) };
 
@@ -29,9 +31,11 @@ export const connect = { POST: handle(async (request, e: Env) => {
   const c = await companyOf(cfg, user.co);
   if (!c) return json(404, { error: 'شركة غير معروفة' });
   if (c.paperclip_company_id) return json(200, { ok: true, id: c.paperclip_company_id });
-  const made = await pc.createCompany(c.name);
+  // The engine's own error stays in the logs; users see a plain message (the engine is never named in the UI)
+  let made: Record<string, unknown> = {};
+  try { made = await pc.createCompany(c.name); } catch (err) { console.error('maestro_connect_failed', (err as Error).message); return json(502, { error: 'ما قدرنا نجهز مساحة شركتك، جرّب بعد شوي' }); }
   const id = String(made.id || '');
-  if (!id) return json(502, { error: 'Paperclip ما رجّع رقم الشركة' });
+  if (!id) return json(502, { error: 'ما قدرنا نجهز مساحة شركتك، جرّب بعد شوي' });
   const r = await sb(cfg, `/rest/v1/companies?id=eq.${user.co}&paperclip_company_id=is.null`, { method: 'PATCH', admin: true, body: { paperclip_company_id: id } });
   if (!r.ok) return json(500, { error: 'ما انحفظ الربط' });
   await audit(cfg, user, 'maestro_connected', { target: { paperclip_company_id: id } });

@@ -13,7 +13,7 @@ document.addEventListener('astro:after-swap', () => { document.documentElement.l
 
 const EN = {
   // التنقل والهيكل
-  'التحليلات': 'Analytics', 'الكرييتف': 'Creative', 'لوحة القرارات': 'Decision board', 'الصلاحيات والدخول': 'Access & sign-in', 'السوشال': 'Social', 'الرحلات والرسائل': 'Journeys', 'المحتوى و SEO': 'Content & SEO', 'المايسترو': 'Maestro', 'الموديولات': 'Modules', 'موديولات الشركة': 'Company modules', 'الإعدادات': 'Settings',
+  'التحليلات': 'Analytics', 'الكرييتف': 'Creative', 'لوحة القرارات': 'Decision board', 'الصلاحيات والدخول': 'Access & sign-in', 'السوشال': 'Social', 'الرحلات والرسائل': 'Journeys', 'المحتوى و SEO': 'Content & SEO', 'المايسترو': 'Maestro', 'الموديولات': 'Modules', 'موديولات الشركة': 'Company modules', 'الإعدادات': 'Settings', 'أساسي': 'Core', 'أساسية لتشغيل النظام': 'Needed to run the system',
   'حسابي': 'My account', 'خروج': 'Sign out', 'المالكة': 'Owner', 'عضو': 'Member', 'القائمة': 'Menu', 'التنقل': 'Navigation',
   'عربي': 'عربي', 'English': 'English', 'اللغة': 'Language',
   // الدخول
@@ -232,14 +232,14 @@ const EN = {
   'خطة المدير': 'Manager plan',
   'تجاوز الميزانية': 'Budget override',
   'طلب موافقة': 'Approval request',
-  'ما فيه إيجنتس. أضفهم من Paperclip.': 'No agents. Add them in Paperclip.',
+  'ما فيه إيجنتس للحين.': 'No agents yet.',
   'إيجنت': 'Agent',
   'القرار للمالكة.': 'The owner decides.',
   'ما فيه شي ينتظر.': 'Nothing waiting.',
   'ما فيه مهام للحين.': 'No tasks yet.',
-  'يشتغل على Paperclip في سيرفر Cloudflare (Containers). الإعداد مرة وحدة من المالكة: انظر docs/paperclip.md.': 'Runs on Paperclip on a Cloudflare server (Containers). One-time setup by the owner: see docs/paperclip.md.',
+  'الإعداد مرة وحدة من مسؤولة النظام.': 'One-time setup by the system admin.',
   'اربط شركتك بالمايسترو': 'Connect your company to the Maestro',
-  'ينشئ لشركتك مساحة في Paperclip: إيجنتس، مهام، ميزانية، وموافقات.': 'Creates a space for your company in Paperclip: agents, tasks, budget and approvals.',
+  'يجهز لشركتك مساحة فيها إيجنتس، ومهام، وميزانية، وموافقات.': 'Sets up a space for your company with agents, tasks, budget and approvals.',
   'وصلت للمايسترو.': 'Sent to the Maestro.',
   'المايسترو · Well': 'Maestro · Well',
   'كلّف المايسترو': 'Assign the Maestro',

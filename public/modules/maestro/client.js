@@ -1,5 +1,5 @@
-// المايسترو بأسلوب Paperclip: تبويبات (لوحة، الوارد، المهام، الإيجنتس) بالرابط، قائمة أو لوحة، فلاتر، بحث، ومهمة جديدة في نافذة.
-// اختصارات: C مهمة جديدة، / بحث، 1-4 التبويبات. التشغيل نفسه في Paperclip.
+// المايسترو: تبويبات (لوحة، الوارد، المهام، الإيجنتس) بالرابط، قائمة أو لوحة، فلاتر، بحث، ومهمة جديدة في نافذة.
+// اختصارات: C مهمة جديدة، / بحث، 1-4 التبويبات.
 import { $, $$, api, say, esc, shell, busy, pageSignal } from '/assets/common.js';
 
 // Runs on every visit of this page (assets/router.js calls it after each ClientRouter navigation).
@@ -58,7 +58,7 @@ export default async function mount() {
   function agents() {
     const ok = a => (filter === 'all' || (filter === 'active' ? ['active', 'idle', 'running'].includes(a.status) : a.status === filter)) && matches(a.name, a.title, a.role);
     const as = (S.agents || []).filter(ok);
-    if (!as.length) return empty('agents', 'ما فيه إيجنتس. أضفهم من Paperclip.');
+    if (!as.length) return empty('agents', 'ما فيه إيجنتس للحين.');
     const card = a => `<article class="card mx-item"><span class="mx-dot ${a.status === 'running' ? 'in_progress' : a.status === 'error' ? 'blocked' : a.status === 'paused' ? 'cancelled' : 'done'}"></span>
       <b>${esc(a.name)}</b><span class="muted">${esc(a.title || a.role || '')}</span><span class="so-chip">${AG[a.status] || esc(a.status)}</span></article>`;
     if (layout === 'list') return `<div class="mx-list">${as.map(card).join('')}</div>`;
@@ -89,9 +89,9 @@ export default async function mount() {
 
   async function load() {
     try { S = await api('/api/maestro/state'); }
-    catch (err) { $('#setup').innerHTML = `<section class="card pad" style="max-width:640px"><h2>المايسترو</h2><p class="muted">${esc(err.message)}</p><p class="so-note">يشتغل على Paperclip. الإعداد مرة وحدة من المالكة: انظر docs/paperclip.md.</p></section>`; return; }
+    catch (err) { $('#setup').innerHTML = `<section class="card pad" style="max-width:640px"><h2>المايسترو</h2><p class="muted">${esc(err.message)}</p><p class="so-note">الإعداد مرة وحدة من مسؤولة النظام.</p></section>`; return; }
     if (!S.connected) {
-      $('#setup').innerHTML = `<section class="card pad" style="max-width:640px"><h2>اربط شركتك بالمايسترو</h2><p class="muted">ينشئ لشركتك مساحة في Paperclip: إيجنتس، مهام، ميزانية، وموافقات.</p>
+      $('#setup').innerHTML = `<section class="card pad" style="max-width:640px"><h2>اربط شركتك بالمايسترو</h2><p class="muted">يجهز لشركتك مساحة فيها إيجنتس، ومهام، وميزانية، وموافقات.</p>
         ${S.owner ? '<button class="btn primary" id="connect">اربط</button>' : '<p class="muted">الربط من المالكة.</p>'}<div class="msg" id="cmsg" role="status"></div></section>`;
       $('#connect')?.addEventListener('click', async e => { busy(e.target, true); try { await api('/api/maestro/connect', { method: 'POST', body: {} }); await load(); } catch (err) { say($('#cmsg'), err.message); busy(e.target, false); } });
       return;
@@ -125,7 +125,7 @@ export default async function mount() {
     } catch (err) { say($('#dmsg'), err.message); }
     busy(btn, false);
   });
-  // Paperclip-style shortcuts, ignored while typing
+  // Keyboard shortcuts, ignored while typing
   document.addEventListener('keydown', e => {
     if (e.metaKey || e.ctrlKey || e.altKey || /^(INPUT|TEXTAREA|SELECT)$/.test(document.activeElement?.tagName || '') || $('#dlg')?.open) return;
     if (e.key === 'c' || e.key === 'C') { e.preventDefault(); openNew(); }

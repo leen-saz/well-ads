@@ -1,5 +1,5 @@
 // أقسام القائمة الجانبية، نفسها في common.js (صفحات Astro) و nav.js (لوحات التحليلات والكرييتف).
-// مجموعات بعناوين صغيرة مثل Paperclip. الموديولات تجي من السيرفر (me.modules ← src/modules/registry.ts).
+// مجموعات بعناوين صغيرة. الموديولات تجي من السيرفر (me.modules ← src/modules/registry.ts).
 // state: ok = يفتح، noaccess = ما عندك صلاحية، locked = مقفل لشركتك، soon = قريباً.
 export function sections(me, L) {
   const has = k => me.dashboards.includes(k);
