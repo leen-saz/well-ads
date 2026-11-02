@@ -34,11 +34,17 @@ function renderWins(){
   if(launched.length) add('🚀',ui(`أطلقنا ${launched.map(x=>x[0]).join(' و')}`,`Launched ${launched.map(x=>x[1]).join(' and ')}`),ui('أول صرف لها كان في هالفترة','First spend was in this period'));
   el.innerHTML = out.length ? out.join('') : `<p class="hint">${ui('ما فيه تحسّن واضح في هالفترة مقارنة باللي قبلها.','No clear improvement vs the previous period.')}</p>`;
 }
-function renderReport(now,prev){
+// Which sections show: the current mode and page only
+function syncSections(){
   document.querySelectorAll('section[data-mode]').forEach(s=>{
     const modes=(s.dataset.mode||'ads').split(/\s+/), pages=(s.dataset.page||'').split(/\s+/).filter(Boolean);
     s.hidden = !modes.includes(S.mode) || (pages.length && !pages.includes(S.page)) || (CREATIVE_ONLY && (s.id==='kpis' || !pages.includes('creative')));
   });
+}
+// Draw a part only when its section is on screen; switching tab calls render() again, so hidden parts never go stale
+const shown = id => { const el=document.getElementById(id); const sec=el && el.closest('section'); return !!el && !(sec && sec.hidden); };
+function renderReport(now,prev){
+  syncSections();
   renderTabs();
   const mr=$('#modeRow'); if(mr) mr.hidden = CREATIVE_ONLY;
   const root=$('#deptRoot');

@@ -39,11 +39,27 @@ export default async function mount() {
       <td>${u.active ? '<span class="chip">مفعّل</span>' : '<span class="chip line">موقوف</span>'}</td>
       <td>${u.role === 'owner' ? '' : `<div class="acts"><button class="btn sm secondary" data-act="edit">عدّل الصلاحيات</button><button class="btn sm ghost" data-act="toggle" data-active="${u.active}">${u.active ? 'أوقف' : 'فعّل'}</button></div>`}</td></tr>`).join('')}</tbody></table>`;
   }
+  // Dates go to the server (whole Riyadh days, up to 500 rows); the search box filters what came back, so it also
+  // matches the Arabic action names shown in the table
+  let LOG = [];
   async function loadLog() {
-    const r = await api('/api/admin/log');
-    $('#log').innerHTML = r.log.length ? `<table><thead><tr><th>الوقت</th><th>مين</th><th>الفعل</th><th>على</th><th>ملاحظة</th></tr></thead><tbody>${r.log.map(x => `
-      <tr style="cursor:default"><td class="num">${esc(when(x.at))}</td><td>${esc(x.email || '')}</td><td>${esc(ACT[x.action] || x.action)}</td><td>${esc(x.target ? (x.target.target_name || x.target.email || x.target.platform || '') : '')}</td><td>${esc(x.note || '')}</td></tr>`).join('')}</tbody></table>` : '<div class="empty">ما فيه أفعال لين الحين</div>';
+    const from = $('#logFrom').value, to = $('#logTo').value;
+    const qs = new URLSearchParams({ limit: from || to ? '500' : '200', ...(from ? { from } : {}), ...(to ? { to } : {}) });
+    LOG = (await api('/api/admin/log?' + qs)).log;
+    showLog();
   }
+  function showLog() {
+    const q = $('#logQ').value.trim().toLowerCase();
+    // The log keeps emails only: the person's name (from the users list) is searchable too
+    const nameOf = Object.fromEntries(Object.values(USERS).map(u => [String(u.email || '').toLowerCase(), u.name || '']));
+    const r = { log: q ? LOG.filter(x => [x.email, nameOf[String(x.email || '').toLowerCase()], x.action, ACT[x.action], JSON.stringify(x.target || {}), x.note].join(' ').toLowerCase().includes(q)) : LOG };
+    $('#logN').textContent = `${r.log.length} فعل`;
+    $('#log').innerHTML = r.log.length ? `<table><thead><tr><th>الوقت</th><th>مين</th><th>الفعل</th><th>على</th><th>ملاحظة</th></tr></thead><tbody>${r.log.map(x => `
+      <tr style="cursor:default"><td class="num">${esc(when(x.at))}</td><td>${esc(x.email || '')}</td><td>${esc(ACT[x.action] || x.action)}</td><td>${esc(x.target ? (x.target.target_name || x.target.email || x.target.platform || '') : '')}</td><td>${esc(x.note || '')}</td></tr>`).join('')}</tbody></table>` : `<div class="empty">${LOG.length ? 'ما فيه نتايج لهالبحث' : $('#logFrom').value || $('#logTo').value ? 'ما فيه أفعال في هالفترة' : 'ما فيه أفعال لين الحين'}</div>`;
+  }
+  $('#logFrom').addEventListener('change', () => loadLog().catch(err => say($('#usersMsg'), err.message)));
+  $('#logTo').addEventListener('change', () => loadLog().catch(err => say($('#usersMsg'), err.message)));
+  $('#logQ').addEventListener('input', showLog);
   $('#add').addEventListener('submit', async e => {
     e.preventDefault();
     const access = readGrid('d', e.target);
