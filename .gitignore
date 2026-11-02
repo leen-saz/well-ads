@@ -20,3 +20,6 @@ pipeline/cache_ads.json
 pipeline/thumbs/
 pipeline/web/
 pipeline/well-ads-dashboard.html
+
+# Phase 4.2: data copies written by build.py, uploaded to R2, never committed
+pipeline/web/public/data/

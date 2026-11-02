@@ -113,6 +113,10 @@ describe('/api/control', () => {
     expect(saved.after).toMatchObject({ status: 'PAUSED' });
     expect((saved.critic as { ok: boolean }).ok).toBe(false);
     expect((saved.evidence as { moh: string[] }).moh).toEqual(['الأفضل']);
+    // An empty optional field is shown as missing, never promised to be filled by AI
+    expect((saved.evidence as { missing: string[] }).missing).toEqual(['budget']);
+    expect(saved.risk).toContain('خانات فاضية');
+    expect((saved.critic as { issues: string[] }).issues.some(i => i.includes('budget'))).toBe(true);
     // The one compliance list: the exact phrase, its rule and source, also among the critic's notes
     const hit = (saved.evidence as { compliance: { rule: string; match: string; source: unknown[] }[] }).compliance[0];
     expect(hit).toMatchObject({ rule: 'superlative', match: 'الأفضل' });
