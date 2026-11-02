@@ -99,6 +99,8 @@ export async function shell({ active, title, badge = '', tools = '' }) {
   document.addEventListener('click', e => { if (!menu.hidden && !menu.contains(e.target)) { menu.hidden = true; btn.setAttribute('aria-expanded', 'false'); } }, { signal: pageSignal() });
   $('#burger').onclick = () => app.classList.add('open');
   $('.scrim', app).onclick = () => app.classList.remove('open');
+  // Every live tab ends with its lessons card (learning loop, docs/learning-loops.md)
+  if ((me.modules || []).some(m => m.key === active && m.status === 'live' && m.ok && !m.locked)) import('./lessons.js').then(m => m.lessonsCard(active)).catch(() => {});
   return me;
 }
 

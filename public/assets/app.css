@@ -275,6 +275,15 @@ tbody tr:last-child td{border-bottom:0}
 .lessons{list-style:none;margin:0;padding:0;display:grid;gap:12px}
 .lessons li{display:grid;grid-template-columns:auto 1fr;gap:6px 12px;align-items:start}
 .lessons li .muted{grid-column:2}
+.lessons li .bar{grid-column:2;gap:6px}
+/* the lessons card closing every live tab */
+.learned{margin-top:16px}
+.learned summary{display:flex;align-items:baseline;gap:10px;cursor:pointer;list-style:none}
+.learned summary::-webkit-details-marker{display:none}
+.learned summary h2{margin:0}
+.learned summary::after{content:"";margin-inline-start:auto;width:8px;height:8px;border-inline-end:2px solid currentColor;border-block-end:2px solid currentColor;transform:rotate(45deg);transition:transform var(--ease)}
+.learned[open] summary::after{transform:rotate(-135deg)}
+.learned > .pad:last-child{padding-top:0}
 
 /* ---- Liquid glass (Leen's references: Flowly, ShopWave). Palette stays Well's: indigo ink, Pulse Purple, Soft Purple, white.
    Blur only on the big containers (sidebar, top bar, cards) so phones stay smooth. */

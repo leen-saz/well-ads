@@ -67,7 +67,8 @@ def main():
         outcomes = db.req("/rest/v1/outcomes?select=suggestion_id,day,vs_expect&limit=5000") or []
         activity = db.req("/rest/v1/platform_activity?select=platform,event,actor&at=gte." + urllib.parse.quote(d7) + "&limit=5000") or []
         new = lessons(decisions, outcomes, activity)
-        db.req("/rest/v1/lessons?active=eq.true", "PATCH", {"active": False}, "return=minimal")
+        # دروس الإعلانات بس: بقية التابات لها دروسها في نفس الجدول (migration 014)
+        db.req("/rest/v1/lessons?active=eq.true&module=eq.ads", "PATCH", {"active": False}, "return=minimal")
         if new:
             db.req("/rest/v1/lessons", "POST", new, "return=minimal")
         db.audit("learn_run", target={"lessons": len(new), "decisions": len(decisions), "moves": len(activity)})
