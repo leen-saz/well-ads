@@ -28,7 +28,7 @@ export const users = {
     const { cfg, user } = await requireUser(request, e, 'owner');
     const r = await sb(cfg, scoped('/rest/v1/profiles?select=id,email,name,role,dashboards,access,departments,active,created_at&order=created_at.asc', user.co), { admin: true });
     const users = r.ok && Array.isArray(r.data) ? (r.data as Row[]).map(u => ({ ...u, access: levelsOf(u as unknown as Profile) })) : [];
-    return json(r.ok ? 200 : 500, r.ok ? { users, dashboards: DASHBOARDS, levels: LEVELS, departments: DEPTS } : { error: 'ما قدرت أقرأ المستخدمين' });
+    return json(r.ok ? 200 : 500, r.ok ? { users, dashboards: Object.fromEntries(Object.entries(DASHBOARDS).filter(([k]) => !user.off?.includes(k))), levels: LEVELS, departments: DEPTS } : { error: 'ما قدرت أقرأ المستخدمين' });
   }),
   POST: handle(async (request, e) => {
     const { cfg, user } = await requireUser(request, e, 'owner', { write: true });

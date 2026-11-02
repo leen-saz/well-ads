@@ -28,6 +28,8 @@ export const analyze = { POST: handle(async (request, e: AiEnv) => {
   const t = Object.fromEntries((v?.ok && Array.isArray(v.data) ? v.data : []).map(x => [x.name, x.value]));
   const gsc = await searchConsole(site, t).catch(() => []);
   const p = await plan(aiOf(e), site, niche, competitors, pages, gsc);
+  // Nothing to propose: say so instead of saving an empty plan
+  if (!p.items.length) return json(422, { error: p.analysis && 'ai' in p.analysis ? 'التحليل ما طلع بنود هالمرة، جرّب مرة ثانية بعد دقيقة' : 'الموقع ما فيه ملاحظات واضحة هالمرة. جرّب تكتب النيش والمنافسين عشان يطلع لك أفكار محتوى' });
   const r = await sb<Row[]>(cfg, '/rest/v1/content_plans', { method: 'POST', admin: true, headers: { Prefer: 'return=representation' },
     body: { company_id: user.co, site, niche, competitors, analysis: { ...p.analysis, gsc: gsc.slice(0, 20), pages }, items: p.items, engine: p.engine, created_by: user.email } });
   if (!r.ok) return json(500, { error: 'ما انحفظ البلان' });

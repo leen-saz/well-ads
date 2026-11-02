@@ -1,6 +1,6 @@
 // لوحة القرارات: صندوق قرارات مرتب حسب الأثر بالريال، مع لوحة تفاصيل وقرارات جماعية واختصارات.
 // المرحلة الحالية: القرار ينحفظ في السجل بس، وما ينرسل شي للمنصات.
-import { $, $$, esc, api, icon, when, day, fmt, sar, shell, toast, busy, t, pageSignal } from './common.js';
+import { $, $$, esc, api, icon, when, day, fmt, sar, shell, toast, busy, t, pageSignal, LANG } from './common.js';
 
 // Runs on every visit of this page (assets/router.js calls it after each ClientRouter navigation).
 export default async function mount() {
@@ -32,7 +32,7 @@ export default async function mount() {
   const waManual = s => s.platform === 'meta' && s.level === 'ad' && s.kind === 'pause' ? (adOf(s) || {}).wa_siblings || 0 : 0;
   const WA_NOTE = n => `إعلان واتساب، وفي مجموعته ${n === 1 ? 'إعلان ثاني شغّال' : n === 2 ? 'إعلانين ثانيين شغّالين' : `${n} إعلانات ثانية شغّالة`}. الإيقاف التلقائي للإعلان الواحد يحتاج صلاحية واتساب لمفتاح الداشبورد، فبعد الموافقة نفّذه يدوي من Ads Manager.`;
   const waChip = s => { const n = waManual(s); return n ? `<span class="chip line crit bad" data-tip="${esc(WA_NOTE(n))}">${icon('alert')}يدوي · واتساب</span>` : ''; };
-  const ruleOf = s => s.source === 'manual' ? `طلب من ${s.requested_by || ''}` : s.source === 'claude' ? 'اقتراح كلود' : (RULE[s.kind] || 'قاعدة');
+  const ruleOf = s => s.source === 'manual' ? `طلب من ${s.requested_by || ''}` : s.source === 'claude' ? 'اقتراح كلود' : (s.kind === 'budget_up' && s.evidence?.metric === 'chats' ? 'محادثات أرخص من الهدف بـ 20% أو أكثر' : RULE[s.kind] || 'قاعدة');
 
   // ---------- الأعلى
   function topTools() {
@@ -42,7 +42,7 @@ export default async function mount() {
       : `<button class="btn sm secondary" id="killBtn" data-on="1" data-tip="يوقف أي تنفيذ على حسابات الإعلانات فوراً">${icon('power')}إيقاف طوارئ</button>`;
     const n = (S.kill.canary || []).length;
     const exec = S.kill.kill ? '' : n
-      ? `<span class="chip solid" data-tip="الموافقة على إيقاف إعلان في Meta تتنفّذ في التحديث الجاي (خلال ساعة)، داخل حملات التجربة بس. الباقي ينفّذه الميديا باير بيده">${icon('check')}التنفيذ شغّال: إيقاف Meta في ${n} ${n === 1 ? 'حملة' : 'حملات'} تجربة</span>`
+      ? `<span class="chip solid" data-tip="الموافقة على إيقاف إعلان في Meta تتنفّذ في التحديث الجاي (خلال ساعة)، داخل حملات التجربة بس. الباقي ينفّذه الميديا باير بيده">${icon('check')}${LANG === 'en' ? `Execution on: Meta pauses in ${n} test campaign${n === 1 ? '' : 's'}` : `التنفيذ شغّال: إيقاف Meta في ${n} ${n === 1 ? 'حملة' : 'حملات'} تجربة`}</span>`
       : `<span class="chip line" data-tip="ما فيه حملة تجربة، فما يتنفّذ شي في المنصات. لين تختار من حدود التنفيذ">${icon('lock')}التنفيذ مقفل · اختر حملة تجربة</span>`;
     return `${fresh}${exec}${kill}<a class="btn sm primary" href="/control/new/">${icon('pen')}حملة جديدة</a>`;
   }
@@ -138,7 +138,7 @@ export default async function mount() {
   function evidence(s) {
     const e = s.evidence || {}, b = [];
     if (e.spend != null) b.push(`صرف <span class="num">${sar(e.spend)}</span>`);
-    if (e.leads != null) b.push(`${e.metric === 'chats' ? 'محادثات' : 'ليدز'} <span class="num">${fmt(e.leads)}</span>`);
+    if (e.leads != null) b.push(`${t(e.metric === 'chats' ? 'محادثات' : 'ليدز')} <span class="num">${fmt(e.leads)}</span>`);
     if (e.cpl != null) b.push(`تكلفة <span class="num">${sar(e.cpl)}</span>`);
     if (e.target_cpl != null) b.push(`الهدف <span class="num">${sar(e.target_cpl)}</span>`);
     if (e.ctr != null) b.push(`نقر <span class="num">${fmt(e.ctr, 2)}%</span>`);

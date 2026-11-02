@@ -53,4 +53,16 @@ describe('content agent', () => {
     expect((await plan(vi.fn(async () => { throw new Error('quota'); }), 'https://x.sa', '', [], pages, [])).engine).toBe('rules');
     expect(parsePlan('no json')).toBeNull();
   });
+
+  it('reads a JSON-mode object answer, and retries once when the first answer has no items', async () => {
+    const pages = [facts('https://x.sa/', 200, PAGE)];
+    const obj = { response: { position: 'p', niche: 'n', items: [{ kind: 'faq', title: 'سؤال', why: 'w', priority: 1 }] } };
+    expect((await plan(vi.fn(async () => obj), 'https://x.sa', '', [], pages, [])).items.some(i => i.title === 'سؤال')).toBe(true);
+    const calls: unknown[] = [];
+    const ai = vi.fn(async (_m: string, input: unknown) => { calls.push(input); return calls.length === 1 ? { response: 'سوري' } : obj; });
+    const p = await plan(ai, 'https://x.sa', '', [], pages, []);
+    expect(calls.length).toBe(2);
+    expect((calls[0] as { response_format?: unknown }).response_format).toBeTruthy();
+    expect(p.engine).toBe('workers-ai');
+  });
 });
