@@ -305,7 +305,11 @@ class BillingTests(unittest.TestCase):
             }
             json.dump(payload, open(data_path, "w", encoding="utf-8"))
             subprocess.check_call([sys.executable, os.path.join(ROOT, "build.py")], cwd=ROOT)
+            # The main dashboard's data lives in dash.json now; check the page and its data together
             page = open(os.path.join(ROOT, "web", "public", "index.html"), encoding="utf-8").read()
+            dash = open(os.path.join(ROOT, "web", "public", "dash.json"), encoding="utf-8").read()
+            self.assertIn('id="data"></script>', page)  # nothing inlined in the main page
+            page += dash
             organic = open(os.path.join(ROOT, "web", "public", "organic", "index.html"), encoding="utf-8").read()
             vercel = json.load(open(os.path.join(ROOT, "web", "vercel.json"), encoding="utf-8"))
             self.assertNotIn("99991.25", page)
