@@ -1,0 +1,55 @@
+---
+import { ClientRouter } from 'astro:transitions';
+// التتبع: صحة التتبع من بياناتنا (قراءة بس).
+---
+<!doctype html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="robots" content="noindex,nofollow">
+<meta name="referrer" content="no-referrer">
+<meta name="theme-color" content="#F6F0E3">
+<title>التتبع · Well</title>
+<link rel="preload" href="/assets/fonts/thmanyahsans-Regular.woff2" as="font" type="font/woff2" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@900&display=swap">
+<link rel="stylesheet" href="/assets/app.css">
+<ClientRouter />
+<style is:global>
+.dg-sum{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,180px),1fr));gap:12px;margin:0 0 16px}
+.dg-sum .card{padding:14px 16px;display:grid;gap:2px}
+.dg-sum b{font:700 26px var(--f-num);color:var(--ink)}
+.dg-sum span{font-size:13px;color:var(--muted)}
+.dg-list{display:grid;gap:10px}
+.dg-f{padding:14px 16px;display:grid;gap:6px;border-inline-start:4px solid var(--soft)}
+.dg-f.critical{border-inline-start-color:var(--pulse)}
+.dg-f.warn{border-inline-start-color:var(--accent)}
+.dg-f h3{margin:0;font-size:15px}
+.dg-f p{margin:0;font-size:14px}
+.dg-fix{padding:8px 12px;border-radius:12px;background:var(--tint);font-size:14px}
+.dg-tag{font-size:12px;padding:2px 10px;border-radius:999px;background:var(--tint-2);justify-self:start}
+.dg-plat{width:100%;border-collapse:collapse;font-size:14px}
+.dg-plat th,.dg-plat td{padding:8px 10px;text-align:start;border-bottom:1px solid var(--line)}
+.dg-plat td.n{font-family:var(--f-num)}
+.dg-ok{padding:18px;text-align:center}
+</style>
+</head>
+<body data-page="debugger" data-module>
+<div class="app" id="app">
+  <aside class="side" id="side" aria-label="القائمة" transition:persist="side"></aside>
+  <div class="scrim"></div>
+  <div class="main">
+    <header class="topbar" id="top"></header>
+    <main class="content" id="content">
+      <p class="muted" style="margin:0 0 14px">يفحص التتبع من الأرقام اللي عندنا: الإعلانات، الأرقام اليومية، ليدز الـ CRM، وصفحة الربط. قراءة بس، ما يغيّر شي في حسابات الإعلانات.</p>
+      <div class="dg-sum" id="sum"></div>
+      <section class="card pad" style="margin:0 0 16px"><h2 style="margin:0 0 10px">كل منصة آخر 7 أيام</h2><div class="tbl"><table class="dg-plat" id="plat"></table></div></section>
+      <h2 style="margin:0 0 10px">المشاكل والحل</h2>
+      <div class="dg-list" id="list"><p class="muted">يفحص…</p></div>
+      <div class="msg" id="msg" role="status"></div>
+    </main>
+  </div>
+</div>
+<script is:inline type="module" src="/assets/router.js"></script>
+</body>
+</html>

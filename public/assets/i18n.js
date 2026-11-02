@@ -372,6 +372,14 @@ const EN = {
   'بعد 30 يوم': 'after 30 days',
   'انربط مع سيرفر MCP حق تيك توك': 'Connected to the TikTok MCP server',
   'ما قدرت أبدأ الربط مع تيك توك. جرّب بعد دقيقة.': 'Could not start connecting to TikTok. Try again in a minute.',
+  // التتبع (debugger)
+  'التتبع': 'Tracking', 'التتبع · Well': 'Tracking · Well',
+  'يفحص التتبع من الأرقام اللي عندنا: الإعلانات، الأرقام اليومية، ليدز الـ CRM، وصفحة الربط. قراءة بس، ما يغيّر شي في حسابات الإعلانات.': 'Checks tracking from the numbers we already have: ads, daily metrics, CRM leads and the Connectors page. Read-only; nothing changes in the ad accounts.',
+  'كل منصة آخر 7 أيام': 'Each platform, last 7 days', 'المشاكل والحل': 'Issues and fixes', 'يفحص…': 'Checking…',
+  'افحص من جديد': 'Check again', 'خطير': 'Critical', 'تنبيه': 'Warning', 'معلومة': 'Info', 'الحل:': 'Fix:',
+  'ليد في الـ CRM آخر 30 يوم': 'CRM leads, last 30 days', 'ليدز المنصة': 'Platform leads', 'ليدز الـ CRM': 'CRM leads',
+  'آخر يوم فيه أرقام': 'Last day with numbers', 'ما فيه أرقام آخر 14 يوم.': 'No numbers in the last 14 days.',
+  'ما لقيت مشاكل في التتبع.': 'No tracking issues found.', 'الأرقام توصل من كل المنصات والليدز مربوطة بإعلاناتها.': 'Numbers arrive from every platform and leads are tied to their ads.',
   // أخطاء السيرفر
   'طلب مرفوض': 'Request refused', 'سجّل الدخول': 'Please sign in', 'الحساب موقوف': 'Account disabled', 'ما عندك صلاحية': 'You don\'t have access',
   'صار خطأ، جرّب مرة ثانية': 'Something went wrong, try again', 'صار خطأ': 'Something went wrong', 'الإعداد غير مكتمل': 'Setup is incomplete',
