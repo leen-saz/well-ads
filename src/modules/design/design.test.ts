@@ -43,3 +43,18 @@ describe('design', () => {
     expect(p).toContain('فيتامين سي يجيك البيت');
   });
 });
+
+describe('design images', () => {
+  it('keeps small image data URLs, labels the product, and drops anything else', async () => {
+    const { images, prompt: p } = await import('./design');
+    const png = 'data:image/png;base64,' + btoa('abc');
+    const got = images([{ kind: 'product', data: png }, { kind: 'ref', data: png }, { kind: 'ref', data: 'javascript:alert(1)' }, { data: 'data:image/svg+xml;base64,PHN2Zz4=' }]);
+    expect(got.map(x => x.kind)).toEqual(['product', 'ref']);
+    expect(got[0]?.bytes).toEqual([97, 98, 99]);
+    expect(images([{ data: 'data:image/png;base64,' + 'A'.repeat(300_000) }])).toEqual([]);
+    expect(images(Array(9).fill({ data: png }))).toHaveLength(5);
+    const text = p({ type: 'ad', offer: 'x', audience: '', dept: '' }, [], { product: ['a white bottle'], refs: ['purple gradient, calm'] });
+    expect(text).toContain('a white bottle');
+    expect(text).toContain('purple gradient, calm');
+  });
+});
