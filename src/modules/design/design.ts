@@ -60,12 +60,37 @@ export function parseVariants(raw: string, offer: string, audience: string): Var
   return out.length ? out.slice(0, 4) : templates(offer, audience);
 }
 
-export function prompt(input: { type: string; offer: string; audience: string; dept: string }, hooks: string[]): string {
+// Reference images (product photo and style references): Workers AI vision describes each one in a short line.
+export const VISION_MODEL = '@cf/llava-hf/llava-1.5-7b-hf';
+export const VISION_PROMPT = 'Describe this image for an ad designer in one short sentence: the product or subject, main colors, composition and mood.';
+const DATA_URL = /^data:image\/(jpeg|png|webp);base64,([A-Za-z0-9+/=]+)$/;
+// At most 5 images (1 product + 4 references), each a small downscaled data URL; anything else is dropped
+export function images(list: unknown, max = 5, maxB64 = 200_000): { kind: 'product' | 'ref'; bytes: number[] }[] {
+  const out: { kind: 'product' | 'ref'; bytes: number[] }[] = [];
+  for (const x of Array.isArray(list) ? list.slice(0, max) : []) {
+    const o = (x || {}) as { kind?: string; data?: string };
+    const m = String(o.data || '').match(DATA_URL);
+    if (!m || (m[2] || '').length > maxB64) continue;
+    const bin = atob(m[2] || '');
+    const bytes = new Array<number>(bin.length);
+    for (let i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
+    out.push({ kind: o.kind === 'product' ? 'product' : 'ref', bytes });
+  }
+  return out;
+}
+
+export function prompt(input: { type: string; offer: string; audience: string; dept: string }, hooks: string[], looks: { product: string[]; refs: string[] } = { product: [], refs: [] }): string {
   return `أنت كاتب إعلانات لشركة رعاية صحية منزلية في السعودية اسمها Well.
 اكتب 4 خيارات لنص تصميم ${TYPES[input.type] || 'إعلان'} عن: ${input.offer || 'خدماتنا'}${input.dept ? ` (قسم: ${input.dept})` : ''}.
 الفئة: ${input.audience || 'عامة'}.
-عبارات افتتاحية نجحت قبل: ${hooks.join(' | ') || 'ما فيه'}.
+عبارات افتتاحية نجحت قبل: ${hooks.join(' | ') || 'ما فيه'}.${looks.product.length ? `\nصورة المنتج: ${looks.product.join(' ')}` : ''}${looks.refs.length ? `\nالمراجع اللي نبي نمشي على أسلوبها: ${looks.refs.join(' | ')}` : ''}
 القواعد: لهجة سعودية واضحة وودودة، مخاطبة المذكر، بدون ضمان نتائج، بدون "علاج نهائي"، بدون "الأفضل"، بدون أرقام وعود.
 headline أقل من 6 كلمات، sub جملة وحدة، cta كلمتين.
 رد JSON فقط: [{"headline":"","sub":"","cta":""}]`;
+}
+
+export function stylePrompt(looks: { product: string[]; refs: string[] }): string {
+  return `هذي أوصاف صور أرسلها مصمم (منتج ومراجع). لخّصها بالعربي في سطرين لمصمم إعلانات: وش المنتج، والألوان، وطريقة التكوين، والإحساس. بدون مقدمة.
+المنتج: ${looks.product.join(' ') || 'ما فيه'}
+المراجع: ${looks.refs.join(' | ') || 'ما فيه'}`;
 }

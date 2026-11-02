@@ -52,6 +52,13 @@ import { ClientRouter } from 'astro:transitions';
 .dz-edit{display:grid;gap:4px;margin-top:12px}
 .dz-prev{display:grid;grid-template-columns:repeat(auto-fill,minmax(min(100%,240px),1fr));gap:14px;align-items:start}
 .dz-fig{margin:0;display:grid;gap:8px}
+.dz-thumbs{display:flex;flex-wrap:wrap;gap:8px;margin:8px 0}
+.dz-thumbs figure{margin:0;position:relative;width:72px;height:72px;border-radius:14px;overflow:hidden;box-shadow:var(--shadow)}
+.dz-thumbs img{width:100%;height:100%;object-fit:cover}
+.dz-thumbs figcaption{position:absolute;inset-inline:0;bottom:0;font-size:11px;text-align:center;background:rgba(29,16,105,.72);color:#fff}
+.dz-thumbs .sw{display:flex;gap:4px;align-items:center}.dz-thumbs .sw i{width:20px;height:20px;border-radius:6px;box-shadow:inset 0 0 0 1px rgba(0,0,0,.08)}
+.dz-check{display:flex;gap:8px;align-items:center;min-height:44px}
+.dz-note{font-size:12px;margin:4px 0 0}
 .dz-fig canvas{width:100%;height:auto;border-radius:16px;box-shadow:var(--shadow)}
 .dz-fig figcaption{display:flex;justify-content:space-between;align-items:center;gap:8px;font-size:13px;flex-wrap:wrap}
 #addKw{flex-wrap:wrap;flex:1 1 280px;min-width:0;max-width:460px}
@@ -84,7 +91,11 @@ import { ClientRouter } from 'astro:transitions';
               <label><input type="checkbox" name="size" value="story" checked> ستوري 1080×1920</label>
               <label><input type="checkbox" name="size" value="portrait"> طولي 1080×1350</label>
               <label><input type="checkbox" name="size" value="landscape"> عرضي 1200×628</label></fieldset>
-            <label for="photo">صورة المنتج أو الخدمة <span class="muted">(تبقى في جهازك)</span></label><input id="photo" type="file" accept="image/*">
+            <label for="photo">صورة منتجك الأصلية</label><input id="photo" type="file" accept="image/*">
+            <label for="refs">صور مرجعية <span class="muted">(اختياري، حتى 4: تصاميم يعجبك أسلوبها)</span></label><input id="refs" type="file" accept="image/*" multiple>
+            <div class="dz-thumbs" id="thumbs" aria-live="polite"></div>
+            <label class="dz-check"><input type="checkbox" id="useRefColors" checked> خذ الألوان من المراجع</label>
+            <p class="muted dz-note">الصور تنصغّر في جهازك، وتنرسل نسخة صغيرة للذكاء الاصطناعي عشان يوصف أسلوبها بس. ما تنحفظ عندنا.</p>
             <div class="bar" style="margin-top:14px"><button class="btn primary" type="submit">جهّز البريف</button></div>
             <div class="msg" id="msg" role="status"></div>
           </form>
