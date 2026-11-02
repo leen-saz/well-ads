@@ -1,5 +1,5 @@
-import { describe, expect, it } from 'vitest';
-import { framable, metaCsp, serveSite, siteKey, siteRedirect } from '../../src/lib/site';
+import { beforeEach, describe, expect, it } from 'vitest';
+import { KEEP_MS, clearSiteCache, framable, kept, metaCsp, serveSite, siteKey, siteRedirect } from '../../src/lib/site';
 
 describe('siteKey', () => {
   it('maps dashboard paths to R2 keys', () => {
@@ -24,15 +24,22 @@ describe('siteRedirect', () => {
   });
 });
 
-function bucket(files: Record<string, string>): R2Bucket {
-  return {
-    async get(key: string) {
+// R2 stand-in that counts reads and honours etagDoesNotMatch (returns the object without a body when unchanged)
+function bucket(files: Record<string, string>, etag = '"e"') {
+  const reads: { key: string; onlyIf?: unknown }[] = [];
+  const b = {
+    reads,
+    async get(key: string, o?: { onlyIf?: { etagDoesNotMatch?: string } }) {
+      reads.push({ key, onlyIf: o?.onlyIf });
       if (!(key in files)) return null;
+      if (o?.onlyIf?.etagDoesNotMatch === etag) return { httpEtag: etag };
       const text = files[key] as string;
-      return { body: new Response(text).body, httpEtag: '"e"', text: async () => text };
+      return { body: new Response(text).body, httpEtag: etag, text: async () => text, arrayBuffer: async () => new TextEncoder().encode(text).buffer };
     },
-  } as unknown as R2Bucket;
+  };
+  return b as unknown as R2Bucket & { reads: typeof reads };
 }
+beforeEach(() => clearSiteCache());
 
 describe('serveSite', () => {
   const b = bucket({ 'site/index.html': '<p>x</p>', 'site/csp.txt': "script-src 'self'\n", 'thumbs/0123456789abcdef0123.png': 'img' });
@@ -54,6 +61,33 @@ describe('serveSite', () => {
   it('passes other paths and non-GET methods on', async () => {
     expect(await serveSite(new Request('https://x/login/'), b)).toBeNull();
     expect(await serveSite(new Request('https://x/', { method: 'POST' }), b)).toBeNull();
+  });
+});
+
+describe('in-isolate cache of the pages', () => {
+  it('reads the page and its policy together once, then answers from memory for a minute', async () => {
+    const b = bucket({ 'site/index.html': '<p>x</p>', 'site/csp.txt': "script-src 'self'" });
+    await serveSite(new Request('https://x/'), b);
+    expect(b.reads.map(r => r.key).sort()).toEqual(['site/csp.txt', 'site/index.html']);
+    const again = await serveSite(new Request('https://x/'), b);
+    expect(await again?.text()).toBe('<p>x</p>');
+    expect(again?.headers.get('content-security-policy')).toBe("script-src 'self'; frame-src 'self'");
+    expect(b.reads).toHaveLength(2);
+  });
+  it('answers If-None-Match with a 304 from memory, and a stale copy is revalidated by etag', async () => {
+    const b = bucket({ 'site/dash.json': '{"a":1}' });
+    const first = await serveSite(new Request('https://x/dash.json'), b);
+    const r = await serveSite(new Request('https://x/dash.json', { headers: { 'if-none-match': first!.headers.get('etag')! } }), b);
+    expect(r?.status).toBe(304);
+    expect(b.reads).toHaveLength(1);
+    const later = await kept(b, 'site/dash.json', Date.now() + KEEP_MS + 1);
+    expect(b.reads[1]?.onlyIf).toEqual({ etagDoesNotMatch: '"e"' });
+    expect(new TextDecoder().decode(later!.bytes)).toBe('{"a":1}');
+  });
+  it('many requests at once make one R2 read', async () => {
+    const b = bucket({ 'site/c/index.html': '<p>c</p>', 'site/csp.txt': 'x' });
+    await Promise.all([1, 2, 3].map(() => serveSite(new Request('https://x/c/'), b)));
+    expect(b.reads.filter(r => r.key === 'site/c/index.html')).toHaveLength(1);
   });
 });
 
