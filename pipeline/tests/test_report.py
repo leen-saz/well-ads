@@ -9,14 +9,15 @@ from media import label_unsplit_google, media_kind
 from classify import classify_pair
 from organic import collect_organic, metric_day, pending_shell
 
+# بيانات مصطنعة (أسماء وأرقام وهمية)، مو بيانات إعلانات حقيقية: الريبو عام
 FIXTURE = os.path.join(ROOT, "tests", "fixtures", "prototype_slim.json")
 WIN = ("2026-09-14", "2026-10-11")
 EXPECTED = {
-    "iv": (25863.75, 1945),
-    "midwife": (4387.27, 426),
-    "foot": (2907.88, 339),
-    "renan": (706.01, 0),
-    "brand": (1818.76, 0),
+    "iv": (1492.96, 83),
+    "midwife": (1792.04, 95),
+    "foot": (1177.32, 58),
+    "renan": (645.55, 20),
+    "brand": (2701.62, 114),
 }
 
 
