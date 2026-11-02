@@ -1,18 +1,32 @@
-// Fetches mentions for one watch from the free sources (plus YouTube and Grok when their keys exist),
+// Fetches mentions for one watch from the news (Google, else Bing), plus Reddit, YouTube and Grok when their keys exist,
 // stores new ones (deduped by URL per company) and scores up to 20 unscored mentions with Workers AI.
 // Every outside call is I/O; parsing is regex/JSON on small bodies, to stay inside the free 10 ms CPU.
 import { env as authEnv, sb, type AuthEnv, type Cfg } from '../../lib/auth';
 import { AI_MODEL, type AiRun } from '../content/content';
 import {
-  dedupe, due, parseNews, parseReddit, parseSentiment, parseX, parseYouTube, query, sentimentPrompt,
-  type Mention, type Watch,
+  dedupe, due, parseBing, parseNews, parseReddit, parseSentiment, parseX, parseYouTube, query, sentimentPrompt,
+  terms, type Mention, type Watch,
 } from './social';
 
-export type ListenEnv = AuthEnv & { YOUTUBE_API_KEY?: string; XAI_API_KEY?: string; XAI_MODEL?: string; AI?: { run: AiRun } };
+export type ListenEnv = AuthEnv & {
+  YOUTUBE_API_KEY?: string; XAI_API_KEY?: string; XAI_MODEL?: string; REDDIT_CLIENT_ID?: string; REDDIT_CLIENT_SECRET?: string; AI?: { run: AiRun };
+};
 const UA = 'well-ads-listening/1.0 (social listening for Well; contact via well-ads.pages.dev)';
 
-async function get(f: typeof fetch, url: string, init?: RequestInit): Promise<Response | null> {
-  try { const r = await f(url, { ...init, headers: { 'user-agent': UA, ...(init?.headers || {}) } }); return r.ok ? r : null; } catch { return null; }
+// The answer, or why not ("error 403", "error network"): the page shows it next to the source
+async function get(f: typeof fetch, url: string, init?: RequestInit): Promise<Response | string> {
+  try { const r = await f(url, { ...init, headers: { 'user-agent': UA, ...(init?.headers || {}) } }); return r.ok ? r : `error ${r.status}`; } catch { return 'error network'; }
+}
+
+// Reddit app-only token (client credentials). Reddit blocks anonymous searches from servers.
+async function redditToken(f: typeof fetch, e: ListenEnv): Promise<string | null> {
+  const r = await get(f, 'https://www.reddit.com/api/v1/access_token', {
+    method: 'POST', body: 'grant_type=client_credentials',
+    headers: { authorization: `Basic ${btoa(`${e.REDDIT_CLIENT_ID}:${e.REDDIT_CLIENT_SECRET}`)}`, 'content-type': 'application/x-www-form-urlencoded' },
+  });
+  if (typeof r === 'string') return null;
+  const j = await r.json().catch(() => ({})) as { access_token?: string };
+  return j.access_token || null;
 }
 
 // One watch: each source on its own; a failing source never stops the others. Returns what each source gave.
@@ -20,18 +34,32 @@ export async function collect(w: Watch & { id: number }, e: ListenEnv, f: typeof
   const q = query(w), found: Mention[] = [], bySource: Record<string, number | string> = {};
   const add = (src: string, list: Mention[]) => { bySource[src] = list.length; found.push(...list); };
   const jobs: Promise<void>[] = [];
+  // News: Google News first. Google often refuses Cloudflare's servers, so then Bing News, one term per request.
   jobs.push((async () => {
     const r = await get(f, `https://news.google.com/rss/search?q=${encodeURIComponent(q)}&hl=ar&gl=SA&ceid=SA:ar`);
-    if (r) add('news', parseNews(await r.text(), w.id)); else bySource.news = 'error';
+    const google = typeof r === 'string' ? [] : parseNews(await r.text(), w.id);
+    bySource.google = typeof r === 'string' ? r : google.length;
+    found.push(...google);
+    if (google.length) return;
+    const bing: Mention[] = [];
+    let failed = '';
+    for (const t of terms(w)) {
+      const b = await get(f, `https://www.bing.com/news/search?q=${encodeURIComponent(t)}&format=rss&cc=SA`);
+      if (typeof b === 'string') failed = b; else bing.push(...parseBing(await b.text(), w.id));
+    }
+    bySource.bing = bing.length || !failed ? bing.length : failed;
+    found.push(...bing);
   })());
-  jobs.push((async () => {
-    const r = await get(f, `https://www.reddit.com/search.json?q=${encodeURIComponent(q)}&sort=new&limit=25&raw_json=1`);
-    if (r) add('reddit', parseReddit(await r.json().catch(() => ({})), w.id)); else bySource.reddit = 'error';
+  if (e.REDDIT_CLIENT_ID && e.REDDIT_CLIENT_SECRET) jobs.push((async () => {
+    const token = await redditToken(f, e);
+    if (!token) { bySource.reddit = 'error token'; return; }
+    const r = await get(f, `https://oauth.reddit.com/search?q=${encodeURIComponent(q)}&sort=new&limit=25&raw_json=1`, { headers: { authorization: `Bearer ${token}` } });
+    if (typeof r === 'string') bySource.reddit = r; else add('reddit', parseReddit(await r.json().catch(() => ({})), w.id));
   })());
   if (e.YOUTUBE_API_KEY) jobs.push((async () => {
     const u = `https://www.googleapis.com/youtube/v3/search?part=snippet&type=video&order=date&maxResults=15&regionCode=SA&relevanceLanguage=ar&q=${encodeURIComponent(q)}&key=${encodeURIComponent(e.YOUTUBE_API_KEY!)}`;
     const r = await get(f, u);
-    if (r) add('youtube', parseYouTube(await r.json().catch(() => ({})), w.id)); else bySource.youtube = 'error';
+    if (typeof r === 'string') bySource.youtube = r; else add('youtube', parseYouTube(await r.json().catch(() => ({})), w.id));
   })());
   // Grok (optional, paid per use): asks it to search X and list the posts it found as JSON
   if (e.XAI_API_KEY) jobs.push((async () => {
@@ -42,8 +70,9 @@ export async function collect(w: Watch & { id: number }, e: ListenEnv, f: typeof
         messages: [{ role: 'user', content: `ابحث في X (تويتر) عن آخر التغريدات اللي تذكر: ${q}. رد JSON فقط: [{"url":"https://x.com/...","text":"","author":"","date":"YYYY-MM-DD"}]` }],
       }),
     });
-    const j = r ? await r.json().catch(() => ({})) as { choices?: { message?: { content?: string } }[] } : null;
-    if (j) add('x', parseX(j.choices?.[0]?.message?.content || '', w.id)); else bySource.x = 'error';
+    if (typeof r === 'string') { bySource.x = r; return; }
+    const j = await r.json().catch(() => ({})) as { choices?: { message?: { content?: string } }[] };
+    add('x', parseX(j.choices?.[0]?.message?.content || '', w.id));
   })());
   await Promise.all(jobs);
   return { found: dedupe(found), bySource };

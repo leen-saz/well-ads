@@ -18,7 +18,7 @@ export interface Draft { platforms: SocialPlatform[]; body: string; media: Media
 const GRAPH = 'https://graph.facebook.com/v23.0';
 
 // Compliance (one list, src/modules/compliance) plus the company's forbidden words: a precise notice, never a block (Leen's rule).
-// Auto posts still go at their time; the notice shows when they are scheduled and on the post.
+// The notice shows when a post is scheduled and on the post itself, so its approver sees it too.
 export function validate(input: Record<string, unknown>, now = Date.now(), extra: Rule[] = []): { draft?: Draft; error?: string; notices: string[] } {
   const platforms = [...new Set(Array.isArray(input.platforms) ? input.platforms : [])].filter((p): p is SocialPlatform => typeof p === 'string' && p in SOCIAL);
   const body = String(input.body || '').trim();
@@ -27,7 +27,8 @@ export function validate(input: Record<string, unknown>, now = Date.now(), extra
     return /^https:\/\/\S+$/.test(url) ? [{ url, type: (m as Media).type === 'video' ? 'video' : 'image' } as Media] : [];
   }).slice(0, 10);
   const at = Date.parse(String(input.publish_at || ''));
-  const mode = input.mode === 'auto' ? 'auto' : 'manual';
+  // Leen: nothing goes out without the named approver, so every post waits for approval (no auto mode)
+  const mode = 'manual' as const;
   const notices = check(body, extra).map(notice);
   if (!platforms.length) return { error: 'اختر منصة وحدة على الأقل', notices };
   if (!body && !media.length) return { error: 'اكتب نص أو أضف صورة/فيديو', notices };
@@ -42,9 +43,18 @@ export function validate(input: Record<string, unknown>, now = Date.now(), extra
   return { draft: { platforms, body, media, publish_at: new Date(at).toISOString(), mode }, notices };
 }
 
-// manual posts wait for approval; auto posts go at their time
-export const due = (p: { status: string; mode: string; approved_at?: string | null; publish_at: string }, now = Date.now()) =>
-  p.status === 'scheduled' && Date.parse(p.publish_at) <= now && (p.mode === 'auto' || !!p.approved_at);
+// Who may approve: the company's named approvers; none named = the owner only (checked when approving).
+export const canApprove = (email: string, approvers: string[], owner: boolean): boolean =>
+  approvers.length ? approvers.includes(email.toLowerCase()) : owner;
+
+// A post goes out at its time only once approved. With named approvers, the approval must still be one of
+// theirs when it is due (an approver removed meanwhile does not publish).
+export const due = (p: { status: string; approved_at?: string | null; approved_by?: string | null; publish_at: string }, approvers: string[] = [], now = Date.now()) =>
+  p.status === 'scheduled' && Date.parse(p.publish_at) <= now && !!p.approved_at
+  && (!approvers.length || approvers.includes(String(p.approved_by || '').toLowerCase()));
+
+export const cleanApprovers = (v: unknown): string[] =>
+  [...new Set((Array.isArray(v) ? v : []).map(x => String(x || '').trim().toLowerCase()).filter(x => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(x)))].slice(0, 10);
 
 type Tokens = Record<string, string | undefined>;
 type Result = { ok: boolean; id?: string; error?: string };

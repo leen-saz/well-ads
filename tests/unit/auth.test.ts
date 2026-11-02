@@ -77,6 +77,8 @@ describe('auth', () => {
 
   it('route map', () => {
     expect(need('/login/', '')).toBeNull();
+    expect(need('/welcome/', '')).toBeNull();
+    expect(need('/welcome/x', '')).toBe('ceo');
     expect(need('/api/auth/login', '')).toBeNull();
     expect(need('/assets/app.css', '')).toBeNull();
     expect(need('/', '')).toBe('ceo');
