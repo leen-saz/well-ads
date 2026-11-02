@@ -27,6 +27,10 @@ describe('overview data', () => {
     expect((await call(member(['overview']))).status).toBe(403);
     expect((await call(member(['overview', 'ceo'], ['iv']))).status).toBe(403);
   });
+  it('gives other companies nothing: dash.json is Well\'s own numbers', async () => {
+    const other = { ...member(['overview', 'ceo']), company_id: '33333333-3333-4333-8333-333333333333' } as unknown as A.Profile;
+    expect((await call(other)).status).toBe(404);
+  });
   it('refuses without the overview tab', async () => {
     expect((await call(member(['ceo']))).status).toBe(403);
   });

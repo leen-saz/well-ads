@@ -40,6 +40,8 @@
    utilities. Inside the shadcn pieces those rules step aside; a small preflight below takes their place. */
 :is(.ui, [data-slot]) :is(table, thead, tbody, tr, th, td, input, label, h1, h2, h3, button, select),
 :is(table, thead, tbody, tr, th, td, input, label, button, select)[data-slot] { all: revert-layer; }
+/* app.css also has more specific table rules (row hover, last row border) */
+.ui tbody tr[data-slot]:hover, .ui tbody tr[data-slot]:last-child td[data-slot] { all: revert-layer; }
 
 @layer base {
   :is(.ui, [data-slot]), :is(.ui, [data-slot]) *, :is(.ui, [data-slot]) ::before, :is(.ui, [data-slot]) ::after {

@@ -2,7 +2,7 @@
 import { TrendingDown, TrendingUp } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardAction, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
-import { type Dash, change, previous, summarize } from './numbers';
+import { type Dash, canCompare, change, previous, summarize } from './numbers';
 import { pct, qty, sar } from './format';
 
 interface Props { data: Dash; from: string; to: string }
@@ -11,12 +11,15 @@ export function SectionCards({ data, from, to }: Props) {
   const now = summarize(data, from, to);
   const [pf, pt] = previous(from, to);
   const was = summarize(data, pf, pt);
+  // No comparison when the earlier period is outside the data or a platform has a gap, like the main dashboard
+  const ok = canCompare(data, from, to);
+  const vs = (a: number | null, b: number | null) => (ok ? change(a, b) : null);
   // lowerIsBetter: a drop in cost per result is good news; spend is neither good nor bad (null)
   const cards: { label: string; value: string; d: number | null; lowerIsBetter: boolean | null; note: string }[] = [
-    { label: 'الصرف', value: sar(now.spend), d: change(now.spend, was.spend), lowerIsBetter: null, note: `قبلها ${sar(was.spend)}` },
-    { label: 'النتائج', value: qty(now.results), d: change(now.results, was.results), lowerIsBetter: false, note: 'ليدز ومحادثات حسب هدف كل حملة' },
-    { label: 'تكلفة النتيجة', value: sar(now.cpr), d: change(now.cpr, was.cpr), lowerIsBetter: true, note: `قبلها ${sar(was.cpr)}` },
-    { label: 'نسبة النقر', value: pct(now.ctr), d: change(now.ctr, was.ctr), lowerIsBetter: false, note: `${qty(now.clicks)} نقرة من ${qty(now.impr)} ظهور` },
+    { label: 'الصرف', value: sar(now.spend), d: vs(now.spend, was.spend), lowerIsBetter: null, note: ok ? `قبلها ${sar(was.spend)}` : 'ما فيه مقارنة: الفترة اللي قبلها ناقصة' },
+    { label: 'النتائج', value: qty(now.results), d: vs(now.results, was.results), lowerIsBetter: false, note: 'الليدز والمحادثات' },
+    { label: 'تكلفة النتيجة', value: sar(now.cpr), d: vs(now.cpr, was.cpr), lowerIsBetter: true, note: ok ? `قبلها ${sar(was.cpr)}` : 'الصرف ÷ الليدز والمحادثات' },
+    { label: 'نسبة النقر', value: pct(now.ctr), d: vs(now.ctr, was.ctr), lowerIsBetter: false, note: `${qty(now.clicks)} نقرة من ${qty(now.impr)} ظهور` },
   ];
   return (
     <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4 *:data-[slot=card]:bg-gradient-to-t *:data-[slot=card]:from-primary/5 *:data-[slot=card]:to-card *:data-[slot=card]:shadow-xs">
