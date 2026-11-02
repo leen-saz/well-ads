@@ -672,7 +672,7 @@ body{background:
 
 <script type="application/json" id="data">/*__DATA__*/</script>
 <script>
-(function(){
+(async function(){
 let LANG = (function(){
   const q = new URLSearchParams(location.search).get('lang');
   if(q==='en' || q==='ar') return q;
@@ -1072,7 +1072,15 @@ function pendingCopy(kind){
   if(kind==='ga4') return LANG==='en'?EN['يحتاج ربط تحليلات جوجل']:'يحتاج ربط تحليلات جوجل';
   return LANG==='en'?EN['يحتاج توكن ميتا بصلاحيات المحتوى']:'يحتاج توكن ميتا بصلاحيات المحتوى';
 }
-const D = JSON.parse(document.getElementById('data').textContent);
+// The main dashboard keeps its data in /dash.json (cached by the browser, revalidated with an ETag, warmed by the
+// app's sidebar); department and creative pages still carry theirs inline.
+const D = await (async () => {
+  const t = document.getElementById('data').textContent.trim();
+  if (t) return JSON.parse(t);
+  const r = await fetch('/dash.json', { credentials: 'same-origin' });
+  if (!r.ok) { document.getElementById('metaLine').textContent = 'ما قدرت أحمّل البيانات (' + r.status + '). حدّث الصفحة.'; throw new Error('dash.json ' + r.status); }
+  return r.json();
+})();
 // Spring Rose0406 (شركة زهرة الربيع) حساب تيك توك منفصل: لا يُحسب في الصرف ولا التاريخ.
 const TT_EXCLUDED_ID = '6948010864247046146';
 function ttExcludedAccount(id, name){
@@ -1427,7 +1435,17 @@ function render(){
   $('#rangeLabel').innerHTML = `${tr('الفترة:')} <b>${nice(S.from)} – ${nice(S.to)}</b> (${n} ${dayWord})` + (S.mode==='organic' ? '' : prevBit) + partial + holeNote + liveNote;
   const head=$('#headSub'); if(head) head.textContent = S.mode==='organic' ? 'صفحات فيسبوك · إنستغرام · تيك توك · تحليلات الموقع' : (CREATIVE_ONLY ? 'ميتا · سناب شات · تيك توك — كل المبالغ بالريال السعودي' : 'ميتا · جوجل · سناب شات · تيك توك — كل المبالغ بالريال السعودي');
   buildSelects(); renderChips();
-  renderKpis(now,prev); renderCharts(now); renderBI(now); renderPlat(now,prev); renderCamp(now); renderMonths(); renderPace(); renderTree(now); renderCards(cur); renderPersonas(cur);
+  syncSections();
+  if(shown('kpis')) renderKpis(now,prev);
+  if(shown('chSpend')) renderCharts(now);
+  if(shown('share')||shown('heat')) renderBI(now);
+  if(shown('tPlat')) renderPlat(now,prev);
+  if(shown('tCamp')) renderCamp(now);
+  if(shown('tMonth')) renderMonths();
+  if(shown('pace')) renderPace();
+  if(shown('tTree')) renderTree(now);
+  if(shown('cards')) renderCards(cur);
+  if(shown('perCards')) renderPersonas(cur);
   renderReport(now,prev); renderWins();
   localize();
 }
@@ -2295,11 +2313,17 @@ function renderWins(){
   if(launched.length) add('🚀',ui(`أطلقنا ${launched.map(x=>x[0]).join(' و')}`,`Launched ${launched.map(x=>x[1]).join(' and ')}`),ui('أول صرف لها كان في هالفترة','First spend was in this period'));
   el.innerHTML = out.length ? out.join('') : `<p class="hint">${ui('ما فيه تحسّن واضح في هالفترة مقارنة باللي قبلها.','No clear improvement vs the previous period.')}</p>`;
 }
-function renderReport(now,prev){
+// Which sections show: the current mode and page only
+function syncSections(){
   document.querySelectorAll('section[data-mode]').forEach(s=>{
     const modes=(s.dataset.mode||'ads').split(/\s+/), pages=(s.dataset.page||'').split(/\s+/).filter(Boolean);
     s.hidden = !modes.includes(S.mode) || (pages.length && !pages.includes(S.page)) || (CREATIVE_ONLY && (s.id==='kpis' || !pages.includes('creative')));
   });
+}
+// Draw a part only when its section is on screen; switching tab calls render() again, so hidden parts never go stale
+const shown = id => { const el=document.getElementById(id); const sec=el && el.closest('section'); return !!el && !(sec && sec.hidden); };
+function renderReport(now,prev){
+  syncSections();
   renderTabs();
   const mr=$('#modeRow'); if(mr) mr.hidden = CREATIVE_ONLY;
   const root=$('#deptRoot');

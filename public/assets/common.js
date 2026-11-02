@@ -99,7 +99,19 @@ export async function shell({ active, title, badge = '', tools = '' }) {
   document.addEventListener('click', e => { if (!menu.hidden && !menu.contains(e.target)) { menu.hidden = true; btn.setAttribute('aria-expanded', 'false'); } }, { signal: pageSignal() });
   $('#burger').onclick = () => app.classList.add('open');
   $('.scrim', app).onclick = () => app.classList.remove('open');
+  warmAnalytics(app);
   return me;
+}
+
+// The analytics page lives outside the app shell (built by the pipeline). Once this page is idle, fetch it and
+// its data into the browser cache, once per tab session, so opening Analytics from the sidebar is near instant.
+function warmAnalytics(app) {
+  try {
+    if (!app.querySelector('.navi[href="/"]') || sessionStorage.getItem('wl-warm') === '1') return;
+    sessionStorage.setItem('wl-warm', '1');
+  } catch { return; }
+  const go = () => { for (const u of ['/', '/dash.json']) fetch(u, { credentials: 'same-origin', priority: 'low' }).catch(() => {}); };
+  ('requestIdleCallback' in window) ? requestIdleCallback(go, { timeout: 4000 }) : setTimeout(go, 1500);
 }
 
 // تبويبات الإعدادات فوق المحتوى: حسابي للكل، والصلاحيات والدخول للمالكة بس
