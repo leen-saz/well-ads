@@ -34,7 +34,7 @@ function renderPersonas(c){
       <p class="who">${[reg&&ui(`من ${reg}`,`in ${reg}`),dev&&ui(`على ${dev}`,`on ${dev}`),hrs.length&&ui(`يتفاعل الساعة ${hrs.join('، ')}`,`engages at ${hrs.join(', ')}`)].filter(Boolean).join(' · ')}</p>
       <dl><dt>${ui('نسبة النقر','CTR')}</dt><dd>${pct(100*ctr(T))}</dd><dt>${ui('الصرف','Spend')}</dt><dd>${sar(T[2])} ${money()}</dd>
       <dt>${ui('الليدز','Leads')}</dt><dd>${T[3]==null?ui('سناب ما يقسمها','not split by Snap'):qty(T[3])}</dd><dt>${ui('تكلفة الليد','CPL')}</dt><dd>${cpl==null?'—':sar(cpl)}</dd></dl>
-      ${best.length?`<div><div class="sub">${ui('أكثر كرييتف يشدّه','Creatives that pull them most')}</div><ol>${best.map(b=>`<li>${esc(b.a.name)} <span class="sub">${pct(b.ctr)}</span></li>`).join('')}</ol></div>`:''}
+      ${best.length?`<div><div class="sub">${ui('أكثر كرييتف يعجبه','Creatives they like most')}</div><ol>${best.map(b=>`<li>${esc(b.a.name)} <span class="sub">${pct(b.ctr)}</span></li>`).join('')}</ol></div>`:''}
     </article>`};
   });
   const win=cards.filter(x=>x.cpl!=null).sort((x,y)=>x.cpl-y.cpl)[0];
