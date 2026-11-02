@@ -104,6 +104,23 @@ export function parseNews(xml: string, watchId: number): Mention[] {
   })).filter(m => m.url);
 }
 
+// Bing News RSS, the fallback when Google News refuses the server. Bing takes one plain term per request (no OR, no quotes),
+// and its <link> is a click link with the article in url=.
+export function parseBing(xml: string, watchId: number): Mention[] {
+  return (xml.match(/<item>[\s\S]*?<\/item>/g) || []).slice(0, 20).map(it => {
+    const raw = tag(it, 'link').trim();
+    let url = raw;
+    try { url = new URL(raw).searchParams.get('url') || raw; } catch { /* kept as is, dropped below if not a link */ }
+    return { watch_id: watchId, source: 'news', url, title: clip(tag(it, 'title'), 220), snippet: clip(tag(it, 'description'), 300),
+      author: clip(tag(it, 'News:Source'), 80), published_at: iso(tag(it, 'pubDate')) };
+  }).filter(m => /^https?:\/\//.test(m.url) && !/^https?:\/\/(www\.)?bing\.com\//.test(m.url));
+}
+
+// The name and keywords as separate plain terms, for sources without OR (max 3: one request each)
+export function terms(w: Watch, max = 3): string[] {
+  return [...new Set([w.name, ...(w.keywords || [])].map(t => t.replace(/"/g, '').trim()).filter(Boolean))].slice(0, max);
+}
+
 // Reddit search JSON: data.children[].data
 export function parseReddit(j: unknown, watchId: number): Mention[] {
   const kids = ((j as { data?: { children?: { data?: Record<string, unknown> }[] } })?.data?.children) || [];
@@ -163,8 +180,9 @@ export function adLibraryUrl(name: string): string {
 export const DAY_MS = 20 * 3600 * 1000;
 export const due = (w: Watch, now = Date.now()) => !w.fetched_at || now - Date.parse(w.fetched_at) > DAY_MS;
 
-export function sources(e: { YOUTUBE_API_KEY?: string; XAI_API_KEY?: string; AI?: unknown }) {
-  return { news: true, reddit: true, youtube: !!e.YOUTUBE_API_KEY, x: !!e.XAI_API_KEY, sentiment: !!e.AI };
+export function sources(e: { YOUTUBE_API_KEY?: string; XAI_API_KEY?: string; REDDIT_CLIENT_ID?: string; REDDIT_CLIENT_SECRET?: string; AI?: unknown }) {
+  // Reddit refuses anonymous searches from servers (403): it needs a free "script" app's id and secret
+  return { news: true, reddit: !!(e.REDDIT_CLIENT_ID && e.REDDIT_CLIENT_SECRET), youtube: !!e.YOUTUBE_API_KEY, x: !!e.XAI_API_KEY, sentiment: !!e.AI };
 }
 
 // PostgREST "relation does not exist": the migration has not been run yet
