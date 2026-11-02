@@ -70,36 +70,79 @@ export function toast(text) {
 }
 export function busy(btn, on) { if (!btn) return; btn.classList.toggle('loading', on); btn.disabled = on; }
 
+// The user's name and dashboards. Shared with nav.js (same key) so a full page load draws the sidebar at once
+// from this tab's last copy; a copy older than 5 minutes is refreshed in the background.
+const ME_KEY = 'well-me-2', FRESH = 5 * 60 * 1000;
 let ME = null;
+try { ME = JSON.parse(sessionStorage.getItem(ME_KEY) || 'null'); } catch { /* storage blocked */ }
+const fetchMe = () => api('/api/account/password').then(v => {
+  ME = { t: Date.now(), v };
+  try { sessionStorage.setItem(ME_KEY, JSON.stringify(ME)); } catch { /* storage blocked */ }
+  return v;
+});
 // The dashboards (/ and /?view=…) are pipeline-built pages outside Astro: open them with a full load
 const FULL = h => (h === '/' || h.startsWith('/?')) ? ' data-astro-reload' : '';
-// الهيكل: قائمة جانبية بأيقونات + شريط علوي. tools = HTML لأدوات الشريط.
-export async function shell({ active, title, badge = '', tools = '' }) {
-  // The user's name and dashboards, read once and kept 5 minutes while moving between tabs
-  if (!ME || Date.now() - ME.t > 5 * 60 * 1000) ME = { t: Date.now(), v: await api('/api/account/password') };
-  const me = ME.v;
-  // كل الأقسام تطلع للكل: اللي ما له صلاحية عليه أو مقفل لشركته يطلع بقفل
+
+// The sidebar persists across tab changes (transition:persist): draw it only when the user or language changed,
+// otherwise just move the highlight, so a click does not rebuild it.
+function drawSide(side, me, active) {
   const L = (ar, en) => (LANG === 'en' ? en : ar);
+  const sig = LANG + JSON.stringify(me);
+  if (side.dataset.sig === sig) {
+    side.querySelectorAll('[data-k]').forEach(a => a.dataset.k === active ? a.setAttribute('aria-current', 'page') : a.removeAttribute('aria-current'));
+    return;
+  }
+  side.dataset.sig = sig;
   const initials = (me.name || me.email).trim().split(/\s+/).map(w => w[0]).join('').slice(0, 2).toUpperCase();
-  const app = $('#app');
-  $('#side', app).innerHTML = `<a class="brand mark" href="/" data-astro-reload aria-label="Well">Well<i>.</i></a>
+  // كل الأقسام تطلع للكل: اللي ما له صلاحية عليه أو مقفل لشركته يطلع بقفل
+  side.innerHTML = `<a class="brand mark" href="/" data-astro-reload aria-label="Well">Well<i>.</i></a>
     ${sections(me, L).map(sec => `<div class="side-sec"><small class="side-h">${esc(sec.label)}</small>${sec.items.map(it => {
       const ic = it.svg ? `<svg class="i" viewBox="0 0 24 24" aria-hidden="true">${it.svg}</svg>` : icon(it.ic);
-      if (it.state === 'ok' || it.state === 'soon') return `<a class="navi${it.state === 'soon' ? ' soon' : ''}" href="${it.href}"${FULL(it.href)}${it.key === active ? ' aria-current="page"' : ''}>${ic}<span>${esc(it.text)}</span>${it.state === 'soon' ? `<small class="tag">${L('قريباً', 'Soon')}</small>` : ''}</a>`;
+      if (it.state === 'ok' || it.state === 'soon') return `<a class="navi${it.state === 'soon' ? ' soon' : ''}" href="${it.href}" data-k="${esc(it.key)}"${FULL(it.href)}${it.key === active ? ' aria-current="page"' : ''}>${ic}<span>${esc(it.text)}</span>${it.state === 'soon' ? `<small class="tag">${L('قريباً', 'Soon')}</small>` : ''}</a>`;
       return `<span class="navi locked" aria-disabled="true" data-tip="${L(...TIP[it.state])}">${ic}<span>${esc(it.text)}</span>${icon('lock', 'lk')}</span>`;
     }).join('')}</div>`).join('')}
     <div class="grow"></div>
-    <a class="navi" href="/settings/"${active === 'settings' ? ' aria-current="page"' : ''}>${icon('settings')}<span>الإعدادات</span></a>
+    <a class="navi" href="/settings/" data-k="settings"${active === 'settings' ? ' aria-current="page"' : ''}>${icon('settings')}<span>الإعدادات</span></a>
     <button class="me" id="meBtn" aria-haspopup="menu" aria-expanded="false"><span class="avatar">${esc(initials)}</span>
       <span class="who"><b>${esc(me.name || me.email)}</b><span class="muted">${me.role === 'owner' ? 'المالكة' : (me.departments || []).length ? 'مدير قسم' : 'عضو'}</span></span></button>
     <div class="menu" id="meMenu" role="menu" hidden><a href="/account/" role="menuitem">${icon('user')}حسابي</a><form method="post" action="/api/auth/logout" style="margin:0"><button type="submit" role="menuitem">${icon('out')}خروج</button></form></div>`;
-  $('#top', app).innerHTML = `<div class="t"><button class="btn icon ghost burger" id="burger" aria-label="القائمة">${icon('menu')}</button><h1>${esc(title)}</h1>${badge}</div><div class="tools"><span id="tools">${tools}</span>${langSwitch()}</div>`;
+  side.querySelector('form')?.addEventListener('submit', () => { try { sessionStorage.removeItem(ME_KEY); } catch { /* storage blocked */ } });
+}
+
+function bindMe() {
   const menu = $('#meMenu'), btn = $('#meBtn');
+  if (!menu || !btn) return;
   btn.onclick = e => { e.stopPropagation(); menu.hidden = !menu.hidden; btn.setAttribute('aria-expanded', String(!menu.hidden)); };
   document.addEventListener('click', e => { if (!menu.hidden && !menu.contains(e.target)) { menu.hidden = true; btn.setAttribute('aria-expanded', 'false'); } }, { signal: pageSignal() });
+}
+
+// الهيكل: قائمة جانبية بأيقونات + شريط علوي. tools = HTML لأدوات الشريط.
+export async function shell({ active, title, badge = '', tools = '' }) {
+  const app = $('#app'), side = $('#side', app);
+  let me;
+  if (!ME?.v) me = await fetchMe();
+  else {
+    me = ME.v;
+    if (Date.now() - ME.t > FRESH) fetchMe().then(v => { if (JSON.stringify(v) !== JSON.stringify(me)) { drawSide(side, v, active); bindMe(); } }).catch(() => {});
+  }
+  drawSide(side, me, active);
+  $('#top', app).innerHTML = `<div class="t"><button class="btn icon ghost burger" id="burger" aria-label="القائمة">${icon('menu')}</button><h1>${esc(title)}</h1>${badge}</div><div class="tools"><span id="tools">${tools}</span>${langSwitch()}</div>`;
+  bindMe();
   $('#burger').onclick = () => app.classList.add('open');
   $('.scrim', app).onclick = () => app.classList.remove('open');
+  warmAnalytics(app);
   return me;
+}
+
+// The analytics page lives outside the app shell (built by the pipeline). Once this page is idle, fetch it and
+// its data into the browser cache, once per tab session, so opening Analytics from the sidebar is near instant.
+function warmAnalytics(app) {
+  try {
+    if (!app.querySelector('.navi[href="/"]') || sessionStorage.getItem('wl-warm') === '1') return;
+    sessionStorage.setItem('wl-warm', '1');
+  } catch { return; }
+  const go = () => { for (const u of ['/', '/dash.json']) fetch(u, { credentials: 'same-origin', priority: 'low' }).catch(() => {}); };
+  ('requestIdleCallback' in window) ? requestIdleCallback(go, { timeout: 4000 }) : setTimeout(go, 1500);
 }
 
 // تبويبات الإعدادات فوق المحتوى: حسابي للكل، والصلاحيات والدخول للمالكة بس

@@ -1,6 +1,6 @@
 ---
 import { ClientRouter } from 'astro:transitions';
-// الرصد: وش يتفاعل معه الناس في منشوراتنا، والكلمات اللي نتابعها، والطلب من الـ CRM.
+// الرصد: وش ينقال عننا وعن منافسينا (بالكلمات) من مصادر عامة، مع شعور كل إشارة، وتبويب ثاني لتفاعل منشوراتنا.
 ---
 <!doctype html>
 <html lang="ar" dir="rtl">
@@ -48,6 +48,55 @@ import { ClientRouter } from 'astro:transitions';
 .ls-post{padding:12px 14px;display:grid;gap:8px}
 .ls-alert td{font-weight:700}
 .cp-meta{display:flex;gap:8px;flex-wrap:wrap;align-items:center;font-size:13px}
+
+/* Social listening */
+.lx-tabs{margin:0 0 16px}
+.lx-head{display:flex;flex-wrap:wrap;gap:10px;align-items:center;justify-content:space-between;margin:0 0 14px}
+.lx-src{display:flex;flex-wrap:wrap;gap:6px}
+.lx-src span{font-size:13px;padding:4px 10px;border-radius:999px;background:var(--tint)}
+.lx-src span.off{background:transparent;box-shadow:inset 0 0 0 1px var(--line);color:var(--muted)}
+.lx-alerts{display:grid;gap:8px;margin:0 0 16px}
+.lx-alert{padding:12px 14px;border-inline-start:4px solid var(--accent)}
+.lx-alert.critical{border-inline-start-color:var(--pulse)}
+.lx-voice{padding:18px}
+.lx-bar{display:flex;height:56px;border-radius:16px;overflow:hidden;margin:12px 0 6px;background:var(--tint)}
+.lx-seg{display:flex;flex-direction:column;justify-content:flex-end;min-width:3px;border-inline-end:2px solid var(--surface);color:#fff;font:600 13px var(--f-ar)}
+.lx-seg:last-child{border-inline-end:0}
+.lx-seg .nm{padding:6px 10px;flex:1;display:flex;align-items:center;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.lx-seg .mood{display:flex;height:8px}
+.lx-seg .mood i{display:block;height:100%}
+.lx-legend{width:100%;border-collapse:collapse;font-size:14px;margin-top:10px}
+.lx-legend th,.lx-legend td{padding:8px 10px;text-align:start;border-bottom:1px solid var(--line)}
+.lx-legend td.n{font-family:var(--f-num)}
+.lx-legend td:first-child{white-space:nowrap}
+.lx-dot{display:inline-block;width:10px;height:10px;border-radius:3px;margin-inline-end:6px;vertical-align:middle}
+.lx-grid{display:grid;grid-template-columns:minmax(0,1.6fr) minmax(0,1fr);gap:16px;align-items:start}
+@media (max-width:1000px){.lx-grid{grid-template-columns:1fr}}
+.lx-filters{display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin:0 0 10px}
+.lx-filters select{width:auto;min-height:40px;margin:0}
+.lx-m{padding:12px 0;border-top:1px solid var(--line);display:grid;gap:4px}
+.lx-m:first-child{border-top:0}
+.lx-m a{color:var(--ink);font-weight:600;text-decoration:none}
+.lx-m a:hover,.lx-m a:focus-visible{text-decoration:underline}
+.lx-meta{display:flex;flex-wrap:wrap;gap:6px;align-items:center;font-size:13px;color:var(--muted)}
+.lx-s{font-size:12px;padding:2px 8px;border-radius:999px;font-weight:600}
+.lx-s.positive{background:color-mix(in srgb,var(--deep) 12%,transparent);color:var(--deep)}
+.lx-s.negative{background:color-mix(in srgb,var(--pulse) 18%,transparent);color:#9B1C35}
+.lx-s.neutral,.lx-s.unscored{background:var(--tint);color:var(--muted)}
+.lx-trend{display:flex;align-items:flex-end;gap:6px;height:120px;margin:12px 0 4px}
+.lx-trend .col{flex:1;display:flex;flex-direction:column-reverse;border-radius:8px;overflow:hidden;background:var(--tint);min-height:4px}
+.lx-trend .col i{display:block}
+.lx-trend-l{display:flex;gap:6px;font-size:12px;color:var(--muted)}.lx-trend-l span{flex:1;text-align:center}
+.lx-w{display:grid;gap:10px}
+.lx-grp h3{margin:0 0 6px;font-size:15px}
+.lx-item{display:flex;flex-wrap:wrap;gap:6px;align-items:center;justify-content:space-between;padding:8px 0;border-top:1px solid var(--line)}
+.lx-item:first-of-type{border-top:0}
+.lx-item .kw{font-size:12px;color:var(--muted)}
+.lx-links{display:flex;flex-wrap:wrap;gap:6px}
+.lx-form{display:grid;gap:4px;margin-top:12px;padding-top:12px;border-top:1px solid var(--line)}
+.lx-form .row2{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.lx-sql pre{white-space:pre-wrap;font-size:12px;max-height:220px;overflow:auto;background:var(--tint);padding:10px;border-radius:12px;direction:ltr;text-align:left}
+.lx-empty{padding:18px;text-align:center}
 </style>
 </head>
 <body data-page="listening" data-module>
@@ -57,7 +106,54 @@ import { ClientRouter } from 'astro:transitions';
   <div class="main">
     <header class="topbar" id="top"></header>
     <main class="content" id="content">
-      <p class="muted" style="margin:0 0 14px">وش يشد الناس في منشوراتنا على فيسبوك وانستقرام وتيك توك، والكلمات اللي تتابعها، وتغيّر الطلب من مصادر الليدز. قراءة بس.</p>
+      <div class="seg lx-tabs" role="tablist" aria-label="أقسام الرصد">
+        <button type="button" role="tab" id="tabL" data-tab="listen" aria-selected="true" aria-pressed="true">وش ينقال عننا وعن المنافسين</button>
+        <button type="button" role="tab" id="tabO" data-tab="organic" aria-selected="false" aria-pressed="false">تفاعل منشوراتنا</button>
+      </div>
+
+      <section id="paneListen" role="tabpanel" aria-labelledby="tabL">
+        <div id="setup"></div>
+        <div class="lx-head">
+          <div class="lx-src" id="src" aria-label="المصادر"></div>
+          <div class="bar">
+            <div class="seg" role="group" aria-label="الفترة"><button type="button" data-ld="7" aria-pressed="false">7 أيام</button><button type="button" data-ld="30" aria-pressed="true">30 يوم</button><button type="button" data-ld="90" aria-pressed="false">90 يوم</button></div>
+            <button class="btn primary" type="button" id="refresh">حدّث الحين</button>
+          </div>
+        </div>
+        <div class="msg" id="lmsg" role="status"></div>
+        <div class="lx-alerts" id="alerts"></div>
+        <section class="card lx-voice" aria-labelledby="voiceH"><h2 id="voiceH" style="margin:0">حصة الصوت</h2>
+          <p class="muted" style="margin:4px 0 0">كم مرة انذكرنا مقارنة بكل منافس، والشريط الرفيع تحت كل اسم يوضح شعور الناس.</p>
+          <div id="voice"></div></section>
+        <div class="lx-grid" style="margin-top:16px">
+          <section class="card pad" aria-labelledby="mH"><h2 id="mH" style="margin:0 0 10px">آخر الإشارات</h2>
+            <div class="lx-filters">
+              <label class="muted" for="fW">الجهة</label><select id="fW"><option value="">الكل</option></select>
+              <label class="muted" for="fS">الشعور</label><select id="fS"><option value="">الكل</option><option value="negative">سلبي</option><option value="positive">إيجابي</option><option value="neutral">محايد</option></select>
+              <label class="muted" for="fSrc">المصدر</label><select id="fSrc"><option value="">الكل</option><option value="news">أخبار</option><option value="reddit">ريديت</option><option value="youtube">يوتيوب</option><option value="x">X</option></select>
+            </div>
+            <div id="ments"></div>
+            <div class="bar" style="margin-top:10px"><button class="btn secondary" type="button" id="more" hidden>اعرض أكثر</button></div>
+          </section>
+          <div class="ls-out">
+            <section class="card pad" aria-labelledby="tH"><h2 id="tH" style="margin:0">شعور الناس عننا آخر 8 أسابيع</h2><div id="trend"></div></section>
+            <section class="card pad" aria-labelledby="wH"><h2 id="wH" style="margin:0 0 6px">اللي نراقبه</h2><div class="lx-w" id="watch"></div>
+              <form class="lx-form" id="wf" novalidate>
+                <label for="wk">النوع</label><select id="wk"><option value="brand">علامتنا</option><option value="competitor">منافس</option><option value="alert">كلمة تنبيه</option></select>
+                <label for="wn">الاسم</label><input id="wn" type="text" placeholder="مثال: Well أو اسم المنافس">
+                <label for="wkw">كلمات البحث <span class="muted">(افصل بفاصلة)</span></label><input id="wkw" type="text" placeholder="مثال: ويل للرعاية المنزلية، well care">
+                <div id="wl" hidden><div class="row2"><div><label for="wig">انستقرام</label><input id="wig" type="text" placeholder="@handle"></div><div><label for="wtt">تيك توك</label><input id="wtt" type="text" placeholder="@handle"></div></div>
+                  <div class="row2"><div><label for="wx">X</label><input id="wx" type="text" placeholder="@handle"></div><div><label for="wweb">الموقع</label><input id="wweb" type="url" placeholder="https://"></div></div></div>
+                <div class="bar" style="margin-top:8px"><button class="btn primary" type="submit">أضف</button></div>
+                <div class="msg" id="wmsg" role="status"></div>
+              </form></section>
+          </div>
+        </div>
+      </section>
+
+      <section id="paneOrganic" role="tabpanel" aria-labelledby="tabO" hidden>
+
+        <p class="muted" style="margin:0 0 14px">وش يشد الناس في منشوراتنا على فيسبوك وانستقرام وتيك توك، والكلمات اللي تتابعها، وتغيّر الطلب من مصادر الليدز. قراءة بس.</p>
       <div class="bar" style="justify-content:space-between;margin:0 0 12px">
         <form id="addKw" class="bar" novalidate><label for="kwIn" class="muted">تابع كلمة</label><input id="kwIn" type="text" placeholder="مثال: فيتامين سي"><button class="btn sm secondary" type="submit">أضف</button></form>
         <div class="seg" role="group" aria-label="الفترة"><button type="button" data-days="30" aria-pressed="false">30 يوم</button><button type="button" data-days="90" aria-pressed="true">90 يوم</button></div>
@@ -67,6 +163,7 @@ import { ClientRouter } from 'astro:transitions';
       <section class="card pad" style="margin:0 0 16px"><h2>الطلب من الـ CRM</h2><div id="demand"><p class="muted">يحسب…</p></div></section>
       <div class="ls-out" id="out"><p class="muted">يقرأ المنشورات…</p></div>
       <div class="msg" id="msg" role="status"></div>
+      </section>
     </main>
   </div>
 </div>

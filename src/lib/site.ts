@@ -9,6 +9,7 @@ export function siteKey(pathname: string): string | null {
   const d = pathname.match(/^\/dept\/([a-z]+)\/?$/);
   if (d) return `site/dept/${d[1]}/index.html`;
   if (pathname === '/control/ads.json') return 'site/control/ads.json';
+  if (pathname === '/dash.json') return 'site/dash.json';
   const t = pathname.match(/^\/thumbs\/([a-f0-9]{20}\.(?:jpg|png|webp|gif))$/);
   if (t) return `thumbs/${t[1]}`;
   return null;

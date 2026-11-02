@@ -112,7 +112,10 @@ def wrap(fragment):
 USERBAR = '<script type="module" src="/assets/nav.js"></script>'
 public = os.path.join(HERE, "web", "public")
 os.makedirs(os.path.join(public, "organic"), exist_ok=True)
-open(os.path.join(public, "index.html"), "w", encoding="utf-8").write(wrap(page))
+# The main dashboard loads its data from /dash.json (cacheable, revalidated); the page itself stays small.
+# The standalone well-ads-dashboard.html above keeps the data inline.
+open(os.path.join(public, "index.html"), "w", encoding="utf-8").write(wrap(tpl.replace("/*__DATA__*/", "")))
+open(os.path.join(public, "dash.json"), "w", encoding="utf-8").write(blob)
 open(os.path.join(public, "organic", "index.html"), "w", encoding="utf-8").write(
     '<!doctype html><html lang="ar" dir="rtl"><head><meta charset="utf-8">'
     '<meta http-equiv="refresh" content="0;url=/?mode=organic">'

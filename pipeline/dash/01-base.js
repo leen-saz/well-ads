@@ -397,7 +397,15 @@ function pendingCopy(kind){
   if(kind==='ga4') return LANG==='en'?EN['يحتاج ربط تحليلات جوجل']:'يحتاج ربط تحليلات جوجل';
   return LANG==='en'?EN['يحتاج توكن ميتا بصلاحيات المحتوى']:'يحتاج توكن ميتا بصلاحيات المحتوى';
 }
-const D = JSON.parse(document.getElementById('data').textContent);
+// The main dashboard keeps its data in /dash.json (cached by the browser, revalidated with an ETag, warmed by the
+// app's sidebar); department and creative pages still carry theirs inline.
+const D = await (async () => {
+  const t = document.getElementById('data').textContent.trim();
+  if (t) return JSON.parse(t);
+  const r = await fetch('/dash.json', { credentials: 'same-origin' });
+  if (!r.ok) { document.getElementById('metaLine').textContent = 'ما قدرت أحمّل البيانات (' + r.status + '). حدّث الصفحة.'; throw new Error('dash.json ' + r.status); }
+  return r.json();
+})();
 // Spring Rose0406 (شركة زهرة الربيع) حساب تيك توك منفصل: لا يُحسب في الصرف ولا التاريخ.
 const TT_EXCLUDED_ID = '6948010864247046146';
 function ttExcludedAccount(id, name){

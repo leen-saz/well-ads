@@ -49,7 +49,17 @@ function render(){
   $('#rangeLabel').innerHTML = `${tr('الفترة:')} <b>${nice(S.from)} – ${nice(S.to)}</b> (${n} ${dayWord})` + (S.mode==='organic' ? '' : prevBit) + partial + holeNote + liveNote;
   const head=$('#headSub'); if(head) head.textContent = S.mode==='organic' ? 'صفحات فيسبوك · إنستغرام · تيك توك · تحليلات الموقع' : (CREATIVE_ONLY ? 'ميتا · سناب شات · تيك توك — كل المبالغ بالريال السعودي' : 'ميتا · جوجل · سناب شات · تيك توك — كل المبالغ بالريال السعودي');
   buildSelects(); renderChips();
-  renderKpis(now,prev); renderCharts(now); renderBI(now); renderPlat(now,prev); renderCamp(now); renderMonths(); renderPace(); renderTree(now); renderCards(cur); renderPersonas(cur);
+  syncSections();
+  if(shown('kpis')) renderKpis(now,prev);
+  if(shown('chSpend')) renderCharts(now);
+  if(shown('share')||shown('heat')) renderBI(now);
+  if(shown('tPlat')) renderPlat(now,prev);
+  if(shown('tCamp')) renderCamp(now);
+  if(shown('tMonth')) renderMonths();
+  if(shown('pace')) renderPace();
+  if(shown('tTree')) renderTree(now);
+  if(shown('cards')) renderCards(cur);
+  if(shown('perCards')) renderPersonas(cur);
   renderReport(now,prev); renderWins();
   localize();
 }

@@ -22,23 +22,86 @@ const P = {
 const I = n => `<svg class="wl-i" viewBox="0 0 24 24" aria-hidden="true">${P[n]}</svg>`;
 const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 
-// The sidebar needs the user's name and dashboards on every page. Kept for 5 minutes in this tab, so moving
-// between tabs does not wait on the database each time (the server still checks every request).
+// The sidebar needs the user's name and dashboards on every page. The last copy in this tab draws it at once
+// (no wait on the database between tabs), then a fresh copy replaces it if it is older than 5 minutes.
+// The server still checks every request.
 const ME_KEY = 'well-me-2'; // v2: carries the modules list
-let me = null;
-try { const c = JSON.parse(sessionStorage.getItem(ME_KEY) || 'null'); if (c && Date.now() - c.t < 5 * 60 * 1000) me = c.v; } catch { /* storage blocked */ }
-if (!me) {
-  me = await fetch('/api/account/password', { credentials: 'same-origin' }).then(r => r.ok ? r.json() : null).catch(() => null);
-  try { if (me) sessionStorage.setItem(ME_KEY, JSON.stringify({ t: Date.now(), v: me })); } catch { /* storage blocked */ }
-}
-if (me) {
-  const creative = /view=creative/.test(location.search) || location.pathname.startsWith('/creative');
+const FRESH = 5 * 60 * 1000;
+let cached = null;
+try { cached = JSON.parse(sessionStorage.getItem(ME_KEY) || 'null'); } catch { /* storage blocked */ }
+const fetchMe = () => fetch('/api/account/password', { credentials: 'same-origin' }).then(r => r.ok ? r.json() : null).catch(() => null)
+  .then(v => { try { if (v) sessionStorage.setItem(ME_KEY, JSON.stringify({ t: Date.now(), v })); } catch { /* storage blocked */ } return v; });
+
+// The frame (space, colours, burger) goes up before the user is known, so the page does not jump when it fills in
+const creative = /view=creative/.test(location.search) || location.pathname.startsWith('/creative');
+const here = creative ? 'creative' : 'ceo';
+const side = document.createElement('aside');
+side.className = 'wl-side'; side.setAttribute('aria-label', L('القائمة', 'Menu'));
+const burger = document.createElement('button');
+burger.className = 'wl-burger'; burger.setAttribute('aria-label', L('القائمة', 'Menu')); burger.innerHTML = I('menu');
+const scrim = document.createElement('div'); scrim.className = 'wl-scrim';
+burger.setAttribute('aria-expanded', 'false'); burger.setAttribute('aria-controls', 'wlSide'); side.id = 'wlSide';
+const mobile = matchMedia('(max-width:900px)');
+const setOpen = open => { document.body.classList.toggle('wl-open', open); burger.setAttribute('aria-expanded', String(open)); side.inert = mobile.matches && !open; if (open) side.querySelector('a,button')?.focus(); };
+burger.onclick = () => setOpen(true);
+scrim.onclick = () => setOpen(false);
+document.addEventListener('keydown', e => { if (e.key === 'Escape' && document.body.classList.contains('wl-open')) { setOpen(false); burger.focus(); } });
+mobile.addEventListener('change', () => setOpen(false));
+side.inert = mobile.matches;
+
+const css = document.createElement('style');
+css.textContent = `
+body{padding-inline-start:256px}
+.brand .mark{display:none}
+.wl-side{position:fixed;inset-block:0;inset-inline-start:0;width:256px;z-index:60;overflow-y:auto;display:flex;flex-direction:column;gap:4px;padding:24px 16px;
+  background:rgba(255,255,255,.62);-webkit-backdrop-filter:blur(12px);backdrop-filter:blur(12px);font:400 15px/1.4 "Thmanyah Sans",system-ui,sans-serif;color:#1D1069}
+.wl-mark{font:900 26px/1 "Playfair Display",Georgia,serif;color:#1D1069;text-decoration:none;padding:4px 16px 22px;direction:ltr;text-align:start}
+.wl-mark i{color:#7E57FD;font-style:normal}
+.wl-navi{display:flex;align-items:center;gap:12px;height:44px;padding:0 16px;border-radius:999px;color:rgba(29,16,105,.62);text-decoration:none;transition:background .2s,color .2s}
+.wl-out{margin:0}.wl-out .wl-navi{width:100%;border:0;background:none;font:inherit;cursor:pointer;text-align:start}
+.wl-navi:hover{background:rgba(126,87,253,.07);color:#1D1069}
+.wl-navi:focus-visible{outline:2px solid #7E57FD;outline-offset:2px}
+.wl-navi[aria-current]{background:#7E57FD;color:#FFFFFF;font-weight:500;box-shadow:0 6px 18px rgba(126,87,253,.28)}
+.wl-locked{opacity:.45;cursor:not-allowed}.wl-locked:hover{background:transparent}.wl-locked .wl-i:last-child{width:14px;height:14px;margin-inline-start:auto}
+.wl-i{width:18px;height:18px;stroke:currentColor;fill:none;stroke-width:1.75;stroke-linecap:round;stroke-linejoin:round;flex:none}
+.wl-soon{height:40px;font-size:14px}
+.wl-tag{margin-inline-start:auto;flex:none;font:500 11px/1 "Thmanyah Sans",system-ui,sans-serif;padding:4px 8px;border-radius:999px;background:rgba(126,87,253,.12);color:#1D1069}
+.wl-grow{flex:1}
+.wl-sec{display:flex;flex-direction:column;gap:2px;margin:0 0 10px}
+.wl-h{font:500 11px/1 "Thmanyah Sans",system-ui,sans-serif;letter-spacing:.04em;color:rgba(29,16,105,.45);padding:6px 16px 6px}
+.wl-me{display:flex;align-items:center;gap:10px;padding:10px 8px 0;border-top:1px solid rgba(172,166,225,.35);margin-top:6px}
+.wl-me b{display:block;font-size:14px;font-weight:700;max-width:170px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.wl-me small{color:rgba(29,16,105,.62);font-size:12px}
+.wl-av{width:34px;height:34px;border-radius:50%;background:#1D1069;color:#FFFFFF;display:grid;place-items:center;font-size:13px;font-weight:700;flex:none}
+.wl-burger{display:none}
+.wl-scrim{display:none}
+@media (max-width:900px){
+  body{padding-inline-start:0}
+  .wl-side{width:280px;transform:translateX(100%);transition:transform .2s ease-out;box-shadow:0 24px 60px rgba(126,87,253,.22);background:#FFFFFF}
+  [dir=ltr] .wl-side,html[lang=en] .wl-side{transform:translateX(-100%)}
+  body.wl-open .wl-side{transform:none}
+  body.wl-open .wl-scrim{display:block;position:fixed;inset:0;background:rgba(29,16,105,.3);z-index:59}
+  .wl-burger{display:grid;place-items:center;position:fixed;inset-block-start:14px;inset-inline-start:14px;z-index:58;width:44px;height:44px;border-radius:999px;border:0;
+    background:rgba(255,255,255,.86);-webkit-backdrop-filter:blur(12px);backdrop-filter:blur(12px);color:#1D1069;box-shadow:0 6px 18px rgba(126,87,253,.18);cursor:pointer}
+  .brand{padding-inline-start:52px}
+}`;
+document.head.appendChild(css);
+document.body.append(side, scrim, burger);
+
+// Other tabs are full pages: fetch one on hover/focus so the click opens it from cache
+const warm = new Set();
+const prefetch = e => {
+  const a = e.target.closest?.('a.wl-navi[href]');
+  if (!a || warm.has(a.href) || a.href === location.href) return;
+  warm.add(a.href);
+  const l = document.createElement('link'); l.rel = 'prefetch'; l.href = a.href; document.head.appendChild(l);
+};
+side.addEventListener('pointerover', prefetch);
+side.addEventListener('focusin', prefetch);
+
+function draw(me) {
   const owner = me.role === 'owner';
-  const here = creative ? 'creative' : 'ceo';
   const initials = (me.name || me.email).trim().split(/\s+/).map(w => w[0]).join('').slice(0, 2).toUpperCase();
   const role = owner ? L('المالكة', 'Owner') : (me.departments || []).length ? L('مدير قسم', 'Department manager') : L('عضو', 'Member');
-  const side = document.createElement('aside');
-  side.className = 'wl-side'; side.setAttribute('aria-label', L('القائمة', 'Menu'));
   side.innerHTML = `<a class="wl-mark" href="/">Well<i>.</i></a>
     ${sections(me, L).map(sec => `<div class="wl-sec"><small class="wl-h">${esc(sec.label)}</small>${sec.items.map(it => {
       const ic = it.svg ? `<svg class="wl-i" viewBox="0 0 24 24" aria-hidden="true">${it.svg}</svg>` : I(it.ic);
@@ -49,53 +112,14 @@ if (me) {
     <a class="wl-navi" href="/settings/">${I('settings')}<span>${L('الإعدادات', 'Settings')}</span></a>
     <form method="post" action="/api/auth/logout" class="wl-out"><button type="submit" class="wl-navi">${I('out')}<span>${L('خروج', 'Sign out')}</span></button></form>
     <div class="wl-me"><span class="wl-av">${esc(initials)}</span><span><b>${esc(me.name || me.email)}</b><small>${role}</small></span></div>`;
-  const burger = document.createElement('button');
-  burger.className = 'wl-burger'; burger.setAttribute('aria-label', L('القائمة', 'Menu')); burger.innerHTML = I('menu');
-  const scrim = document.createElement('div'); scrim.className = 'wl-scrim';
-  burger.setAttribute('aria-expanded', 'false'); burger.setAttribute('aria-controls', 'wlSide'); side.id = 'wlSide';
-  const mobile = matchMedia('(max-width:900px)');
-  const setOpen = open => { document.body.classList.toggle('wl-open', open); burger.setAttribute('aria-expanded', String(open)); side.inert = mobile.matches && !open; if (open) side.querySelector('a,button')?.focus(); };
-  burger.onclick = () => setOpen(true);
-  scrim.onclick = () => setOpen(false);
-  document.addEventListener('keydown', e => { if (e.key === 'Escape' && document.body.classList.contains('wl-open')) { setOpen(false); burger.focus(); } });
-  mobile.addEventListener('change', () => setOpen(false));
   side.querySelector('.wl-out')?.addEventListener('submit', () => { try { sessionStorage.removeItem(ME_KEY); } catch { /* storage blocked */ } });
-  side.inert = mobile.matches;
-  const css = document.createElement('style');
-  css.textContent = `
-  body{padding-inline-start:256px}
-  .brand .mark{display:none}
-  .wl-side{position:fixed;inset-block:0;inset-inline-start:0;width:256px;z-index:60;overflow-y:auto;display:flex;flex-direction:column;gap:4px;padding:24px 16px;
-    background:rgba(255,255,255,.62);-webkit-backdrop-filter:blur(12px);backdrop-filter:blur(12px);font:400 15px/1.4 "Thmanyah Sans",system-ui,sans-serif;color:#1D1069}
-  .wl-mark{font:900 26px/1 "Playfair Display",Georgia,serif;color:#1D1069;text-decoration:none;padding:4px 16px 22px;direction:ltr;text-align:start}
-  .wl-mark i{color:#7E57FD;font-style:normal}
-  .wl-navi{display:flex;align-items:center;gap:12px;height:44px;padding:0 16px;border-radius:999px;color:rgba(29,16,105,.62);text-decoration:none;transition:background .2s,color .2s}
-  .wl-out{margin:0}.wl-out .wl-navi{width:100%;border:0;background:none;font:inherit;cursor:pointer;text-align:start}
-  .wl-navi:hover{background:rgba(126,87,253,.07);color:#1D1069}
-  .wl-navi:focus-visible{outline:2px solid #7E57FD;outline-offset:2px}
-  .wl-navi[aria-current]{background:#7E57FD;color:#FFFFFF;font-weight:500;box-shadow:0 6px 18px rgba(126,87,253,.28)}
-  .wl-locked{opacity:.45;cursor:not-allowed}.wl-locked:hover{background:transparent}.wl-locked .wl-i:last-child{width:14px;height:14px;margin-inline-start:auto}
-  .wl-i{width:18px;height:18px;stroke:currentColor;fill:none;stroke-width:1.75;stroke-linecap:round;stroke-linejoin:round;flex:none}
-  .wl-soon{height:40px;font-size:14px}
-  .wl-tag{margin-inline-start:auto;flex:none;font:500 11px/1 "Thmanyah Sans",system-ui,sans-serif;padding:4px 8px;border-radius:999px;background:rgba(126,87,253,.12);color:#1D1069}
-  .wl-grow{flex:1}
-  .wl-sec{display:flex;flex-direction:column;gap:2px;margin:0 0 10px}
-  .wl-h{font:500 11px/1 "Thmanyah Sans",system-ui,sans-serif;letter-spacing:.04em;color:rgba(29,16,105,.45);padding:6px 16px 6px}
-  .wl-me{display:flex;align-items:center;gap:10px;padding:10px 8px 0;border-top:1px solid rgba(172,166,225,.35);margin-top:6px}
-  .wl-me b{display:block;font-size:14px;font-weight:700;max-width:170px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.wl-me small{color:rgba(29,16,105,.62);font-size:12px}
-  .wl-av{width:34px;height:34px;border-radius:50%;background:#1D1069;color:#FFFFFF;display:grid;place-items:center;font-size:13px;font-weight:700;flex:none}
-  .wl-burger{display:none}
-  .wl-scrim{display:none}
-  @media (max-width:900px){
-    body{padding-inline-start:0}
-    .wl-side{width:280px;transform:translateX(100%);transition:transform .2s ease-out;box-shadow:0 24px 60px rgba(126,87,253,.22);background:#FFFFFF}
-    [dir=ltr] .wl-side,html[lang=en] .wl-side{transform:translateX(-100%)}
-    body.wl-open .wl-side{transform:none}
-    body.wl-open .wl-scrim{display:block;position:fixed;inset:0;background:rgba(29,16,105,.3);z-index:59}
-    .wl-burger{display:grid;place-items:center;position:fixed;inset-block-start:14px;inset-inline-start:14px;z-index:58;width:44px;height:44px;border-radius:999px;border:0;
-      background:rgba(255,255,255,.86);-webkit-backdrop-filter:blur(12px);backdrop-filter:blur(12px);color:#1D1069;box-shadow:0 6px 18px rgba(126,87,253,.18);cursor:pointer}
-    .brand{padding-inline-start:52px}
-  }`;
-  document.head.appendChild(css);
-  document.body.append(side, scrim, burger);
+}
+
+if (cached?.v) {
+  draw(cached.v);
+  if (Date.now() - cached.t > FRESH) fetchMe().then(v => { if (v && JSON.stringify(v) !== JSON.stringify(cached.v)) draw(v); });
+} else {
+  const me = await fetchMe();
+  if (me) draw(me);
+  else { side.remove(); scrim.remove(); burger.remove(); css.remove(); }
 }

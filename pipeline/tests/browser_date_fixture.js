@@ -123,17 +123,20 @@ async function main() {
     check(leads && leads.delta.includes('×4.4'), 'lead delta versus Oct 13–14', leads && leads.delta);
     const spend = await kpi(page, 'الصرف');
     check(spend && spend.delta.includes('×8.3'), 'spend delta versus the previous 20', spend && spend.delta);
+    // Platforms, campaigns, month and tree tables live on the 'platforms and campaigns' page: open it like a user would
+    await click(page, '#tabs button[data-p="channels"]');
     const month = await text(page, '#tMonth');
     check(month.includes('165') && month.includes('17.50') && month.includes('8.67') && !month.includes('185'), 'month table follows the selected days', month);
-    const pace = await text(page, '#pace');
-    // Two complete days: no month-end forecast yet (it needs 3), the spend so far still follows the selection
-    check(pace.includes('2 من 31') && pace.includes('20.50') && pace.includes('يطلع بعد 3 أيام') && !pace.includes('2,558'), 'pace uses the selected days inside the month', pace);
-    check(pace.includes('— ليد أو محادثة'), 'previous month before the data start is missing, not zero', pace);
     const tree = await text(page, '#tTree');
     check(tree.includes('8.67') && !tree.includes('3.71'), 'drill-down CPL uses lead-goal leads', tree);
     const plat = await text(page, '#tPlat');
     check(!plat.includes('شبكة الجمهور') && !plat.includes('HIDDENAN'), 'hidden placement stays out of the platform table', plat);
     check(plat.includes('سناب شات') && plat.includes('تيك توك') && plat.includes('0.50'), 'platforms and the half lead are listed', plat);
+    await click(page, '#tabs button[data-p="overview"]');
+    const pace = await text(page, '#pace');
+    // Two complete days: no month-end forecast yet (it needs 3), the spend so far still follows the selection
+    check(pace.includes('2 من 31') && pace.includes('20.50') && pace.includes('يطلع بعد 3 أيام') && !pace.includes('2,558'), 'pace uses the selected days inside the month', pace);
+    check(pace.includes('— ليد أو محادثة'), 'previous month before the data start is missing, not zero', pace);
     await page.evaluate(() => {
       const hit = document.querySelector('#chSpend .hit[data-i="1"]');
       const r = hit.getBoundingClientRect();
