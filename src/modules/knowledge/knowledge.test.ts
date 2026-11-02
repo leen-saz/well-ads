@@ -1,7 +1,8 @@
 // Knowledge: clean input, the system message each module gets, levels on the routes, and the AI calls carrying it.
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import * as A from '../../lib/auth';
-import { clean, systemPrompt, withKnowledge, loadKnowledge, type Entry } from './knowledge';
+import { clean, systemPrompt, withKnowledge, loadKnowledge, forbiddenRules, type Entry } from './knowledge';
+import { check } from '../compliance/compliance';
 import { list, entry, preview, train } from './routes';
 import { QUESTIONS, answerRow, nextQuestion, parseFollowUp } from './training';
 import { plan, facts, type AiRun } from '../content/content';
@@ -73,6 +74,15 @@ describe('system message', () => {
   it('a failed read gives no knowledge instead of an error', async () => {
     vi.stubGlobal('fetch', vi.fn(async () => new Response('{"message":"relation does not exist"}', { status: 404 })));
     expect(await loadKnowledge(cfg, CO)).toEqual([]);
+  });
+});
+
+describe('forbidden words feed the compliance check', () => {
+  it('one phrase per line or comma, active entries only', () => {
+    const r = forbiddenRules([e({ kind: 'forbidden', body: 'الأرخص، دكتور عالمي\nمعجزة' }), e({ kind: 'forbidden', body: 'موقوف', active: false }), e({ kind: 'note', body: 'ملاحظة' })]);
+    expect(r).toHaveLength(3);
+    expect(check('عندنا دكتور عالمي', r)[0]?.match).toBe('دكتور عالمي');
+    expect(check('موقوف', r)).toEqual([]);
   });
 });
 

@@ -1,6 +1,7 @@
 // فورم إطلاق حملة جديدة: تختار المنصة وتطلع خيارات إعلاناتها هي. الخانة الفاضية يعبيها كلود.
 // الإرسال يسوي طلب "حملة جديدة" في لوحة القرارات، يمر على المراجع، ويحتاج موافقة لين. ما يطلق شي على المنصة بنفسه.
 import { $, $$, esc, api, icon, shell, toast, busy, say } from './common.js';
+import { block } from './compliance-ui.js';
 
 // Runs on every visit of this page (assets/router.js calls it after each ClientRouter navigation).
 export default async function mount() {
@@ -8,8 +9,6 @@ export default async function mount() {
   const DEPTS = { iv: 'المحاليل الوريدية', midwife: 'القبالة / رعاية الحمل', foot: 'تقويم القدم', renan: 'رينان لصحة الطفل' };
   const CODE = { iv: 'IV', midwife: 'Midwife', foot: 'Foot', renan: 'Renan' };
   const PNAME = { meta: 'Meta', snap: 'Snap', tiktok: 'TikTok', google: 'Google' };
-  // كلمات تخالف تعليمات وزارة الصحة في الإعلان الصحي (تطلع تحذير قبل الإرسال)
-  const MOH = ['الأفضل', 'الوحيد', 'الأكثر', 'الخبير', 'مضمون', 'مضمونة', 'علاج فوري', 'نتائج مثبتة', 'تجارب المرضى', 'تجربة مريض', 'شفاء تام', '100%'];
 
   const C = (id, label, type, opt = {}) => ({ id, label, type, ...opt });
   const COMMON = [
@@ -112,9 +111,20 @@ export default async function mount() {
     }
     return out;
   }
+  // Compliance while typing: the same rules as every tab (/api/control/compliance), shown precisely. A notice, never a block.
+  let mohTimer = 0, mohSeq = 0;
   function mohCheck(v) {
-    const text = [v.primary, v.headline, v.wa_message, v.headlines, v.descriptions].join(' ');
-    return MOH.filter(w => text.includes(w));
+    const text = [v.primary, v.headline, v.wa_message, v.headlines, v.descriptions].filter(Boolean).join('\n');
+    clearTimeout(mohTimer);
+    mohTimer = setTimeout(async () => {
+      const seq = ++mohSeq;
+      let hits = [];
+      try { if (text.trim()) hits = (await api('/api/control/compliance', { method: 'POST', body: { text } })).hits; } catch { return; }
+      if (seq !== mohSeq) return;
+      const m = $('#moh');
+      m.className = hits.length ? '' : 'msg';
+      m.innerHTML = block(text, hits);
+    }, 500);
   }
 
   $('#f').addEventListener('click', e => {
@@ -126,10 +136,7 @@ export default async function mount() {
   $('#f').addEventListener('input', e => {
     if (e.target.id === 'name') e.target.dataset.touched = '1';
     if (e.target.id === 'dept' || e.target.id === 'start') autoName();
-    const bad = mohCheck(values());
-    const m = $('#moh');
-    m.className = 'msg' + (bad.length ? ' err' : '');
-    m.innerHTML = bad.length ? icon('alert') + esc(`كلمات تخالف تعليمات وزارة الصحة: ${bad.join('، ')}`) : '';
+    mohCheck(values());
   });
   $('#plat').addEventListener('click', e => {
     const b = e.target.closest('[data-p]'); if (!b || b.dataset.p === platform) return;

@@ -1,11 +1,12 @@
 import { withKnowledge } from '../knowledge/knowledge';
+import type { Hit } from '../compliance/compliance';
 
 // إيجنت المحتوى و SEO/AEO: يقرا الموقع (الصفحة الرئيسية + sitemap)، ويطلع الملاحظات بقواعد ثابتة،
 // وبعدين يبني بلان بـ Workers AI (مجاني ضمن حد Cloudflare اليومي). لو الذكاء الاصطناعي ما اشتغل، البلان من القواعد بس.
 // كل بند يحتاج موافقة الماركتير قبل النشر (أو تلقائي مع تنبيه).
 
 export interface PageFacts { url: string; status: number; title: string; description: string; h1: string[]; words: number; schema: string[]; faq: boolean; lang: string; canonical: boolean }
-export interface Item { id: string; kind: 'fix' | 'page' | 'article' | 'faq'; title: string; why: string; priority: 1 | 2 | 3; status: 'proposed' | 'approved' | 'done' | 'rejected'; draft?: string }
+export interface Item { id: string; kind: 'fix' | 'page' | 'article' | 'faq'; title: string; why: string; priority: 1 | 2 | 3; status: 'proposed' | 'approved' | 'done' | 'rejected'; draft?: string; compliance?: Hit[] }
 export interface Gsc { query: string; clicks: number; impressions: number; position: number }
 
 export const AI_MODEL = '@cf/meta/llama-3.3-70b-instruct-fp8-fast';

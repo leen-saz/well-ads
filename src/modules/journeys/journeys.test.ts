@@ -17,6 +17,13 @@ describe('steps and contacts', () => {
     expect(cleanSteps([{ type: 'whatsapp', template: 'Bad Name' }]).error).toContain('قالب');
     expect(notices(ok.steps!)).toHaveLength(1);                                     // WhatsApp pricing notice
   });
+  it('emails and pushes get precise compliance notes, without blocking the journey', () => {
+    const c = cleanSteps([{ type: 'email', subject: 'عرض', body: 'محلولنا يشفيك من الزكام' }, { type: 'push', title: 'الأفضل في الرياض', body: '' }]);
+    expect(c.steps).toHaveLength(2);
+    const n = notices(c.steps!);
+    expect(n.some(x => x.startsWith('الخطوة 1') && x.includes('«يشفيك»'))).toBe(true);
+    expect(n.some(x => x.startsWith('الخطوة 2') && x.includes('«الأفضل»'))).toBe(true);
+  });
   it('normalizes Saudi phones and needs a phone or an email', () => {
     expect(cleanContact({ phone: '0551234567' })).toEqual({ name: '', phone: '966551234567' });
     expect(cleanContact({ phone: '+966 55 123 4567', email: 'A@B.co' })).toEqual({ name: '', phone: '966551234567', email: 'a@b.co' });

@@ -317,3 +317,15 @@ body{background:
   radial-gradient(40vw 36vw at 88% 96%,rgba(34,17,150,.20),transparent 70%),
   linear-gradient(160deg,#EEF0FF,#ECE6FB 55%,#F1EAFB);background-attachment:fixed}
 .card,.side{background:var(--glass);border-color:color-mix(in srgb,#FFFFFF 78%,transparent)}
+
+/* Compliance notices, the same in every tab (assets/compliance-ui.js) */
+.cp-box{display:grid;gap:4px;padding:10px 12px;border-radius:12px;border-inline-start:4px solid var(--accent);background:var(--glass);margin:8px 0 0}
+.cp-q{margin:0;padding:8px 12px;border-radius:12px;background:var(--tint);font-size:14px;white-space:pre-wrap}
+.cp-q mark{background:color-mix(in srgb,var(--pulse) 22%,transparent);color:inherit;border-radius:4px;padding:0 2px}
+.cp-hit{display:grid;gap:4px;padding:10px 0;border-top:1px solid var(--line)}
+.cp-hit:first-of-type{border-top:0}
+.cp-meta{display:flex;gap:8px;flex-wrap:wrap;align-items:center;font-size:13px}
+.cp-src{font-size:12px}
+.cp-hit .dg-fix{padding:8px 12px;border-radius:12px;background:var(--tint);font-size:14px}
+.cp-hit .dg-tag{font-size:12px;padding:2px 10px;border-radius:999px;background:var(--tint-2)}
+.cp-hit.critical .dg-tag{background:color-mix(in srgb,var(--pulse) 22%,transparent)}

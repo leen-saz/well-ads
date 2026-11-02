@@ -4,10 +4,13 @@ import { sb, json, readJson, handle, requireUser, audit, atLeast, NO_APPROVE, ty
 import { scoped } from '../../lib/tenant';
 import { AI_MODULES, KINDS, clean, loadKnowledge, normalize, systemPrompt, type Entry } from './knowledge';
 import { QUESTIONS, answerRow, followUp, nextQuestion } from './training';
+import { check, type Hit } from '../compliance/compliance';
 import type { AiRun } from '../content/content';
 
 type AiEnv = AuthEnv & { AI?: { run: AiRun } };
 const rows = (d: unknown): Entry[] => (Array.isArray(d) ? (d as Entry[]) : []);
+// Claims, references and winning ads the AI will learn from: checked like any ad copy, as a notice (forbidden words are not ad copy)
+const comply = (row: Pick<Entry, 'kind' | 'body'>): Hit[] => (row.kind === 'forbidden' ? [] : check(row.body));
 const all = (cfg: Cfg, co: string) => sb<Entry[]>(cfg, scoped('/rest/v1/knowledge?select=*&order=active.desc,kind.asc,updated_at.desc&limit=500', co), { admin: true });
 
 export const list = { GET: handle(async (request, e) => {
@@ -36,7 +39,7 @@ export const entry = {
     if (!r.ok) return json(500, { error: 'ما انحفظ' });
     const row = rows(r.data)[0];
     await audit(cfg, user, 'knowledge_add', { target: { id: row?.id, kind: c.row.kind, active } });
-    return json(200, { ok: true, entry: row, pending: !active });
+    return json(200, { ok: true, entry: row, pending: !active, compliance: comply(c.row) });
   }),
   PATCH: handle(async (request, e) => {
     const { cfg, user } = await requireUser(request, e, 'knowledge', { write: true });
@@ -60,7 +63,7 @@ export const entry = {
     const row = rows(r.data)[0];
     if (!row) return json(404, { error: 'غير موجود' });
     await audit(cfg, user, act, { target: { id, kind: row.kind, active: row.active } });
-    return json(200, { ok: true, entry: row });
+    return json(200, { ok: true, entry: row, compliance: act === 'knowledge_edit' ? comply(row) : [] });
   }),
 };
 
@@ -93,6 +96,6 @@ export const train = {
     if (!r.ok) return json(500, { error: 'ما انحفظ' });
     const row = rows(r.data)[0];
     await audit(cfg, user, 'knowledge_train', { target: { id: row?.id, topic: a.row.topic, active } });
-    return json(200, { ok: true, entry: row, pending: !active });
+    return json(200, { ok: true, entry: row, pending: !active, compliance: comply(a.row) });
   }),
 };

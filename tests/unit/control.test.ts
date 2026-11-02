@@ -113,5 +113,17 @@ describe('/api/control', () => {
     expect(saved.after).toMatchObject({ status: 'PAUSED' });
     expect((saved.critic as { ok: boolean }).ok).toBe(false);
     expect((saved.evidence as { moh: string[] }).moh).toEqual(['الأفضل']);
+    // The one compliance list: the exact phrase, its rule and source, also among the critic's notes
+    const hit = (saved.evidence as { compliance: { rule: string; match: string; source: unknown[] }[] }).compliance[0];
+    expect(hit).toMatchObject({ rule: 'superlative', match: 'الأفضل' });
+    expect(hit?.source.length).toBeGreaterThan(0);
+    expect((saved.critic as { issues: string[] }).issues.some(i => i.includes('«الأفضل»'))).toBe(true);
+  });
+
+  it('checks the form copy live, with the company forbidden words from Knowledge', async () => {
+    db(MEMBER, url => (url.includes('/rest/v1/knowledge') ? [{ id: 1, kind: 'forbidden', title: '', body: 'دكتور عالمي', price: null, modules: [], active: true }] : []));
+    const r = await call('/api/control/compliance', MEMBER, { method: 'POST', body: JSON.stringify({ text: 'عندنا دكتور عالمي يعالج الزكام نهائياً' }) });
+    const hits = ((await r.json()) as { hits: { rule: string; match: string }[] }).hits;
+    expect(hits.map(h => h.match)).toEqual(expect.arrayContaining(['دكتور عالمي', 'يعالج الزكام نهائياً']));
   });
 });

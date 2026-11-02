@@ -2,6 +2,7 @@
 import { sb, json, readJson, handle, requireUser, audit, type AuthEnv } from '../../lib/auth';
 import { scoped } from '../../lib/tenant';
 import { CHANNELS, cleanContact, cleanSteps, notices } from './journeys';
+import { rulesFor } from '../knowledge/knowledge';
 import type { JourneyParams } from './workflow';
 
 type Row = Record<string, unknown>;
@@ -29,7 +30,7 @@ export const save = { POST: handle(async (request, e) => {
     : await sb<Row[]>(cfg, '/rest/v1/journeys', { method: 'POST', admin: true, headers: { Prefer: 'return=representation' }, body: { ...rec, company_id: user.co, created_by: user.email } });
   if (!r.ok || !rows(r.data).length) return json(400, { error: 'ما انحفظت الرحلة' });
   await audit(cfg, user, 'journey_saved', { target: { id: rows(r.data)[0]?.id, name, mode: rec.mode } });
-  return json(200, { ok: true, journey: rows(r.data)[0], notices: notices(c.steps) });
+  return json(200, { ok: true, journey: rows(r.data)[0], notices: notices(c.steps, await rulesFor(cfg, user.co)) });
 }) };
 
 export const start = { POST: handle(async (request, e: WfEnv) => {

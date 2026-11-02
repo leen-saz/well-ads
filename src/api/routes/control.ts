@@ -2,6 +2,8 @@
 // reads need the `control` dashboard, writes are same-origin, owner-only actions stay owner-only,
 // nothing here touches an ad platform (the executor in pipeline/modules/execute does, behind its guards).
 import { check } from '../../lib/rules';
+import { check as comply, notice } from '../../modules/compliance/compliance';
+import { rulesFor } from '../../modules/knowledge/knowledge';
 import { sb, json, readJson, handle, requireUser, audit, isOwner, DEPTS, type Cfg, type Session } from '../../lib/auth';
 
 type Row = Record<string, unknown>;
@@ -185,9 +187,20 @@ export const learning = {
   }),
 };
 
+// The copy fields of the form, one per line (positions of the compliance hits refer to this text)
+const copyOf = (f: Row) => [f.primary, f.headline, f.wa_message, f.headlines, f.descriptions].filter(x => typeof x === 'string' && x).join('\n');
+
+// Live check while the form is filled in (the form's users need control, not the compliance tab)
+export const compliance = {
+  POST: handle(async (request, e) => {
+    const { cfg, user } = await requireUser(request, e, 'control');
+    const text = String((await readJson(request)).text || '').slice(0, 20000);
+    return json(200, { hits: text.trim() ? comply(text, await rulesFor(cfg, user.co)) : [] });
+  }),
+};
+
 // ---- campaigns: a new-campaign request from the form. Checks Leen's rules and files it on the board
 // (kind = new_campaign). Launches nothing on a platform; a new campaign always needs Leen's approval.
-const MOH = ['الأفضل', 'الوحيد', 'الأكثر', 'الخبير', 'مضمون', 'مضمونة', 'علاج فوري', 'نتائج مثبتة', 'تجارب المرضى', 'تجربة مريض', 'شفاء تام', '100%'];
 const AI_FIELDS = ['budget', 'end', 'wa_message', 'primary', 'headline', 'cta', 'qualify', 'keywords', 'negatives', 'headlines', 'descriptions'];
 
 const hex = (buf: ArrayBuffer) => [...new Uint8Array(buf)].map(b => b.toString(16).padStart(2, '0')).join('');
@@ -213,16 +226,17 @@ export const campaigns = {
     if (!/^\d{4}-\d{2}-\d{2}$/.test(start)) return json(400, { error: 'تاريخ البداية ناقص' });
     if (!/^https?:\/\//i.test(typeof f.creative === 'string' ? f.creative : '')) return json(400, { error: 'رابط الكرييتف لازم يبدأ بـ http' });
     const issues = check(f);
-    const text = [f.primary, f.headline, f.wa_message, f.headlines, f.descriptions].join(' ');
-    const moh = MOH.filter(w => text.includes(w));
-    if (moh.length) issues.push(`كلمات تخالف تعليمات وزارة الصحة: ${moh.join('، ')}`);
+    // One compliance list for every tab (src/modules/compliance) + the company's forbidden words. A notice for Leen, not a block.
+    const hits = comply(copyOf(f), await rulesFor(cfg, user.co));
+    const moh = hits.filter(h => h.level !== 'info').map(h => h.match);
+    for (const h of hits.filter(x => x.level !== 'info')) issues.push(notice(h));
     const aiPending = AI_FIELDS.filter(k => k in f && (f[k] === '' || f[k] == null));
     const name = (typeof f.name === 'string' && f.name) || `${platform}_${dept}_${start.slice(8, 10)}${start.slice(5, 7)}`;
     const after = { status: 'PAUSED', note: 'تنطلق موقوفة، وتتشغّل بعد موافقة لين' };
     const s: Row = {
       platform, level: 'campaign', target_id: 'draft-' + Date.now().toString(36), target_name: name, campaign: name, kind: 'new_campaign',
       params: { ...f, objective: f.objective, platform }, reason: `طلب حملة جديدة لقسم ${DEPTS[dept as keyof typeof DEPTS]} من ${user.email}`,
-      evidence: { moh, ai_pending: aiPending, dept }, priority: 70, source: 'manual', status: 'open',
+      evidence: { moh, compliance: hits, ai_pending: aiPending, dept }, priority: 70, source: 'manual', status: 'open',
       before: null, after, risk: [...(moh.length ? ['وزارة الصحة'] : []), ...(aiPending.length ? ['يحتاج تعبئة كلود'] : [])],
       expect: {}, measure_plan: 'أول 3 أيام: الصرف وتكلفة الليد مقابل هدف المنصة، وبعد 7 أيام القرار: تكمل أو تتوقف.',
       reversal_plan: 'إيقاف الحملة (pause_campaign).', revision: 1, requested_by: user.email,

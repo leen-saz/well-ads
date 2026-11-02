@@ -1,6 +1,6 @@
 ---
 import { ClientRouter } from 'astro:transitions';
-// الامتثال: فحص نصوص الإعلانات على قواعد الإعلان الصحي (تنويه بس).
+// الامتثال: فحص نصوص الإعلانات على قواعد الإعلان الصحي (تنويه بس). أنماط الملاحظات في app.css (cp-*).
 ---
 <!doctype html>
 <html lang="ar" dir="rtl">
@@ -32,11 +32,6 @@ import { ClientRouter } from 'astro:transitions';
 .dg-plat th,.dg-plat td{padding:8px 10px;text-align:start;border-bottom:1px solid var(--line)}
 .dg-plat td.n{font-family:var(--f-num)}
 .dg-ok{padding:18px;text-align:center}
-.cp-q{margin:0;padding:8px 12px;border-radius:12px;background:var(--tint);font-size:14px;white-space:pre-wrap}
-.cp-q mark{background:color-mix(in srgb,var(--pulse) 22%,transparent);color:inherit;border-radius:4px;padding:0 2px}
-.cp-hit{display:grid;gap:4px;padding:10px 0;border-top:1px solid var(--line)}
-.cp-hit:first-of-type{border-top:0}
-.cp-meta{display:flex;gap:8px;flex-wrap:wrap;align-items:center;font-size:13px}
 </style>
 </head>
 <body data-page="compliance" data-module>
@@ -46,7 +41,7 @@ import { ClientRouter } from 'astro:transitions';
   <div class="main">
     <header class="topbar" id="top"></header>
     <main class="content" id="content">
-      <p class="muted" style="margin:0 0 14px">يفحص نصوص الإعلانات على قواعد الإعلان الصحي في السعودية وسياسات المنصات. تنويه بس، ما يمنع النشر.</p>
+      <p class="muted" style="margin:0 0 14px">يفحص نصوص الإعلانات على أنظمة الإعلان الصحي في السعودية (وزارة الصحة وهيئة الغذاء والدواء) وسياسات المنصات والكلمات الممنوعة في المعرفة. لكل ملاحظة: العبارة بالضبط، والقاعدة ومصدرها، والصياغة الأسلم. تنويه بس، ما يمنع النشر.</p>
       <section class="card pad" style="margin:0 0 16px">
         <h2 style="margin:0 0 8px">افحص نص قبل ما تنشره</h2>
         <form id="f" novalidate>

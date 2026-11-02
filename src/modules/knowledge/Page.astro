@@ -55,6 +55,7 @@ import { ClientRouter } from 'astro:transitions';
           <div class="bar" style="margin-top:10px"><button class="btn primary" type="submit" id="send">أرسل</button><button class="btn" type="button" id="skip">تخطَّ السؤال</button></div>
           <div class="msg" id="tmsg" role="status"></div>
         </form>
+        <div id="tcomp" style="max-width:760px"></div>
       </section>
       <div class="kn-grid" id="all" hidden>
         <section class="card pad">
@@ -70,6 +71,7 @@ import { ClientRouter } from 'astro:transitions';
             <div class="bar" style="margin-top:16px"><button class="btn primary" type="submit" id="save">احفظ</button><button class="btn" type="button" id="cancel" hidden>إلغاء التعديل</button></div>
             <div class="msg" id="msg" role="status"></div>
           </form>
+          <div id="comp"></div>
           <h3 style="margin:20px 0 4px">وش يوصل للذكاء الاصطناعي</h3>
           <div class="bar"><select id="pv" aria-label="الموديول"></select><button class="btn" type="button" id="pvgo">اعرض</button></div>
           <pre class="kn-pre" id="pvout" hidden></pre>

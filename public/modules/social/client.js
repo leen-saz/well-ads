@@ -1,5 +1,6 @@
 // السوشال: إنشاء منشور مجدول لأكثر من منصة، وتقويم الأسبوعين الجايين. النشر يصير من السيرفر في وقته.
 import { $, $$, api, say, esc, shell, busy, LANG } from '/assets/common.js';
+import { block } from '/assets/compliance-ui.js';
 import { t } from '/assets/i18n.js';
 
 // Runs on every visit of this page (assets/router.js calls it after each ClientRouter navigation).
@@ -26,7 +27,7 @@ export default async function mount() {
     return `<article class="card so-post" data-id="${p.id}">
       <div class="so-top">${p.platforms.map(k => `<span class="so-chip">${esc(PLATS[k]?.name || k)}</span>`).join('')}
         <span class="muted">${fmtTime(at)}</span><span class="so-st muted">${waiting ? 'ينتظر موافقتك' : ST[p.status] || p.status}${p.mode === 'auto' ? ' · تلقائي' : ''}</span></div>
-      ${p.body ? `<p class="so-body">${esc(p.body)}</p>` : ''}
+      ${p.body ? (p.compliance?.length ? block(p.body, p.compliance) : `<p class="so-body">${esc(p.body)}</p>`) : ''}
       ${errs.length ? `<p class="so-note">${errs.map(esc).join('<br>')}</p>` : ''}
       ${p.status === 'scheduled' ? `<div class="bar">${waiting ? '<button class="btn sm primary" data-act="approve">وافق</button>' : ''}<button class="btn sm ghost" data-act="cancel">ألغِ</button></div>` : ''}
     </article>`;

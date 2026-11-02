@@ -1,6 +1,7 @@
 // لوحة القرارات: صندوق قرارات مرتب حسب الأثر بالريال، مع لوحة تفاصيل وقرارات جماعية واختصارات.
 // المرحلة الحالية: القرار ينحفظ في السجل بس، وما ينرسل شي للمنصات.
 import { $, $$, esc, api, icon, when, day, fmt, sar, shell, toast, busy, t, pageSignal, LANG } from './common.js';
+import { hitsHTML } from './compliance-ui.js';
 
 // Runs on every visit of this page (assets/router.js calls it after each ClientRouter navigation).
 export default async function mount() {
@@ -323,7 +324,9 @@ export default async function mount() {
     const val = (k, v) => pend.has(k) ? '<span class="chip line">يعبيها كلود</span>' : v === '' || v == null ? '—' : Array.isArray(v) ? esc(v.map(lab).join('، ')) : typeof v === 'string' && VAL[v] && k !== 'creative' ? esc(lab(v)) : Array.isArray(v) ? esc(v.join('، ')) : typeof v === 'boolean' ? (v ? 'نعم' : 'لا')
       : k === 'creative' || k === 'final_url' ? `<a href="${/^https?:/i.test(v) ? esc(v) : '#'}" target="_blank" rel="noopener">${esc(v)}</a>` : esc(v);
     const rows = Object.keys(FIELD).filter(k => k in p && k !== 'name').map(k => `<dt>${FIELD[k]}</dt><dd>${val(k, p[k])}</dd>`).join('');
-    return `<div><h3>تفاصيل الحملة</h3>${(e.moh || []).length ? `<p class="msg err">${icon('alert')}كلمات تخالف تعليمات وزارة الصحة: ${esc(e.moh.join('، '))}</p>` : ''}<dl class="kv">${rows}</dl></div>`;
+    // Requests filed before the one compliance list carry only the words (e.moh)
+    const comp = (e.compliance || []).length ? hitsHTML(e.compliance) : (e.moh || []).length ? `<p class="msg err">${icon('alert')}كلمات تخالف تعليمات وزارة الصحة: ${esc(e.moh.join('، '))}</p>` : '';
+    return `<div><h3>تفاصيل الحملة</h3>${comp}<dl class="kv">${rows}</dl></div>`;
   }
   function planHTML(s) {
     if (!s.before && !s.after && !s.measure_plan && !(s.risk || []).length) return '';

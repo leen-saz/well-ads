@@ -1,6 +1,7 @@
 // السوشال: التحقق من المنشور، وحدود كل منصة، والنشر. النشر الفعلي الحين لفيسبوك وانستقرام (Graph API)،
 // والباقي يطلع "قريباً" لين يكون عندنا تطبيق معتمد لكل منصة (ADR-0006).
 // التوكنات من الخزنة (صفحة الربط) بأسماء المتغيرات، وما ترجع للمتصفح أبداً.
+import { check, notice, type Rule } from '../compliance/compliance';
 
 export const SOCIAL = {
   facebook: { name: 'فيسبوك', max: 63206, live: true },
@@ -15,10 +16,10 @@ export interface Media { url: string; type: 'image' | 'video' }
 export interface Draft { platforms: SocialPlatform[]; body: string; media: Media[]; publish_at: string; mode: 'auto' | 'manual' }
 
 const GRAPH = 'https://graph.facebook.com/v23.0';
-// Saudi MOH advertising: a reminder, never a block (Leen's rule: compliance is a notice)
-const MOH_WORDS = ['علاج نهائي', 'مضمون', 'شفاء تام', '100%', 'بدون أضرار', 'أفضل طبيب', 'الأرخص'];
 
-export function validate(input: Record<string, unknown>, now = Date.now()): { draft?: Draft; error?: string; notices: string[] } {
+// Compliance (one list, src/modules/compliance) plus the company's forbidden words: a precise notice, never a block (Leen's rule).
+// Auto posts still go at their time; the notice shows when they are scheduled and on the post.
+export function validate(input: Record<string, unknown>, now = Date.now(), extra: Rule[] = []): { draft?: Draft; error?: string; notices: string[] } {
   const platforms = [...new Set(Array.isArray(input.platforms) ? input.platforms : [])].filter((p): p is SocialPlatform => typeof p === 'string' && p in SOCIAL);
   const body = String(input.body || '').trim();
   const media = (Array.isArray(input.media) ? input.media : []).flatMap(m => {
@@ -27,7 +28,7 @@ export function validate(input: Record<string, unknown>, now = Date.now()): { dr
   }).slice(0, 10);
   const at = Date.parse(String(input.publish_at || ''));
   const mode = input.mode === 'auto' ? 'auto' : 'manual';
-  const notices = MOH_WORDS.filter(w => body.includes(w)).map(w => `تنبيه امتثال (وزارة الصحة): "${w}" ممكن تعتبر ادعاء. راجعها قبل النشر.`);
+  const notices = check(body, extra).map(notice);
   if (!platforms.length) return { error: 'اختر منصة وحدة على الأقل', notices };
   if (!body && !media.length) return { error: 'اكتب نص أو أضف صورة/فيديو', notices };
   if (!Number.isFinite(at)) return { error: 'حدد وقت النشر', notices };

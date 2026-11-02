@@ -32,7 +32,7 @@ export function winners(ads: AdIn[], metrics: MetIn[], n = 5) {
     formats, medianWords: lens.length ? lens[lens.length >> 1] : null, hooks };
 }
 
-const flagsOf = (v: { headline: string; sub: string; cta: string }) => check(`${v.headline}\n${v.sub}\n${v.cta}`).map(h => ({ level: h.level, title: h.title, match: h.match }));
+const flagsOf = (v: { headline: string; sub: string; cta: string }) => check(`${v.headline}\n${v.sub}\n${v.cta}`).map(h => ({ level: h.level, title: h.title, match: h.match, fix: h.fix, source: h.source }));
 
 // No AI: three honest variants from the offer and the audience
 export function templates(offer: string, audience: string): Variant[] {
