@@ -106,7 +106,7 @@ async function main() {
     await expectKpi(page, 'الليدز', '14.50', 'yesterday leads keep the half lead');
     await expectKpi(page, 'تكلفة الليد', '11.11', 'yesterday CPL uses lead-goal leads only');
     const yLeads = await kpi(page, 'الليدز');
-    check(yLeads && yLeads.delta.includes('383.3%'), 'yesterday compares with Oct 15 only', yLeads && yLeads.delta);
+    check(yLeads && yLeads.delta.includes('×4.8'), 'yesterday compares with Oct 15 only', yLeads && yLeads.delta);
 
     await setRange(page, '2026-10-15', '2026-10-16');
     const label = await text(page, '#rangeLabel');
@@ -120,9 +120,9 @@ async function main() {
     await expectKpi(page, 'نقرات الرابط والسوايب', '32', 'clicks');
     await expectKpi(page, 'نسبة النقر', '8.21%', 'CTR is sum of clicks over sum of impressions');
     const leads = await kpi(page, 'الليدز');
-    check(leads && leads.delta.includes('337.5%'), 'lead delta versus Oct 13–14', leads && leads.delta);
+    check(leads && leads.delta.includes('×4.4'), 'lead delta versus Oct 13–14', leads && leads.delta);
     const spend = await kpi(page, 'الصرف');
-    check(spend && spend.delta.includes('725.0%'), 'spend delta versus the previous 20', spend && spend.delta);
+    check(spend && spend.delta.includes('×8.3'), 'spend delta versus the previous 20', spend && spend.delta);
     const month = await text(page, '#tMonth');
     check(month.includes('165') && month.includes('17.50') && month.includes('8.67') && !month.includes('185'), 'month table follows the selected days', month);
     const pace = await text(page, '#pace');
