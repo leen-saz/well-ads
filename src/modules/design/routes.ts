@@ -24,7 +24,8 @@ export const options = { GET: handle(async (request, e) => {
 
 export const brief = { POST: handle(async (request, e: AiEnv & Parameters<typeof requireUser>[1]) => {
   const { cfg, user } = await requireUser(request, e, 'design', { write: true });
-  const b = await readJson(request);
+  // Up to 5 small images (product + 4 references, each capped in images()) ride in this body
+  const b = await readJson(request, 1_100_000);
   const input = { type: String(b.type || 'ad'), offer: String(b.offer || '').slice(0, 200), audience: String(b.audience || '').slice(0, 200), dept: String(b.dept || '').slice(0, 60) };
   const since = new Date(Date.now() - 30 * 864e5).toISOString().slice(0, 10);
   const [ads, metrics] = await Promise.all([
