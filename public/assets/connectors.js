@@ -58,7 +58,9 @@ export default async function mount() {
     const drop = p.status !== 'none' && p.status !== 'mcp' && !p.fields.length
       ? `<button class="btn sm ghost" type="button" data-drop="${p.id}">${icon('x')}فك الربط</button>` : '';
     const note = p.mcp && S.open !== p.id ? `<p class="muted cx-meta">${esc(p.help)}</p>` : '';
-    return `<article class="card cx" id="cx_${p.id}"><div class="cx-top">${logo(p)}<h3>${esc(p.name)}</h3>${chip(p)}<div class="cx-acts">${btn}
+    const core = p.core ? `<span class="chip solid" title="${esc('يحتاجه: ' + p.core)}">${icon('alert')}أساسي</span>` : '';
+    if (p.core) meta.unshift(`يحتاجه: ${esc(p.core)}`);
+    return `<article class="card cx${p.core ? ' cx-core' : ''}" id="cx_${p.id}"><div class="cx-top">${logo(p)}<h3>${esc(p.name)}</h3>${core}${chip(p)}<div class="cx-acts">${btn}
       ${needIds ? `<button class="btn sm secondary" data-key="${p.id}">${icon('pen')}أضف رقم الحساب</button>` : ''}${drop}</div></div>
       <p class="muted cx-meta">${meta.join(' · ')}</p>${note}${S.open === p.id ? form(p) : ''}</article>`;
   }
@@ -66,9 +68,11 @@ export default async function mount() {
     const q = S.q.trim().toLowerCase();
     const list = S.list.filter(p => !q || p.name.toLowerCase().includes(q) || p.id.includes(q));
     const ok = S.list.filter(p => p.status === 'ok' || p.status === 'mcp').length;
-    $('#sum').textContent = `${ok} مربوطة من ${S.list.length}`;
-    $('#list').innerHTML = Object.entries(GROUP).map(([g, t]) => {
-      const items = list.filter(p => p.group === g);
+    const core = S.list.filter(p => p.core), coreOk = core.filter(p => p.status === 'ok' || p.status === 'mcp').length;
+    $('#sum').textContent = `الأساسية ${coreOk} من ${core.length} · الكل ${ok} من ${S.list.length}`;
+    const coreList = list.filter(p => p.core);
+    $('#list').innerHTML = (coreList.length ? `<h2 class="cx-h">أساسية لتشغيل النظام <span class="muted">(${coreOk} من ${core.length} مربوطة)</span></h2><div class="cx-list">${coreList.map(card).join('')}</div>` : '') + Object.entries(GROUP).map(([g, t]) => {
+      const items = list.filter(p => p.group === g && !p.core);
       return items.length ? `<h2 class="cx-h">${t} <span class="muted">(${items.length})</span></h2><div class="cx-list">${items.map(card).join('')}</div>` : '';
     }).join('') || `<div class="card empty">${icon('search')}<div>ما فيه منصة بهالاسم</div></div>`;
   }

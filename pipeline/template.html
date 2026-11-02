@@ -434,6 +434,13 @@ body{background:
 
 /* Page tabs inside the analytics page: only the chosen page's sections show */
 .ptabs{display:flex;gap:4px;flex-wrap:wrap;padding:5px;border-radius:999px;background:var(--glass-bg,rgba(255,255,255,.6));border:1px solid rgba(255,255,255,.78);box-shadow:var(--lift);-webkit-backdrop-filter:var(--glass-blur);backdrop-filter:var(--glass-blur);justify-self:start}
+.ptabs[hidden]{display:none}
+.per-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:14px}
+.per{padding:16px 18px;border-radius:20px;background:rgba(255,255,255,.72);border:1px solid rgba(255,255,255,.85);display:grid;gap:10px}
+.per h3{margin:0;font-size:1.05rem}.per .who{color:var(--muted);font-size:.9rem;margin:0}
+.per dl{display:grid;grid-template-columns:auto 1fr;gap:4px 12px;margin:0;font-size:.88rem}.per dt{color:var(--muted)}.per dd{margin:0}
+.per ol{margin:0;padding-inline-start:18px;font-size:.88rem}.per .best{font-size:.8rem;padding:2px 10px;border-radius:999px;background:var(--accent);color:#fff;justify-self:start}
+
 .ptabs button{border:0;background:transparent;color:var(--muted);font:500 .9rem var(--f-ar);padding:8px 16px;border-radius:999px;cursor:pointer;min-height:40px}
 .ptabs button:hover{background:rgba(255,255,255,.7);color:var(--ink)}
 .ptabs button[aria-current="page"]{background:var(--accent);color:#fff;box-shadow:0 6px 16px rgba(126,87,253,.3)}
@@ -581,6 +588,10 @@ body{background:
     <div class="tbl"><table class="tree" id="tTree"></table></div>
   </section>
 
+  <section data-mode="ads" data-page="creative" class="panel" aria-labelledby="perH" id="personas">
+    <div class="panel-h"><h2 id="perH">شخصيات الجمهور <details class="qi"><summary aria-label="كيف تنحسب؟">!</summary><div>من تفاصيل المشاهدين لكل إعلان في الفترة والفلاتر المختارة (ميتا وسناب وتيك توك). العمر والجنس يجون من المنصة كبُعدين منفصلين، فالعمر داخل كل جنس تقريبي.</div></details></h2><span class="sub" id="perSub"></span></div>
+    <div class="per-grid" id="perCards"></div>
+  </section>
   <section data-mode="ads" data-page="creative" class="panel" aria-labelledby="crH">
     <div class="panel-h">
       <h2 id="crH">الكرييتف <details class="qi"><summary aria-label="وش يعني كل كرت؟">!</summary><div>كل كرت = فكرة وحدة: نفس الكرييتف مجمّع من كل المنصات والحملات والنسخ (copy، spark…)، وأرقامه مجموعها. اضغط على الكرت عشان تشوف كل إعلان منها لحاله. تفاصيل كل إعلان موجودة في لوحة التحليلات.</div></details></h2>
@@ -682,6 +693,8 @@ const EN = {
   'نظرة عامة':'Overview',
   'المنصات والحملات':'Platforms and campaigns',
   'طريقة الحساب':'How it is calculated',
+  'شخصيات الجمهور':'Audience personas',
+  'من تفاصيل المشاهدين لكل إعلان في الفترة والفلاتر المختارة (ميتا وسناب وتيك توك). العمر والجنس يجون من المنصة كبُعدين منفصلين، فالعمر داخل كل جنس تقريبي.':'From each ad\'s audience detail in the chosen period and filters (Meta, Snap and TikTok). Platforms report age and gender separately, so the age within each gender is approximate.',
   'فلاتر أقل':'Fewer filters',
   'رحلة العميل':'Customer journey',
   'العائد على الصرف':'Return on spend',
@@ -1178,9 +1191,9 @@ if(HIDDEN_PLAT.has(S.plat)) S.plat='all';
 if(HIDDEN_DEPT.has(S.dept)) S.dept='';
 function syncModeShape(){
   if(S.mode==='organic'){
-    if(!['accounts','posts','notes'].includes(S.page)) S.page='accounts';
+    if(!['accounts','posts'].includes(S.page)) S.page='accounts';
     if(!['all','facebook','instagram','tiktok'].includes(S.plat)) S.plat='all';
-  }else if(!['overview','depts','dept','channels','creative','notes'].includes(S.page)) S.page='overview';
+  }else if(!['overview','depts','dept','channels','creative'].includes(S.page)) S.page='overview';
 }
 { const q=new URLSearchParams(location.search).get('p'); if(q && !CREATIVE_ONLY) S.page=q; }
 syncModeShape();
@@ -1389,6 +1402,7 @@ window.addEventListener('popstate',()=>{
   S.mode=next; syncModeShape(); render();
 });
 function render(){
+  if(CREATIVE_ONLY) S.page='creative';
   refreshOrder();
   buildFilters();
   document.querySelectorAll('#presets button').forEach(b=>b.setAttribute('aria-pressed',S.preset===b.dataset.k));
@@ -1412,7 +1426,7 @@ function render(){
   $('#rangeLabel').innerHTML = `${tr('الفترة:')} <b>${nice(S.from)} – ${nice(S.to)}</b> (${n} ${dayWord})` + (S.mode==='organic' ? '' : prevBit) + partial + holeNote + liveNote;
   const head=$('#headSub'); if(head) head.textContent = S.mode==='organic' ? 'صفحات فيسبوك · إنستغرام · تيك توك · تحليلات الموقع' : (CREATIVE_ONLY ? 'ميتا · سناب شات · تيك توك — كل المبالغ بالريال السعودي' : 'ميتا · جوجل · سناب شات · تيك توك — كل المبالغ بالريال السعودي');
   buildSelects(); renderChips();
-  renderKpis(now,prev); renderCharts(now); renderBI(now); renderPlat(now,prev); renderCamp(now); renderMonths(); renderPace(); renderTree(now); renderCards(cur);
+  renderKpis(now,prev); renderCharts(now); renderBI(now); renderPlat(now,prev); renderCamp(now); renderMonths(); renderPace(); renderTree(now); renderCards(cur); renderPersonas(cur);
   renderReport(now,prev); renderWins();
   localize();
 }
@@ -2045,6 +2059,43 @@ const AUD_WORD={male:['ذكور','Men'],female:['إناث','Women'],unknown:['غ
   iphone:['آيفون','iPhone'],ipad:['آيباد','iPad'],ipod:['آيبود','iPod'],desktop:['كمبيوتر','Desktop'],mobile:['جوال','Mobile'],tablet:['تابلت','Tablet'],connected_tv:['تلفزيون','TV'],ios:['آيفون (iOS)','iOS'],android:['أندرويد','Android'],
   facebook:['فيسبوك','Facebook'],instagram:['انستقرام','Instagram'],messenger:['ماسنجر','Messenger'],audience_network:['شبكة الجمهور','Audience Network'],threads:['ثريدز','Threads'],tiktok:['تيك توك','TikTok'],pangle:['Pangle','Pangle']};
 const AUD_REGION=[[/riyadh/i,'الرياض'],[/makkah|mecca/i,'مكة المكرمة'],[/eastern|sharqiyah/i,'الشرقية'],[/madinah|medina/i,'المدينة المنورة'],[/qassim|qasim/i,'القصيم'],[/asir|aseer/i,'عسير'],[/tabuk/i,'تبوك'],[/hail|ha'il/i,'حائل'],[/jazan|jizan/i,'جازان'],[/najran/i,'نجران'],[/bahah|baha/i,'الباحة'],[/jawf|jouf/i,'الجوف'],[/northern/i,'الحدود الشمالية']];
+// ---- شخصيات الجمهور: من تفاصيل المشاهدين (aud) للإعلانات اللي في الفترة والفلاتر
+function renderPersonas(c){
+  const el=$('#perCards'); if(!el || !c) return;
+  const ads=cardsList(c).map(x=>({k:x.k,a:x.a,spend:x.spend})).filter(x=>x.a.aud && x.a.aud.gender);
+  if(!ads.length){ el.innerHTML=`<div class="empty">${ui('ما فيه تفاصيل مشاهدين للإعلانات في هالفترة.','No audience detail for the ads in this period.')}</div>`; $('#perSub').textContent=''; return; }
+  const G={};
+  const add=(o,key,r,w)=>{ const t=(o[key] ||= [0,0,0,null]); t[0]+=r[1]*w; t[1]+=r[2]*w; t[2]+=r[3]*w; if(r[4]!=null) t[3]=(t[3]||0)+r[4]*w; };
+  for(const {k,a} of ads){
+    const g=a.aud.gender, gt=g.reduce((s,r)=>s+r[1],0); if(!gt) continue;
+    for(const gr of g){
+      const gk=String(gr[0]).toLowerCase(); if(gk!=='female'&&gk!=='male') continue;
+      const w=gr[1]/gt, P=(G[gk] ||= {tot:[0,0,0,null],age:{},region:{},device:{},hour:{},ads:[]});
+      add(P,'tot',[0,gr[1],gr[2],gr[3],gr[4]],1);
+      for(const dim of ['age','region','device','hour']) for(const r of (a.aud[dim]||[])) add(P[dim],r[0],r,dim==='age'?w:w);
+      if(gr[1]>=200) P.ads.push({k,a,ctr:100*gr[2]/gr[1],impr:gr[1]});
+    }
+  }
+  const top=(o,n,by)=>Object.entries(o).filter(([,t])=>t[0]>0).sort((x,y)=>by(y[1])-by(x[1])).slice(0,n);
+  const ctr=t=>t[0]?t[1]/t[0]:0;
+  const cards=['female','male'].filter(g=>G[g]&&G[g].tot[0]>0).map(g=>{
+    const P=G[g], T=P.tot, cpl=T[3]?T[2]/T[3]:null;
+    const ages=top(P.age,2,t=>t[3]!=null&&t[3]>0?t[3]/Math.max(t[2],1):ctr(t)).map(([v])=>audLabel('age',v));
+    const reg=top(P.region,1,t=>t[0]).map(([v])=>audLabel('region',v))[0];
+    const dev=top(P.device,1,t=>t[0]).map(([v])=>audLabel('device',v))[0];
+    const hrs=top(P.hour,3,t=>t[1]).map(([v])=>+v).sort((x,y)=>x-y).map(h=>`${h}:00`);
+    const best=P.ads.sort((x,y)=>y.ctr-x.ctr).slice(0,3);
+    return {g,cpl,html:`<article class="per"><h3>${g==='female'?ui('سيدة','Woman'):ui('رجل','Man')} ${ages.length?ages.join(ui(' أو ',' or ')):''}</h3>
+      <p class="who">${[reg&&ui(`من ${reg}`,`in ${reg}`),dev&&ui(`على ${dev}`,`on ${dev}`),hrs.length&&ui(`يتفاعل الساعة ${hrs.join('، ')}`,`engages at ${hrs.join(', ')}`)].filter(Boolean).join(' · ')}</p>
+      <dl><dt>${ui('نسبة النقر','CTR')}</dt><dd>${pct(100*ctr(T))}</dd><dt>${ui('الصرف','Spend')}</dt><dd>${sar(T[2])} ${money()}</dd>
+      <dt>${ui('الليدز','Leads')}</dt><dd>${T[3]==null?ui('سناب ما يقسمها','not split by Snap'):qty(T[3])}</dd><dt>${ui('تكلفة الليد','CPL')}</dt><dd>${cpl==null?'—':sar(cpl)}</dd></dl>
+      ${best.length?`<div><div class="sub">${ui('أكثر كرييتف يشدّه','Creatives that pull them most')}</div><ol>${best.map(b=>`<li>${esc(b.a.name)} <span class="sub">${pct(b.ctr)}</span></li>`).join('')}</ol></div>`:''}
+    </article>`};
+  });
+  const win=cards.filter(x=>x.cpl!=null).sort((x,y)=>x.cpl-y.cpl)[0];
+  el.innerHTML=cards.map(x=>x===win&&cards.length>1?x.html.replace('<article class="per">',`<article class="per"><span class="best">${ui('الأرخص ليد','Cheapest lead')}</span>`):x.html).join('');
+  $('#perSub').textContent=ui(`من ${fmt(ads.length)} إعلان فيها تفاصيل مشاهدين`,`From ${fmt(ads.length)} ads with audience detail`);
+}
 function audLabel(dim,v){
   if(dim==='hour') return `${+v}:00`;
   const w=AUD_WORD[String(v).toLowerCase()]; if(w) return ui(w[0],w[1]);
@@ -2164,8 +2215,8 @@ $('#dlg').addEventListener('click',e=>{ if(e.target.id==='dlg') e.target.close()
 
 // ---- pages, departments
 const PAGES = () => S.mode==='organic'
-  ? [['accounts','الحسابات'],['posts','المنشورات'],['notes','طريقة الحساب']]
-  : [['overview','نظرة عامة'],['depts','الأقسام'],...DORDER.map(k=>['dept:'+k, DEP[k].ar]),['channels','المنصات والحملات'],['creative','الكرييتف'],['notes','طريقة الحساب']];
+  ? [['accounts','الحسابات'],['posts','المنشورات']]
+  : [['overview','نظرة عامة'],['depts','الأقسام'],...DORDER.map(k=>['dept:'+k, DEP[k].ar]),['channels','المنصات والحملات'],['creative','الكرييتف']];
 function renderTabs(){
   const el=$('#tabs'); if(!el) return;
   el.hidden = CREATIVE_ONLY;

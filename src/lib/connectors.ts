@@ -5,11 +5,16 @@
 // إضافة منصة جديدة = عنصر جديد هنا بس.
 
 export interface Field { env: string; label: string; secret: boolean; type: string; optional?: boolean; manual?: boolean; placeholder?: string }
-export interface Platform { id: string; name: string; group: string; fetch?: boolean; mcp?: boolean; docs?: string; help?: string; fields: Field[]; logo?: string | null; color?: string | null }
+export interface Platform { id: string; name: string; group: string; core?: string; fetch?: boolean; mcp?: boolean; docs?: string; help?: string; fields: Field[]; logo?: string | null; color?: string | null }
 type FieldOpts = Partial<Omit<Field, 'env' | 'label'>>;
 const F = (env: string, label: string, opts: FieldOpts = {}): Field => ({ env, label, secret: true, type: 'password', ...opts });
 const ID = (env: string, label: string, opts: FieldOpts = {}): Field => F(env, label, { secret: false, type: 'text', ...opts });
 
+// The platforms the system needs to run, with what stops without them (the connect page lists them first)
+export const CORE: Record<string, string> = {
+  meta: 'التحليلات والكرييتف ولوحة القرارات', google_ads: 'التحليلات ولوحة القرارات', snap: 'التحليلات والكرييتف ولوحة القرارات',
+  tiktok: 'التحليلات والكرييتف', meta_pages: 'النشر في السوشال', ga4: 'التحليلات العضوية', search_console: 'المحتوى و SEO',
+};
 export const PLATFORMS: Platform[] = [
   // ---- الإعلانات
   { id: 'meta', name: 'Meta (فيسبوك وانستقرام)', group: 'ads', fetch: true,
