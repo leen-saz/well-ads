@@ -5,6 +5,8 @@ on:
   pull_request:
     paths:
       - pipeline/template.html
+      - pipeline/dash/**
+      - pipeline/dash_template.py
       - pipeline/build.py
       - public/assets/**
       - src/pages/**

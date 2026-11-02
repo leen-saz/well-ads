@@ -6,7 +6,9 @@ CHROME = os.environ.get("CHROME", "/usr/bin/google-chrome")
 
 
 def page(data):
-    tpl = open(os.path.join(ROOT, "template.html"), encoding="utf-8").read()
+    sys.path.insert(0, ROOT)
+    from dash_template import template
+    tpl = template()
     blob = json.dumps(data, ensure_ascii=False, separators=(",", ":")).replace("</", "<\\/")
     return tpl.replace("/*__DATA__*/", blob)
 
