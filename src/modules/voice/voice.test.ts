@@ -29,3 +29,17 @@ describe('voice', () => {
     expect(GUIDE.length).toBeGreaterThanOrEqual(5);
   });
 });
+
+describe('voice generation', () => {
+  it('defaults to a Najdi accent and a known voice, and keeps the script last in the prompt', async () => {
+    const { ttsInput, ttsBody, ttsPrompt } = await import('./voice');
+    const i = ttsInput({ text: '  احجز جلستك  ', voice: 'NotAVoice', accent: 'xx', tone: 'calm' });
+    expect(i).toEqual({ text: 'احجز جلستك', voice: 'Charon', accent: 'najdi', tone: 'calm' });
+    expect(ttsPrompt(i)).toContain('نجدية');
+    expect(ttsPrompt(i).endsWith('احجز جلستك')).toBe(true);
+    const b = ttsBody(i);
+    expect(b.generationConfig.responseModalities).toEqual(['AUDIO']);
+    expect(b.generationConfig.speechConfig.voiceConfig.prebuiltVoiceConfig.voiceName).toBe('Charon');
+    expect(ttsInput({ text: 'x'.repeat(5000) }).text).toHaveLength(1500);
+  });
+});

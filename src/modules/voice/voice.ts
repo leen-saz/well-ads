@@ -55,3 +55,33 @@ export function rewritePrompt(text: string, seconds: number): string {
 النص:
 ${text}`;
 }
+
+// Voice generation: Gemini TTS (Google AI Studio key in GEMINI_API_KEY). The accent and tone go in the prompt;
+// the model reads only the script after the colon. Model name can change without a deploy (GEMINI_TTS_MODEL).
+export const TTS_MODEL = 'gemini-3.1-flash-tts-preview';
+export const TTS_VOICES: { id: string; ar: string }[] = [
+  { id: 'Charon', ar: 'شارون · رجالي هادي' }, { id: 'Orus', ar: 'أوروس · رجالي ثابت' }, { id: 'Puck', ar: 'بك · رجالي حيوي' },
+  { id: 'Fenrir', ar: 'فنرير · رجالي متحمس' }, { id: 'Kore', ar: 'كوري · نسائي واثق' }, { id: 'Aoede', ar: 'إيدي · نسائي ناعم' },
+  { id: 'Zephyr', ar: 'زفير · نسائي مشرق' }, { id: 'Leda', ar: 'ليدا · نسائي شبابي' },
+];
+export const ACCENTS: Record<string, string> = { najdi: 'نجدية سعودية (لهجة الرياض)', hijazi: 'حجازية سعودية (لهجة جدة)', gulf: 'خليجية', msa: 'عربية فصحى واضحة' };
+export const TONES: Record<string, string> = { warm: 'دافئة وودودة', energetic: 'حماسية وسريعة شوي', calm: 'هادية ومطمّنة', formal: 'رسمية وواثقة' };
+
+export function ttsInput(b: { text?: unknown; voice?: unknown; accent?: unknown; tone?: unknown }) {
+  const text = String(b.text || '').trim().slice(0, 1500);
+  const voice = TTS_VOICES.some(v => v.id === b.voice) ? String(b.voice) : 'Charon';
+  const accent = String(b.accent || '') in ACCENTS ? String(b.accent) : 'najdi';
+  const tone = String(b.tone || '') in TONES ? String(b.tone) : 'warm';
+  return { text, voice, accent, tone };
+}
+
+export function ttsPrompt(i: { text: string; accent: string; tone: string }): string {
+  return `اقرأ النص التالي بلهجة ${ACCENTS[i.accent]}، بنبرة ${TONES[i.tone]}، كأنك معلّق إعلان صوتي لشركة رعاية صحية منزلية:\n${i.text}`;
+}
+
+export function ttsBody(i: { text: string; voice: string; accent: string; tone: string }) {
+  return {
+    contents: [{ parts: [{ text: ttsPrompt(i) }] }],
+    generationConfig: { responseModalities: ['AUDIO'], speechConfig: { voiceConfig: { prebuiltVoiceConfig: { voiceName: i.voice } } } },
+  };
+}

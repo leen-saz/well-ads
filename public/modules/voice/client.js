@@ -1,7 +1,19 @@
-// الصوت: دليل صوت العلامة، فاحص النص، مدة الفويس أوفر، إعادة كتابة بالذكاء الاصطناعي، واستماع بصوت عربي من المتصفح (مجاني).
+// الصوت: دليل صوت العلامة، فاحص النص، مدة الفويس أوفر، إعادة كتابة بالذكاء الاصطناعي، وتوليد صوت بلهجة سعودية من Gemini (WAV).
 import { $, $$, api, say, esc, shell, busy, fmt } from '/assets/common.js';
 
 const DIALECT = { saudi: 'سعودي', msa: 'فصحى', mixed: 'خليط', neutral: 'محايد' };
+
+
+// Gemini returns 16-bit PCM (audio/L16;rate=24000) as base64; wrap it in a WAV header so it plays and downloads.
+export function wav(b64, mime) {
+  const rate = +((/rate=(\d+)/.exec(mime || '') || [])[1] || 24000);
+  const bin = atob(b64), n = bin.length, buf = new ArrayBuffer(44 + n), v = new DataView(buf), u8 = new Uint8Array(buf);
+  const str = (o, t) => { for (let i = 0; i < t.length; i++) v.setUint8(o + i, t.charCodeAt(i)); };
+  str(0, 'RIFF'); v.setUint32(4, 36 + n, true); str(8, 'WAVE'); str(12, 'fmt '); v.setUint32(16, 16, true); v.setUint16(20, 1, true); v.setUint16(22, 1, true);
+  v.setUint32(24, rate, true); v.setUint32(28, rate * 2, true); v.setUint16(32, 2, true); v.setUint16(34, 16, true); str(36, 'data'); v.setUint32(40, n, true);
+  for (let i = 0; i < n; i++) u8[44 + i] = bin.charCodeAt(i);
+  return new Blob([buf], { type: 'audio/wav' });
+}
 
 export default async function mount() {
   let seconds = 30;
@@ -48,9 +60,30 @@ export default async function mount() {
   });
   $('#stop').addEventListener('click', () => synth && synth.cancel());
 
+  let url = null;
+  $('#speak').addEventListener('click', async e => {
+    const btn = e.currentTarget; if (!$('#txt').value.trim()) { say($('#msg'), 'اكتب النص أول'); return; }
+    busy(btn, true); say($('#msg'), 'يتولّد الصوت… ياخذ ثواني', true);
+    try {
+      const r = await api('/api/voice/speak', { method: 'POST', body: { text: $('#txt').value, voice: $('#gv').value, accent: $('#ga').value, tone: $('#gt').value } });
+      const part = (((r.candidates || [])[0] || {}).content || {}).parts?.find(p => p.inlineData) || {};
+      if (!part.inlineData) throw new Error('ما رجع صوت، جرّب مرة ثانية');
+      if (url) URL.revokeObjectURL(url);
+      url = URL.createObjectURL(wav(part.inlineData.data, part.inlineData.mimeType));
+      $('#out').innerHTML = `<div class="vc-audio"><audio controls src="${url}"></audio><a class="btn sm secondary" href="${url}" download="well-voice.wav">نزّل WAV</a></div>`;
+      say($('#msg'), 'جاهز. اسمعه قبل ما تستخدمه.', true);
+    } catch (err) { say($('#msg'), err.message); }
+    busy(btn, false);
+  });
+
   await shell({ active: 'voice', title: 'الصوت' });
   try {
     const g = await api('/api/voice/guide');
+    const t = g.tts || { voices: [], accents: {}, tones: {} };
+    $('#gv').innerHTML = t.voices.map(v => `<option value="${esc(v.id)}">${esc(v.ar)}</option>`).join('');
+    $('#ga').innerHTML = Object.entries(t.accents).map(([k, v]) => `<option value="${k}">${esc(v)}</option>`).join('');
+    $('#gt').innerHTML = Object.entries(t.tones).map(([k, v]) => `<option value="${k}">${esc(v)}</option>`).join('');
+    if (!t.ready) { $('#speak').disabled = true; $('#genNote').textContent = 'توليد الصوت يحتاج مفتاح Gemini (GEMINI_API_KEY) في إعدادات Cloudflare.'; }
     $('#guide').innerHTML = g.guide.map(x => `<div class="vc-g"><b>${esc(x.title)}</b><span><span class="vc-yes">نعم:</span> ${esc(x.do)}</span><span class="muted"><span class="vc-no">لا:</span> ${esc(x.dont)}</span></div>`).join('');
   } catch (err) { say($('#msg'), err.message); }
 }
