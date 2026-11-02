@@ -387,6 +387,15 @@ const EN = {
   'إعلاناتنا': 'Our ads', 'أي إعلانات': 'Which ads', 'النشطة': 'Active', 'كلها': 'All', 'مخالفة': 'Violation', 'انتبه': 'Caution',
   'إعلان انفحص': 'Ads checked', 'الأسلم:': 'Safer:', 'ما لقيت مخالفات في نصوص الإعلانات.': 'No issues found in the ad copy.', 'النص سليم حسب القواعد.': 'The text passes the rules.', 'سليم': 'Clean',
   'الصق نص الإعلان أول': 'Paste the ad text first', 'ما قدرت أقرأ الإعلانات': 'Could not read the ads',
+  // الرصد (listening)
+  'الرصد': 'Listening', 'الرصد · Well': 'Listening · Well',
+  'وش يشد الناس في منشوراتنا على فيسبوك وانستقرام وتيك توك، والكلمات اللي تتابعها، وتغيّر الطلب من مصادر الليدز. قراءة بس.': 'What draws people in our Facebook, Instagram and TikTok posts, the keywords you watch, and demand changes per lead source. Read-only.',
+  'تابع كلمة': 'Watch a word', 'مثال: فيتامين سي': 'Example: vitamin C', 'أضف': 'Add', '30 يوم': '30 days', '90 يوم': '90 days',
+  'الطلب من الـ CRM': 'Demand from the CRM', 'يحسب…': 'Calculating…', 'يقرأ المنشورات…': 'Reading the posts…',
+  'الكلمات اللي تتابعها': 'Keywords you watch', 'الكلمة': 'Keyword', 'منشورات': 'Posts', 'متوسط التفاعل': 'Average engagement', 'مقارنة بالمعتاد': 'Against the usual', 'آخر ذكر': 'Last mention',
+  'المواضيع اللي تشد': 'Topics that draw people', 'منشورات تفاعلها ضعف المعتاد': 'Posts with twice the usual engagement', 'منشورات فيها نقاش': 'Posts with conversation',
+  'يحتاج منشورات أكثر.': 'Needs more posts.', 'ما فيه منشورات عضوية للحين.': 'No organic posts yet.', 'متوسط التفاعل للمنشور': 'Average engagement per post',
+  'المصدر': 'Source', 'هالأسبوع': 'This week', 'الأسبوع اللي قبله': 'Week before', 'انتبه:': 'Note:', 'ما فيه ليدز آخر أسبوعين.': 'No leads in the last two weeks.', 'افتح': 'Open',
   // أخطاء السيرفر
   'طلب مرفوض': 'Request refused', 'سجّل الدخول': 'Please sign in', 'الحساب موقوف': 'Account disabled', 'ما عندك صلاحية': 'You don\'t have access',
   'صار خطأ، جرّب مرة ثانية': 'Something went wrong, try again', 'صار خطأ': 'Something went wrong', 'الإعداد غير مكتمل': 'Setup is incomplete',
