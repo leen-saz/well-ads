@@ -6,7 +6,7 @@ import { LIVE } from '../modules/registry';
 export type Pass = { pass: true; rewrite?: string };
 export type Decision = Pass | Response;
 
-const PUBLIC = [/^\/login\/?$/, /^\/reset\/?$/, /^\/api\/auth\//, /^\/api\/health\/?$/, /^\/api\/connectors\/callback\/?$/,
+const PUBLIC = [/^\/login\/?$/, /^\/reset\/?$/, /^\/welcome\/?$/, /^\/api\/auth\//, /^\/api\/health\/?$/, /^\/api\/connectors\/callback\/?$/,
   /^\/assets\//, /^\/_astro\//, /^\/robots\.txt$/, /^\/favicon/];
 
 export function need(pathname: string, search: string): Need | null {
