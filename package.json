@@ -12,6 +12,7 @@
     "test:integration": "vitest run --config vitest.integration.config.ts --passWithNoTests"
   },
   "dependencies": {
+    "@anthropic-ai/sdk": "1.2.0",
     "@astrojs/cloudflare": "^14.4.3",
     "@astrojs/react": "^7.1.2",
     "@tanstack/react-table": "^8.21.3",
