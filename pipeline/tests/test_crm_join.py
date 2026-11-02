@@ -35,6 +35,21 @@ class JoinTests(unittest.TestCase):
         self.assertEqual(crm["rows"][1][1:], ["2026-10-22", "2026-11-01", 1, 500.0])  # lead day, payment day (Riyadh)
         self.assertIs(data["crm"], crm)
 
+    def test_payment_on_a_new_lead_is_credited_to_the_same_customers_ad(self):
+        crm = join.attach({"ads": ADS}, [
+            lead(lead_id="A", customer_id="c1", source_platform="snapchat_form", ad_id="222", created_at="2026-10-01T09:00:00Z"),
+            lead(lead_id="B", customer_id="c1", source_platform="manual", ad_id=None, created_at="2026-10-20T09:00:00Z",
+                 payment_status="paid", amount_paid_sar=900, paid_at="2026-10-21T09:00:00Z"),
+            # another customer: paid, but their only ad lead is 120 days older (outside the window)
+            lead(lead_id="C", customer_id="c2", source_platform="meta_form", ad_id="444", created_at="2026-06-01T09:00:00Z"),
+            lead(lead_id="D", customer_id="c2", source_platform="whatsapp_organic", ad_id=None, created_at="2026-10-01T09:00:00Z",
+                 payment_status="paid", amount_paid_sar=300, paid_at="2026-10-02T09:00:00Z"),
+        ])
+        self.assertEqual(crm["via_customer"], 1)
+        snap = [r for r in crm["rows"] if r[0] == "s222"]
+        self.assertEqual(snap, [["s222", "2026-10-01", "2026-10-21", 1, 900.0]])   # the ad lead is now a closing, counted once
+        self.assertEqual([r for r in crm["rows"] if r[0] == "m444"][0][3], 0)       # too old: not credited
+
     def test_lead_day_is_riyadh_and_late_imports_use_platform_time(self):
         self.assertEqual(join.day_of(lead(created_at="2026-10-21T22:30:00Z")), "2026-10-22")
         self.assertEqual(join.day_of(lead(source_platform="late_import", created_at="2026-10-30T09:00:00Z",
