@@ -39,11 +39,12 @@ export function facts(url: string, status: number, html: string): PageFacts {
 export async function crawl(site: string, f: typeof fetch = fetch): Promise<PageFacts[]> {
   const get = async (u: string) => { const r = await f(u, { headers: UA, redirect: 'follow' }); return { status: r.status, text: r.ok ? (await r.text()).slice(0, 600_000) : '' }; };
   const urls = new Set([site + '/']);
+  const same = (u: string) => (u.replace(/\/+$/, '') || u);
   try {
     const sm = await get(site + '/sitemap.xml');
     for (const m of sm.text.matchAll(/<loc>\s*([^<\s]+)\s*<\/loc>/g)) {
       const u = m[1] as string;
-      if (u.startsWith(site) && !u.endsWith('.xml') && urls.size < MAX_PAGES) urls.add(u);
+      if (u.startsWith(site) && !u.endsWith('.xml') && urls.size < MAX_PAGES && ![...urls].some(x => same(x) === same(u))) urls.add(u);
     }
   } catch { /* no sitemap */ }
   const out: PageFacts[] = [];
@@ -101,15 +102,24 @@ export function parsePlan(text: string): { position: string; niche: string; item
   } catch { return null; }
 }
 
-export type AiRun = (model: string, input: { messages: { role: string; content: string }[]; max_tokens: number }) => Promise<unknown>;
+export type AiRun = (model: string, input: { messages: { role: string; content: string }[]; max_tokens: number; response_format?: unknown }) => Promise<unknown>;
+// JSON mode: the model must answer in this shape (a free-text answer was the cause of empty plans)
+const PLAN_SCHEMA = { type: 'json_schema', json_schema: { type: 'object', required: ['position', 'niche', 'items'], properties: {
+  position: { type: 'string' }, niche: { type: 'string' },
+  items: { type: 'array', items: { type: 'object', required: ['kind', 'title', 'why', 'priority'], properties: {
+    kind: { type: 'string', enum: ['article', 'page', 'faq'] }, title: { type: 'string' }, why: { type: 'string' }, priority: { type: 'integer' } } } } } } };
+// The model's answer: an object in JSON mode, or text with a JSON object inside
+const answer = (out: unknown): string => { const r = (out as { response?: unknown })?.response; return typeof r === 'string' ? r : r ? JSON.stringify(r) : ''; };
 
 export async function plan(ai: AiRun | undefined, site: string, niche: string, competitors: string[], pages: PageFacts[], gsc: Gsc[]) {
   const rules = audit(pages);
   if (!ai) return { engine: 'rules', analysis: { pages: pages.length }, items: rules };
   try {
-    const out = await ai(AI_MODEL, { messages: [{ role: 'user', content: prompt(site, niche, competitors, pages, gsc, rules) }], max_tokens: 2000 });
-    const parsed = parsePlan(String((out as { response?: unknown })?.response ?? ''));
-    if (!parsed) return { engine: 'rules', analysis: { pages: pages.length, ai: 'رد غير مفهوم' }, items: rules };
+    const messages = [{ role: 'user', content: prompt(site, niche, competitors, pages, gsc, rules) }];
+    let parsed = parsePlan(answer(await ai(AI_MODEL, { messages, max_tokens: 3000, response_format: PLAN_SCHEMA })));
+    // One more try without JSON mode before giving up
+    if (!parsed?.items.length) parsed = parsePlan(answer(await ai(AI_MODEL, { messages, max_tokens: 3000 }))) || parsed;
+    if (!parsed || !parsed.items.length) return { engine: 'rules', analysis: { pages: pages.length, ai: 'رد غير مفهوم' }, items: rules };
     return { engine: 'workers-ai', analysis: { pages: pages.length, position: parsed.position, niche: parsed.niche }, items: [...rules, ...parsed.items] };
   } catch { return { engine: 'rules', analysis: { pages: pages.length, ai: 'ما اشتغل' }, items: rules }; }
 }

@@ -7,7 +7,11 @@ export default async function mount() {
   const ACT = { login: 'دخول', login_failed: 'دخول فاشل', login_blocked: 'دخول مرفوض (حساب موقوف)', password_changed: 'غيّر الباسوورد', password_set: 'حدد باسوورد جديد',
     password_reset_requested: 'طلب استعادة الباسوورد', user_invited: 'أضاف مستخدم', user_updated: 'عدّل صلاحيات مستخدم', mode_changed: 'غيّر الوضع',
     suggestion_approved: 'وافق على اقتراح', suggestion_rejected: 'رفض اقتراح', suggestion_modified: 'وافق بتعديل',
-    kill_on: 'شغّل الطوارئ', kill_off: 'أوقف الطوارئ', critic_run: 'المراجع راجع الاقتراحات' };
+    kill_on: 'شغّل الطوارئ', kill_off: 'أوقف الطوارئ', critic_run: 'المراجع راجع الاقتراحات',
+    modules_changed: 'غيّر الموديولات', content_plan: 'حلّل الموقع (المحتوى)', content_approve: 'وافق على بند محتوى', content_reject: 'رفض بند محتوى', content_done: 'نشر بند محتوى', content_draft: 'كتب مسودة محتوى',
+    social_scheduled: 'جدول منشور', social_approved: 'وافق على منشور', social_cancelled: 'ألغى منشور', journey_saved: 'حفظ رحلة', journey_started: 'شغّل رحلة لعميل',
+    maestro_connected: 'ربط المايسترو', maestro_task: 'كلّف المايسترو بمهمة', maestro_approve: 'وافق في المايسترو', maestro_reject: 'رفض في المايسترو',
+    connector_saved: 'ربط منصة', connector_removed: 'فك ربط منصة', suggestion_revert: 'تراجع عن تنفيذ', campaign_requested: 'طلب حملة جديدة', canary_changed: 'غيّر حملات التجربة' };
   let LEVELS = ['view', 'edit', 'approve'];
   const LV = { '': 'بدون', view: 'مشاهدة', edit: 'تعديل', approve: 'موافقة' };
   // Presets: one click fills every tab, then each tab can still be changed alone

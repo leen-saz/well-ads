@@ -545,8 +545,8 @@ body{background:
   </section>
 
   <section data-mode="ads" data-page="overview" class="panel b-6" aria-labelledby="shareH">
-    <div class="panel-h"><h2 id="shareH">حصة كل منصة من الصرف ومن الليدز</h2></div>
-    <div id="share"></div><div class="hint">لما تكون حصة الليدز أكبر من حصة الصرف، المنصة تجيب أكثر من نصيبها.</div>
+    <div class="panel-h"><h2 id="shareH">حصة كل منصة من الصرف ومن النتايج</h2></div>
+    <div id="share"></div><div class="hint">النتايج = الليدز والمحادثات. لما تكون حصة النتايج أكبر من حصة الصرف، المنصة تجيب أكثر من نصيبها.</div>
   </section>
   <section data-mode="ads" data-page="overview" class="panel b-6" aria-labelledby="paceH">
     <div class="panel-h"><h2 id="paceH">وتيرة الشهر الحالي وتوقع نهايته</h2></div>
@@ -754,7 +754,8 @@ const EN = {
   'تكلفة الليد حسب المنصة (ر.س)':'Cost per lead by platform (SAR)',
   'تحليل الأداء':'Performance',
   'القمع: من الظهور إلى الليد':'Funnel: impressions to leads',
-  'حصة كل منصة من الصرف ومن الليدز':'Each platform’s share of spend and leads',
+  'حصة كل منصة من الصرف ومن النتايج':'Each platform’s share of spend and results',
+  'النتايج = الليدز والمحادثات. لما تكون حصة النتايج أكبر من حصة الصرف، المنصة تجيب أكثر من نصيبها.':'Results = leads and conversations. When a platform’s share of results beats its share of spend, it brings more than its share.',
   'لما تكون حصة الليدز أكبر من حصة الصرف، المنصة تجيب أكثر من نصيبها.':'When the lead share is higher than the spend share, the platform is pulling more than its weight.',
   'وتيرة الشهر الحالي وتوقع نهايته':'This month’s pace and month-end forecast',
   'التوقع = المعدل اليومي لهذا الشهر × عدد أيامه، وما يحسب اليوم الحالي لأنه ناقص.':'Forecast = this month’s daily average × its days. Today is left out because it is incomplete.',
@@ -1436,7 +1437,9 @@ function delta(a,b,lowerIsBetter){
   const ch = 100*(a-b)/Math.abs(b);
   if(Math.abs(ch)<0.5) return `<span class="delta flat">● ثابت</span>`;
   const up = ch>0, good = lowerIsBetter ? !up : up;
-  return `<span class="delta ${good?'good':'bad'}">${up?'▲':'▼'} ${fmt(Math.abs(ch),1)}% <span style="color:var(--muted)">${tr('عن الفترة السابقة')}</span></span>`;
+  // From a tiny base, +1,130% says little: show it as a multiple (×12.3)
+  const txt = up && ch>=300 ? `×${fmt(a/b,1)}` : `${fmt(Math.abs(ch),1)}%`;
+  return `<span class="delta ${good?'good':'bad'}">${up?'▲':'▼'} ${txt} <span style="color:var(--muted)">${tr('عن الفترة السابقة')}</span></span>`;
 }
 document.addEventListener('click', e => { const m = e.target.closest && e.target.closest('#moreF'); if(m){ const c=$('#filterCard'); const on=!c.classList.contains('show-adv'); c.classList.toggle('show-adv',on); m.setAttribute('aria-expanded',String(on)); m.textContent=tr(on?'فلاتر أقل':'فلاتر أكثر'); } });
 document.addEventListener('click', e => { const b = e.target.closest && e.target.closest('[data-crmby]'); if(!b) return; S.crmBy = b.dataset.crmby; render(); });
@@ -1698,10 +1701,12 @@ function renderBI(now){
   const mx=Math.max(1,t.impr), w=v=>Math.max(4, Math.round(100*Math.sqrt(v/mx)));
   if($('#funnel')) $('#funnel').innerHTML = steps.map(([l,v],i)=>`<div class="fstep"><span class="lbl">${l}</span><div class="fbar" style="width:${w(v)}%">${i===2?qty(v):fmt(v)}</div>`
     + (i? `<span class="frate">${i===1?`${tr('نسبة النقر')} ${pct(t.ctr)}`:`${ui('من النقرة لليد','Click to result')} ${pct(t.clicks?100*(t.leads+t.conv)/t.clicks:null)} · ${ui('تكلفة النتيجة','Cost per result')} ${sar((t.leads+t.conv)?t.spend/(t.leads+t.conv):null)} ${money()}`}</span>`:'')+`</div>`).join('');
-  const plats=ORDER.filter(p=>now.byPlat[p]), ts=plats.reduce((a,p)=>a+now.byPlat[p].spend,0)||1, tl=plats.reduce((a,p)=>a+now.byPlat[p].leads,0)||1;
-  const bar=(f,tot)=>`<div class="share-bar">${plats.map(p=>{const v=100*now.byPlat[p][f]/tot; return v>0?`<span style="width:${v}%;background:var(${PL[p].c})" title="${platName(p)}: ${fmt(v,1)}%"></span>`:'';}).join('')}</div>`;
-  $('#share').innerHTML = plats.length ? `<div class="share-row"><span>الصرف</span>${bar('spend',ts)}</div><div class="share-row"><span>الليدز</span>${bar('leads',tl)}</div>`
-    + `<div class="legend" style="margin-top:8px">${plats.map(p=>`<span><span class="dot" style="background:var(${PL[p].c})"></span>${platName(p)}: ${fmt(100*now.byPlat[p].spend/ts,0)}% ${ui('صرف','Spend')} · ${fmt(100*now.byPlat[p].leads/tl,0)}% ${ui('ليدز','Leads')}</span>`).join('')}</div>` : '<div class="empty">لا توجد بيانات.</div>';
+  // Results = leads + conversations: Meta's goal is conversations, so leads alone made it look like 0%
+  const res=p=>(now.byPlat[p].leads||0)+(now.byPlat[p].conv||0);
+  const plats=ORDER.filter(p=>now.byPlat[p] && (now.byPlat[p].spend>0 || res(p)>0)), ts=plats.reduce((a,p)=>a+now.byPlat[p].spend,0)||1, tl=plats.reduce((a,p)=>a+res(p),0)||1;
+  const bar=(f,tot)=>`<div class="share-bar">${plats.map(p=>{const v=100*(f==='leads'?res(p):now.byPlat[p][f])/tot; return v>0?`<span style="width:${v}%;background:var(${PL[p].c})" title="${platName(p)}: ${fmt(v,1)}%"></span>`:'';}).join('')}</div>`;
+  $('#share').innerHTML = plats.length ? `<div class="share-row"><span>الصرف</span>${bar('spend',ts)}</div><div class="share-row"><span>${ui('النتايج','Results')}</span>${bar('leads',tl)}</div>`
+    + `<div class="legend" style="margin-top:8px">${plats.map(p=>`<span><span class="dot" style="background:var(${PL[p].c})"></span>${platName(p)}: ${fmt(100*now.byPlat[p].spend/ts,0)}% ${ui('صرف','Spend')} · ${fmt(100*res(p)/tl,0)}% ${ui('نتايج','Results')}</span>`).join('')}</div>` : '<div class="empty">لا توجد بيانات.</div>';
   // day-of-week heatmap of CPL (lead campaigns)
   const hm={}; for(const [k,date,sp,im,cl,ld] of D.rows){ if(date<S.from||date>S.to) continue; const a=ADS[k]; if(!a||!now.byAd[k]||a.goal!=='lead') continue;
     const w=toD(date).getUTCDay(), o=(hm[a.platform] ||= {})[w] ||= {s:0,l:0}; o.s+=sp; o.l+=ld; }
@@ -1736,8 +1741,9 @@ function renderPace(){
   }
   const done = hasComplete ? diffDays(paceFrom, completeTo)+1 : 0;
   const open = hasComplete && holesBetween(paceFrom, completeTo).length;
-  const proj = !done || open ? null : {s:curM.s*dim/done, l:curM.l*dim/done};
-  const ch=(a,b)=>b?`${a>=b?'▲':'▼'} ${fmt(Math.abs(100*(a-b)/b),0)}%`:'—';
+  // Fewer than 3 complete days is too little to project a whole month
+  const proj = done<3 || open ? null : {s:curM.s*dim/done, l:curM.l*dim/done};
+  const ch=(a,b)=>!b?'—':a>=b&&a/b>=4?`▲ ×${fmt(a/b,1)}`:`${a>=b?'▲':'▼'} ${fmt(Math.abs(100*(a-b)/b),0)}%`;
   const mname=x=>monthName(+x.slice(5)-1);
   const spendShown = hasComplete ? curM.s : (dropToday ? todayBit.s : null);
   const resultShown = hasComplete ? curM.l : (dropToday ? todayBit.l : null);
@@ -1752,8 +1758,8 @@ function renderPace(){
   $('#pace').innerHTML = `<div class="kv">
     <div><div class="k">${spendLabel}</div><div class="mini">${spendShown==null?'—':sar(spendShown)+' '+money()}</div></div>
     <div><div class="k">${ui('نتائج حتى الآن','Results so far')}</div><div class="mini">${resultShown==null?'—':qty(resultShown)}</div></div>
-    <div><div class="k">${ui('توقع الصرف لنهاية الشهر','Spend forecast to month end')}</div><div class="mini">${proj?sar(proj.s)+' '+money():'—'}</div></div>
-    <div><div class="k">${ui('توقع النتائج لنهاية الشهر','Results forecast to month end')}</div><div class="mini">${proj?qty(proj.l):'—'}</div></div>
+    <div><div class="k">${ui('توقع الصرف لنهاية الشهر','Spend forecast to month end')}</div><div class="mini">${proj?sar(proj.s)+' '+money():(done<3&&!open?ui('يطلع بعد 3 أيام','after 3 days'):'—')}</div></div>
+    <div><div class="k">${ui('توقع النتائج لنهاية الشهر','Results forecast to month end')}</div><div class="mini">${proj?qty(proj.l):(done<3&&!open?ui('يطلع بعد 3 أيام','after 3 days'):'—')}</div></div>
     <div><div class="k">${sameLabel}</div><div class="mini">${open||!prevKnown?'—':ui('صرف','Spend')+' '+ch(curM.s,prevSame.s)+' · '+ui('نتائج','results')+' '+ch(curM.l,prevSame.l)}</div></div>
     <div><div class="k">${prevLabel}</div><div class="mini">${prevKnown?qty(prevSame.l):'—'} ${ui('ليد أو محادثة','leads or chats')}</div><div class="k">${prevKnown?`${sar(prevSame.s)} ${money()} · ${ui('تكلفة النتيجة','cost per result')} ${prevSame.l?sar(prevSame.s/prevSame.l)+' '+money():'—'}`:'—'}</div></div></div>`;
 }
@@ -1889,7 +1895,7 @@ function openIdea(k){
       ${hookRow(sumVid(y.members.map(m=>m.a)))}
       <div class="row">${viewControl(y.a)}</div></div></div>
     <div class="tbl"><table><thead><tr><th>${ui('الإعلان','Ad')}</th><th>${ui('المنصة','Platform')}</th><th class="n">${ui('الصرف','Spend')}</th><th class="n">${ui('النتايج','Results')}</th><th class="n">${ui('تكلفة النتيجة','Cost per result')}</th><th class="n">${ui('نسبة النقر','CTR')}</th>${vids?`<th class="n">${ui('وقفوا يشوفون','Hook')}</th>`:''}</tr></thead>
-    <tbody>${y.members.sort((p,q)=>q.spend-p.spend).map(m=>`<tr class="click" data-ad="${esc(m.k)}"><td>${esc(m.a.name)} ${WIN.has(m.k)?'🏆':''}</td><td>${platCell(m.a.platform)}</td><td class="n">${sar(m.spend)}</td><td class="n">${resCell(m)}</td><td class="n">${m.a.goal==='lead'?sar(m.cpl):m.a.goal==='messages'?sar(m.cpm2):'—'}</td><td class="n">${pct(m.ctr)}</td>${vids?`<td class="n">${m.a.vid&&m.a.vid.v?pct(hookRate(m.a.vid)):ui('صورة','Image')}</td>`:''}</tr>`).join('')}</tbody></table></div>`;
+    <tbody>${y.members.filter(m=>m.spend>0||(m.leads+m.conv)>0).sort((p,q)=>q.spend-p.spend).map(m=>`<tr class="click" data-ad="${esc(m.k)}"><td>${esc(m.a.name)} ${WIN.has(m.k)?'🏆':''}<div class="sub">${esc(m.a.campaign)}${m.a.group?' · '+esc(m.a.group):''}</div></td><td>${platCell(m.a.platform)}</td><td class="n">${sar(m.spend)}</td><td class="n">${resCell(m)}</td><td class="n">${m.a.goal==='lead'?sar(m.cpl):m.a.goal==='messages'?sar(m.cpm2):'—'}</td><td class="n">${pct(m.ctr)}</td>${vids?`<td class="n">${m.a.vid&&m.a.vid.v?pct(hookRate(m.a.vid)):ui('صورة','Image')}</td>`:''}</tr>`).join('')}</tbody></table></div>`;
   const dlg=$('#dlg'); if(!dlg.open) dlg.showModal(); $('#dlgClose').onclick=()=>dlg.close();
   $('#dlgBody').onclick=e=>{ const r=e.target.closest('tr[data-ad]'); if(r) openAd(r.dataset.ad); };
   $('#dlgBody').onkeydown=null;
@@ -2192,9 +2198,9 @@ function openAd(k){
     </div>
     <div class="kv">
       <div><div class="k">الصرف</div><div class="mini">${sar(o.spend)} ${money()}</div></div>
-      <div><div class="k">الليدز</div><div class="mini">${qty(o.leads)}</div></div>
-      <div><div class="k">تكلفة الليد</div><div class="mini">${a.goal==='lead'?sar(o.cpl):'—'}</div></div>
-      <div><div class="k">محادثات</div><div class="mini">${family(a.platform)==='meta'?fmt(o.conv):'—'}</div></div>
+      ${a.goal==='messages'&&!o.leads ? '' : `<div><div class="k">الليدز</div><div class="mini">${qty(o.leads)}</div></div>
+      <div><div class="k">تكلفة الليد</div><div class="mini">${a.goal==='lead'?sar(o.cpl):'—'}</div></div>`}
+      ${family(a.platform)==='meta' ? `<div><div class="k">محادثات</div><div class="mini">${fmt(o.conv)}</div></div>${a.goal==='messages'?`<div><div class="k">${ui('تكلفة المحادثة','Cost per chat')}</div><div class="mini">${o.conv?sar(o.spend/o.conv):'—'}</div></div>`:''}` : ''}
       <div><div class="k">الظهور</div><div class="mini">${fmt(o.impr)}</div></div>
       <div><div class="k">النقرات</div><div class="mini">${fmt(o.clicks)}</div></div>
       <div><div class="k">نسبة النقر</div><div class="mini">${pct(o.ctr)}</div></div>

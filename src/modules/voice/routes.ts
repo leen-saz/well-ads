@@ -39,15 +39,15 @@ export const speak = { POST: handle(async (request, e: TtsEnv & Parameters<typeo
   await requireUser(request, e, 'voice', { write: true });
   const i = ttsInput(await readJson(request));
   if (!i.text) return json(400, { error: 'اكتب النص أول' });
-  if (!e.GEMINI_API_KEY) return json(503, { error: 'توليد الصوت يحتاج مفتاح Gemini (GEMINI_API_KEY) في Cloudflare' });
+  if (!e.GEMINI_API_KEY) return json(503, { error: 'توليد الصوت مو مفعّل للحين، تواصل مع مسؤولة النظام' });
   const model = (e.GEMINI_TTS_MODEL || TTS_MODEL).replace(/[^a-z0-9.\-]/gi, '');
   let r: Response;
   try {
     r = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent`, {
       method: 'POST', headers: { 'content-type': 'application/json', 'x-goog-api-key': e.GEMINI_API_KEY }, body: JSON.stringify(ttsBody(i)),
     });
-  } catch { return json(502, { error: 'ما قدرت أوصل لـ Gemini، جرّب بعد دقيقة' }); }
-  if (r.status === 429) return json(429, { error: 'وصلت حد Gemini المجاني لهالفترة، جرّب بعدين' });
-  if (!r.ok) return json(502, { error: `Gemini رفض الطلب (${r.status})` });
+  } catch { return json(502, { error: 'خدمة الصوت ما ردت، جرّب بعد دقيقة' }); }
+  if (r.status === 429) return json(429, { error: 'وصلت حد توليد الصوت لهالفترة، جرّب بعدين' });
+  if (!r.ok) return json(502, { error: `ما انولد الصوت (${r.status})` });
   return new Response(r.body, { status: 200, headers: { 'content-type': 'application/json; charset=utf-8', 'cache-control': 'no-store' } });
 }) };

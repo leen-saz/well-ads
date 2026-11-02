@@ -115,7 +115,8 @@ def build(data, today=None):
             if x["l7"] == 0 and x["s7"] >= rules.KILL_MULTIPLIER * t and (rules.days_running(first, today) or 0) >= rules.MIN_DAYS_BEFORE_PAUSE:
                 add(p, "ad", tid, a.get("name"), a.get("campaign"), "pause",
                     f"صرف {x['s7']:.0f} ريال آخر 7 أيام بدون ولا ليد، وهذا ضعف تكلفة الليد المستهدفة ({t:.2f}) أو أكثر.", ev, 90)
-            elif x["l7"] >= 10 and x["s7"] / x["l7"] <= 0.8 * t:
+            # Leen: Snap leads are not real leads, so a cheap Snap CPL is never a reason to raise its budget
+            elif p != "snap" and x["l7"] >= 10 and x["s7"] / x["l7"] <= 0.8 * t:
                 cpl = x["s7"] / x["l7"]
                 add(p, "ad", tid, a.get("name"), a.get("campaign"), "budget_up",
                     f"جاب {x['l7']:.0f} ليد آخر 7 أيام بتكلفة {cpl:.2f} ريال، أقل من هدف المنصة ({t:.2f}) بـ {100 - 100 * cpl / t:.0f}%. ارفع ميزانية مجموعته 20%.",
