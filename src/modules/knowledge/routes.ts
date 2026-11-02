@@ -1,14 +1,18 @@
 // /api/knowledge/*: the company's knowledge for the AI modules. Reading needs view; adding and editing need edit;
 // switching an entry on or off needs approve. An entry added or edited without approve waits off until an approver turns it on.
-import { sb, json, readJson, handle, requireUser, audit, atLeast, NO_APPROVE } from '../../lib/auth';
+import { sb, json, readJson, handle, requireUser, audit, atLeast, NO_APPROVE, type AuthEnv, type Cfg } from '../../lib/auth';
 import { scoped } from '../../lib/tenant';
 import { AI_MODULES, KINDS, clean, loadKnowledge, normalize, systemPrompt, type Entry } from './knowledge';
+import { QUESTIONS, answerRow, followUp, nextQuestion } from './training';
+import type { AiRun } from '../content/content';
 
+type AiEnv = AuthEnv & { AI?: { run: AiRun } };
 const rows = (d: unknown): Entry[] => (Array.isArray(d) ? (d as Entry[]) : []);
+const all = (cfg: Cfg, co: string) => sb<Entry[]>(cfg, scoped('/rest/v1/knowledge?select=*&order=active.desc,kind.asc,updated_at.desc&limit=500', co), { admin: true });
 
 export const list = { GET: handle(async (request, e) => {
   const { cfg, user } = await requireUser(request, e, 'knowledge');
-  const r = await sb<Entry[]>(cfg, scoped('/rest/v1/knowledge?select=*&order=active.desc,kind.asc,updated_at.desc&limit=500', user.co), { admin: true });
+  const r = await all(cfg, user.co);
   if (!r.ok) return json(500, { error: 'ما قدرت أقرأ المعرفة' });
   return json(200, { entries: rows(r.data).map(normalize), kinds: KINDS, modules: AI_MODULES, canEdit: atLeast(user, 'knowledge', 'edit', cfg), canApprove: atLeast(user, 'knowledge', 'approve', cfg) });
 }) };
@@ -57,5 +61,38 @@ export const entry = {
     if (!row) return json(404, { error: 'غير موجود' });
     await audit(cfg, user, act, { target: { id, kind: row.kind, active: row.active } });
     return json(200, { ok: true, entry: row });
+  }),
+};
+
+// Training chat. GET: the answers so far and the next question (fixed ones first, then the AI's, until it says done).
+// skip = topics the trainer passed on this visit. POST: one answer saved as a knowledge entry (same approval rule as entry).
+export const train = {
+  GET: handle(async (request, e: AiEnv) => {
+    const { cfg, user } = await requireUser(request, e, 'knowledge');
+    const r = await all(cfg, user.co);
+    if (!r.ok) return json(500, { error: 'ما قدرت أقرأ المعرفة' });
+    const entries = rows(r.data).map(normalize);
+    const skip = (new URL(request.url).searchParams.get('skip') || '').split(',').filter(Boolean).slice(0, 50);
+    const history = entries.filter(x => x.source === 'training').sort((a, b) => String(a.created_at).localeCompare(String(b.created_at)))
+      .map(x => ({ id: x.id, question: x.question, answer: x.body, active: x.active, topic: x.topic }));
+    let next = nextQuestion(entries, skip);
+    // The AI asks only for someone who can answer, and only after the fixed questions
+    if (!next && atLeast(user, 'knowledge', 'edit', cfg)) {
+      next = await followUp(e.AI ? (m, i) => e.AI!.run(m, i) : undefined, entries.filter(x => x.active), history.map(h => String(h.question || '')));
+    }
+    const covered = QUESTIONS.filter(q => entries.some(x => x.topic === q.topic)).length;
+    return json(200, { history, next, covered, total: QUESTIONS.length, canEdit: atLeast(user, 'knowledge', 'edit', cfg) });
+  }),
+  POST: handle(async (request, e) => {
+    const { cfg, user } = await requireUser(request, e, 'knowledge', { write: true });
+    const a = answerRow(await readJson(request));
+    if (!a.row) return json(400, { error: a.error });
+    const active = atLeast(user, 'knowledge', 'approve', cfg);
+    const r = await sb<Entry[]>(cfg, '/rest/v1/knowledge', { method: 'POST', admin: true, headers: { Prefer: 'return=representation' },
+      body: { ...a.row, company_id: user.co, active, created_by: user.email, updated_by: user.email } });
+    if (!r.ok) return json(500, { error: 'ما انحفظ' });
+    const row = rows(r.data)[0];
+    await audit(cfg, user, 'knowledge_train', { target: { id: row?.id, topic: a.row.topic, active } });
+    return json(200, { ok: true, entry: row, pending: !active });
   }),
 };

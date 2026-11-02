@@ -2,7 +2,8 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import * as A from '../../lib/auth';
 import { clean, systemPrompt, withKnowledge, loadKnowledge, type Entry } from './knowledge';
-import { list, entry, preview } from './routes';
+import { list, entry, preview, train } from './routes';
+import { QUESTIONS, answerRow, nextQuestion, parseFollowUp } from './training';
 import { plan, facts, type AiRun } from '../content/content';
 import { rewrite } from '../voice/routes';
 
@@ -53,6 +54,11 @@ describe('system message', () => {
     expect(s).not.toContain('موقوف');
     expect(systemPrompt(entries, 'voice')).toContain('سعودي ودود');
     expect(systemPrompt([], 'content')).toBe('');
+  });
+  it('style references come with a "style only" instruction', () => {
+    const s = systemPrompt([e({ kind: 'reference', title: 'كاتب', body: 'جمل قصيرة' })], 'content');
+    expect(s).toContain('قلّد الإيقاع والنبرة');
+    expect(s).toContain('لا تنقل ادعاءاتهم');
   });
   it('stays under the cap by leaving whole entries out', () => {
     const many = Array.from({ length: 50 }, (_, i) => e({ id: i, kind: 'winner', body: 'ن'.repeat(300) }));
@@ -123,5 +129,46 @@ describe('AI modules carry the knowledge', () => {
     expect(msgs[0]?.role).toBe('system');
     expect(msgs[0]?.content).toContain('الأرخص');
     expect(msgs[1]?.content).toContain('نص');
+  });
+});
+
+describe('training chat', () => {
+  it('asks the fixed questions in order, skipping answered and passed ones', () => {
+    expect(nextQuestion([])?.topic).toBe('services');
+    expect(nextQuestion([{ topic: 'services' }], ['prices'])?.topic).toBe('audience');
+    expect(nextQuestion(QUESTIONS.map(q => ({ topic: q.topic })))).toBeNull();
+    expect(QUESTIONS.some(q => q.kind === 'reference')).toBe(true);
+  });
+  it('a fixed answer takes kind and question from the bank, not the page', () => {
+    expect(answerRow({ topic: 'forbidden', kind: 'claim', question: 'غيره', answer: 'علاج نهائي' }).row)
+      .toMatchObject({ kind: 'forbidden', source: 'training', topic: 'forbidden', question: QUESTIONS.find(q => q.topic === 'forbidden')?.q });
+    expect(answerRow({ topic: 'ai-abc', kind: 'voice', question: 'وش اللهجة؟', answer: 'نجدية' }).row).toMatchObject({ kind: 'voice', question: 'وش اللهجة؟' });
+    expect(answerRow({ topic: 'hack', answer: 'x', question: 'q' }).error).toBe('سؤال غير معروف');
+    expect(answerRow({ topic: 'services', answer: ' ' }).error).toBe('اكتب الجواب');
+  });
+  it('reads the AI follow-up or its done', () => {
+    expect(parseFollowUp('{"done":true}')).toBe('done');
+    expect(parseFollowUp('{"done":false,"question":"كم مدة الجلسة؟","kind":"service"}')).toMatchObject({ kind: 'service', q: 'كم مدة الجلسة؟' });
+    expect(parseFollowUp('{"done":false,"question":"س","kind":"evil"}')).toMatchObject({ kind: 'note' });
+    expect(parseFollowUp('no')).toBeNull();
+  });
+  it('the AI asks only after the fixed questions, and answers save as training entries', async () => {
+    const ed = member({ knowledge: 'edit' });
+    const run = vi.fn(async () => ({ response: '{"done":false,"question":"كم مدة الجلسة؟","kind":"service"}' }));
+    stub(ed, () => [e({ topic: 'services', source: 'training', question: 'وش الخدمات؟', body: 'محاليل' })]);
+    let r = (await (await train.GET(req('/api/knowledge/train', await cookieFor(ed)), { ...E, AI: { run } } as A.AuthEnv)).json()) as { next: { topic: string }; history: unknown[]; covered: number };
+    expect(r.next.topic).toBe('prices');
+    expect(r.covered).toBe(1);
+    expect(r.history).toHaveLength(1);
+    expect(run).not.toHaveBeenCalled();
+    stub(ed, () => QUESTIONS.map((q, i) => e({ id: i, topic: q.topic, source: 'training', question: q.q })));
+    r = (await (await train.GET(req('/api/knowledge/train', await cookieFor(ed)), { ...E, AI: { run } } as A.AuthEnv)).json()) as typeof r;
+    expect(run).toHaveBeenCalledOnce();
+    expect(r.next.topic).toMatch(/^ai-/);
+
+    const calls = stub(ed, () => [e({ id: 9, active: false })]);
+    const p = await train.POST(req('/api/knowledge/train', await cookieFor(ed), 'POST', { topic: 'tone', answer: 'سعودي ودود' }), E);
+    expect(((await p.json()) as { pending: boolean }).pending).toBe(true);
+    expect(calls.find(c => c.method === 'POST' && c.url.endsWith('/knowledge'))?.body).toMatchObject({ kind: 'voice', source: 'training', topic: 'tone', active: false, company_id: CO });
   });
 });

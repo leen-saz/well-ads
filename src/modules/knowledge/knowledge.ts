@@ -1,4 +1,5 @@
-// المعرفة: اللي كتبته الشركة عن نفسها (صوت العلامة، الخدمات والأسعار، الادعاءات المعتمدة، الممنوع، إعلانات نجحت، ملاحظات).
+// المعرفة: اللي كتبته الشركة عن نفسها (صوت العلامة، الخدمات والأسعار، الادعاءات المعتمدة، الممنوع، إعلانات نجحت،
+// مراجع كتّاب ومنافسين نقلّد أسلوبهم، ملاحظات). تنكتب من النموذج أو من شات التدريب (training.ts).
 // كل موديول ذكاء اصطناعي يقرا الفعّال منها ويحطه رسالة system قبل طلبه، عشان ما ينخلط مع نص المستخدم.
 import { sb, type Cfg } from '../../lib/auth';
 import { scoped } from '../../lib/tenant';
@@ -10,6 +11,8 @@ export const KINDS = {
   service: { ar: 'خدمة وسعر', hint: 'الخدمة ووش تشمل وسعرها', head: 'الخدمات والأسعار (لا تكتب سعر غير هذي)' },
   note: { ar: 'ملاحظة', hint: 'أي شي ثاني لازم يعرفه', head: 'ملاحظات' },
   winner: { ar: 'إعلان نجح', hint: 'نص إعلان نجح، مثال للأسلوب', head: 'إعلانات نجحت (مثال للأسلوب، لا تنسخها حرفياً)' },
+  reference: { ar: 'مرجع أسلوب', hint: 'كاتب أو منافس يعجبنا أسلوبه: اسمه أو رابطه، والصق نموذج من كتابته',
+    head: 'مراجع أسلوب كتابة (قلّد الإيقاع والنبرة وطول الجمل بس. لا تنقل ادعاءاتهم ولا أسعارهم ولا أسماءهم ولا جملهم)' },
 } as const;
 export type Kind = keyof typeof KINDS;
 // Modules that write with AI and read the knowledge
@@ -17,12 +20,13 @@ export const AI_MODULES = ['content', 'design', 'voice', 'social', 'maestro', 'j
 
 export interface Entry {
   id: number; kind: Kind; title: string; body: string; price: number | null; modules: string[]; active: boolean;
+  source?: 'manual' | 'training'; topic?: string | null; question?: string | null;
   created_by?: string | null; updated_by?: string | null; created_at?: string; updated_at?: string;
 }
 
 const MAX_BODY = 2000, MAX_TITLE = 120, MAX_PROMPT = 6000;
 // Control characters out (newlines and tabs stay)
-const tidy = (s: unknown, max: number) => String(s ?? '').replace(/[\u0000-\u0008\u000B\u000C\u000E-\u001F\u007F]/g, '').trim().slice(0, max);
+export const tidy = (s: unknown, max: number) => String(s ?? '').replace(/[\u0000-\u0008\u000B\u000C\u000E-\u001F\u007F]/g, '').trim().slice(0, max);
 
 // What the page sends -> a clean row, or why not
 export function clean(input: Record<string, unknown>): { row?: Pick<Entry, 'kind' | 'title' | 'body' | 'price' | 'modules'>; error?: string } {

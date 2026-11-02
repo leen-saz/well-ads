@@ -1,6 +1,6 @@
 ---
 import { ClientRouter } from 'astro:transitions';
-// المعرفة: اللي يتعلمه الذكاء الاصطناعي عن الشركة. إضافة وتعديل وإيقاف، ومعاينة اللي يوصل لكل موديول.
+// المعرفة: اللي يتعلمه الذكاء الاصطناعي عن الشركة. شات تدريب يسأل سؤال سؤال، وإضافة وتعديل وإيقاف، ومعاينة اللي يوصل لكل موديول.
 ---
 <!doctype html>
 <html lang="ar" dir="rtl">
@@ -29,6 +29,12 @@ import { ClientRouter } from 'astro:transitions';
 .kn-chip.wait{background:color-mix(in srgb,var(--accent) 22%,transparent)}
 .kn-body{margin:0;white-space:pre-wrap;font-size:14px}
 .kn-act{display:flex;gap:6px;margin-inline-start:auto}
+.kn-chat{display:grid;gap:10px;max-width:760px}
+.kn-q,.kn-a{padding:10px 14px;border-radius:16px;max-width:85%;white-space:pre-wrap;font-size:14px;margin:0}
+.kn-q{background:var(--tint);justify-self:start}
+.kn-a{background:color-mix(in srgb,var(--accent) 14%,transparent);justify-self:end}
+.kn-a small{display:block;color:var(--muted);font-size:12px;margin-top:4px}
+.kn-prog{font-size:13px;margin:0 0 12px}
 .kn-pre{white-space:pre-wrap;font-size:13px;max-height:360px;overflow:auto;padding:12px;border-radius:12px;background:var(--tint);margin:8px 0 0}
 </style>
 </head>
@@ -39,8 +45,18 @@ import { ClientRouter } from 'astro:transitions';
   <div class="main">
     <header class="topbar" id="top"></header>
     <main class="content" id="content">
-      <p class="muted" style="margin:0 0 14px">اللي تكتبه هنا يقراه الذكاء الاصطناعي في كل موديول قبل ما يكتب: المحتوى والتصميم والصوت والسوشال. اللي يضيفه أحد بدون صلاحية موافقة يبقى موقوف لين يعتمده المدير.</p>
-      <div class="kn-grid">
+      <p class="muted" style="margin:0 0 14px">اللي تكتبه هنا يقراه الذكاء الاصطناعي في كل موديول قبل ما يكتب: المحتوى والتصميم والصوت والسوشال. شات التدريب يسألك سؤال سؤال لين تكتمل المعرفة، وكل جواب ينحفظ وتقدر تعدّله من «كل المعرفة». اللي يضيفه أحد بدون صلاحية موافقة يبقى موقوف لين يعتمده المدير.</p>
+      <div class="seg" role="group" aria-label="العرض" style="margin:0 0 14px"><button type="button" data-tab="train" aria-pressed="true">شات التدريب</button><button type="button" data-tab="all" aria-pressed="false">كل المعرفة</button></div>
+      <section id="train" class="card pad">
+        <p class="muted kn-prog" id="prog"></p>
+        <div class="kn-chat" id="chat"><p class="muted">يحمّل…</p></div>
+        <form id="tf" novalidate style="margin-top:14px;max-width:760px" hidden>
+          <label for="ans">جوابك</label><textarea id="ans" rows="4" dir="auto" maxlength="2000"></textarea>
+          <div class="bar" style="margin-top:10px"><button class="btn primary" type="submit" id="send">أرسل</button><button class="btn" type="button" id="skip">تخطَّ السؤال</button></div>
+          <div class="msg" id="tmsg" role="status"></div>
+        </form>
+      </section>
+      <div class="kn-grid" id="all" hidden>
         <section class="card pad">
           <h2 id="ftitle" style="margin:0 0 8px">أضف معرفة</h2>
           <form id="f" novalidate>

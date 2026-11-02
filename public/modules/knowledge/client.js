@@ -1,4 +1,4 @@
-// المعرفة: إضافة وتعديل وإيقاف ما يتعلمه الذكاء الاصطناعي عن الشركة، ومعاينة اللي يوصل لكل موديول.
+// المعرفة: شات تدريب يسأل سؤال سؤال، وإضافة وتعديل وإيقاف ما يتعلمه الذكاء الاصطناعي عن الشركة، ومعاينة اللي يوصل لكل موديول.
 import { $, $$, api, say, esc, shell, busy, when } from '/assets/common.js';
 
 const MOD = { content: 'المحتوى', design: 'التصميم', voice: 'الصوت', social: 'السوشال', maestro: 'المايسترو', journeys: 'الرحلات' };
@@ -28,6 +28,7 @@ export default async function mount() {
           <span class="kn-chip">${x.modules.length ? x.modules.map(m => esc(MOD[m] || m)).join('، ') : 'كل الموديولات'}</span>
           ${x.active ? '' : '<span class="kn-chip wait">موقوف</span>'}
           <span class="kn-act">${S.canEdit ? `<button class="btn" type="button" data-edit="${x.id}">عدّل</button>` : ''}${S.canApprove ? `<button class="btn" type="button" data-on="${x.id}" data-v="${!x.active}">${x.active ? 'أوقف' : 'فعّل'}</button>` : ''}</span></div>
+        ${x.question ? `<span class="muted" style="font-size:13px">من شات التدريب: ${esc(x.question)}</span>` : ''}
         <p class="kn-body" dir="auto">${esc(x.body)}</p>
         <span class="muted" style="font-size:12px">${esc(x.updated_by || x.created_by || '')} · ${when(x.updated_at || x.created_at)}</span></article>`).join('');
     }).join('');
@@ -44,8 +45,39 @@ export default async function mount() {
     catch (err) { $('#list').innerHTML = ''; say($('#msg'), err.message); }
   }
 
+  // Training chat: the agent asks, the trainer answers; each answer becomes an entry (editable under "كل المعرفة")
+  const skipped = [];
+  let Q = null;
+  async function chat() {
+    try {
+      const r = await api(`/api/knowledge/train?skip=${encodeURIComponent(skipped.join(','))}`);
+      Q = r.next;
+      $('#prog').textContent = `الأسئلة الأساسية: ${r.covered} من ${r.total}` + (Q ? '' : ' · ما عندي أسئلة ثانية الحين');
+      $('#chat').innerHTML = r.history.map(h => `<p class="kn-q" dir="auto">${esc(h.question)}</p><p class="kn-a" dir="auto">${esc(h.answer)}${h.active ? '' : '<small>ينتظر اعتماد المدير</small>'}</p>`).join('')
+        + (Q ? `<p class="kn-q" dir="auto"><b>${esc(Q.q)}</b></p>` : `<p class="kn-q">${r.history.length ? 'المعرفة مكتملة الحين. أي شي يتغير، عدّله من «كل المعرفة».' : 'ما فيه أسئلة.'}</p>`);
+      $('#tf').hidden = !Q || !r.canEdit;
+      if (Q && r.canEdit) $('#ans').focus();
+    } catch (err) { $('#chat').innerHTML = ''; say($('#tmsg'), err.message); }
+  }
+  function tab(t) {
+    $$('[data-tab]').forEach(x => x.setAttribute('aria-pressed', String(x.dataset.tab === t)));
+    $('#train').hidden = t !== 'train'; $('#all').hidden = t !== 'all';
+    if (t === 'train') chat(); else load();
+  }
+  $$('[data-tab]').forEach(b => b.addEventListener('click', () => tab(b.dataset.tab)));
+  $('#tf').addEventListener('submit', async e => {
+    e.preventDefault(); if (!Q) return; const btn = $('#send'); busy(btn, true);
+    try {
+      const r = await api('/api/knowledge/train', { method: 'POST', body: { topic: Q.topic, question: Q.q, kind: Q.kind, answer: $('#ans').value } });
+      $('#ans').value = ''; say($('#tmsg'), r.pending ? 'انحفظ، وينتظر اعتماد المدير.' : 'انحفظ.', true); await chat();
+    } catch (err) { say($('#tmsg'), err.message); }
+    busy(btn, false);
+  });
+  $('#skip').addEventListener('click', () => { if (Q) { skipped.push(Q.topic); say($('#tmsg'), ''); chat(); } });
+
   await shell({ active: 'knowledge', title: 'المعرفة' });
   await load();
+  tab('train');
   $('#kind').innerHTML = Object.entries(S.kinds).map(([k, v]) => `<option value="${k}">${esc(v.ar)}</option>`).join('');
   $('#mods').innerHTML = S.modules.map(m => `<label><input type="checkbox" value="${m}"> ${esc(MOD[m] || m)}</label>`).join('');
   $('#pv').innerHTML = S.modules.map(m => `<option value="${m}">${esc(MOD[m] || m)}</option>`).join('');
