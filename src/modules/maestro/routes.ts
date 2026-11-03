@@ -45,6 +45,16 @@ export const agent = { GET: handle(async (request, e: Env) => {
   catch (err) { console.error('maestro_agent_failed', (err as Error).message); return json(502, { error: 'المدير مو متاح الحين، جرّب بعد شوي' }); }
 }) };
 
+// Paperclip may be seen by people outside the company: what we write there carries the user's name, never their email
+const byline = (user: { name?: string }) => (user.name || '').trim().slice(0, 80) || 'مستخدم اللوحة';
+// Each chat message wakes the CEO agent (paid, on Grok): at most CHAT_PER_MINUTE per user, counted from audit_log
+const CHAT_PER_MINUTE = 10;
+async function chatTooFast(cfg: Cfg, uid: string): Promise<boolean> {
+  const since = new Date(Date.now() - 60_000).toISOString();
+  const r = await sb<unknown[]>(cfg, `/rest/v1/audit_log?select=action&action=eq.maestro_chat&user_id=eq.${encodeURIComponent(uid)}&at=gte.${encodeURIComponent(since)}&limit=${CHAT_PER_MINUTE}`, { admin: true });
+  return r.ok && Array.isArray(r.data) && r.data.length >= CHAT_PER_MINUTE;
+}
+
 // The chat with «المدير» (docs/maestro-plan.md §3). GET reads the thread; POST adds a message (needs edit).
 export const chat = {
   GET: handle(async (request, e: Env) => {
@@ -66,11 +76,12 @@ export const chat = {
     if (!pc) return notSet(user);
     const text = String((await readJson(request)).text || '').trim().slice(0, 4000);
     if (!text) return json(400, { error: 'اكتب رسالتك' });
+    if (await chatTooFast(cfg, user.uid)) return json(429, { error: `وصلت الحد: ${CHAT_PER_MINUTE} رسائل بالدقيقة. جرّب بعد دقيقة.` });
     const c = await companyOf(cfg, user.co);
     if (!c?.paperclip_company_id) return json(409, { error: 'اربط الشركة بالمدير أول' });
     try {
       const issue = await pc.chatIssue(c.paperclip_company_id, true);
-      await pc.say(issue!, `${text}\n\n— ${user.email} من لوحة Well`);
+      await pc.say(issue!, `${text}\n\n— ${byline(user)}`);
       await audit(cfg, user, 'maestro_chat', { target: { issue: issue!.id } });
       return json(200, { ok: true });
     } catch (err) {
@@ -114,7 +125,7 @@ export const task = { POST: handle(async (request, e: Env) => {
     catch (err) { console.error('maestro_project_failed', (err as Error).message); return json(502, { error: 'ما قدرنا نجهز مهام التاب، جرّب بعد شوي' }); }
   }
   // The agents run in Paperclip: the company's knowledge goes with each task so they write by it
-  const issue = await pc.createIssue(c.paperclip_company_id, { ...t, description: withBrief(`${t.description}\n\n— طلبها ${user.email} من لوحة Well`, await knowledgeFor(cfg, user.co, 'maestro')) });
+  const issue = await pc.createIssue(c.paperclip_company_id, { ...t, description: withBrief(`${t.description}\n\n— طلبها ${byline(user)}`, await knowledgeFor(cfg, user.co, 'maestro')) });
   await audit(cfg, user, 'maestro_task', { target: { issue: issue.id, title: t.title, agent: t.assigneeAgentId || null, tab: tab?.key || null } });
   return json(200, { ok: true, issue });
 }) };
