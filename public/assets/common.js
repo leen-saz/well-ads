@@ -135,6 +135,7 @@ export async function shell({ active, title, badge = '', tools = '' }) {
   app.onkeydown = e => { if (e.key === 'Escape') close(); };
   restoreDraft();
   warmAnalytics(app);
+  import('./vitals.js').then(m => m.measure()).catch(() => {});
   // Every live tab ends with its lessons card (learning loop, docs/learning-loops.md)
   if ((me.modules || []).some(m => m.key === active && m.status === 'live' && m.ok && !m.locked)) import('./lessons.js').then(m => m.lessonsCard(active)).catch(() => {});
   return me;
