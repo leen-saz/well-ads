@@ -67,6 +67,16 @@ export function summarize(d: Dash, from: string, to: string): Totals {
   return totals(spend, impr, clicks, res);
 }
 
+// Which platform moved a number the most between two periods (the 'why' line under a card)
+export function mover(d: Dash, from: string, to: string, pf: string, pt: string, field: 'spend' | 'res'): { platform: string; delta: number } | null {
+  const by = new Map<string, number>();
+  for (const x of inRange(d, from, to)) by.set(x.ad.platform, (by.get(x.ad.platform) ?? 0) + x[field]);
+  for (const x of inRange(d, pf, pt)) by.set(x.ad.platform, (by.get(x.ad.platform) ?? 0) - x[field]);
+  let best: { platform: string; delta: number } | null = null;
+  for (const [platform, delta] of by) if (Math.abs(delta) > 0.004 && (!best || Math.abs(delta) > Math.abs(best.delta))) best = { platform, delta };
+  return best;
+}
+
 // Same length, just before `from`
 export function previous(from: string, to: string): [string, string] {
   const days = Math.round((Date.parse(to) - Date.parse(from)) / 864e5) + 1;
