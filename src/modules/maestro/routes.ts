@@ -1,7 +1,7 @@
 // /api/maestro/*: the maestro tab. Agents, tasks and pending approvals of the user's company, from Paperclip.
 // Connecting a company to Paperclip is owner-only; creating tasks needs edit and deciding approvals needs approve on `maestro`.
 import { sb, json, readJson, handle, requireUser, audit, isOwner, atLeast, notEnabled, type AuthEnv, type Cfg } from '../../lib/auth';
-import { budget, client, cleanTask, STATUS, tabOf, withBrief, type PcEnv } from './paperclip';
+import { budget, client, cleanTask, performance, STATUS, tabOf, withBrief, type PcEnv } from './paperclip';
 import { MODULES } from '../registry';
 import { knowledgeFor } from '../knowledge/knowledge';
 
@@ -27,6 +27,22 @@ export const state = { GET: handle(async (request, e: Env) => {
   try { [agents, issues, approvals, company, projects] = await Promise.all([pc.agents(c.paperclip_company_id), pc.issues(c.paperclip_company_id), pc.approvals(c.paperclip_company_id), pc.company(c.paperclip_company_id), pc.projects(c.paperclip_company_id)]); }
   catch (err) { console.error('maestro_state_failed', (err as Error).message); return json(502, { error: 'المدير مو متاح الحين، جرّب بعد شوي' }); }
   return json(200, { connected: true, owner: isOwner(user, cfg), canApprove: atLeast(user, 'maestro', 'approve', cfg), canEdit: atLeast(user, 'maestro', 'edit', cfg), statuses: STATUS, budget: budget(company), tabs: TABS, projectTabs: projectTabs(projects), agents, issues, approvals });
+}) };
+
+// One agent's performance card for the last 7 or 30 days
+export const agent = { GET: handle(async (request, e: Env) => {
+  const { cfg, user } = await requireUser(request, e, 'maestro');
+  const pc = client(e);
+  if (!pc) return notSet(user);
+  const u = new URL(request.url);
+  const id = u.searchParams.get('id') || '';
+  const days = u.searchParams.get('days') === '7' ? 7 : 30;
+  if (!/^[A-Za-z0-9_-]{1,64}$/.test(id)) return json(400, { error: 'طلب غير صحيح' });
+  const c = await companyOf(cfg, user.co);
+  if (!c?.paperclip_company_id) return json(409, { error: 'اربط الشركة بالمدير أول' });
+  const since = Date.now() - days * 864e5;
+  try { return json(200, { days, ...performance(await pc.agentInputs(c.paperclip_company_id, id, new Date(since).toISOString()), since) }); }
+  catch (err) { console.error('maestro_agent_failed', (err as Error).message); return json(502, { error: 'المدير مو متاح الحين، جرّب بعد شوي' }); }
 }) };
 
 export const connect = { POST: handle(async (request, e: Env) => {

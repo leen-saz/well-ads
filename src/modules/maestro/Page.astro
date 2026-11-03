@@ -98,6 +98,12 @@ import { ClientRouter } from 'astro:transitions';
           <div class="msg" id="dmsg" role="status"></div>
         </form>
       </dialog>
+      <dialog id="pdlg" class="mx-dlg" aria-labelledby="perfName">
+        <div class="mx-bar"><h2 id="perfName" style="margin:0"></h2>
+          <div class="seg" id="perfDays" role="group" aria-label="الفترة"><button type="button" data-days="7">7 أيام</button><button type="button" data-days="30">30 يوم</button></div></div>
+        <div id="perfBody"></div>
+        <div class="bar" style="margin-top:16px"><button class="btn ghost" type="button" id="perfClose">إغلاق</button></div>
+      </dialog>
     </main>
   </div>
 </div>

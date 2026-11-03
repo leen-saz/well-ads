@@ -45,6 +45,14 @@ export function client(e: PcEnv, f: typeof fetch = fetch) {
       if (!made?.id) throw new Error('no project');
       return String(made.id);
     },
+    // An agent's performance inputs. heartbeat-runs and costs?from= are in Paperclip's code but not its docs: a source
+    // that fails comes back null and the card shows what it has.
+    agentInputs: async (c: string, agentId: string, from: string) => {
+      if (!ID.test(agentId)) throw new Error('bad agent');
+      const q = (p: string) => call('GET', p).catch(() => null);
+      const [costs, runs, done] = await Promise.all([q(`${co(c)}/costs/by-agent?from=${encodeURIComponent(from)}`), q(`${co(c)}/heartbeat-runs?agentId=${agentId}&limit=100`), q(`${co(c)}/issues?assigneeAgentId=${agentId}&status=done&limit=100`)]);
+      return { cost: costs === null ? null : items(costs).find(r => r.agentId === agentId) || {}, runs: runs === null ? null : items(runs), done: done === null ? null : items(done) };
+    },
     approvals: async (c: string) => items(await call('GET', `${co(c)}/approvals?status=pending`)),
     // only approvals that belong to this company: checked against its own pending list first
     decide: async (c: string, approvalId: string, act: 'approve' | 'reject') => {
@@ -72,3 +80,23 @@ export const budget = (b: Json | null | undefined) => {
   const cap = Number(b?.budgetMonthlyCents) || 0, spent = Number(b?.spentMonthlyCents) || 0;
   return { cap, spent, pct: cap > 0 ? Math.min(100, Math.round((spent / cap) * 100)) : null };
 };
+
+// An agent's card for a period: tasks done, spend, run success rate, average task time, last error. Numbers only.
+const at = (x: Json, ...ks: string[]) => { for (const k of ks) { const t = Date.parse(String(x[k] ?? '')); if (t) return t; } return 0; };
+export function performance(inp: { cost: Json | null; runs: Json[] | null; done: Json[] | null }, since: number) {
+  const runs = inp.runs?.filter(r => at(r, 'startedAt', 'createdAt', 'started_at') >= since) ?? null;
+  const ended = runs?.filter(r => !['queued', 'scheduled_retry', 'running'].includes(String(r.status))) ?? [];
+  const ok = ended.filter(r => r.status === 'succeeded').length;
+  const done = inp.done?.filter(i => at(i, 'completedAt', 'completed_at', 'updatedAt') >= since) ?? null;
+  const spans = (done || []).map(i => at(i, 'completedAt', 'completed_at') - at(i, 'startedAt', 'started_at')).filter(ms => ms > 0);
+  const failed = ended.filter(r => r.status === 'failed' || r.status === 'timed_out').sort((a, b) => at(b, 'finishedAt', 'startedAt') - at(a, 'finishedAt', 'startedAt'))[0];
+  return {
+    done: done ? done.length : null,
+    spentCents: inp.cost ? Math.round(Number(inp.cost.costCents) || 0) : null,
+    runs: runs ? ended.length : null,
+    successRate: ended.length ? Math.round((ok / ended.length) * 100) : null,
+    avgTaskMinutes: spans.length ? Math.round(spans.reduce((a, b) => a + b, 0) / spans.length / 60000) : null,
+    lastRunAt: runs?.length ? new Date(Math.max(...runs.map(r => at(r, 'startedAt', 'createdAt')))).toISOString() : null,
+    lastError: failed ? String(failed.error || failed.status).slice(0, 200) : null,
+  };
+}
