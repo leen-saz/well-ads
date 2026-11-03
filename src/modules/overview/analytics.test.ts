@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { depts, heat, order, pace, share } from './analytics';
+import { depts, heat, order, outcome, pace, share } from './analytics';
 import type { Dash } from './numbers';
 
 // Made-up numbers: a lead ad (Instagram, IV), a WhatsApp ad (Snap, midwife), and a hidden platform counted in totals only
@@ -59,5 +59,21 @@ describe('overview: the rest of the analytics page', () => {
     expect(d[0]!.cpl).toBeCloseTo(220 / 7, 6);
     expect(d[1]).toMatchObject({ spend: 80, leads: 0, cpl: null });
     expect(d[2]).toMatchObject({ spend: 0, cpl: null });
+  });
+
+  it('outcome: CRM closings by lead day or payment day, return on spend, cost per customer', () => {
+    const C = { ...D, crm: {
+      rows: [['a', '2026-10-01', '2026-10-12', true, 500], ['a', '2026-10-02', '', false, 0], ['b', '2026-09-28', '2026-10-03', true, 300], ['gone', '2026-10-01', '2026-10-01', true, 999]],
+      paid_all: [['2026-10-01', '2026-10-12', 500, 'ad'], ['2026-09-28', '2026-10-03', 300, 'ad'], ['2026-10-05', '2026-10-06', 200, 'walk-in']],
+    } } as unknown as Dash;
+    const o = outcome(C, F, T, 'lead');
+    expect(o).toMatchObject({ spend: 300, impr: 3000, clicks: 30, leads: 7, conv: 5, crm: true, crmLeads: 2, booked: 1, value: 500, closings: 2, paid: 700 });
+    expect(o.closeRate).toBe(50);
+    expect(o.mer).toBeCloseTo(700 / 300, 6);
+    expect(o.cac).toBe(150);
+    expect(o.cpl).toBeCloseTo(220 / 7, 6);           // lead ads only: a and the hidden lead ad
+    const p = outcome(C, F, T, 'paid');
+    expect(p).toMatchObject({ booked: 1, value: 300, closings: 2, paid: 500 });   // paid on 10-03 and 10-06; 10-12 is after the period
+    expect(outcome(D, F, T)).toMatchObject({ crm: false, closings: 0, cac: null });
   });
 });

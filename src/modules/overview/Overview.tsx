@@ -9,6 +9,7 @@ import { SectionCards } from './SectionCards';
 import { TrendChart } from './TrendChart';
 import { AdsTable } from './AdsTable';
 import { DeptsCard, HeatCard, PaceCard, ShareCard } from './AnalyticsCards';
+import { OutcomeCards } from './OutcomeCards';
 import { longDay } from './format';
 
 const RANGES = [['7', '7 أيام'], ['30', '30 يوم'], ['90', '90 يوم']] as const;
@@ -52,6 +53,7 @@ export default function Overview() {
         </ToggleGroup>
       </div>
       <SectionCards data={data} from={from} to={to} />
+      <OutcomeCards data={data} from={from} to={to} />
       <TrendChart data={data} from={from} to={to} />
       <div className="grid gap-4 lg:grid-cols-2">
         <ShareCard data={data} from={from} to={to} />
