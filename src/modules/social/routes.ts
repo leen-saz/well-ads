@@ -2,9 +2,10 @@
 // Publishing itself runs from the Worker cron (src/modules/social/cron.ts), never from the browser.
 import { sb, json, readJson, handle, requireUser, audit, isOwner, type Cfg } from '../../lib/auth';
 import { scoped } from '../../lib/tenant';
-import { SOCIAL, validate, canApprove, cleanApprovers } from './social';
+import { SOCIAL, validate, canApprove, cleanApprovers, suggestPrompt, cleanSuggestion, type SocialPlatform } from './social';
 import { check } from '../compliance/compliance';
-import { rulesFor } from '../knowledge/knowledge';
+import { knowledgeFor, rulesFor, withKnowledge } from '../knowledge/knowledge';
+import { generate, pick, type LlmEnv } from '../../lib/llm';
 import { MEDIA_TYPES, MEDIA_MAX, mediaKey } from './media';
 
 type Row = Record<string, unknown>;
@@ -107,4 +108,21 @@ export const upload = { POST: handle(async (request, e) => {
   await files.put(key, body, { httpMetadata: { contentType: type, cacheControl: 'public, max-age=31536000, immutable' } });
   const url = new URL('/m/' + key.slice('social/'.length), request.url).toString();
   return json(200, { ok: true, url, type: type.startsWith('video/') ? 'video' : 'image' });
+}) };
+
+// A post written by the social model (Grok when XAI_API_KEY is set, else Workers AI), checked before it is shown
+export const suggest = { POST: handle(async (request, e: Parameters<typeof requireUser>[1] & LlmEnv) => {
+  const { cfg, user } = await requireUser(request, e, 'social', { write: true });
+  const b = await readJson(request);
+  const brief = String(b.brief || '').trim().slice(0, 1000);
+  const platforms = [...new Set(Array.isArray(b.platforms) ? b.platforms : [])].filter((p): p is SocialPlatform => typeof p === 'string' && p in SOCIAL);
+  if (!brief) return json(400, { error: 'اكتب الفكرة في خانة النص أول' });
+  if (!platforms.length) return json(400, { error: 'اختر منصة وحدة على الأقل' });
+  if (!pick(e, 'social')) return json(503, { error: 'الكتابة بالذكاء الاصطناعي غير مفعّلة في هالبيئة' });
+  let out;
+  try { out = await generate(e, 'social', { messages: withKnowledge([{ role: 'user', content: suggestPrompt(brief, platforms) }], await knowledgeFor(cfg, user.co, 'social')), max_tokens: 600 }); }
+  catch { return json(503, { error: 'الذكاء الاصطناعي ما رد الحين، جرّب بعد دقيقة' }); }
+  const text = cleanSuggestion(out.response, platforms);
+  if (text.length < 20) return json(502, { error: 'ما طلع نص واضح، جرّب مرة ثانية' });
+  return json(200, { body: text, engine: out.engine, compliance: check(text, await rulesFor(cfg, user.co)) });
 }) };

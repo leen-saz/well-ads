@@ -94,3 +94,18 @@ export async function publishPost(post: Draft, t: Tokens, f: typeof fetch = fetc
   const ok = Object.values(results).filter(r => r.ok).length;
   return { status: ok === post.platforms.length ? 'published' : ok ? 'partial' : 'failed', results };
 }
+
+// "اكتب لي نص": the post written by the social model (Grok when keyed) from what the user typed, within the
+// shortest limit of the chosen platforms. Checked like any post; the user edits it before scheduling.
+export function suggestPrompt(brief: string, platforms: SocialPlatform[]): string {
+  const max = Math.min(...platforms.map(p => SOCIAL[p].max), 600);
+  return `اكتب منشور سوشال بالسعودي لشركة رعاية صحية منزلية في الرياض، مخاطبة المذكر، للمنصات: ${platforms.map(p => SOCIAL[p].name).join('، ')}.
+الفكرة: ${brief}
+القواعد: جمل قصيرة، الفائدة قبل الميزة، دعوة واضحة للحجز، بدون وعد بشفاء أو نتيجة، بدون "الأفضل" أو "الوحيد"، بدون تجارب مرضى، بدون سعر إلا لو موجود في المعرفة ومعه الإجمالي.
+الحد ${max} حرف. رد بنص المنشور بس، بدون شرح وبدون علامات تنصيص.`;
+}
+export function cleanSuggestion(raw: string, platforms: SocialPlatform[]): string {
+  const max = Math.min(...platforms.map(p => SOCIAL[p].max), 600);
+  const t = String(raw || '').trim().replace(/^["«“]+|["»”]+$/g, '').replace(/^(المنشور|النص)\s*:\s*/, '').trim();
+  return t.length > max ? t.slice(0, max).replace(/\s+\S*$/, '') : t;
+}
