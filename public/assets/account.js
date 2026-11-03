@@ -1,9 +1,10 @@
-import { $, api, say, esc, shell, busy, settingsTabs } from './common.js';
+import { $, api, say, esc, shell, busy, settingsTabs, freshMe } from './common.js';
 
 // Runs on every visit of this page (assets/router.js calls it after each ClientRouter navigation).
 export default async function mount() {
 
-  shell({ active: 'settings', title: 'الإعدادات' }).then(me => { settingsTabs('account', me); $('#who').textContent = `${me.name ? me.name + ' · ' : ''}${me.email}`; }).catch(() => {});
+  // The sidebar's stored copy has no email: the line under the title takes it from the server
+  shell({ active: 'settings', title: 'الإعدادات' }).then(me => { settingsTabs('account', me); return freshMe(); }).then(me => { $('#who').textContent = `${me.name ? me.name + ' · ' : ''}${me.email}`; }).catch(() => {});
   $('#f').addEventListener('submit', async e => {
     e.preventDefault();
     if ($('#p1').value !== $('#p2').value) { say($('#msg'), 'الباسووردين مو نفس بعض'); return; }
