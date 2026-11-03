@@ -29,7 +29,7 @@ export default async function mount() {
           <span class="kn-chip">${x.modules.length ? x.modules.map(m => esc(MOD[m] || m)).join('، ') : 'كل الموديولات'}</span>
           ${x.active ? '' : '<span class="kn-chip wait">موقوف</span>'}
           <span class="kn-act">${S.canEdit ? `<button class="btn" type="button" data-edit="${x.id}">عدّل</button>` : ''}${S.canApprove ? `<button class="btn" type="button" data-on="${x.id}" data-v="${!x.active}">${x.active ? 'أوقف' : 'فعّل'}</button>` : ''}</span></div>
-        ${x.question ? `<span class="muted" style="font-size:13px">من شات التدريب: ${esc(x.question)}</span>` : ''}
+        ${x.source === 'brand_file' ? '<span class="kn-chip">من دليل العلامة، راجعه وفعّله</span>' : x.question ? `<span class="muted" style="font-size:13px">من شات التدريب: ${esc(x.question)}</span>` : ''}
         <p class="kn-body" dir="auto">${esc(x.body)}</p>
         <span class="muted" style="font-size:12px">${esc(x.updated_by || x.created_by || '')} · ${when(x.updated_at || x.created_at)}</span></article>`).join('');
     }).join('');
@@ -78,10 +78,17 @@ export default async function mount() {
         <span class="kn-act">${B.canApprove ? `<button class="btn" type="button" data-bon="${a.id}" data-v="${!a.active}">${a.active ? 'أوقف' : 'فعّل'}</button>` : ''}</span></div>
       ${a.kind === 'colors' ? `<div class="kn-sw">${String(a.value || '').split(' ').map(c => `<i style="background:${/^#[0-9a-f]{6}$/i.test(c) ? c : 'transparent'}" title="${esc(c)}"></i>`).join('')}</div>`
         : a.kind === 'logo' || a.kind === 'reference' ? `<img class="kn-thumb" alt="${esc(a.title || KAR[a.kind])}" src="${fileUrl(a.id)}" loading="lazy">`
-        : `<a href="${fileUrl(a.id)}" target="_blank" rel="noopener">افتح الملف</a>`}
+        : `<a href="${fileUrl(a.id)}" target="_blank" rel="noopener">افتح الملف</a>${a.kind === 'guide' && B.canEdit ? ` <button class="btn sm secondary" type="button" data-guide="${a.id}">طلّع منه بنود معرفة</button>` : ''}`}
       ${a.description ? `<span class="muted" style="font-size:13px">${esc(a.description)}</span>` : ''}
       <span class="muted" style="font-size:12px">${esc(a.updated_by || a.created_by || '')} · ${when(a.updated_at || a.created_at)}</span></article>`).join('')
       : '<div class="card pad"><b>ما فيه ملفات هوية للحين.</b><p class="muted" style="margin:6px 0 0">ابدأ بالشعار والألوان.</p></div>';
+    // The guide's text → proposed entries, saved switched off for review under "كل المعرفة"
+    $$('[data-guide]').forEach(b => b.addEventListener('click', async () => {
+      busy(b, true);
+      try { const r = await api('/api/knowledge/brandguide', { method: 'POST', body: { id: +b.dataset.guide } }); say($('#bmsg'), `انضاف ${r.added} بند موقوف من الدليل. راجعها وفعّل اللي يناسب من «كل المعرفة».`, true); }
+      catch (err) { say($('#bmsg'), err.message); }
+      busy(b, false);
+    }));
     $$('[data-bon]').forEach(b => b.addEventListener('click', async () => {
       busy(b, true);
       try { await api('/api/knowledge/brand', { method: 'PATCH', body: { id: +b.dataset.bon, active: b.dataset.v === 'true' } }); await brandLoad(); }
