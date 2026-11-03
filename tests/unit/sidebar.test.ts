@@ -10,7 +10,8 @@ const me = (over: { off?: string[]; role?: string } = {}) => ({
   role: over.role ?? 'owner', email: 'o@x', dashboards: [] as string[],
   modules: MODULES.map(m => ({ ...m, ok: true, locked: (over.off ?? []).includes(m.key) })),
 });
-const items = (m: ReturnType<typeof me>) => (sections(m, L) as { items: Item[] }[]).flatMap(s => s.items);
+const SAME: Record<string, string> = { '/overview/': '/', '/overview/creative/': '/?view=creative' };
+const items = (m:ReturnType<typeof me>) => (sections(m, L) as { items: Item[] }[]).flatMap(s => s.items);
 
 describe('sidebar', () => {
   for (const [name, m] of [['Overview on', me()], ['Overview off', me({ off: ['overview'] })]] as const) {
@@ -19,6 +20,9 @@ describe('sidebar', () => {
       const dup = (xs: string[]) => xs.filter((x, i) => xs.indexOf(x) !== i);
       expect(dup(list.map(i => i.text))).toEqual([]);
       expect(dup(list.map(i => i.href))).toEqual([]);
+      // The Overview pages and the dashboard's are the same views at different links
+      const view = (h: string) => SAME[h] ?? h;
+      expect(dup(list.map(i => view(i.href)))).toEqual([]);
     });
   }
   it('opens the Overview pages when Overview is on, the dashboard when it is off', () => {
