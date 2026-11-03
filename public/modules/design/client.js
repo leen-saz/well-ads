@@ -12,6 +12,8 @@ const font = () => (fontReady ||= Promise.all([
   new FontFace('ThmanyahDesign', 'url(/assets/fonts/thmanyahsans-Regular.woff2)', { weight: '400' }).load(),
 ]).then(fs => fs.forEach(f => document.fonts.add(f))).catch(() => {}));
 
+const FF = brand => (brand && brand.font) || 'ThmanyahDesign';
+
 function lines(ctx, text, max) {
   const words = String(text || '').split(/\s+/).filter(Boolean), out = [];
   let cur = '';
@@ -21,7 +23,8 @@ function lines(ctx, text, max) {
 }
 
 // Photo (cover) → soft brand gradient at the bottom → headline, sub, CTA pill. All on a canvas, nothing uploaded.
-export function draw(canvas, size, v, img, pal) {
+// brand = the company's approved logo and font (المعرفة ← الهوية والبصريات), when there are any.
+export function draw(canvas, size, v, img, pal, brand = null) {
   canvas.width = size.w; canvas.height = size.h;
   const ctx = canvas.getContext('2d'), W = size.w, H = size.h, pad = Math.round(W * 0.07);
   ctx.fillStyle = '#ECE6FB'; ctx.fillRect(0, 0, W, H);
@@ -31,20 +34,25 @@ export function draw(canvas, size, v, img, pal) {
   ctx.fillStyle = g; ctx.fillRect(0, 0, W, H);
   ctx.direction = 'rtl'; ctx.textAlign = 'right'; ctx.textBaseline = 'alphabetic';
   const hs = Math.round(Math.min(W, H) * 0.085), ss = Math.round(hs * 0.48), cs = Math.round(hs * 0.42);
-  ctx.font = `700 ${cs}px ThmanyahDesign, sans-serif`;
+  ctx.font = `700 ${cs}px ${FF(brand)}, sans-serif`;
   const ctaW = ctx.measureText(v.cta).width + cs * 2.2, ctaH = cs * 2.3, ctaY = H - pad - ctaH;
   ctx.fillStyle = acc; ctx.beginPath(); ctx.roundRect(W - pad - ctaW, ctaY, ctaW, ctaH, ctaH / 2); ctx.fill();
   ctx.fillStyle = C.white; ctx.fillText(v.cta, W - pad - cs * 1.1, ctaY + ctaH * 0.66);
-  ctx.font = `400 ${ss}px ThmanyahDesign, sans-serif`;
+  ctx.font = `400 ${ss}px ${FF(brand)}, sans-serif`;
   const sub = lines(ctx, v.sub, W - pad * 2).slice(0, 3);
   let y = ctaY - ss * 1.1;
   for (const l of sub.reverse()) { ctx.fillText(l, W - pad, y); y -= ss * 1.45; }
-  ctx.font = `700 ${hs}px ThmanyahDesign, sans-serif`;
+  ctx.font = `700 ${hs}px ${FF(brand)}, sans-serif`;
   const head = lines(ctx, v.headline, W - pad * 2).slice(0, 3);
   y -= hs * 0.25;
   for (const l of head.reverse()) { ctx.fillText(l, W - pad, y); y -= hs * 1.2; }
-  ctx.font = `700 ${Math.round(hs * 0.5)}px ThmanyahDesign, sans-serif`; ctx.textAlign = 'left'; ctx.direction = 'ltr';
-  ctx.fillStyle = C.white; ctx.fillText('Well.', pad, pad + hs * 0.5);
+  if (brand && brand.logo) {
+    const lh = Math.round(hs * 0.9), lw = Math.min(W * 0.35, brand.logo.width * (lh / brand.logo.height));
+    ctx.drawImage(brand.logo, pad, pad, lw, lw * (brand.logo.height / brand.logo.width));
+  } else {
+    ctx.font = `700 ${Math.round(hs * 0.5)}px ${FF(brand)}, sans-serif`; ctx.textAlign = 'left'; ctx.direction = 'ltr';
+    ctx.fillStyle = C.white; ctx.fillText('Well.', pad, pad + hs * 0.5);
+  }
 }
 
 
@@ -77,7 +85,30 @@ export function palette(imgs) {
 
 export default async function mount() {
   let res = null, pick = 0, img = null, refs = [], pal = null;
-  const usePal = () => ($('#useRefColors')?.checked && pal) || null;
+  // The brand from المعرفة: colours, logo and font load once; the references uploaded here still win for colours
+  let brand = null;
+  const usePal = () => ($('#useRefColors')?.checked && pal) || (brand && brand.pal) || null;
+  const picture = url => new Promise((ok, no) => { const i = new Image(); i.onload = () => ok(i); i.onerror = no; i.src = url; });
+  const rgb = hex => [1, 3, 5].map(i => parseInt(hex.slice(i, i + 2), 16));
+  async function loadBrand() {
+    let b;
+    try { b = (await api('/api/design/options')).brand; } catch { return; }
+    if (!b) return;
+    const out = { logo: null, font: null, pal: null };
+    if (b.logo) out.logo = await picture(`/api/design/brandfile?id=${b.logo}`).catch(() => null);
+    if (b.fonts && b.fonts[0]) {
+      try { const f = new FontFace('BrandFont', `url(/api/design/brandfile?id=${b.fonts[0].id})`); await f.load(); document.fonts.add(f); out.font = 'BrandFont'; } catch { /* default font */ }
+    }
+    if (b.colors && b.colors.length) {
+      const dark = rgb(b.colors[0]), lum = 0.2126 * dark[0] + 0.7152 * dark[1] + 0.0722 * dark[2];
+      out.pal = { dark: lum > 90 ? dark.map(x => Math.round(x * 0.45)) : dark, accent: b.colors[1] || b.colors[0], swatches: b.colors.map(rgb) };
+    } else if (b.refs && b.refs.length) {
+      const imgs = (await Promise.all(b.refs.map(r => picture(`/api/design/brandfile?id=${r.id}`).catch(() => null)))).filter(Boolean);
+      if (imgs.length) out.pal = palette(imgs);
+    }
+    brand = out;
+    if (out.logo || out.font || out.pal) $('#brandNote').hidden = false;
+  }
   const sizes = () => $$('input[name=size]:checked').map(x => x.value);
 
   async function render() {
@@ -86,7 +117,7 @@ export default async function mount() {
     const v = res.variants[pick];
     $('#prev').innerHTML = sizes().map(k => `<figure class="dz-fig"><canvas data-size="${k}" aria-label="معاينة ${esc(res.sizes[k].label)}"></canvas>
       <figcaption><span>${esc(res.sizes[k].label)}</span><a class="btn sm secondary" data-dl="${k}" href="#" download="well-${k}.png">نزّل PNG</a></figcaption></figure>`).join('') || '<p class="muted">اختر مقاس واحد على الأقل.</p>';
-    $$('#prev canvas').forEach(c => draw(c, res.sizes[c.dataset.size], v, img, usePal()));
+    $$('#prev canvas').forEach(c => draw(c, res.sizes[c.dataset.size], v, img, usePal(), brand));
   }
 
   function drawResult() {
@@ -138,4 +169,5 @@ export default async function mount() {
   $('#prev').addEventListener('click', e => { const a = e.target.closest('[data-dl]'); if (!a) return; const c = $(`#prev canvas[data-size="${a.dataset.dl}"]`); a.href = c.toDataURL('image/png'); });
 
   await shell({ active: 'design', title: 'التصميم' });
+  await loadBrand();
 }
