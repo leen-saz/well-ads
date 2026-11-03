@@ -1,11 +1,11 @@
-// فيديو الموشن (المدير): التصميم والصوت المعتمدين ← خطة مشاهد من المخرج (ChatGPT، والواجهة ما تسمي الموديل) ← معاينة، «تعديل»، سجل النسخ، والاعتماد.
+// التصميم ← موشن جرافيك: التصميم والصوت المعتمدين ← خطة مشاهد من المخرج (ChatGPT، والواجهة ما تسمي الموديل) ← معاينة، «تعديل»، سجل النسخ، والاعتماد.
 // الرسم في canvas على وقت الصوت (frame.js)، والتنزيل يسجّل نفس الرسم مع الصوت في المتصفح.
 import { $, api, say, esc, shell, busy, when, pageSignal } from '/assets/common.js';
 import { SIZE, frame, draw } from '/modules/motion/frame.js';
 
 export default async function mount() {
   // The sidebar and title first: a fault further down must never leave a blank page
-  await shell({ active: 'maestro', title: 'فيديو الموشن', tools: '<a class="btn sm secondary" href="/maestro/">المدير</a>' });
+  await shell({ active: 'design', title: 'التصميم' });
   let S = {}, P = null, V = [], cur = null, img = null, raf = 0, audioCtx = null;
   const audio = $('#voiceOut'), canvas = $('#stage'), ctx = canvas.getContext('2d');
   const id = new URL(location.href).searchParams.get('id');
@@ -20,7 +20,7 @@ export default async function mount() {
 
   function list() {
     const ps = S.projects || [];
-    $('#list').innerHTML = ps.length ? ps.map(p => `<a class="card mv-item" href="/maestro/video/?id=${p.id}"><b>${esc(p.title)}</b>
+    $('#list').innerHTML = ps.length ? ps.map(p => `<a class="card mv-item" href="/design/video/?id=${p.id}"><b>${esc(p.title)}</b>
       <span class="so-chip">${p.status === 'approved' ? `معتمد · v${p.approved_version}` : 'مسودة'}</span><span class="muted">${when(p.created_at)}</span></a>`).join('')
       : '<p class="muted">ما فيه فيديوهات للحين.</p>';
   }
@@ -48,15 +48,15 @@ export default async function mount() {
   }
 
   async function openProject() {
-    const r = await api(`/api/maestro/videos?id=${encodeURIComponent(id)}`);
+    const r = await api(`/api/design/videos?id=${encodeURIComponent(id)}`);
     S = { ...S, ...r }; P = r.project; V = r.versions || [];
     $('#new').hidden = true; $('#project').hidden = false;
     $('#ptitle').textContent = P.title;
     $('#ready').hidden = S.ready;
     img = new Image();
     img.onload = paint;
-    img.src = `/api/maestro/videofile?p=${P.id}&kind=design`;
-    audio.src = `/api/maestro/videofile?p=${P.id}&kind=voice`;
+    img.src = `/api/design/videofile?p=${P.id}&kind=design`;
+    audio.src = `/api/design/videofile?p=${P.id}&kind=voice`;
     choose(P.approved_version || V[V.length - 1]?.version || 1);
   }
 
@@ -64,7 +64,7 @@ export default async function mount() {
 
   // ---- new video: upload the two files, then ask for v1
   async function upload(kind, file) {
-    const res = await fetch(`/api/maestro/videofile?kind=${kind}`, { method: 'POST', body: file, headers: { 'content-type': file.type }, credentials: 'same-origin' });
+    const res = await fetch(`/api/design/videofile?kind=${kind}`, { method: 'POST', body: file, headers: { 'content-type': file.type }, credentials: 'same-origin' });
     const d = await res.json().catch(() => ({}));
     if (!res.ok) throw new Error(d.error || 'ما انرفع الملف');
     return d;
@@ -85,9 +85,9 @@ export default async function mount() {
     try {
       const [dk, vk, secs] = await Promise.all([upload('design', d), upload('voice', v), seconds(v)]);
       say($('#nmsg'), 'المخرج يكتب المشاهد…', true);
-      const r = await api('/api/maestro/video', { method: 'POST', body: { title: $('#vtitle').value, headline: $('#headline').value, script: $('#script').value, ratio: $('#ratio').value,
+      const r = await api('/api/design/video', { method: 'POST', body: { title: $('#vtitle').value, headline: $('#headline').value, script: $('#script').value, ratio: $('#ratio').value,
         design_key: dk.key, design_mime: dk.mime, voice_key: vk.key, voice_mime: vk.mime, voice_seconds: secs } });
-      location.href = `/maestro/video/?id=${r.id}`;
+      location.href = `/design/video/?id=${r.id}`;
     } catch (err) { say($('#nmsg'), err.message); busy(btn, false); }
   };
 
@@ -100,7 +100,7 @@ export default async function mount() {
     if (!change) return say($('#emsg'), 'اكتب وش تبي تغيّر');
     busy(btn, true); say($('#emsg'), 'المخرج يسوّي النسخة الجديدة…', true);
     try {
-      const r = await api('/api/maestro/videoedit', { method: 'POST', body: { id: P.id, from: cur, change } });
+      const r = await api('/api/design/videoedit', { method: 'POST', body: { id: P.id, from: cur, change } });
       $('#change').value = ''; $('#editBox').hidden = true;
       await openProject(); choose(r.version);
       say($('#msg'), `انضافت v${r.version}. النسخ القديمة باقية في السجل.${warn(r.warnings)}`, !r.warnings?.length);
@@ -113,7 +113,7 @@ export default async function mount() {
   $('#approve').onclick = async () => {
     if (!confirm(`تعتمد v${cur} نسخة نهائية للنشر؟`)) return;
     busy($('#approve'), true);
-    try { await api('/api/maestro/videoapprove', { method: 'POST', body: { id: P.id, version: cur } }); await openProject(); say($('#msg'), `v${cur} معتمدة`, true); }
+    try { await api('/api/design/videoapprove', { method: 'POST', body: { id: P.id, version: cur } }); await openProject(); say($('#msg'), `v${cur} معتمدة`, true); }
     catch (err) { say($('#msg'), err.message); }
     busy($('#approve'), false);
   };
@@ -142,7 +142,7 @@ export default async function mount() {
   };
 
   try {
-    const r = await api('/api/maestro/videos');
+    const r = await api('/api/design/videos');
     S = r;
     if (r.setup) { $('#setup').innerHTML = `<p class="so-note">${esc(r.setup)}</p>`; return; }
     $('#ready').hidden = r.ready;
