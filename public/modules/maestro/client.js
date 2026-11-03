@@ -66,9 +66,9 @@ export default async function mount() {
     const ok = a => (filter === 'all' || (filter === 'active' ? ['active', 'idle', 'running'].includes(a.status) : a.status === filter)) && matches(a.name, a.title, a.role);
     const as = (S.agents || []).filter(ok);
     if (!as.length) return empty('agents', 'ما فيه إيجنتس للحين.');
-    const card = a => `<article class="card mx-item"><span class="mx-dot ${a.status === 'running' ? 'in_progress' : a.status === 'error' ? 'blocked' : a.status === 'paused' ? 'cancelled' : 'done'}"></span>
+    const card = a => `<article class="card mx-item" data-agent="${esc(a.id)}"><span class="mx-dot ${a.status === 'running' ? 'in_progress' : a.status === 'error' ? 'blocked' : a.status === 'paused' ? 'cancelled' : 'done'}"></span>
       <b>${esc(a.name)}</b><span class="muted">${esc(a.title || a.role || '')}</span><span class="so-chip">${AG[a.status] || esc(a.status)}</span>
-      ${spend(a)}${tabsOf(a.id).length ? `<span class="muted">التابات: ${esc(tabsOf(a.id).join('، '))}</span>` : ''}${working(a.id) ? `<span class="mx-now">يشتغل على: ${esc(working(a.id).identifier || '')} ${esc(working(a.id).title || '')}</span>` : ''}</article>`;
+      ${spend(a)}${tabsOf(a.id).length ? `<span class="muted">التابات: ${esc(tabsOf(a.id).join('، '))}</span>` : ''}${working(a.id) ? `<span class="mx-now">يشتغل على: ${esc(working(a.id).identifier || '')} ${esc(working(a.id).title || '')}</span>` : ''}<button type="button" class="btn sm ghost" data-perf>الأداء</button></article>`;
     if (layout === 'list') return `<div class="mx-list">${as.map(card).join('')}</div>`;
     // Org chart: who reports to whom
     const ids = new Set(as.map(a => a.id));
@@ -124,6 +124,24 @@ export default async function mount() {
     try { await api('/api/maestro/approval', { method: 'POST', body: { id: b.closest('[data-id]').dataset.id, action: b.dataset.act } }); await load(); }
     catch (err) { say($('#msg'), err.message); busy(b, false); }
   });
+  // ---- an agent's performance card (/api/maestro/agent): tasks done, spend, success rate, task time, last error
+  let perfAgent = null, perfDays = 30;
+  const n = (v, unit = '') => v == null ? '—' : `${fmt(v)}${unit}`;
+  async function perf() {
+    const a = (S.agents || []).find(x => x.id === perfAgent); if (!a) return;
+    $('#perfName').textContent = a.name + (a.title || a.role ? ' · ' + (a.title || a.role) : '');
+    $$('#perfDays [data-days]').forEach(b => b.setAttribute('aria-pressed', String(Number(b.dataset.days) === perfDays)));
+    $('#perfBody').innerHTML = '<p class="muted">يحمّل…</p>';
+    try {
+      const p = await api(`/api/maestro/agent?id=${encodeURIComponent(a.id)}&days=${perfDays}`);
+      const k = [[n(p.done), 'مهام خلصت'], [p.spentCents == null ? '—' : usd(p.spentCents), 'الصرف'], [n(p.successRate, '%'), `نجاح التشغيلات (${n(p.runs)})`], [n(p.avgTaskMinutes, ' د'), 'متوسط وقت المهمة']];
+      $('#perfBody').innerHTML = `<div class="mx-kpis">${k.map(([v, t]) => `<div class="card mx-kpi"><b>${esc(v)}</b><span>${t}</span></div>`).join('')}</div>
+        ${spend(a)}<p class="muted">آخر تشغيل: ${p.lastRunAt ? esc(new Date(p.lastRunAt).toLocaleString('ar-SA-u-nu-latn')) : '—'}</p>${p.lastError ? `<p class="so-note">آخر خطأ: ${esc(p.lastError)}</p>` : ''}`;
+    } catch (err) { $('#perfBody').innerHTML = `<p class="muted">${esc(err.message)}</p>`; }
+  }
+  $('#view').addEventListener('click', e => { const b = e.target.closest('[data-perf]'); if (!b) return; perfAgent = b.closest('[data-agent]').dataset.agent; $('#pdlg').showModal(); perf(); });
+  $('#perfDays').addEventListener('click', e => { const b = e.target.closest('[data-days]'); if (b) { perfDays = Number(b.dataset.days); perf(); } });
+  $('#perfClose').onclick = () => $('#pdlg').close();
   $('#cancel').onclick = () => $('#dlg').close();
   $('#f').addEventListener('submit', async e => {
     e.preventDefault();
@@ -136,7 +154,7 @@ export default async function mount() {
   });
   // Keyboard shortcuts, ignored while typing
   document.addEventListener('keydown', e => {
-    if (e.metaKey || e.ctrlKey || e.altKey || /^(INPUT|TEXTAREA|SELECT)$/.test(document.activeElement?.tagName || '') || $('#dlg')?.open) return;
+    if (e.metaKey || e.ctrlKey || e.altKey || /^(INPUT|TEXTAREA|SELECT)$/.test(document.activeElement?.tagName || '') || $('#dlg')?.open || $('#pdlg')?.open) return;
     if (e.key === 'c' || e.key === 'C') { e.preventDefault(); openNew(); }
     else if (e.key === '/') { e.preventDefault(); $('#q').focus(); }
     else if (/^[1-4]$/.test(e.key) && !$('#board').hidden) { view = VIEWS[Number(e.key) - 1]; filter = 'all'; draw(); }

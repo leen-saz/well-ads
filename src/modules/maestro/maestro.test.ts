@@ -1,6 +1,6 @@
 // Maestro: the Paperclip client (company-scoped paths, approval ownership check) and task validation. No network.
 import { describe, expect, it, vi } from 'vitest';
-import { budget, client, cleanTask, items, PROJECT, tabOf } from './paperclip';
+import { budget, client, cleanTask, items, performance, PROJECT, tabOf } from './paperclip';
 
 describe('paperclip client', () => {
   it('needs an https URL and a token', () => {
@@ -61,5 +61,30 @@ describe('paperclip client', () => {
     expect(budget({ budgetMonthlyCents: 10000, spentMonthlyCents: 2500 })).toEqual({ cap: 10000, spent: 2500, pct: 25 });
     expect(budget({ budgetMonthlyCents: 0, spentMonthlyCents: 700 })).toEqual({ cap: 0, spent: 700, pct: null });
     expect(budget(null)).toEqual({ cap: 0, spent: 0, pct: null });
+  });
+
+  it("sums an agent's card from runs, done tasks and cost", () => {
+    const since = Date.parse('2026-11-01T00:00:00Z');
+    const p = performance({
+      cost: { agentId: 'a1', costCents: 1234.4 },
+      runs: [
+        { status: 'succeeded', startedAt: '2026-11-02T10:00:00Z' }, { status: 'succeeded', startedAt: '2026-11-02T11:00:00Z' },
+        { status: 'failed', startedAt: '2026-11-03T09:00:00Z', finishedAt: '2026-11-03T09:05:00Z', error: 'timeout calling xAI' },
+        { status: 'running', startedAt: '2026-11-03T12:00:00Z' }, { status: 'failed', startedAt: '2026-10-20T00:00:00Z' },
+      ],
+      done: [
+        { startedAt: '2026-11-02T10:00:00Z', completedAt: '2026-11-02T10:30:00Z' }, { startedAt: '2026-11-02T11:00:00Z', completedAt: '2026-11-02T12:30:00Z' },
+        { startedAt: '2026-10-01T00:00:00Z', completedAt: '2026-10-02T00:00:00Z' },
+      ],
+    }, since);
+    expect(p).toEqual({ done: 2, spentCents: 1234, runs: 3, successRate: 67, avgTaskMinutes: 60, lastRunAt: '2026-11-03T12:00:00.000Z', lastError: 'timeout calling xAI' });
+    expect(performance({ cost: null, runs: null, done: null }, since)).toEqual({ done: null, spentCents: null, runs: null, successRate: null, avgTaskMinutes: null, lastRunAt: null, lastError: null });
+  });
+
+  it('reads agent inputs and survives a missing source', async () => {
+    const f = vi.fn(async (u: string) => u.includes('heartbeat-runs') ? new Response('{"error":"nope"}', { status: 404 }) : new Response(JSON.stringify(u.includes('costs') ? [{ agentId: 'a1', costCents: 5 }, { agentId: 'a2', costCents: 9 }] : [{ id: 'i1' }]))) as unknown as typeof fetch;
+    const pc = client({ PAPERCLIP_URL: 'https://pc.example', PAPERCLIP_TOKEN: 't' }, f)!;
+    expect(await pc.agentInputs('c1', 'a1', '2026-11-01T00:00:00.000Z')).toEqual({ cost: { agentId: 'a1', costCents: 5 }, runs: null, done: [{ id: 'i1' }] });
+    await expect(pc.agentInputs('c1', 'a/1', 'x')).rejects.toThrow();
   });
 });
