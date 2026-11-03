@@ -1,7 +1,8 @@
 // باقي صفحة التحليلات: حصة كل منصة، وتيرة الشهر وتوقعه، تكلفة الليد حسب يوم الأسبوع، والأقسام. الحساب في analytics.ts.
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { type Dash, platformName } from './numbers';
-import { depts, heat, pace, share } from './analytics';
+import { depts, heat, pace, share, wins } from './analytics';
+import { canCompare } from './numbers';
 import { qty, sar } from './format';
 
 interface Props { data: Dash; from: string; to: string }
@@ -103,6 +104,24 @@ export function DeptsCard({ data, from, to }: Props) {
               <span className="text-sm tabular-nums text-muted-foreground">{sar(x.spend)} · {qty(x.leads)} ليد · تكلفة الليد {sar(x.cpl)}</span>
             </div>
           </a>)) : <p className="text-sm text-muted-foreground">ما فيه أقسام.</p>}
+      </CardContent>
+    </Card>
+  );
+}
+
+export function WinsCard({ data, from, to }: Props) {
+  const ok = canCompare(data, from, to);
+  const list = wins(data, from, to, ok);
+  const days = Math.round((Date.parse(to) - Date.parse(from)) / 864e5) + 1;
+  return (
+    <Card>
+      <CardHeader><CardTitle>{days === 7 ? 'نجاحات هالأسبوع' : 'نجاحات الفترة'}</CardTitle>
+        <CardDescription>{ok ? 'مقارنة بنفس المدة اللي قبلها.' : 'ما فيه فترة سابقة كاملة للمقارنة، فاللي يطلع هنا من الفترة نفسها بس.'}</CardDescription></CardHeader>
+      <CardContent className="grid gap-3">
+        {list.length ? list.map(w => (
+          <div key={w.title} className="flex items-start gap-3"><span aria-hidden="true" className="text-xl leading-none">{w.icon}</span>
+            <div><b>{w.title}</b><div className="text-sm text-muted-foreground">{w.detail}</div></div></div>))
+          : <p className="text-sm text-muted-foreground">ما فيه تحسّن واضح في هالفترة مقارنة باللي قبلها.</p>}
       </CardContent>
     </Card>
   );

@@ -1,7 +1,7 @@
 // The rest of the analytics overview page, for the overview tab: each platform's share, the month's pace and forecast,
 // cost per lead by weekday, and departments. Pure functions over /dash.json, same rules as pipeline/template.html
 // (renderBI, renderPace, renderDeptMini). rows = [key, day, spend, impr, clicks, leads, conv]
-import { type Ad, type Dash, HIDDEN, addDays, holes } from './numbers';
+import { type Ad, type Dash, HIDDEN, addDays, family, holes, platformName } from './numbers';
 
 const num = (v: unknown): number => (typeof v === 'number' && Number.isFinite(v) ? v : 0);
 // The main dashboard's platform order (channels.py), then any other platform present
@@ -149,4 +149,85 @@ export function outcome(d: Dash, from: string, to: string, by: CrmBy = 'lead'): 
     clickToResult: clicks ? (100 * (leads + conv)) / clicks : null, closeRate: crmLeads ? (100 * booked) / crmLeads : null,
     roas: spend && value ? value / spend : null, mer: ratio(paid, spend), cac: ratio(spend, closings),
   };
+}
+
+// ---- Wins of the period against the one before it (template.html renderWins). "New winning ads" stays out: the main
+// dashboard keeps it off (WIN_ON = false) until winners are judged on closed patients.
+export interface Win { icon: string; title: string; detail: string }
+// Idea = the same creative across ad sets and platforms: the name without the uploaded file prefix and the Spark/copy suffix
+export function ideaKey(name: string): string {
+  let n = String(name || '').replace(/[‎‏‪-‮]/g, '');
+  n = n.replace(/^.*?\.(mp4|mov|webm|jpe?g|png|gif)_/i, '').replace(/\s*-\s*(spark|own)\s*$/i, '').replace(/\s*[-–]?\s*(copy|نسخة)(\s*\d+)?\s*$/i, '');
+  return n.toLowerCase().replace(/\s+/g, ' ').trim() || 'ad:' + name;
+}
+type Sum = { spend: number; leads: number; conv: number; ls: number; ln: number };
+const blank = (): Sum => ({ spend: 0, leads: 0, conv: 0, ls: 0, ln: 0 });
+const cplOf = (o: Sum) => (o.ln ? o.ls / o.ln : null);
+function sums(d: Dash, from: string, to: string) {
+  const tot = blank(), plat = new Map<string, Sum>(), dept = new Map<string, Sum>(), idea = new Map<string, Sum & { name: string }>(), day = new Map<string, number>(), ads = new Set<string>();
+  for (const x of rows(d, from, to)) {
+    const lead = x.ad.goal === 'lead';
+    for (const o of [tot, plat.get(x.ad.platform) ?? (plat.set(x.ad.platform, blank()), plat.get(x.ad.platform)!), dept.get(x.ad.dept || 'brand') ?? (dept.set(x.ad.dept || 'brand', blank()), dept.get(x.ad.dept || 'brand')!)]) {
+      o.spend += x.spend; o.leads += x.leads; o.conv += x.conv; if (lead) { o.ls += x.spend; o.ln += x.leads; }
+    }
+    if (lead) { const k = ideaKey(x.ad.name), o = idea.get(k) ?? { ...blank(), name: x.ad.name }; o.ls += x.spend; o.ln += x.leads; idea.set(k, o); }
+    day.set(x.day, (day.get(x.day) ?? 0) + x.leads);
+    ads.add(x.key);
+  }
+  return { tot, plat, dept, idea, day, ads };
+}
+const pctCh = (x: number | null, y: number | null) => (x != null && y ? (100 * (x - y)) / Math.abs(y) : null);
+const r0 = (v: number) => Math.round(v).toLocaleString('en-US');
+const r2 = (v: number | null) => (v == null ? '—' : v.toFixed(2));
+const few = (n: number, one: string, two: string, many: string) => (n === 1 ? one : n === 2 ? two : `${n} ${n <= 10 ? many : one}`);
+
+export function wins(d: Dash, from: string, to: string, compare: boolean): Win[] {
+  const out: Win[] = [];
+  const A = sums(d, from, to), days = Math.round((Date.parse(to) - Date.parse(from)) / 864e5) + 1;
+  const pf = addDays(from, -days), pt = addDays(from, -1), B = compare ? sums(d, pf, pt) : null;
+  if (B) {
+    const c = pctCh(A.tot.leads, B.tot.leads);
+    if (c != null && c >= 3) out.push({ icon: '📈', title: `الليدز زادت ${r0(c)}%`, detail: `${r0(A.tot.leads)} ليد مقابل ${r0(B.tot.leads)}` });
+    const l = pctCh(cplOf(A.tot), cplOf(B.tot));
+    if (l != null && l <= -3) out.push({ icon: '💰', title: `تكلفة الليد نزلت ${r0(-l)}%`, detail: `${r2(cplOf(A.tot))} ريال مقابل ${r2(cplOf(B.tot))}` });
+    const m = pctCh(A.tot.conv, B.tot.conv);
+    if (m != null && m >= 5 && A.tot.conv >= 10) out.push({ icon: '💬', title: `المحادثات زادت ${r0(m)}%`, detail: `${r0(A.tot.conv)} محادثة مقابل ${r0(B.tot.conv)}` });
+  }
+  const best = [...A.idea.values()].filter(y => y.ln >= 10).sort((p, q) => p.ls / p.ln - q.ls / q.ln)[0];
+  if (best) out.push({ icon: '🎬', title: 'أرخص فكرة في الفترة', detail: `${best.name} · ${r0(best.ln)} ليد بـ ${r2(best.ls / best.ln)} ريال` });
+  if (B) {
+    const better = (a: Map<string, Sum>, b: Map<string, Sum>, keys: string[]) => keys.map(k => {
+      const x = a.get(k) ?? blank(), y = b.get(k) ?? blank();
+      return { k, x, y, c: x.ln >= 10 && cplOf(y) ? pctCh(cplOf(x), cplOf(y)) : null };
+    }).filter(r => r.c != null && r.c <= -5).sort((p, q) => p.c! - q.c!)[0];
+    const names = depts(d, from, to);
+    const dp = better(A.dept, B.dept, names.map(x => x.key));
+    if (dp) out.push({ icon: '🩺', title: `${names.find(x => x.key === dp.k)!.name}: تكلفة الليد نزلت ${r0(-dp.c!)}%`, detail: `${r2(cplOf(dp.x))} ريال مقابل ${r2(cplOf(dp.y))}` });
+    const pl = better(A.plat, B.plat, [...A.plat.keys()]);
+    if (pl) out.push({ icon: '📣', title: `${platformName(family(pl.k))}: تكلفة الليد نزلت ${r0(-pl.c!)}%`, detail: `${r2(cplOf(pl.x))} ريال مقابل ${r2(cplOf(pl.y))}` });
+  }
+  // A lead day above every day before the period, since the data starts
+  const top = [...A.day.entries()].sort((p, q) => q[1] - p[1])[0];
+  if (top && d.range?.start) {
+    const before = sums(d, d.range.start, addDays(from, -1)), rec = Math.max(0, ...before.day.values());
+    if (top[1] > rec && rec > 0) out.push({ icon: '⭐', title: 'أعلى يوم ليدز من بداية البيانات', detail: `${top[0]} · ${r0(top[1])} ليد` });
+  }
+  // Launches: campaigns and ads whose first spend is inside the period
+  const firstAd = new Map<string, string>(), firstCamp = new Map<string, string>();
+  for (const r of d.rows ?? []) {
+    const k = String(r[0]), day = String(r[1]), ad = d.ads?.[k];
+    if (!num(r[2]) || !ad) continue;
+    const b = k.split('|')[0]!, c = `${ad.platform}|${ad.campaign}`;
+    if (!firstAd.has(b) || day < firstAd.get(b)!) firstAd.set(b, day);
+    if (!firstCamp.has(c) || day < firstCamp.get(c)!) firstCamp.set(c, day);
+  }
+  const camps = new Set<string>(), newAds = new Set<string>();
+  for (const k of A.ads) {
+    const ad = d.ads![k]!, b = k.split('|')[0]!, c = `${ad.platform}|${ad.campaign}`;
+    if ((firstCamp.get(c) ?? '') >= from) camps.add(c);
+    if ((firstAd.get(b) ?? '') >= from) newAds.add(b);
+  }
+  const launched = [camps.size && few(camps.size, 'حملة', 'حملتين', 'حملات'), newAds.size && few(newAds.size, 'إعلان جديد', 'إعلانين جداد', 'إعلانات جديدة')].filter(Boolean);
+  if (launched.length) out.push({ icon: '🚀', title: `أطلقنا ${launched.join(' و')}`, detail: 'أول صرف لها كان في هالفترة' });
+  return out;
 }

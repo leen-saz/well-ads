@@ -8,7 +8,7 @@ import { type Dash, addDays, lastDay } from './numbers';
 import { SectionCards } from './SectionCards';
 import { TrendChart } from './TrendChart';
 import { AdsTable } from './AdsTable';
-import { DeptsCard, HeatCard, PaceCard, ShareCard } from './AnalyticsCards';
+import { DeptsCard, HeatCard, PaceCard, ShareCard, WinsCard } from './AnalyticsCards';
 import { OutcomeCards } from './OutcomeCards';
 import { longDay } from './format';
 
@@ -60,7 +60,10 @@ export default function Overview() {
         <PaceCard data={data} from={from} to={to} />
       </div>
       <div className="grid gap-4 lg:grid-cols-2">
+        <WinsCard data={data} from={from} to={to} />
         <DeptsCard data={data} from={from} to={to} />
+      </div>
+      <div className="grid gap-4">
         <HeatCard data={data} from={from} to={to} />
       </div>
       <AdsTable data={data} from={from} to={to} />
