@@ -168,7 +168,7 @@ describe('brand files: guards', () => {
     expect((await brand.PATCH(req('/api/knowledge/brand', await cookieFor(ed), { method: 'PATCH', body: JSON.stringify({ id: 5, value: '#1D1069' }) }), E)).status).toBe(200);
     expect(calls.find(c => c.method === 'PATCH')?.url).toContain('kind=eq.colors');
     // colour codes sent for a file that is not the colours entry: no row matches, and that is a clear 404, not an empty 200
-    stub(ed, (url, init) => (init.method === 'PATCH' ? [] : []));
+    stub(ed, () => []);
     const miss = await brand.PATCH(req('/api/knowledge/brand', await cookieFor(ed), { method: 'PATCH', body: JSON.stringify({ id: 9, value: '#1D1069' }) }), E);
     expect(miss.status).toBe(404);
     expect(((await miss.json()) as { error?: string }).error).toBeTruthy();
