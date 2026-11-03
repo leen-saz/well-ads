@@ -38,7 +38,7 @@ export const login = { POST: handle(async (request, e) => {
   }
   const s = sessionFor(profile, cfg);
   await audit(cfg, s, 'login');
-  return json(200, { ok: true, next: safePath(body.next) || home(s, cfg) }, { 'set-cookie': setCookie(await sign(s, cfg.secret), SESSION_HOURS * 3600) });
+  return json(200, { ok: true, next: safePath(body.next) || home() }, { 'set-cookie': setCookie(await sign(s, cfg.secret), SESSION_HOURS * 3600) });
 }) };
 
 // Logout is POST and same-origin only, so another site cannot log the user out with a link.
@@ -64,7 +64,7 @@ export const refresh = { GET: handle(async (request, e) => {
   fresh.exp = s.exp; // renewing never extends the session
   const left = Math.max(0, Math.floor((s.exp - Date.now()) / 1000));
   if (!left) return html(401, 'انتهت الجلسة.');
-  return out(safePath(url.searchParams.get('next')) || home(fresh, cfg), setCookie(await sign(fresh, cfg.secret), left));
+  return out(safePath(url.searchParams.get('next')) || home(), setCookie(await sign(fresh, cfg.secret), left));
 }) };
 
 // Sends a reset link. Same reply every time so nobody learns whether an email is registered.

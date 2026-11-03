@@ -95,7 +95,7 @@ function drawSide(side, me, active) {
   side.dataset.sig = sig;
   const initials = (me.name || me.email).trim().split(/\s+/).map(w => w[0]).join('').slice(0, 2).toUpperCase();
   // كل الأقسام تطلع للكل: اللي ما له صلاحية عليه أو مقفل لشركته يطلع بقفل
-  side.innerHTML = `<a class="brand mark" href="/" data-astro-reload aria-label="Well">Well<i>.</i></a>
+  side.innerHTML = `<div class="side-top"><a class="brand mark" href="/today/" aria-label="Well">Well<i>.</i></a><button class="btn icon ghost side-x" type="button" data-close-side aria-label="${L('إغلاق القائمة', 'Close menu')}">${icon('x')}</button></div>
     ${sections(me, L).map(sec => `<div class="side-sec"><small class="side-h">${esc(sec.label)}</small>${sec.items.map(it => {
       const ic = it.svg ? `<svg class="i" viewBox="0 0 24 24" aria-hidden="true">${it.svg}</svg>` : icon(it.ic);
       if (it.state === 'ok' || it.state === 'soon') return `<a class="navi${it.state === 'soon' ? ' soon' : ''}" href="${it.href}" data-k="${esc(it.key)}"${FULL(it.href)}${it.key === active ? ' aria-current="page"' : ''}>${ic}<span>${esc(it.text)}</span>${it.state === 'soon' ? `<small class="tag">${L('قريباً', 'Soon')}</small>` : ''}</a>`;
@@ -126,14 +126,34 @@ export async function shell({ active, title, badge = '', tools = '' }) {
     if (Date.now() - ME.t > FRESH) fetchMe().then(v => { if (JSON.stringify(v) !== JSON.stringify(me)) { drawSide(side, v, active); bindMe(); } }).catch(() => {});
   }
   drawSide(side, me, active);
-  $('#top', app).innerHTML = `<div class="t"><button class="btn icon ghost burger" id="burger" aria-label="القائمة">${icon('menu')}</button><h1>${esc(title)}</h1>${badge}</div><div class="tools"><span id="tools">${tools}</span>${langSwitch()}</div>`;
+  $('#top', app).innerHTML = `<div class="t"><button class="btn icon ghost burger" id="burger" aria-label="القائمة" aria-controls="side" aria-expanded="false">${icon('menu')}</button><h1>${esc(title)}</h1>${badge}</div><div class="tools"><span id="tools">${tools}</span>${langSwitch()}</div>`;
   bindMe();
-  $('#burger').onclick = () => app.classList.add('open');
-  $('.scrim', app).onclick = () => app.classList.remove('open');
+  drawer(app, side);
   warmAnalytics(app);
   // Every live tab ends with its lessons card (learning loop, docs/learning-loops.md)
   if ((me.modules || []).some(m => m.key === active && m.status === 'live' && m.ok && !m.locked)) import('./lessons.js').then(m => m.lessonsCard(active)).catch(() => {});
   return me;
+}
+
+// Phone menu: closed it is out of the tab order (inert), open it moves focus in; ✕, the scrim and Escape close it
+// and focus goes back to the menu button. aria-expanded follows. The sidebar persists across pages, so this re-binds
+// its buttons on every page and resets the state for the new one.
+const narrow = matchMedia('(max-width:900px)');
+function drawer(app, side) {
+  const burger = $('#burger', app);
+  const set = open => {
+    app.classList.toggle('open', open);
+    burger?.setAttribute('aria-expanded', String(open));
+    side.inert = narrow.matches && !open;
+    if (open) side.querySelector('[data-close-side]')?.focus();
+  };
+  const close = () => { if (app.classList.contains('open')) { set(false); burger?.focus(); } };
+  set(false);
+  burger.onclick = () => set(true);
+  $('.scrim', app).onclick = close;
+  side.onclick = e => { if (e.target.closest('[data-close-side]')) close(); else if (e.target.closest('a[href]')) set(false); };
+  document.addEventListener('keydown', e => { if (e.key === 'Escape') close(); }, { signal: pageSignal() });
+  narrow.addEventListener('change', () => set(false), { signal: pageSignal() });
 }
 
 // The analytics page lives outside the app shell (built by the pipeline). Once this page is idle, fetch it and

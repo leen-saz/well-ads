@@ -1,6 +1,6 @@
 ---
 import { ClientRouter } from 'astro:transitions';
-// التصميم: بريف من أفضل إعلاناتنا، نصوص مفحوصة، ومعاينة لكل مقاس (النص طبقة فوق الصورة).
+// التصميم: تفاصيل تصميم من أفضل إعلاناتنا، نصوص مفحوصة، ومعاينة لكل مقاس (النص طبقة فوق الصورة).
 ---
 <!doctype html>
 <html lang="ar" dir="rtl">
@@ -77,10 +77,10 @@ import { ClientRouter } from 'astro:transitions';
   <div class="main">
     <header class="topbar" id="top"></header>
     <main class="content" id="content">
-      <p class="muted" style="margin:0 0 14px">يبني بريف التصميم من أفضل إعلاناتنا، ويقترح نصوص مفحوصة على قواعد الامتثال، ويرسم معاينة لكل مقاس. النص دايم طبقة فوق الصورة، والصورة ما تطلع من جهازك.</p>
+      <p class="muted" style="margin:0 0 14px">يبني تفاصيل التصميم من أفضل إعلاناتنا، ويقترح نصوص مفحوصة على قواعد الامتثال، ويرسم معاينة لكل مقاس. النص دايم طبقة فوق الصورة، والصورة ما تطلع من جهازك.</p>
       <div class="so-grid">
         <section class="card pad">
-          <h2>البريف</h2>
+          <h2>تفاصيل التصميم</h2>
           <form id="f" novalidate>
             <label for="type">النوع</label><select id="type"><option value="ad">إعلان</option><option value="post">بوست عضوي</option><option value="story">ستوري</option></select>
             <label for="offer">وش نعلن عنه</label><input id="offer" type="text" placeholder="مثال: جلسة فيتامين سي بالوريد في البيت">
@@ -97,11 +97,11 @@ import { ClientRouter } from 'astro:transitions';
             <label class="dz-check"><input type="checkbox" id="useRefColors" checked> خذ الألوان من المراجع</label>
             <p class="muted" id="brandNote" hidden style="margin:6px 0 0;font-size:13px">يستخدم شعارك وألوانك وخطك من المعرفة ← الهوية والبصريات تلقائياً.</p>
             <p class="muted dz-note">الصور تنصغّر في جهازك، وتنرسل نسخة صغيرة للذكاء الاصطناعي عشان يوصف أسلوبها بس. ما تنحفظ عندنا.</p>
-            <div class="bar" style="margin-top:14px"><button class="btn primary" type="submit">جهّز البريف</button></div>
+            <div class="bar" style="margin-top:14px"><button class="btn primary" type="submit">جهّز تفاصيل التصميم</button></div>
             <div class="msg" id="msg" role="status"></div>
           </form>
         </section>
-        <div class="ls-out"><section class="card pad" id="ref"><p class="muted">املأ البريف واضغط "جهّز البريف".</p></section><section class="card pad" id="vars"></section></div>
+        <div class="ls-out"><section class="card pad" id="ref"><p class="muted">املأ تفاصيل التصميم واضغط "جهّز تفاصيل التصميم".</p></section><section class="card pad" id="vars"></section></div>
       </div>
       <h2 style="margin:18px 0 10px">المعاينة</h2>
       <div class="dz-prev" id="prev"></div>

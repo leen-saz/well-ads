@@ -25,7 +25,7 @@ export default async function mount() {
     C('lang', 'لغة الإعلان', 'seg', { options: { ar: 'عربي', en: 'إنجليزي' }, value: 'ar' }),
     C('influencer', 'المؤثرة (اختياري)', 'text'),
     C('wa_message', 'رسالة واتساب الخاصة', 'text', { hint: 'لكل مؤثرة رسالة مختلفة عشان نعرف مصدر المحادثة.', optional: true }),
-    C('creative', 'رابط الكرييتف (فيديو أو صورة)', 'url', { required: true }),
+    C('creative', 'رابط المادة الإعلانية (فيديو أو صورة)', 'url', { required: true }),
     C('primary', 'النص الأساسي', 'textarea', { optional: true }),
     C('headline', 'العنوان', 'text', { optional: true }),
     C('cta', 'زر الدعوة', 'select', { options: { whatsapp: 'راسلنا واتساب', book: 'احجز الآن', learn: 'اعرف أكثر', signup: 'سجّل' }, optional: true }),
@@ -88,7 +88,7 @@ export default async function mount() {
       <section class="card pad"><h2>الأساسيات</h2><div class="grid2">${COMMON.slice(0, 6).map(field).join('')}</div></section>
       <section class="card pad"><h2>الجمهور</h2><div class="grid2">${COMMON.slice(6, 11).map(field).join('')}</div></section>
       <section class="card pad"><h2>خيارات ${PNAME[platform]}</h2><div class="grid2">${PLAT[platform].map(field).join('')}</div></section>
-      <section class="card pad"><h2>الكرييتف والنص</h2><div class="grid2">${COMMON.slice(11).map(field).join('')}</div><div id="moh" class="msg"></div></section>
+      <section class="card pad"><h2>المادة الإعلانية والنص</h2><div class="grid2">${COMMON.slice(11).map(field).join('')}</div><div id="moh" class="msg"></div></section>
       <section class="card pad bar launch-foot"><span class="muted">الطلب يروح للوحة القرارات، يمر على المراجع، ويحتاج موافقة لين قبل أي إطلاق.</span><span class="grow"></span>
         <button class="btn primary" type="submit">${icon('check')}أرسل للموافقة</button><div class="msg" id="msg" role="status" style="flex-basis:100%"></div></section>`;
     $('#start').value = new Date(Date.now() + 864e5).toISOString().slice(0, 10);

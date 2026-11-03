@@ -101,10 +101,10 @@ const EN = {
   'فتح الكل':'Expand all',
   'طي الكل':'Collapse all',
   'المنصة ◂ الحملة ◂ المجموعة ◂ الإعلان. اضغط على ▸ عشان تفتح المستوى اللي تحته.':'Platform ◂ campaign ◂ ad set ◂ ad. Click ▸ to open the level below.',
-  'الكرييتف':'Creatives',
+  'المواد الإعلانية':'Creatives',
   'وش يعني كل كرت؟':'What does each card mean?',
-  'كل كرت = فكرة وحدة: نفس الكرييتف مجمّع من كل المنصات والحملات والنسخ (copy، spark…)، وأرقامه مجموعها. اضغط على الكرت عشان تشوف كل إعلان منها لحاله. تفاصيل كل إعلان موجودة في لوحة التحليلات.':'Each card = one idea: the same creative grouped across platforms, campaigns and copies (copy, spark…), with its numbers summed. Click the card to see each ad on its own. Per-ad detail lives in the analytics dashboard.',
-  'متحمس تعرف؟ اضغط زر «عرض الكرييتف» لمعرفته':'Curious? Press «View creative» to see it',
+  'كل كرت = فكرة وحدة: نفس المادة الإعلانية مجمّعة من كل المنصات والحملات والنسخ (copy، spark…)، وأرقامه مجموعها. اضغط على الكرت عشان تشوف كل إعلان منها لحاله. تفاصيل كل إعلان موجودة في لوحة التحليلات.':'Each card = one idea: the same creative grouped across platforms, campaigns and copies (copy, spark…), with its numbers summed. Click the card to see each ad on its own. Per-ad detail lives in the analytics dashboard.',
+  'متحمس تعرف؟ اضغط زر «عرض المادة الإعلانية» لمعرفته':'Curious? Press «View creative» to see it',
   'الكل':'All',
   'فعّال':'Active',
   'متوقف':'Paused',
@@ -207,8 +207,8 @@ const EN = {
   'بانتظار الصلاحية':'Awaiting permission',
   'مصادر ناقصة':'Missing sources',
   'إغلاق':'Close',
-  'تحليلات الكرييتف':'Creative analytics',
-  'تحليلات الكرييتف · Well':'Well creative analytics',
+  'تحليلات المواد الإعلانية':'Creative analytics',
+  'تحليلات المواد الإعلانية · Well':'Well creative analytics',
   'رجوع':'Back',
   'نشط':'Active',
   'بحث':'Search',
@@ -225,7 +225,7 @@ const EN = {
   'اليوم الحالي جزئي':'Today is partial',
   'الأرقام للإعلانات النشطة الآن فقط':'Numbers are for ads active now',
   'الأرقام للإعلانات المتوقفة فقط':'Numbers are for paused ads only',
-  'عرض الكرييتف':'View creative',
+  'عرض المادة الإعلانية':'View creative',
   'لا توجد فترة سابقة كاملة للمقارنة':'No full previous period to compare',
   'مقارنة بـ':'compared with',
   'الفترة:':'Range:',
@@ -235,7 +235,7 @@ const EN = {
   'لا توجد بيانات.':'No data.',
   'لا توجد بيانات في هذه الفترة.':'No data in this range.',
   'ما فيه ليدز في هذي الفترة.':'No leads in this range.',
-  'لا يوجد كرييتف يطابق الفلاتر في هذه الفترة.':'No creative matches the filters in this range.',
+  'لا توجد مادة إعلانية تطابق الفلاتر في هذه الفترة.':'No creative matches the filters in this range.',
   'لا يوجد منشور يطابق البحث أو الفلاتر في هذه الفترة.':'No post matches the search or filters in this range.',
   'لا توجد حملات.':'No campaigns.',
   'لا توجد إعلانات صرفت.':'No ads with spend.',
@@ -269,7 +269,7 @@ const EN = {
   'المنصة':'Platform',
   'نوع حملة جوجل':'Google campaign type',
   'حالة الإعلان':'Ad status',
-  'حالة الكرييتف':'Creative status',
+  'حالة المواد الإعلانية':'Creative status',
   'التجميع':'Grouping',
   'الفلاتر':'Filters',
   'الملخص':'Summary',
@@ -361,9 +361,9 @@ function localize(){
   const lang=LANG==='en'?'en':'ar', dir=LANG==='en'?'ltr':'rtl';
   document.documentElement.lang=lang; document.documentElement.dir=dir;
   if(wrap){ wrap.dir=dir; wrap.lang=lang; }
-  const title = CREATIVE_ONLY ? 'تحليلات الكرييتف · Well' : 'لوحة إعلانات Well';
+  const title = CREATIVE_ONLY ? 'تحليلات المواد الإعلانية · Well' : 'لوحة إعلانات Well';
   document.title=LANG==='en'?EN[title]:title;
-  const ht=document.getElementById('headTitle'); if(ht && CREATIVE_ONLY) ht.textContent = LANG==='en' ? EN['تحليلات الكرييتف'] : 'تحليلات الكرييتف';
+  const ht=document.getElementById('headTitle'); if(ht && CREATIVE_ONLY) ht.textContent = LANG==='en' ? EN['تحليلات المواد الإعلانية'] : 'تحليلات المواد الإعلانية';
   localizeRoot(wrap);
   localizeRoot(document.getElementById('dlg'));
   document.querySelectorAll('#lang button').forEach(b=>b.setAttribute('aria-pressed', b.dataset.v===LANG));

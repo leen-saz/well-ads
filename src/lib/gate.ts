@@ -9,8 +9,21 @@ export type Decision = Pass | Response;
 const PUBLIC = [/^\/login\/?$/, /^\/reset\/?$/, /^\/welcome\/?$/, /^\/api\/auth\//, /^\/api\/health\/?$/, /^\/api\/connectors\/callback\/?$/,
   /^\/assets\//, /^\/_astro\//, /^\/m\/[0-9a-f-]{36}\/[0-9a-f]{32}\.(jpg|png|webp|mp4|mov)$/i, /^\/robots\.txt$/, /^\/favicon/];
 
+// The five sidebar destinations (public/assets/sidebar.js GROUPS). /today/ is the start page; the others open
+// the first tool of the destination this user may open, in sidebar order, and /today/ when none.
+export const HUBS: Record<string, [Need, string][]> = {
+  performance: [['overview', '/overview/'], ['ceo', '/'], ['creative', '/?view=creative'], ['listening', '/listening/']],
+  create: [['design', '/design/'], ['copy', '/copy/'], ['voice', '/voice/'], ['social', '/social/'], ['content', '/content/'], ['journeys', '/journeys/']],
+  review: [['control', '/control/'], ['compliance', '/compliance/'], ['maestro', '/maestro/']],
+  system: [['connectors', '/connectors/'], ['knowledge', '/knowledge/'], ['debugger', '/debugger/']],
+};
+const HUB = /^\/(performance|create|review|system)\/?$/;
+// Short and earlier links of the same places
+const ALIAS: Record<string, string> = { '/analytics': '/', '/home': '/today/', '/start': '/today/', '/history': '/control/?tab=log', '/review/history': '/control/?tab=log', '/permissions': '/admin/' };
+
 export function need(pathname: string, search: string): Need | null {
   if (PUBLIC.some(r => r.test(pathname))) return null;
+  if (HUB.test(pathname) || ALIAS[pathname.replace(/\/$/, '')] || /^\/(api\/)?today(\/|$)/.test(pathname)) return 'any';
   if (/^\/(api\/)?admin(\/|$)/.test(pathname)) return 'owner';
   if (/^\/(api\/)?control(\/|$)/.test(pathname)) return 'control';
   if (/^\/(api\/)?connectors(\/|$)/.test(pathname)) return 'connectors';
@@ -57,6 +70,10 @@ export async function gate(request: Request, e: AuthEnv): Promise<Decision> {
     r.searchParams.set('next', back);
     return redirect(r.toString());
   }
+  const alias = ALIAS[url.pathname.replace(/\/$/, '')];
+  if (alias) return redirect(new URL(alias, url.origin).toString());
+  const hub = url.pathname.match(HUB)?.[1];
+  if (hub) return redirect(new URL(HUBS[hub]!.find(([k]) => can(s, k, cfg))?.[1] ?? '/today/', url.origin).toString());
   // Images: any user with at least one dashboard
   if (want === 'media') return (s.dash || []).length || s.role === 'owner' ? { pass: true } : html(403, 'ما عندك صلاحية');
   if (locked(s, want)) return api ? json(403, { error: LOCKED }) : html(403, LOCKED);
@@ -77,7 +94,7 @@ export async function gate(request: Request, e: AuthEnv): Promise<Decision> {
     return { pass: true };
   }
   if (api) return json(403, { error: 'ما عندك صلاحية' });
-  const to = home(s, cfg);
+  const to = home();
   if (to === back) return html(403, 'ما عندك صلاحية على هذي اللوحة.');
   return redirect(new URL(to, url.origin).toString());
 }

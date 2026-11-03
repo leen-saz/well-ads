@@ -1,4 +1,4 @@
-// التصميم: بريف من أفضل إعلاناتنا، نصوص مقترحة مفحوصة على قواعد الامتثال، ومعاينة لكل مقاس.
+// التصميم: تفاصيل تصميم من أفضل إعلاناتنا، نصوص مقترحة مفحوصة على قواعد الامتثال، ومعاينة لكل مقاس.
 // النص دايم طبقة فوق الصورة: الصورة ما تنرفع للسيرفر، والرسم كله في المتصفح، والتحميل PNG.
 import { $, $$, api, say, esc, shell, busy, fmt } from '/assets/common.js';
 
@@ -139,7 +139,7 @@ export default async function mount() {
   }
 
   $('#f').addEventListener('submit', async e => {
-    e.preventDefault(); const btn = e.submitter; busy(btn, true); say($('#msg'), img ? 'يجهز البريف…' : 'يجهز البريف وChatGPT يصمم الخلفية… (حوالي دقيقة)', true);
+    e.preventDefault(); const btn = e.submitter; busy(btn, true); say($('#msg'), img ? 'يجهز تفاصيل التصميم…' : 'يجهز تفاصيل التصميم وChatGPT يصمم الخلفية… (حوالي دقيقة)', true);
     try {
       res = await api('/api/design/brief', { method: 'POST', body: { type: $('#type').value, offer: $('#offer').value, audience: $('#aud').value, dept: $('#dept').value,
         images: [...(img ? [{ kind: 'product', data: small(img).toDataURL('image/jpeg', 0.7) }] : []), ...refs.map(r => ({ kind: 'ref', data: small(r).toDataURL('image/jpeg', 0.7) }))] } });

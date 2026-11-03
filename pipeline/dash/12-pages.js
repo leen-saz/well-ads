@@ -1,7 +1,7 @@
 // ---- pages, departments
 const PAGES = () => S.mode==='organic'
   ? [['accounts','الحسابات'],['posts','المنشورات']]
-  : [['overview','نظرة عامة'],['depts','الأقسام'],...DORDER.map(k=>['dept:'+k, DEP[k].ar]),['channels','المنصات والحملات'],['creative','الكرييتف']];
+  : [['overview','نظرة عامة'],['depts','الأقسام'],...DORDER.map(k=>['dept:'+k, DEP[k].ar]),['channels','المنصات والحملات'],['creative','المواد الإعلانية']];
 function renderTabs(){
   const el=$('#tabs'); if(!el) return;
   el.hidden = CREATIVE_ONLY;

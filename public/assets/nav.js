@@ -18,6 +18,8 @@ const P = {
   out: '<path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><path d="m16 17 5-5-5-5"/><path d="M21 12H9"/>',
   lock: '<rect x="4" y="11" width="16" height="10" rx="2"/><path d="M8 11V7a4 4 0 0 1 8 0v4"/>',
   menu: '<path d="M4 6h16M4 12h16M4 18h16"/>',
+  clock: '<circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/>',
+  x: '<path d="M18 6 6 18M6 6l12 12"/>',
 };
 const I = n => `<svg class="wl-i" viewBox="0 0 24 24" aria-hidden="true">${P[n]}</svg>`;
 const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
@@ -42,9 +44,10 @@ burger.className = 'wl-burger'; burger.setAttribute('aria-label', L('القائ�
 const scrim = document.createElement('div'); scrim.className = 'wl-scrim';
 burger.setAttribute('aria-expanded', 'false'); burger.setAttribute('aria-controls', 'wlSide'); side.id = 'wlSide';
 const mobile = matchMedia('(max-width:900px)');
-const setOpen = open => { document.body.classList.toggle('wl-open', open); burger.setAttribute('aria-expanded', String(open)); side.inert = mobile.matches && !open; if (open) side.querySelector('a,button')?.focus(); };
+const setOpen = open => { document.body.classList.toggle('wl-open', open); burger.setAttribute('aria-expanded', String(open)); side.inert = mobile.matches && !open; if (open) (side.querySelector('.wl-x') || side.querySelector('a,button'))?.focus(); };
 burger.onclick = () => setOpen(true);
 scrim.onclick = () => setOpen(false);
+side.addEventListener('click', e => { if (e.target.closest('.wl-x')) { setOpen(false); burger.focus(); } });
 document.addEventListener('keydown', e => { if (e.key === 'Escape' && document.body.classList.contains('wl-open')) { setOpen(false); burger.focus(); } });
 mobile.addEventListener('change', () => setOpen(false));
 side.inert = mobile.matches;
@@ -55,7 +58,10 @@ body{padding-inline-start:256px}
 .brand .mark{display:none}
 .wl-side{position:fixed;inset-block:0;inset-inline-start:0;width:256px;z-index:60;overflow-y:auto;display:flex;flex-direction:column;gap:4px;padding:24px 16px;
   background:rgba(255,255,255,.62);-webkit-backdrop-filter:blur(12px);backdrop-filter:blur(12px);font:400 15px/1.4 "Thmanyah Sans",system-ui,sans-serif;color:#1D1069}
+.wl-top{display:flex;align-items:flex-start;justify-content:space-between}
 .wl-mark{font:900 26px/1 "Playfair Display",Georgia,serif;color:#1D1069;text-decoration:none;padding:4px 16px 22px;direction:ltr;text-align:start}
+.wl-x{display:none;width:44px;height:44px;border:0;border-radius:999px;background:none;color:#1D1069;cursor:pointer;place-items:center}
+.wl-x:focus-visible{outline:2px solid #7E57FD;outline-offset:2px}
 .wl-mark i{color:#7E57FD;font-style:normal}
 .wl-navi{display:flex;align-items:center;gap:12px;height:44px;padding:0 16px;border-radius:999px;color:rgba(29,16,105,.62);text-decoration:none;transition:background .2s,color .2s}
 .wl-out{margin:0}.wl-out .wl-navi{width:100%;border:0;background:none;font:inherit;cursor:pointer;text-align:start}
@@ -80,6 +86,7 @@ body{padding-inline-start:256px}
   [dir=ltr] .wl-side,html[lang=en] .wl-side{transform:translateX(-100%)}
   body.wl-open .wl-side{transform:none}
   body.wl-open .wl-scrim{display:block;position:fixed;inset:0;background:rgba(29,16,105,.3);z-index:59}
+  .wl-x{display:grid}
   .wl-burger{display:grid;place-items:center;position:fixed;inset-block-start:14px;inset-inline-start:14px;z-index:58;width:44px;height:44px;border-radius:999px;border:0;
     background:rgba(255,255,255,.86);-webkit-backdrop-filter:blur(12px);backdrop-filter:blur(12px);color:#1D1069;box-shadow:0 6px 18px rgba(126,87,253,.18);cursor:pointer}
   .brand{padding-inline-start:52px}
@@ -102,7 +109,7 @@ function draw(me) {
   const owner = me.role === 'owner';
   const initials = (me.name || me.email).trim().split(/\s+/).map(w => w[0]).join('').slice(0, 2).toUpperCase();
   const role = owner ? L('المالكة', 'Owner') : (me.departments || []).length ? L('مدير قسم', 'Department manager') : L('عضو', 'Member');
-  side.innerHTML = `<a class="wl-mark" href="/">Well<i>.</i></a>
+  side.innerHTML = `<div class="wl-top"><a class="wl-mark" href="/today/">Well<i>.</i></a><button type="button" class="wl-x" aria-label="${L('إغلاق القائمة', 'Close menu')}">${I('x')}</button></div>
     ${sections(me, L).map(sec => `<div class="wl-sec"><small class="wl-h">${esc(sec.label)}</small>${sec.items.map(it => {
       const ic = it.svg ? `<svg class="wl-i" viewBox="0 0 24 24" aria-hidden="true">${it.svg}</svg>` : I(it.ic);
       if (it.state === 'ok' || it.state === 'soon') return `<a class="wl-navi${it.state === 'soon' ? ' wl-soon' : ''}" href="${it.href}"${it.key === here ? ' aria-current="page"' : ''}>${ic}<span>${esc(it.text)}</span>${it.state === 'soon' ? `<small class="wl-tag">${L('قريباً', 'Soon')}</small>` : ''}</a>`;
