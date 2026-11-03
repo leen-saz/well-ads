@@ -6,6 +6,7 @@ import * as admin from './routes/admin';
 import * as connectors from './routes/connectors';
 import * as control from './routes/control';
 import * as dash from './routes/dash';
+import * as lessons from './routes/lessons';
 import { ROUTES } from '../modules/routes';
 
 type Group = Record<string, Partial<Record<string, Handler>>>;
@@ -27,6 +28,7 @@ api.all('/account/:action', group(account));
 api.all('/connectors/:action', group(connectors));
 api.all('/control/:action', group(control));
 api.all('/dash/:action', group(dash));
+api.all('/lessons/:action', group(lessons));
 // One route group per live module (src/modules/routes.ts)
 for (const [key, routes] of Object.entries(ROUTES)) api.all(`/${key}/:action`, group(routes));
 
