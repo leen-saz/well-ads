@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it } from 'vitest';
-import { KEEP_MS, clearSiteCache, framable, kept, metaCsp, serveSite, siteKey, siteRedirect } from '../../src/lib/site';
+import { KEEP_MS, STALE_MS, clearSiteCache, framable, kept, metaCsp, serveSite, siteKey, siteRedirect } from '../../src/lib/site';
 
 describe('siteKey', () => {
   it('maps dashboard paths to R2 keys', () => {
@@ -83,6 +83,26 @@ describe('in-isolate cache of the pages', () => {
     const later = await kept(b, 'site/dash.json', Date.now() + KEEP_MS + 1);
     expect(b.reads[1]?.onlyIf).toEqual({ etagDoesNotMatch: '"e"' });
     expect(new TextDecoder().decode(later!.bytes)).toBe('{"a":1}');
+  });
+  it('answers a copy under 10 minutes old at once and revalidates it after the response', async () => {
+    const b = bucket({ 'site/dash.json': '{"a":1}' });
+    await kept(b, 'site/dash.json');
+    const later: Promise<unknown>[] = [];
+    const k = await kept(b, 'site/dash.json', Date.now() + KEEP_MS + 1, p => later.push(p));
+    expect(new TextDecoder().decode(k!.bytes)).toBe('{"a":1}');
+    expect(later).toHaveLength(1);
+    await Promise.all(later);
+    expect(b.reads[1]?.onlyIf).toEqual({ etagDoesNotMatch: '"e"' });
+    // Older than that: the visit waits for R2
+    const old: Promise<unknown>[] = [];
+    await kept(b, 'site/dash.json', Date.now() + STALE_MS + KEEP_MS + 1, p => old.push(p));
+    expect(old).toHaveLength(0);
+    expect(b.reads).toHaveLength(3);
+  });
+  it('the main dashboard starts dash.json with its headers; other pages do not', async () => {
+    const b = bucket({ 'site/index.html': '<p>x</p>', 'site/c/index.html': '<p>c</p>', 'site/csp.txt': 'x' });
+    expect((await serveSite(new Request('https://x/'), b))?.headers.get('link')).toBe('</dash.json>; rel=preload; as=fetch; crossorigin');
+    expect((await serveSite(new Request('https://x/c/'), b))?.headers.get('link')).toBeNull();
   });
   it('many requests at once make one R2 read', async () => {
     const b = bucket({ 'site/c/index.html': '<p>c</p>', 'site/csp.txt': 'x' });
