@@ -41,3 +41,30 @@ export function summarize(watches, mentions, now = Date.now(), days = 30) {
 export function filterMentions(mentions, f) {
   return mentions.filter(m => (f.watch ? m.watch_id === f.watch : true) && (f.sentiment ? m.sentiment === f.sentiment : true) && (f.source ? m.source === f.source : true));
 }
+
+// كلمات Well الجاهزة: تنعرض لما تكون "علامتنا" فاضية، وتنضاف بضغطة (ما تنضاف من نفسها)
+export const WELL_TERMS = ['ويل يونيون', 'تطبيق ويل', 'wellunion', 'wellcare'];
+const low = s => String(s || '').trim().toLowerCase();
+
+// الاقتراحات اللي مو موجودة في علامتنا للحين
+export function brandSuggestions(watches, terms = WELL_TERMS) {
+  const have = new Set(watches.filter(w => w.kind === 'brand').flatMap(w => [w.name, ...(w.keywords || [])]).map(low));
+  return terms.filter(t => !have.has(low(t)));
+}
+
+// وش ينرسل لـ /api/listening/watch عشان تنضاف الكلمات: علامة جديدة باسم أول كلمة، أو تنضاف لكلمات علامتنا الموجودة (8 بالكثير)
+export function brandAdd(watches, add) {
+  const b = watches.find(w => w.kind === 'brand');
+  const want = add.filter(t => brandSuggestions(watches, [t]).length);
+  if (!want.length) return null;
+  if (!b) return { kind: 'brand', name: want[0], keywords: want.slice(1), links: {} };
+  return { id: b.id, kind: 'brand', name: b.name, keywords: [...(b.keywords || []), ...want].slice(0, 8), links: b.links || {} };
+}
+
+// المفاتيح الناقصة: وش يضيف كل مصدر لو انفعّل، ووش ينحط (للإدارة)
+export const KEYS = [
+  { src: 'youtube', label: 'يوتيوب', adds: 'فيديوهات ومراجعات تذكرنا وتذكر المنافسين.', cost: 'مجاني (حصة يومية)', keys: 'YOUTUBE_API_KEY', where: 'Google Cloud ← APIs ← YouTube Data API v3 ← Credentials ← API key' },
+  { src: 'x', label: 'X وتيك توك عن طريق Grok', adds: 'التغريدات ومقاطع تيك توك اللي تذكرنا، وتحليل شعور أدق.', cost: 'مدفوع لكل بحث', keys: 'XAI_API_KEY', where: 'console.x.ai ← API keys' },
+  { src: 'reddit', label: 'ريديت', adds: 'نقاشات الناس وأسئلتهم في ريديت.', cost: 'مجاني', keys: 'REDDIT_CLIENT_ID و REDDIT_CLIENT_SECRET', where: 'reddit.com/prefs/apps ← create app ← نوع script' },
+];
+export const missingKeys = (sources = {}) => KEYS.filter(k => !sources[k.src]);

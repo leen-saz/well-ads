@@ -2,7 +2,7 @@
 // (2) تبويب ثاني: تفاعل منشوراتنا العضوية والطلب من الـ CRM (يتحمّل أول ما ينفتح).
 import { $, $$, api, say, esc, shell, fmt, busy } from '/assets/common.js';
 import { analyze, postsOf, demandAlerts } from '/modules/listening/analyze.js';
-import { summarize, filterMentions } from '/modules/listening/social.js';
+import { summarize, filterMentions, brandSuggestions, brandAdd, missingKeys } from '/modules/listening/social.js';
 
 const NET = { facebook: 'فيسبوك', instagram: 'انستقرام', tiktok: 'تيك توك' };
 const SRC = { meta_form: 'نموذج ميتا', meta_ctwa: 'واتساب من إعلان', whatsapp_ad_prefill: 'واتساب من إعلان', snapchat_form: 'نموذج سناب', tiktok_form: 'نموذج تيك توك',
@@ -93,18 +93,46 @@ async function listening() {
     const chip = (on, label, need) => `<span class="${on ? '' : 'off'}" title="${on ? 'شغّال' : esc(need)}">${on ? '✓' : '○'} ${esc(label)}${on || !need ? '' : ' · يحتاج تفعيل من الإدارة'}</span>`;
     $('#src').innerHTML = chip(s.news, 'الأخبار (قوقل، وإذا رفض فـ Bing)', '') + chip(s.reddit, 'ريديت', 'يحتاج REDDIT_CLIENT_ID و REDDIT_CLIENT_SECRET') + chip(s.youtube, 'يوتيوب', 'يحتاج YOUTUBE_API_KEY')
       + chip(s.x, 'X عن طريق Grok (مدفوع)', 'يحتاج XAI_API_KEY') + chip(s.tiktok, 'تيك توك عن طريق Grok (مدفوع)', 'يحتاج XAI_API_KEY') + chip(s.sentiment, 'تحليل الشعور', 'يحتاج Workers AI');
+    const miss = d.missing ? [] : missingKeys(s);
+    $('#keys').innerHTML = miss.length ? `<section class="card pad lx-keys"><h2 style="margin:0 0 6px">مصادر ما انفعّلت للحين</h2>
+      <p class="muted" style="margin:0 0 8px">الرصد شغّال على الأخبار. كل مصدر هنا يضيف إشارات أكثر أول ما ينحط مفتاحه.</p>
+      <ul>${miss.map(k => `<li><b>${esc(k.label)}</b> (${esc(k.cost)}): ${esc(k.adds)}</li>`).join('')}</ul>
+      <details><summary>للإدارة: وش ينحط ووين</summary><p style="margin:6px 0">أسرار في Cloudflare: Workers ← well-ads ← Settings ← Variables and Secrets ← Add ← Secret.</p>
+        <ul>${miss.map(k => `<li><b>${esc(k.label)}</b>: <code>${esc(k.keys)}</code> · من ${esc(k.where)}</li>`).join('')}</ul></details></section>` : '';
     $('#refresh').disabled = !!d.missing; $('#wf button[type=submit]').disabled = !!d.missing;
   }
+
+  // علامتنا فاضية: تنبيه واضح مع كلمات Well الجاهزة، تنضاف بضغطة
+  function drawBrand() {
+    const none = !W.some(w => w.kind === 'brand'), sug = brandSuggestions(W);
+    $('#brand').innerHTML = none && !$('#refresh').disabled ? `<section class="card pad lx-brand" aria-labelledby="brandH"><h2 id="brandH" style="margin:0 0 6px">ما فيه شي يراقب Well للحين</h2>
+      <p style="margin:0 0 10px">"علامتنا" فاضية، فما راح تشوف وش ينقال عننا ولا حصتنا مقابل المنافسين. أضف كلمات Well، واضغط على أي وحدة تضيفها بروحها:</p>
+      <div class="lx-sug">${sug.map(t => `<button type="button" class="so-chip" data-sug="${esc(t)}">+ ${esc(t)}</button>`).join('')}</div>
+      <div class="bar" style="margin-top:10px"><button type="button" class="btn primary" data-sug-all>أضف الكلمات الأربع</button></div></section>` : '';
+    const g = $('#watch [data-grp="brand"]');
+    if (g && !none && sug.length) g.insertAdjacentHTML('beforeend', `<div class="lx-sug" style="margin-top:6px"><span class="muted">اقتراحات:</span>${sug.map(t => `<button type="button" class="so-chip" data-sug="${esc(t)}">+ ${esc(t)}</button>`).join('')}</div>`);
+  }
+  async function addBrand(terms, btn) {
+    const body = brandAdd(W, terms); if (!body) return;
+    busy(btn, true);
+    try { await api('/api/listening/watch', { method: 'POST', body }); await load(); say($('#wmsg'), 'انضافت لعلامتنا. اضغط "حدّث الحين" عشان تجيب إشاراتها.', true); }
+    catch (err) { say($('#wmsg'), err.message); busy(btn, false); }
+  }
+  $('#paneListen').addEventListener('click', e => {
+    const one = e.target.closest('[data-sug]'), all = e.target.closest('[data-sug-all]');
+    if (one) addBrand([one.dataset.sug], one);
+    if (all) addBrand(brandSuggestions(W), all);
+  });
 
   function drawWatch() {
     $('#watch').innerHTML = Object.entries(KIND).map(([k, label]) => {
       const list = W.filter(w => w.kind === k);
-      return `<div class="lx-grp"><h3>${label}</h3>${list.length ? list.map(w => `<div class="lx-item"><div><b>${esc(w.name)}</b>
+      return `<div class="lx-grp" data-grp="${k}"><h3>${label}</h3>${list.length ? list.map(w => `<div class="lx-item"><div><b>${esc(w.name)}</b>
           ${w.keywords.length ? `<div class="kw">${w.keywords.map(esc).join('، ')}</div>` : ''}
           ${w.kind === 'competitor' ? `<div class="lx-links">${w.adlibrary ? `<a class="btn sm ghost" href="${esc(w.adlibrary)}" target="_blank" rel="noopener">إعلاناته في مكتبة ميتا</a>` : ''}
             ${Object.entries(w.links || {}).filter(([n]) => n !== 'adlibrary').map(([n, v]) => `<span class="so-chip">${esc(n)}: ${esc(v)}</span>`).join('')}</div>` : ''}</div>
           <div class="bar"><button type="button" class="btn sm secondary" data-run="${w.id}">حدّثه</button><button type="button" class="btn sm ghost" data-del="${w.id}" aria-label="احذف ${esc(w.name)}">احذف</button></div></div>`).join('')
-        : `<p class="muted" style="margin:0">${k === 'brand' ? 'أضف اسم Well والكلمات اللي ينذكر فيها.' : k === 'competitor' ? 'أضف منافس عشان تقارن صوتك بصوته.' : 'كلمات تبي تنبيه أول ما تنذكر، مثل شكوى أو اسم منتج.'}</p>`}</div>`;
+        : `<p class="muted" style="margin:0">${k === 'brand' ? 'فاضية: أضف كلمات Well من التنبيه فوق، أو اكتبها بنفسك تحت.' : k === 'competitor' ? 'أضف منافس عشان تقارن صوتك بصوته.' : 'كلمات تبي تنبيه أول ما تنذكر، مثل شكوى أو اسم منتج.'}</p>`}</div>`;
     }).join('');
     $('#fW').innerHTML = '<option value="">الكل</option>' + W.map(w => `<option value="${w.id}">${esc(w.name)}</option>`).join('');
     if (filt.watch) $('#fW').value = String(filt.watch);
@@ -148,7 +176,7 @@ async function listening() {
     $('#more').hidden = list.length <= shown;
   }
 
-  function drawAll() { const sum = summarize(W, M, Date.now(), days); drawWatch(); drawVoice(sum); drawTrend(sum); drawAlerts(sum); drawMentions(); }
+  function drawAll() { const sum = summarize(W, M, Date.now(), days); drawWatch(); drawBrand(); drawVoice(sum); drawTrend(sum); drawAlerts(sum); drawMentions(); }
 
   async function load() {
     const d = await api('/api/listening/watch'); setup(d); W = d.watches || [];
