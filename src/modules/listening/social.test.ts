@@ -1,6 +1,6 @@
 // Social listening: source parsing, dedupe, sentiment parsing, watch cleaning, the cron/refresh flow and scoping.
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { adLibraryUrl, cleanWatch, dedupe, due, gdeltQuery, missingTable, normUrl, parseBing, parseGdelt, parseNews, parseReddit, parseSentiment, parseTikTok, parseX, parseYouTube, query, sentimentPrompt, sources, terms } from './social';
+import { adLibraryUrl, cleanWatch, dedupe, due, missingTable, normUrl, parseBing, parseGdelt, parseNews, parseReddit, parseSentiment, parseTikTok, parseX, parseYouTube, query, sentimentPrompt, sources, terms } from './social';
 import { collect, store } from './fetcher';
 import { raw } from './probe';
 // The page's own maths (plain JS in public/)
@@ -107,22 +107,18 @@ describe('fetch flow', () => {
     expect(r.found.map(m => m.url)).toEqual(['https://n.example/0', 'https://n.example/1']);
     expect(seen.filter(u => u.includes('bing.com'))).toHaveLength(2);
   });
-  it('falls back to GDELT when Google and Bing both refuse', async () => {
+  it('asks Google one quoted term at a time and keeps what each gives', async () => {
     const seen: string[] = [];
-    const gd = JSON.stringify({ articles: [{ url: 'https://g.example/1', title: 'خبر', seendate: '20261103T120000Z', domain: 'g.example' }] });
-    const f = (async (u: string) => { seen.push(String(u));
-      if (String(u).includes('gdeltproject')) return new Response(gd, { status: 200 });
-      return new Response('', { status: 403 }); }) as unknown as typeof fetch;
-    const r = await collect({ id: 9, kind: 'competitor', name: 'ايفر كير', keywords: ['evercare'] }, {} as never, f);
-    expect(r.bySource).toEqual({ google: 'error 403', bing: 'error 403', gdelt: 1 });
-    expect(r.found[0]).toMatchObject({ source: 'news', url: 'https://g.example/1', author: 'g.example', published_at: '2026-11-03T12:00:00.000Z' });
-    expect(decodeURIComponent(seen.find(u => u.includes('gdeltproject'))!)).toContain('("ايفر كير" OR evercare)');
+    const f = (async (u: string) => { seen.push(decodeURIComponent(String(u)));
+      if (String(u).includes('news.google')) return new Response(seen.length === 1 ? RSS : '<rss></rss>', { status: 200 });
+      return new Response('', { status: 500 }); }) as unknown as typeof fetch;
+    const r = await collect({ id: 9, kind: 'brand', name: 'ويل يونيون', keywords: ['wellcare', 'تطبيق ويل', 'رابع'] }, {} as never, f);
+    expect(r.bySource).toEqual({ google: 1 });
+    expect(seen.map(u => u.match(/q=([^&]*)/)![1])).toEqual(['"ويل يونيون"', 'wellcare', '"تطبيق ويل"']);
   });
-  it('reads GDELT and builds its query', () => {
+  it('reads GDELT', () => {
     expect(parseGdelt('Your search contained a keyword that was too short', 1)).toEqual([]);
     expect(parseGdelt(JSON.stringify({ articles: [{ url: 'javascript:x' }, { url: 'https://a/1', title: 't' }] }), 1)).toHaveLength(1);
-    expect(gdeltQuery({ kind: 'brand', name: 'Well', keywords: ['ab', 'تطبيق ويل'] })).toBe('(Well OR "تطبيق ويل")');
-    expect(gdeltQuery({ kind: 'brand', name: 'wellunion', keywords: [] })).toBe('wellunion');
   });
   it('probes each news source alone and keeps refusals apart from empty answers', async () => {
     const f = (async (u: string) => {
