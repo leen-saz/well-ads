@@ -18,10 +18,10 @@ export default async function mount() {
     const a = cur.analysis || {}, items = [...cur.items].sort((x, y) => x.priority - y.priority);
     stage(items.some(i => i.status === 'done') ? 5 : items.some(i => i.status === 'approved') ? 4 : 3);
     $('#plan').innerHTML = `<div class="bar" style="justify-content:space-between"><h2 style="margin:0">البلان · <span dir="ltr">${esc(cur.site.replace('https://', ''))}</span></h2>
-        <span class="muted">${a.pages || 0} صفحة · ${(a.gsc || []).length ? 'Search Console مربوط' : 'Search Console مو مربوط'} · ${ENGINE[cur.engine] ? `${ENGINE[cur.engine]} + قواعد` : 'قواعد ثابتة'}</span></div>
+        <span class="muted">${Array.isArray(a.pages) ? a.pages.length : Number(a.pages) || 0} صفحة · ${(a.gsc || []).length ? 'Search Console مربوط' : 'Search Console مو مربوط'} · ${ENGINE[cur.engine] ? `${ENGINE[cur.engine]} + قواعد` : 'قواعد ثابتة'}</span></div>
       ${a.position ? `<p class="so-note ct-pos"><b>البوزشن:</b> ${esc(a.position)}${a.niche ? `<br><b>النيش:</b> ${esc(a.niche)}` : ''}</p>` : ''}
       <div style="display:grid;gap:10px">${items.map(it => `<article class="card ct-item ${it.status}" data-item="${esc(it.id)}">
-        <div class="so-top"><span class="so-chip">${KIND[it.kind] || it.kind}</span><span class="so-chip">أولوية ${it.priority}</span><b>${esc(it.title)}</b><span class="so-st muted">${ST[it.status]}</span></div>
+        <div class="so-top"><span class="so-chip">${KIND[it.kind] || it.kind}</span><span class="so-chip">أولوية ${it.priority}</span>${it.basis === 'search' ? `<span class="so-chip" title="كلمة من Search Console">من بيانات البحث: ${esc(it.query || '')}</span>` : it.basis === 'idea' ? '<span class="so-chip line" title="ما وراه بيانات بحث، راجعه قبل الموافقة">اقتراح من الذكاء الاصطناعي</span>' : ''}<b>${esc(it.title)}</b><span class="so-st muted">${ST[it.status]}</span></div>
         ${it.why ? `<p class="muted" style="margin:0">${esc(it.why)}</p>` : ''}
         ${it.draft ? `<pre class="ct-draft" dir="auto">${it.compliance?.length ? marked(it.draft, it.compliance) : esc(it.draft)}</pre>${hitsHTML(it.compliance || [])}` : ''}
         <div class="bar">${it.status === 'proposed' ? '<button class="btn sm primary" data-act="approve">وافق</button><button class="btn sm ghost" data-act="reject">ارفض</button>' : ''}

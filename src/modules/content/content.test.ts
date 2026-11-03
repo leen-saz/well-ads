@@ -66,3 +66,15 @@ describe('content agent', () => {
     expect(p.engine).toBe('workers-ai');
   });
 });
+
+describe('plan items say what they rest on', () => {
+  it('marks an item as search only when its query came from Search Console', () => {
+    const raw = JSON.stringify({ position: 'p', niche: 'n', items: [
+      { kind: 'article', title: 'فيتامين سي بالوريد في البيت', why: 'w', priority: 1, query: 'فيتامين سي بالوريد' },
+      { kind: 'faq', title: 'أسئلة الحمل', why: 'w', priority: 2, query: 'كلمة مخترعة' },
+      { kind: 'page', title: 'صفحة', why: 'w', priority: 3 }] });
+    const r = parsePlan(raw, [{ query: 'فيتامين سي بالوريد', clicks: 3, impressions: 90, position: 7 }])!;
+    expect(r.items.map(i => i.basis)).toEqual(['search', 'idea', 'idea']);
+    expect(r.items[0]!.query).toBe('فيتامين سي بالوريد');
+  });
+});

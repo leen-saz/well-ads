@@ -1,5 +1,5 @@
 // أدوات مشتركة: الطلبات، والأيقونات، والتواريخ، وهيكل التطبيق (القائمة الجانبية والشريط العلوي)
-import { LANG, t, langSwitch } from './i18n.js';
+import { LANG, t, langSwitch, restoreDraft } from './i18n.js';
 import { sections, TIP } from './sidebar.js';
 export { LANG, t, langSwitch };
 // Pages switch with Astro's ClientRouter: listeners on document/window of one page are removed when it leaves
@@ -128,8 +128,12 @@ export async function shell({ active, title, badge = '', tools = '' }) {
   drawSide(side, me, active);
   $('#top', app).innerHTML = `<div class="t"><button class="btn icon ghost burger" id="burger" aria-label="القائمة">${icon('menu')}</button><h1>${esc(title)}</h1>${badge}</div><div class="tools"><span id="tools">${tools}</span>${langSwitch()}</div>`;
   bindMe();
-  $('#burger').onclick = () => app.classList.add('open');
-  $('.scrim', app).onclick = () => app.classList.remove('open');
+  // Phone menu: Escape closes it too, and the keyboard goes back to the menu button
+  const close = () => { if (!app.classList.contains('open')) return; app.classList.remove('open'); $('#burger')?.focus(); };
+  $('#burger').onclick = () => { app.classList.add('open'); $('a, button', side)?.focus(); };
+  $('.scrim', app).onclick = close;
+  app.onkeydown = e => { if (e.key === 'Escape') close(); };
+  restoreDraft();
   warmAnalytics(app);
   // Every live tab ends with its lessons card (learning loop, docs/learning-loops.md)
   if ((me.modules || []).some(m => m.key === active && m.status === 'live' && m.ok && !m.locked)) import('./lessons.js').then(m => m.lessonsCard(active)).catch(() => {});

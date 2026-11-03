@@ -104,11 +104,13 @@ function openCompare(){
 }
 function resultCells(x){
   const g=x.a.goal;
-  if(g==='lead') return statCell('الليدز',qty(x.leads))+statCell('تكلفة الليد',sar(x.cpl));
+  // Cost per lead counts only the spend of lead-goal ads; say so when the card's spend has more in it
+  if(g==='lead'){ const ls=x.leadSpend??x.spend, ln=x.leadN??x.leads, part=Math.round(ls)<Math.round(x.spend)||ln!==x.leads;
+    return statCell('الليدز',qty(x.leads))+statCell('تكلفة الليد',sar(x.cpl),part?`${sar(ls)} ${ui('صرف إعلانات الليدز','spend of lead ads')} ÷ ${qty(ln)} ${ui('ليد منها','of their leads')}`:''); }
   if(g==='messages') return statCell('محادثات',fmt(x.conv))+statCell('تكلفة المحادثة',sar(x.cpm2));
   return statCell('نقرات',fmt(x.clicks))+statCell('تكلفة النقرة',sar(x.cpc));
 }
-function statCell(k,v){ return `<div><span class="k">${k}</span><span class="mini">${v}</span></div>`; }
+function statCell(k,v,how=''){ return `<div${how?` title="${esc(how)}"`:''}><span class="k">${k}</span><span class="mini">${v}</span>${how?`<span class="sub" style="display:block;font-size:11px">= ${esc(how)}</span>`:''}</div>`; }
 function liveBadge(a){
   const on=!!a.live;
   return `<span class="pill ${on?'st-live':'st-off'}"><span class="dot"></span>${on?ui('فعّال','Active'):ui('متوقف','Paused')}</span>`;
