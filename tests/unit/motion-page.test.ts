@@ -3,7 +3,7 @@
 /// <reference types="vite/client" />
 import { describe, expect, it } from 'vitest';
 import js from '../../public/modules/motion/client.js?raw';
-import page from '../../src/modules/maestro/VideoPage.astro?raw';
+import page from '../../src/modules/design/VideoPage.astro?raw';
 
 describe('motion video page', () => {
   it('has every element its script looks up', () => {

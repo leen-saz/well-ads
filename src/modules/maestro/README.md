@@ -5,6 +5,6 @@
 - مهام للإيجنتس وحالتها
 - موافقات المالكة
 - يشتغل على Paperclip
-- فيديو الموشن (`/maestro/video/`): تصميم وصوت معتمدين ← ChatGPT يكتب المشاهد ← معاينة، «تعديل» بنسخ جديدة، سجل النسخ، واعتماد النسخة النهائية. ليش موشن بالكود: `docs/motion-video.md` (OpenAI قفل Sora)
+- فيديو الموشن انتقل للتصميم (`/design/video/`، نوع «موشن جرافيك»). المدير ينسّق الإيجنتس: مهام، موافقات، أدوار وميزانيات. لما تكون الشركة مربوطة، الفيديو الجديد يفتح مهمة هنا.
 
-**الملفات:** module.ts، routes.ts، paperclip.ts (عميل Paperclip)، Page.astro، `public/modules/maestro/client.js`، maestro.test.ts، motion.ts، VideoPage.astro، `public/modules/motion/`، motion.test.ts، migration 018
+**الملفات:** module.ts، routes.ts، paperclip.ts (عميل Paperclip)، Page.astro، `public/modules/maestro/client.js`، maestro.test.ts
