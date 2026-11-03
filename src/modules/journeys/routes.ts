@@ -1,8 +1,10 @@
 // /api/journeys/*: the journeys of the user's company. Starting one creates a Cloudflare Workflow instance per customer.
 import { sb, json, readJson, handle, requireUser, audit, type AuthEnv } from '../../lib/auth';
 import { scoped } from '../../lib/tenant';
-import { CHANNELS, cleanContact, cleanSteps, notices } from './journeys';
-import { rulesFor } from '../knowledge/knowledge';
+import { CHANNELS, cleanContact, cleanSteps, cleanWritten, notices, writePrompt } from './journeys';
+import { knowledgeFor, rulesFor, withKnowledge } from '../knowledge/knowledge';
+import { check } from '../compliance/compliance';
+import { generate, pick, type LlmEnv } from '../../lib/llm';
 import type { JourneyParams } from './workflow';
 
 type Row = Record<string, unknown>;
@@ -50,4 +52,18 @@ export const start = { POST: handle(async (request, e: WfEnv) => {
   await e.JOURNEY.create({ id: `run-${runId}`, params: { runId, companyId: user.co, steps: journey.steps as JourneyParams['steps'], contact } });
   await audit(cfg, user, 'journey_started', { target: { id, run: runId } });
   return json(200, { ok: true, run: runId });
+}) };
+
+export const write = { POST: handle(async (request, e: AuthEnv & LlmEnv) => {
+  const { cfg, user } = await requireUser(request, e, 'journeys', { write: true });
+  const b = await readJson(request);
+  const type = b.type === 'push' ? 'push' : b.type === 'email' ? 'email' : null;
+  if (!type) return json(400, { error: 'الكتابة للإيميل والإشعار بس' });
+  if (!pick(e, 'journeys')) return json(503, { error: 'الكتابة بالذكاء الاصطناعي غير مفعّلة في هالبيئة' });
+  let out;
+  try { out = await generate(e, 'journeys', { messages: withKnowledge([{ role: 'user', content: writePrompt(type, String(b.idea || '').slice(0, 1000), String(b.journey || '').slice(0, 120)) }], await knowledgeFor(cfg, user.co, 'journeys')), max_tokens: 900 }); }
+  catch { return json(503, { error: 'الذكاء الاصطناعي ما رد الحين، جرّب بعد دقيقة' }); }
+  const w = cleanWritten(out.response, type);
+  if (!w) return json(502, { error: 'ما طلع نص واضح، جرّب مرة ثانية' });
+  return json(200, { ...w, compliance: check(`${w.head}\n${w.body}`, await rulesFor(cfg, user.co)) });
 }) };

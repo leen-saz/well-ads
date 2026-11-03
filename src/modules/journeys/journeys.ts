@@ -100,3 +100,23 @@ export async function send(step: Step, c: Contact, t: Tokens, f: typeof fetch = 
   if (step.type === 'push') return { ok: false, error: 'الإشعارات قريباً' };
   return { ok: true };
 }
+
+// "اكتب لي": an email or push text written from the idea (and the company's knowledge), checked before it is shown
+export const LIMITS = { email: { head: 200, body: 3000 }, push: { head: 100, body: 300 } } as const;
+export function writePrompt(type: 'email' | 'push', idea: string, journey: string): string {
+  const l = LIMITS[type];
+  return `اكتب ${type === 'email' ? 'إيميل' : 'إشعار'} بالسعودي الواضح، مخاطبة المذكر، لعميل شركة رعاية صحية منزلية في الرياض، ضمن رحلة: ${journey || 'متابعة عميل'}.
+الفكرة: ${idea || 'متابعة بعد ما سجّل اهتمامه'}
+القواعد: قصير وودود، دعوة واضحة للحجز، بدون وعد بشفاء أو نتيجة، بدون "الأفضل"، بدون تجارب مرضى. تقدر تستخدم {{name}} لاسم العميل.
+العنوان بحد ${l.head} حرف، والنص بحد ${l.body} حرف.
+رد JSON فقط: {"head":"...","body":"..."}`;
+}
+export function cleanWritten(raw: string, type: 'email' | 'push'): { head: string; body: string } | null {
+  const m = String(raw || '').match(/\{[\s\S]*\}/);
+  if (!m) return null;
+  try {
+    const j = JSON.parse(m[0]) as { head?: unknown; body?: unknown };
+    const l = LIMITS[type], head = String(j.head || '').trim().slice(0, l.head), body = String(j.body || '').trim().slice(0, l.body);
+    return head && body ? { head, body } : null;
+  } catch { return null; }
+}
