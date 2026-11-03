@@ -1,6 +1,6 @@
 // Maestro: the Paperclip client (company-scoped paths, approval ownership check) and task validation. No network.
 import { describe, expect, it, vi } from 'vitest';
-import { budget, client, cleanTask, items } from './paperclip';
+import { budget, client, cleanTask, items, PROJECT, tabOf } from './paperclip';
 
 describe('paperclip client', () => {
   it('needs an https URL and a token', () => {
@@ -39,6 +39,22 @@ describe('paperclip client', () => {
     expect(items(null)).toEqual([]);
     expect(cleanTask({ title: '  ' })).toBeNull();
     expect(cleanTask({ title: 'مهمة', priority: 'nope', assigneeAgentId: 'bad id!' })).toEqual({ title: 'مهمة', description: '', priority: 'medium' });
+  });
+
+  it("puts a tab's task in that tab's project, made once", async () => {
+    const projects: { id: string; name: string }[] = [];
+    const f = vi.fn(async (u: string, init: RequestInit) => {
+      if (u.endsWith('/projects') && init.method === 'POST') { const p = { id: 'p' + (projects.length + 1), name: JSON.parse(String(init.body)).name }; projects.push(p); return new Response(JSON.stringify(p)); }
+      return new Response(JSON.stringify(projects));
+    }) as unknown as typeof fetch;
+    const pc = client({ PAPERCLIP_URL: 'https://pc.example', PAPERCLIP_TOKEN: 't' }, f)!;
+    expect(await pc.projectFor('c1', 'social', 'السوشال')).toBe('p1');
+    expect(await pc.projectFor('c1', 'social', 'السوشال')).toBe('p1');
+    expect(projects).toEqual([{ id: 'p1', name: 'Well · social' }]);
+    expect(tabOf(PROJECT('design'))).toBe('design');
+    expect(tabOf('Other project')).toBeNull();
+    expect(cleanTask({ title: 'x', tab: 'social' })?.tab).toBe('social');
+    expect(cleanTask({ title: 'x', tab: '../x' })?.tab).toBeUndefined();
   });
 
   it('reads a monthly budget (0 = no cap)', () => {

@@ -30,12 +30,14 @@ export default async function mount() {
   // Paperclip budgets are monthly, in US cents; 0 means no cap
   const usd = c => '$' + fmt((Number(c) || 0) / 100, 2);
   const spend = b => `<span class="mx-bud" title="صرف هالشهر">${usd(b.spentMonthlyCents)} من ${Number(b.budgetMonthlyCents) > 0 ? usd(b.budgetMonthlyCents) : 'بدون سقف'}${Number(b.budgetMonthlyCents) > 0 ? `<i style="--p:${Math.min(100, Math.round(100 * (Number(b.spentMonthlyCents) || 0) / Number(b.budgetMonthlyCents)))}%"></i>` : ''}</span>`;
+  const tabName = i => { const k = (S.projectTabs || {})[i.projectId]; return k ? ((S.tabs || []).find(t => t.key === k)?.ar || k) : ''; };
+  const tabsOf = id => [...new Set((S.issues || []).filter(i => i.assigneeAgentId === id).map(tabName).filter(Boolean))];
   const working = id => (S.issues || []).find(i => i.assigneeAgentId === id && i.status === 'in_progress');
   const matches = (...xs) => { const q = $('#q').value.trim().toLowerCase(); return !q || xs.some(x => String(x || '').toLowerCase().includes(q)); };
 
   // ---- the views
   const taskRow = i => `<article class="card mx-item"><span class="mx-dot ${esc(i.status)}" title="${esc(S.statuses[i.status] || i.status)}"></span><span class="mx-id">${esc(i.identifier || '')}</span>
-    <b>${esc(i.title || '')}</b><span class="muted">${esc(names()[i.assigneeAgentId] || '')}</span><span class="so-chip">${esc(S.statuses[i.status] || i.status)}</span></article>`;
+    <b>${esc(i.title || '')}</b>${tabName(i) ? `<span class="so-chip mx-tab">${esc(tabName(i))}</span>` : ''}<span class="muted">${esc(names()[i.assigneeAgentId] || '')}</span><span class="so-chip">${esc(S.statuses[i.status] || i.status)}</span></article>`;
   const approvalRow = a => `<article class="card mx-item" data-id="${esc(a.id)}"><span class="mx-dot in_review"></span><b>${APPR[a.type] || esc(a.type)}</b>
     <span class="muted">${esc(names()[a.requestedByAgentId] || '')}</span>${S.canApprove ? '<button class="btn sm primary" data-act="approve">وافق</button><button class="btn sm ghost" data-act="reject">ارفض</button>' : '<span class="muted">يحتاج صلاحية موافقة</span>'}</article>`;
 
@@ -54,7 +56,7 @@ export default async function mount() {
     return ap.length || bl.length ? `<div class="mx-list">${ap.map(approvalRow).join('')}${bl.map(taskRow).join('')}</div>` : empty('inbox', 'الوارد فاضي.');
   }
   function tasks() {
-    const is = (S.issues || []).filter(i => (filter === 'all' || i.status === filter) && matches(i.title, i.identifier, names()[i.assigneeAgentId]));
+    const is = (S.issues || []).filter(i => (filter === 'all' || i.status === filter) && matches(i.title, i.identifier, names()[i.assigneeAgentId], tabName(i)));
     if (!is.length) return empty('tasks', 'ما فيه مهام تطابق الفلتر أو البحث.', 'أنشئ مهمة');
     if (layout === 'list') return `<div class="mx-list">${is.map(taskRow).join('')}</div>`;
     return `<div class="mx-cols">${COLS.map(c => { const col = is.filter(i => i.status === c || (c === 'todo' && i.status === 'backlog'));
@@ -66,7 +68,7 @@ export default async function mount() {
     if (!as.length) return empty('agents', 'ما فيه إيجنتس للحين.');
     const card = a => `<article class="card mx-item"><span class="mx-dot ${a.status === 'running' ? 'in_progress' : a.status === 'error' ? 'blocked' : a.status === 'paused' ? 'cancelled' : 'done'}"></span>
       <b>${esc(a.name)}</b><span class="muted">${esc(a.title || a.role || '')}</span><span class="so-chip">${AG[a.status] || esc(a.status)}</span>
-      ${spend(a)}${working(a.id) ? `<span class="mx-now">يشتغل على: ${esc(working(a.id).identifier || '')} ${esc(working(a.id).title || '')}</span>` : ''}</article>`;
+      ${spend(a)}${tabsOf(a.id).length ? `<span class="muted">التابات: ${esc(tabsOf(a.id).join('، '))}</span>` : ''}${working(a.id) ? `<span class="mx-now">يشتغل على: ${esc(working(a.id).identifier || '')} ${esc(working(a.id).title || '')}</span>` : ''}</article>`;
     if (layout === 'list') return `<div class="mx-list">${as.map(card).join('')}</div>`;
     // Org chart: who reports to whom
     const ids = new Set(as.map(a => a.id));
@@ -104,6 +106,7 @@ export default async function mount() {
     }
     $('#setup').innerHTML = ''; $('#board').hidden = false;
     if (!$('#agent').dataset.done) { $('#agent').insertAdjacentHTML('beforeend', (S.agents || []).map(a => `<option value="${esc(a.id)}">${esc(a.name)}${a.title ? ' · ' + esc(a.title) : ''}</option>`).join('')); $('#agent').dataset.done = '1'; }
+    if (!$('#tab').dataset.done) { $('#tab').insertAdjacentHTML('beforeend', (S.tabs || []).map(t => `<option value="${esc(t.key)}">${esc(t.ar)}</option>`).join('')); $('#tab').dataset.done = '1'; }
     draw();
   }
 
@@ -126,7 +129,7 @@ export default async function mount() {
     e.preventDefault();
     const btn = e.submitter; busy(btn, true);
     try {
-      await api('/api/maestro/task', { method: 'POST', body: { title: $('#title').value, description: $('#desc').value, assigneeAgentId: $('#agent').value, priority: $('#prio').value } });
+      await api('/api/maestro/task', { method: 'POST', body: { title: $('#title').value, description: $('#desc').value, assigneeAgentId: $('#agent').value, tab: $('#tab').value, priority: $('#prio').value } });
       e.target.reset(); $('#dlg').close(); say($('#msg'), 'وصلت للمدير.', true); view = 'tasks'; await load();
     } catch (err) { say($('#dmsg'), err.message); }
     busy(btn, false);

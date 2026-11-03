@@ -1,7 +1,8 @@
 // /api/maestro/*: the maestro tab. Agents, tasks and pending approvals of the user's company, from Paperclip.
 // Connecting a company to Paperclip is owner-only; creating tasks needs edit and deciding approvals needs approve on `maestro`.
 import { sb, json, readJson, handle, requireUser, audit, isOwner, atLeast, notEnabled, type AuthEnv, type Cfg } from '../../lib/auth';
-import { budget, client, cleanTask, STATUS, withBrief, type PcEnv } from './paperclip';
+import { budget, client, cleanTask, STATUS, tabOf, withBrief, type PcEnv } from './paperclip';
+import { MODULES } from '../registry';
 import { knowledgeFor } from '../knowledge/knowledge';
 
 type Env = AuthEnv & PcEnv;
@@ -11,6 +12,9 @@ async function companyOf(cfg: Cfg, co: string): Promise<Co | null> {
   const r = await sb<Co[]>(cfg, `/rest/v1/companies?id=eq.${co}&select=id,name,paperclip_company_id`, { admin: true });
   return r.ok && Array.isArray(r.data) ? r.data[0] || null : null;
 }
+// The tabs a task can be sent to (every live tab but this one), and which Paperclip project belongs to which tab
+const TABS = MODULES.filter(m => m.status === 'live' && m.key !== 'maestro').map(m => ({ key: m.key, ar: m.ar }));
+const projectTabs = (projects: Record<string, unknown>[]) => Object.fromEntries(projects.map(p => [String(p.id), tabOf(p.name)]).filter(([, k]) => k));
 const notSet = (user?: { role: string }) => json(503, { error: notEnabled(user, 'المدير', 'PAPERCLIP_URL و PAPERCLIP_TOKEN'), setup: true });
 
 export const state = { GET: handle(async (request, e: Env) => {
@@ -19,10 +23,10 @@ export const state = { GET: handle(async (request, e: Env) => {
   if (!pc) return notSet(user);
   const c = await companyOf(cfg, user.co);
   if (!c?.paperclip_company_id) return json(200, { connected: false, owner: isOwner(user, cfg), statuses: STATUS });
-  let agents: unknown[] = [], issues: unknown[] = [], approvals: unknown[] = [], company: Record<string, unknown> = {};
-  try { [agents, issues, approvals, company] = await Promise.all([pc.agents(c.paperclip_company_id), pc.issues(c.paperclip_company_id), pc.approvals(c.paperclip_company_id), pc.company(c.paperclip_company_id)]); }
+  let agents: unknown[] = [], issues: unknown[] = [], approvals: unknown[] = [], company: Record<string, unknown> = {}, projects: Record<string, unknown>[] = [];
+  try { [agents, issues, approvals, company, projects] = await Promise.all([pc.agents(c.paperclip_company_id), pc.issues(c.paperclip_company_id), pc.approvals(c.paperclip_company_id), pc.company(c.paperclip_company_id), pc.projects(c.paperclip_company_id)]); }
   catch (err) { console.error('maestro_state_failed', (err as Error).message); return json(502, { error: 'المدير مو متاح الحين، جرّب بعد شوي' }); }
-  return json(200, { connected: true, owner: isOwner(user, cfg), canApprove: atLeast(user, 'maestro', 'approve', cfg), canEdit: atLeast(user, 'maestro', 'edit', cfg), statuses: STATUS, budget: budget(company), agents, issues, approvals });
+  return json(200, { connected: true, owner: isOwner(user, cfg), canApprove: atLeast(user, 'maestro', 'approve', cfg), canEdit: atLeast(user, 'maestro', 'edit', cfg), statuses: STATUS, budget: budget(company), tabs: TABS, projectTabs: projectTabs(projects), agents, issues, approvals });
 }) };
 
 export const connect = { POST: handle(async (request, e: Env) => {
@@ -51,9 +55,15 @@ export const task = { POST: handle(async (request, e: Env) => {
   if (!t) return json(400, { error: 'اكتب عنوان المهمة' });
   const c = await companyOf(cfg, user.co);
   if (!c?.paperclip_company_id) return json(409, { error: 'اربط الشركة بالمدير أول' });
+  const tab = TABS.find(x => x.key === t.tab);
+  if (t.tab && !tab) return json(400, { error: 'تاب غير معروف' });
+  if (tab) {
+    try { t.projectId = await pc.projectFor(c.paperclip_company_id, tab.key, tab.ar); }
+    catch (err) { console.error('maestro_project_failed', (err as Error).message); return json(502, { error: 'ما قدرنا نجهز مهام التاب، جرّب بعد شوي' }); }
+  }
   // The agents run in Paperclip: the company's knowledge goes with each task so they write by it
   const issue = await pc.createIssue(c.paperclip_company_id, { ...t, description: withBrief(`${t.description}\n\n— طلبها ${user.email} من لوحة Well`, await knowledgeFor(cfg, user.co, 'maestro')) });
-  await audit(cfg, user, 'maestro_task', { target: { issue: issue.id, title: t.title, agent: t.assigneeAgentId || null } });
+  await audit(cfg, user, 'maestro_task', { target: { issue: issue.id, title: t.title, agent: t.assigneeAgentId || null, tab: tab?.key || null } });
   return json(200, { ok: true, issue });
 }) };
 

@@ -4,11 +4,16 @@
 // Docs: https://docs.paperclip.ing/reference/api/overview.md
 
 export interface PcEnv { PAPERCLIP_URL?: string; PAPERCLIP_TOKEN?: string }
-export interface Task { title: string; description: string; priority: 'low' | 'medium' | 'high' | 'urgent'; assigneeAgentId?: string }
+export interface Task { title: string; description: string; priority: 'low' | 'medium' | 'high' | 'urgent'; assigneeAgentId?: string; tab?: string; projectId?: string }
 type Json = Record<string, unknown>;
 
 export const STATUS: Record<string, string> = { backlog: 'بالانتظار', todo: 'جاهزة', in_progress: 'شغالة', in_review: 'للمراجعة', blocked: 'متوقفة', done: 'خلصت', cancelled: 'ملغية' };
 const ID = /^[A-Za-z0-9_-]{1,64}$/;
+
+// Each tab's agents work in one Paperclip project, «Well · <tab key>», made on first use. A task for a tab lands there,
+// and the agent it is assigned to (or the CEO agent, who routes unassigned work) picks it up on its next heartbeat.
+export const PROJECT = (tab: string) => `Well · ${tab}`;
+export const tabOf = (name: unknown): string | null => { const m = /^Well · ([a-z]+)$/.exec(String(name || '')); return m ? m[1]! : null; };
 
 // List endpoints are documented without an example shape: accept a bare array or a wrapped one
 export const items = (d: unknown): Json[] => (Array.isArray(d) ? d : Array.isArray((d as Json)?.items) ? (d as Json).items : Array.isArray((d as Json)?.data) ? (d as Json).data : []) as Json[];
@@ -30,7 +35,16 @@ export function client(e: PcEnv, f: typeof fetch = fetch) {
     company: async (c: string) => (await call('GET', co(c))) as Json,
     agents: async (c: string) => items(await call('GET', `${co(c)}/agents`)),
     issues: async (c: string) => items(await call('GET', `${co(c)}/issues?limit=100`)),
-    createIssue: async (c: string, t: Task) => (await call('POST', `${co(c)}/issues`, { title: t.title, description: t.description, status: 'todo', priority: t.priority, ...(t.assigneeAgentId ? { assigneeAgentId: t.assigneeAgentId } : {}) })) as Json,
+    createIssue: async (c: string, t: Task) => (await call('POST', `${co(c)}/issues`, { title: t.title, description: t.description, status: 'todo', priority: t.priority, ...(t.assigneeAgentId ? { assigneeAgentId: t.assigneeAgentId } : {}), ...(t.projectId ? { projectId: t.projectId } : {}) })) as Json,
+    projects: async (c: string) => items(await call('GET', `${co(c)}/projects`)),
+    // The tab's project, made the first time a task is sent to that tab
+    projectFor: async (c: string, tab: string, label: string): Promise<string> => {
+      const found = items(await call('GET', `${co(c)}/projects`)).find(p => p.name === PROJECT(tab));
+      if (found?.id) return String(found.id);
+      const made = (await call('POST', `${co(c)}/projects`, { name: PROJECT(tab), description: `مهام تاب «${label}» في لوحة Well` })) as Json;
+      if (!made?.id) throw new Error('no project');
+      return String(made.id);
+    },
     approvals: async (c: string) => items(await call('GET', `${co(c)}/approvals?status=pending`)),
     // only approvals that belong to this company: checked against its own pending list first
     decide: async (c: string, approvalId: string, act: 'approve' | 'reject') => {
@@ -45,8 +59,8 @@ export function cleanTask(b: Json): Task | null {
   const description = String(b.description || '').trim().slice(0, 10000);
   if (!title) return null;
   const priority = (['low', 'medium', 'high', 'urgent'] as const).find(p => p === b.priority) || 'medium';
-  const a = String(b.assigneeAgentId || '');
-  return { title, description, priority, ...(ID.test(a) ? { assigneeAgentId: a } : {}) };
+  const a = String(b.assigneeAgentId || ''), tab = String(b.tab || '');
+  return { title, description, priority, ...(ID.test(a) ? { assigneeAgentId: a } : {}), ...(/^[a-z]{1,32}$/.test(tab) ? { tab } : {}) };
 }
 
 // A task's description with the company's knowledge after it (capped: Paperclip keeps descriptions up to 10,000 here)
