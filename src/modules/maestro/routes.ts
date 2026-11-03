@@ -1,7 +1,7 @@
 // /api/maestro/*: the maestro tab. Agents, tasks and pending approvals of the user's company, from Paperclip.
 // Connecting a company to Paperclip is owner-only; creating tasks needs edit and deciding approvals needs approve on `maestro`.
 import { sb, json, readJson, handle, requireUser, audit, isOwner, atLeast, notEnabled, type AuthEnv, type Cfg } from '../../lib/auth';
-import { client, cleanTask, STATUS, withBrief, type PcEnv } from './paperclip';
+import { budget, client, cleanTask, STATUS, withBrief, type PcEnv } from './paperclip';
 import { knowledgeFor } from '../knowledge/knowledge';
 
 type Env = AuthEnv & PcEnv;
@@ -19,10 +19,10 @@ export const state = { GET: handle(async (request, e: Env) => {
   if (!pc) return notSet(user);
   const c = await companyOf(cfg, user.co);
   if (!c?.paperclip_company_id) return json(200, { connected: false, owner: isOwner(user, cfg), statuses: STATUS });
-  let agents: unknown[] = [], issues: unknown[] = [], approvals: unknown[] = [];
-  try { [agents, issues, approvals] = await Promise.all([pc.agents(c.paperclip_company_id), pc.issues(c.paperclip_company_id), pc.approvals(c.paperclip_company_id)]); }
+  let agents: unknown[] = [], issues: unknown[] = [], approvals: unknown[] = [], company: Record<string, unknown> = {};
+  try { [agents, issues, approvals, company] = await Promise.all([pc.agents(c.paperclip_company_id), pc.issues(c.paperclip_company_id), pc.approvals(c.paperclip_company_id), pc.company(c.paperclip_company_id)]); }
   catch (err) { console.error('maestro_state_failed', (err as Error).message); return json(502, { error: 'المدير مو متاح الحين، جرّب بعد شوي' }); }
-  return json(200, { connected: true, owner: isOwner(user, cfg), canApprove: atLeast(user, 'maestro', 'approve', cfg), canEdit: atLeast(user, 'maestro', 'edit', cfg), statuses: STATUS, agents, issues, approvals });
+  return json(200, { connected: true, owner: isOwner(user, cfg), canApprove: atLeast(user, 'maestro', 'approve', cfg), canEdit: atLeast(user, 'maestro', 'edit', cfg), statuses: STATUS, budget: budget(company), agents, issues, approvals });
 }) };
 
 export const connect = { POST: handle(async (request, e: Env) => {
