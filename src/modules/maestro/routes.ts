@@ -1,13 +1,9 @@
 // /api/maestro/*: the maestro tab. Agents, tasks and pending approvals of the user's company, from Paperclip.
 // Connecting a company to Paperclip is owner-only; creating tasks needs edit and deciding approvals needs approve on `maestro`.
-import { sb, json, readJson, handle, requireUser, audit, isOwner, atLeast, notEnabled, missingSchema, notApplied, type AuthEnv, type Cfg } from '../../lib/auth';
-import { scoped } from '../../lib/tenant';
-import { generate, pick, type LlmEnv, type Msg } from '../../lib/llm';
-import { budget, client, cleanTask, STATUS, withBrief, type PcEnv } from './paperclip';
-import { knowledgeFor, rulesFor, withKnowledge } from '../knowledge/knowledge';
-import { brandFor } from '../knowledge/brand';
-import { check } from '../compliance/compliance';
-import { ANIMS, RATIOS, checkUpload, clampSeconds, cleanSpec, editPrompt, fileKey, ownKey, parseSpec, ratioOf, specPrompt, templateSpec, type Spec } from './motion';
+import { sb, json, readJson, handle, requireUser, audit, isOwner, atLeast, notEnabled, type AuthEnv, type Cfg } from '../../lib/auth';
+import { budget, chatLines, client, cleanTask, items, performance, STATUS, tabOf, withBrief, type PcEnv } from './paperclip';
+import { MODULES } from '../registry';
+import { knowledgeFor } from '../knowledge/knowledge';
 
 type Env = AuthEnv & PcEnv;
 type Co = { id: string; name: string; paperclip_company_id: string | null };
@@ -16,6 +12,9 @@ async function companyOf(cfg: Cfg, co: string): Promise<Co | null> {
   const r = await sb<Co[]>(cfg, `/rest/v1/companies?id=eq.${co}&select=id,name,paperclip_company_id`, { admin: true });
   return r.ok && Array.isArray(r.data) ? r.data[0] || null : null;
 }
+// The tabs a task can be sent to (every live tab but this one), and which Paperclip project belongs to which tab
+const TABS = MODULES.filter(m => m.status === 'live' && m.key !== 'maestro').map(m => ({ key: m.key, ar: m.ar }));
+const projectTabs = (projects: Record<string, unknown>[]) => Object.fromEntries(projects.map(p => [String(p.id), tabOf(p.name)]).filter(([, k]) => k));
 const notSet = (user?: { role: string }) => json(503, { error: notEnabled(user, 'المدير', 'PAPERCLIP_URL و PAPERCLIP_TOKEN'), setup: true });
 
 export const state = { GET: handle(async (request, e: Env) => {
@@ -24,11 +23,74 @@ export const state = { GET: handle(async (request, e: Env) => {
   if (!pc) return notSet(user);
   const c = await companyOf(cfg, user.co);
   if (!c?.paperclip_company_id) return json(200, { connected: false, owner: isOwner(user, cfg), statuses: STATUS });
-  let agents: unknown[] = [], issues: unknown[] = [], approvals: unknown[] = [], company: Record<string, unknown> = {};
-  try { [agents, issues, approvals, company] = await Promise.all([pc.agents(c.paperclip_company_id), pc.issues(c.paperclip_company_id), pc.approvals(c.paperclip_company_id), pc.company(c.paperclip_company_id)]); }
+  let agents: unknown[] = [], issues: unknown[] = [], approvals: unknown[] = [], company: Record<string, unknown> = {}, projects: Record<string, unknown>[] = [];
+  try { [agents, issues, approvals, company, projects] = await Promise.all([pc.agents(c.paperclip_company_id), pc.issues(c.paperclip_company_id), pc.approvals(c.paperclip_company_id), pc.company(c.paperclip_company_id), pc.projects(c.paperclip_company_id)]); }
   catch (err) { console.error('maestro_state_failed', (err as Error).message); return json(502, { error: 'المدير مو متاح الحين، جرّب بعد شوي' }); }
-  return json(200, { connected: true, owner: isOwner(user, cfg), canApprove: atLeast(user, 'maestro', 'approve', cfg), canEdit: atLeast(user, 'maestro', 'edit', cfg), statuses: STATUS, budget: budget(company), agents, issues, approvals });
+  return json(200, { connected: true, owner: isOwner(user, cfg), canApprove: atLeast(user, 'maestro', 'approve', cfg), canEdit: atLeast(user, 'maestro', 'edit', cfg), statuses: STATUS, budget: budget(company), tabs: TABS, projectTabs: projectTabs(projects), agents, issues, approvals });
 }) };
+
+// One agent's performance card for the last 7 or 30 days
+export const agent = { GET: handle(async (request, e: Env) => {
+  const { cfg, user } = await requireUser(request, e, 'maestro');
+  const pc = client(e);
+  if (!pc) return notSet(user);
+  const u = new URL(request.url);
+  const id = u.searchParams.get('id') || '';
+  const days = u.searchParams.get('days') === '7' ? 7 : 30;
+  if (!/^[A-Za-z0-9_-]{1,64}$/.test(id)) return json(400, { error: 'طلب غير صحيح' });
+  const c = await companyOf(cfg, user.co);
+  if (!c?.paperclip_company_id) return json(409, { error: 'اربط الشركة بالمدير أول' });
+  const since = Date.now() - days * 864e5;
+  try { return json(200, { days, ...performance(await pc.agentInputs(c.paperclip_company_id, id, new Date(since).toISOString()), since) }); }
+  catch (err) { console.error('maestro_agent_failed', (err as Error).message); return json(502, { error: 'المدير مو متاح الحين، جرّب بعد شوي' }); }
+}) };
+
+// Paperclip may be seen by people outside the company: what we write there carries the user's name, never their email
+const byline = (user: { name?: string }) => (user.name || '').trim().slice(0, 80) || 'مستخدم اللوحة';
+// Each chat message wakes the CEO agent (paid, on Grok): at most CHAT_PER_MINUTE per user, counted from audit_log
+const CHAT_PER_MINUTE = 10;
+async function chatTooFast(cfg: Cfg, uid: string): Promise<boolean> {
+  const since = new Date(Date.now() - 60_000).toISOString();
+  const r = await sb<unknown[]>(cfg, `/rest/v1/audit_log?select=action&action=eq.maestro_chat&user_id=eq.${encodeURIComponent(uid)}&at=gte.${encodeURIComponent(since)}&limit=${CHAT_PER_MINUTE}`, { admin: true });
+  return r.ok && Array.isArray(r.data) && r.data.length >= CHAT_PER_MINUTE;
+}
+
+// The chat with «المدير» (docs/maestro-plan.md §3). GET reads the thread; POST adds a message (needs edit).
+export const chat = {
+  GET: handle(async (request, e: Env) => {
+    const { cfg, user } = await requireUser(request, e, 'maestro');
+    const pc = client(e);
+    if (!pc) return notSet(user);
+    const c = await companyOf(cfg, user.co);
+    if (!c?.paperclip_company_id) return json(409, { error: 'اربط الشركة بالمدير أول' });
+    try {
+      const issue = await pc.chatIssue(c.paperclip_company_id, false);
+      if (!issue) return json(200, { lines: [] });
+      const [comments, agents] = await Promise.all([pc.comments(String(issue.id)), pc.agents(c.paperclip_company_id)]);
+      return json(200, { lines: chatLines(comments, Object.fromEntries(items(agents).map(a => [String(a.id), String(a.name || '')]))) });
+    } catch (err) { console.error('maestro_chat_failed', (err as Error).message); return json(502, { error: 'المدير مو متاح الحين، جرّب بعد شوي' }); }
+  }),
+  POST: handle(async (request, e: Env) => {
+    const { cfg, user } = await requireUser(request, e, 'maestro', { write: true });
+    const pc = client(e);
+    if (!pc) return notSet(user);
+    const text = String((await readJson(request)).text || '').trim().slice(0, 4000);
+    if (!text) return json(400, { error: 'اكتب رسالتك' });
+    if (await chatTooFast(cfg, user.uid)) return json(429, { error: `وصلت الحد: ${CHAT_PER_MINUTE} رسائل بالدقيقة. جرّب بعد دقيقة.` });
+    const c = await companyOf(cfg, user.co);
+    if (!c?.paperclip_company_id) return json(409, { error: 'اربط الشركة بالمدير أول' });
+    try {
+      const issue = await pc.chatIssue(c.paperclip_company_id, true);
+      await pc.say(issue!, `${text}\n\n— ${byline(user)}`);
+      await audit(cfg, user, 'maestro_chat', { target: { issue: issue!.id } });
+      return json(200, { ok: true });
+    } catch (err) {
+      const m = (err as Error).message;
+      console.error('maestro_chat_send_failed', m);
+      return json(m === 'no ceo' ? 409 : 502, { error: m === 'no ceo' ? 'ما فيه إيجنت CEO في Paperclip يرد على المحادثة' : 'ما وصلت الرسالة، جرّب بعد شوي' });
+    }
+  }),
+};
 
 export const connect = { POST: handle(async (request, e: Env) => {
   const { cfg, user } = await requireUser(request, e, 'owner', { write: true });
@@ -56,9 +118,15 @@ export const task = { POST: handle(async (request, e: Env) => {
   if (!t) return json(400, { error: 'اكتب عنوان المهمة' });
   const c = await companyOf(cfg, user.co);
   if (!c?.paperclip_company_id) return json(409, { error: 'اربط الشركة بالمدير أول' });
+  const tab = TABS.find(x => x.key === t.tab);
+  if (t.tab && !tab) return json(400, { error: 'تاب غير معروف' });
+  if (tab) {
+    try { t.projectId = await pc.projectFor(c.paperclip_company_id, tab.key, tab.ar); }
+    catch (err) { console.error('maestro_project_failed', (err as Error).message); return json(502, { error: 'ما قدرنا نجهز مهام التاب، جرّب بعد شوي' }); }
+  }
   // The agents run in Paperclip: the company's knowledge goes with each task so they write by it
-  const issue = await pc.createIssue(c.paperclip_company_id, { ...t, description: withBrief(`${t.description}\n\n— طلبها ${user.email} من لوحة Well`, await knowledgeFor(cfg, user.co, 'maestro')) });
-  await audit(cfg, user, 'maestro_task', { target: { issue: issue.id, title: t.title, agent: t.assigneeAgentId || null } });
+  const issue = await pc.createIssue(c.paperclip_company_id, { ...t, description: withBrief(`${t.description}\n\n— طلبها ${byline(user)}`, await knowledgeFor(cfg, user.co, 'maestro')) });
+  await audit(cfg, user, 'maestro_task', { target: { issue: issue.id, title: t.title, agent: t.assigneeAgentId || null, tab: tab?.key || null } });
   return json(200, { ok: true, issue });
 }) };
 
@@ -73,164 +141,5 @@ export const approval = { POST: handle(async (request, e: Env) => {
   if (!c?.paperclip_company_id) return json(409, { error: 'اربط الشركة بالمدير أول' });
   try { await pc.decide(c.paperclip_company_id, String(b.id || ''), act); } catch (err) { return json(404, { error: (err as Error).message }); }
   await audit(cfg, user, `maestro_${act}`, { target: { approval: b.id } });
-  return json(200, { ok: true });
-}) };
-
-// ---- Motion video (docs/motion-video.md): /maestro/video/. Projects and their versions; a version is never changed.
-// The plan is written by ChatGPT (OpenAI, PAID per version: one text call); without the key v1 comes from a template.
-type VEnv = Env & LlmEnv & { FILES?: R2Bucket };
-interface Project { id: number; title: string; headline: string; script: string; ratio: string; design_key: string; design_mime: string; voice_key: string; voice_mime: string;
-  voice_seconds: number; status: 'draft' | 'approved'; approved_version: number | null; approved_by: string | null; approved_at: string | null; pc_issue: string | null; created_by: string | null; created_at: string }
-interface Version { id: number; project_id: number; version: number; parent_version: number | null; change_request: string | null; spec: Spec; engine: string; model: string | null; created_by: string | null; created_at: string }
-const MIG = '018_motion_videos.sql';
-const P_COLS = 'id,title,headline,script,ratio,design_key,design_mime,voice_key,voice_mime,voice_seconds,status,approved_version,approved_by,approved_at,pc_issue,created_by,created_at';
-const V_COLS = 'id,project_id,version,parent_version,change_request,spec,engine,model,created_by,created_at';
-const rows = <T>(d: unknown): T[] => (Array.isArray(d) ? d : []) as T[];
-
-async function projectOf(cfg: Cfg, co: string, id: unknown): Promise<Project | null> {
-  const n = parseInt(String(id), 10);
-  if (!(n > 0)) return null;
-  const r = await sb<Project[]>(cfg, scoped(`/rest/v1/motion_projects?id=eq.${n}&select=${P_COLS}`, co), { admin: true });
-  return rows<Project>(r.data)[0] || null;
-}
-const versionsOf = async (cfg: Cfg, co: string, id: number) =>
-  rows<Version>((await sb<Version[]>(cfg, scoped(`/rest/v1/motion_versions?project_id=eq.${id}&select=${V_COLS}&order=version.asc`, co), { admin: true })).data);
-
-// Warn only (as in social): the compliance hits of every text in the plan
-async function warnings(cfg: Cfg, co: string, spec: Spec) {
-  const rules = await rulesFor(cfg, co);
-  return [...spec.scenes.map(s => s.text), spec.cta?.text || ''].filter(Boolean).flatMap(t => check(t, rules).map(h => ({ text: t, match: h.match, title: h.title, fix: h.fix })));
-}
-
-// One model call → a clean plan, or null (the caller decides what a failure means)
-async function plan(e: VEnv, cfg: Cfg, co: string, messages: Msg[], seconds: number, ratio: Spec['ratio'], colors: string[]) {
-  try {
-    const out = await generate(e, 'motion', { messages: withKnowledge(messages, await knowledgeFor(cfg, co, 'maestro')), max_tokens: 1500 });
-    const spec = cleanSpec(parseSpec(out.response), seconds, ratio, colors);
-    return spec ? { spec, engine: out.engine, model: out.model } : null;
-  } catch (err) { console.warn('motion_plan_failed', (err as Error).message); return null; }
-}
-
-export const videos = { GET: handle(async (request, e: VEnv) => {
-  const { cfg, user } = await requireUser(request, e, 'maestro');
-  const base = { ready: !!e.OPENAI_API_KEY, canEdit: atLeast(user, 'maestro', 'edit', cfg), canApprove: atLeast(user, 'maestro', 'approve', cfg), ratios: RATIOS, anims: ANIMS };
-  const id = new URL(request.url).searchParams.get('id');
-  if (id) {
-    const p = await projectOf(cfg, user.co, id);
-    if (!p) return json(404, { error: 'الفيديو مو موجود' });
-    const versions = await versionsOf(cfg, user.co, p.id);
-    return json(200, { ...base, project: p, versions });
-  }
-  const r = await sb<Project[]>(cfg, scoped(`/rest/v1/motion_projects?select=${P_COLS}&order=created_at.desc&limit=30`, user.co), { admin: true });
-  if (missingSchema(r)) return json(200, { ...base, projects: [], setup: notApplied(MIG) });
-  return json(200, { ...base, projects: rows<Project>(r.data) });
-}) };
-
-// GET ?p=&kind=design|voice serves a project's file; POST ?kind= stores one (raw body) and returns its key
-export const videofile = {
-  GET: handle(async (request, e: VEnv) => {
-    const { cfg, user } = await requireUser(request, e, 'maestro');
-    const q = new URL(request.url).searchParams, kind = q.get('kind');
-    const p = await projectOf(cfg, user.co, q.get('p'));
-    const key = kind === 'design' ? p?.design_key : kind === 'voice' ? p?.voice_key : null;
-    if (!p || !ownKey(user.co, key) || !e.FILES) return new Response('not found', { status: 404 });
-    const obj = await e.FILES.get(key);
-    if (!obj) return new Response('not found', { status: 404 });
-    return new Response(obj.body, { headers: { 'content-type': kind === 'design' ? p.design_mime : p.voice_mime, 'cache-control': 'private, max-age=3600',
-      'content-security-policy': "default-src 'none'; sandbox", 'x-content-type-options': 'nosniff' } });
-  }),
-  POST: handle(async (request, e: VEnv) => {
-    const { user } = await requireUser(request, e, 'maestro', { write: true });
-    if (!e.FILES) return json(503, { error: 'رفع الملفات مو مفعّل في هالبيئة' });
-    const kind = new URL(request.url).searchParams.get('kind') || '';
-    const type = (request.headers.get('content-type') || '').split(';')[0]!.trim().toLowerCase();
-    const pre = checkUpload(kind, type, Number(request.headers.get('content-length') || 1));
-    if (pre.error) return json(pre.error.includes('الحد') ? 413 : 415, { error: pre.error });
-    const body = await request.arrayBuffer();
-    const c = checkUpload(kind, type, body.byteLength);
-    if (!c.ext) return json(c.error?.includes('الحد') ? 413 : 400, { error: c.error });
-    const key = fileKey(user.co, c.ext);
-    await e.FILES.put(key, body, { httpMetadata: { contentType: type } });
-    return json(200, { ok: true, key, mime: type });
-  }),
-};
-
-// A new video: the approved design + voice → project + v1. A Maestro task is opened too when the company is connected.
-export const video = { POST: handle(async (request, e: VEnv) => {
-  const { cfg, user } = await requireUser(request, e, 'maestro', { write: true });
-  const b = await readJson(request);
-  if (!ownKey(user.co, b.design_key) || !ownKey(user.co, b.voice_key)) return json(400, { error: 'ارفع التصميم والصوت أول' });
-  const seconds = clampSeconds(b.voice_seconds);
-  if (seconds < 3) return json(400, { error: 'الصوت لازم يكون 3 ثواني على الأقل' });
-  const ratio = ratioOf(b.ratio);
-  const headline = String(b.headline || '').trim().slice(0, 140), script = String(b.script || '').trim().slice(0, 2000);
-  if (!headline && !script) return json(400, { error: 'اكتب العنوان أو نص التعليق' });
-  const colors = (await brandFor(cfg, user.co)).colors;
-  const made = pick(e, 'motion') ? await plan(e, cfg, user.co, specPrompt({ headline, script, seconds, ratio, colors }), seconds, ratio, colors) : null;
-  const v1 = made || { spec: templateSpec({ headline, script, seconds, ratio, colors }), engine: 'templates', model: null };
-  if (!v1.spec) return json(502, { error: 'ما طلعت خطة للفيديو، جرّب مرة ثانية' });
-  const ins = await sb<Project[]>(cfg, '/rest/v1/motion_projects', { method: 'POST', admin: true, headers: { Prefer: 'return=representation' }, body: {
-    company_id: user.co, title: String(b.title || headline || 'فيديو').trim().slice(0, 120), headline, script, ratio,
-    design_key: b.design_key, design_mime: String(b.design_mime || 'image/png').slice(0, 40), voice_key: b.voice_key, voice_mime: String(b.voice_mime || 'audio/wav').slice(0, 40),
-    voice_seconds: seconds, created_by: user.email } });
-  if (missingSchema(ins)) return json(503, { error: notApplied(MIG) });
-  const p = rows<Project>(ins.data)[0];
-  if (!ins.ok || !p) return json(500, { error: 'ما انحفظ الفيديو' });
-  const v = await sb<Version[]>(cfg, '/rest/v1/motion_versions', { method: 'POST', admin: true, headers: { Prefer: 'return=representation' },
-    body: { company_id: user.co, project_id: p.id, version: 1, spec: v1.spec, engine: v1.engine, model: v1.model, created_by: user.email } });
-  if (!v.ok) return json(500, { error: 'ما انحفظت النسخة' });
-  // Maestro (Paperclip) gets a task for the video when connected; the video does not depend on it
-  const pc = client(e), c = pc ? await companyOf(cfg, user.co) : null;
-  if (pc && c?.paperclip_company_id) {
-    try {
-      const issue = await pc.createIssue(c.paperclip_company_id, { title: `فيديو موشن: ${p.title}`.slice(0, 200), priority: 'medium',
-        description: `فيديو موشن من تصميم وصوت معتمدين. المعاينة والنسخ والاعتماد في /maestro/video/?id=${p.id}\n\n— طلبه ${user.email} من لوحة Well` });
-      if (issue.id) await sb(cfg, scoped(`/rest/v1/motion_projects?id=eq.${p.id}`, user.co), { method: 'PATCH', admin: true, body: { pc_issue: String(issue.id) } });
-    } catch (err) { console.warn('motion_task_failed', (err as Error).message); }
-  }
-  await audit(cfg, user, 'motion_create', { target: { project: p.id, engine: v1.engine } });
-  return json(200, { ok: true, id: p.id, engine: v1.engine, warnings: await warnings(cfg, user.co, v1.spec) });
-}) };
-
-// «تعديل»: the user's words on one version → the next version number. Nothing earlier changes; approval is cleared.
-export const videoedit = { POST: handle(async (request, e: VEnv) => {
-  const { cfg, user } = await requireUser(request, e, 'maestro', { write: true });
-  const b = await readJson(request);
-  const change = String(b.change || '').trim().slice(0, 600);
-  if (!change) return json(400, { error: 'اكتب وش تبي تغيّر' });
-  if (!pick(e, 'motion') || !e.OPENAI_API_KEY) return json(503, { error: notEnabled(user, 'تعديل الفيديو', 'OPENAI_API_KEY') });
-  const p = await projectOf(cfg, user.co, b.id);
-  if (!p) return json(404, { error: 'الفيديو مو موجود' });
-  const all = await versionsOf(cfg, user.co, p.id);
-  const base = all.find(v => v.version === Number(b.from)) || all[all.length - 1];
-  if (!base) return json(409, { error: 'ما فيه نسخة نعدّل عليها' });
-  const seconds = clampSeconds(p.voice_seconds), ratio = ratioOf(p.ratio);
-  const current = cleanSpec(base.spec, seconds, ratio);
-  if (!current) return json(409, { error: 'النسخة هذي ما تنقرى' });
-  const made = await plan(e, cfg, user.co, editPrompt(current, change), seconds, ratio, (await brandFor(cfg, user.co)).colors);
-  if (!made || made.engine !== 'openai') return json(502, { error: 'المخرج ما رجّع نسخة صالحة، جرّب تكتب التعديل بشكل ثاني' });
-  const next = (all[all.length - 1]?.version || 0) + 1;
-  const v = await sb<Version[]>(cfg, '/rest/v1/motion_versions', { method: 'POST', admin: true, headers: { Prefer: 'return=representation' },
-    body: { company_id: user.co, project_id: p.id, version: next, parent_version: base.version, change_request: change, spec: made.spec, engine: made.engine, model: made.model, created_by: user.email } });
-  if (v.status === 409) return json(409, { error: 'انضافت نسخة بنفس الوقت، حدّث الصفحة وجرّب' });
-  if (!v.ok) return json(500, { error: 'ما انحفظت النسخة' });
-  if (p.status === 'approved') await sb(cfg, scoped(`/rest/v1/motion_projects?id=eq.${p.id}`, user.co), { method: 'PATCH', admin: true,
-    body: { status: 'draft', approved_version: null, approved_by: null, approved_at: null, updated_at: new Date().toISOString() } });
-  await audit(cfg, user, 'motion_edit', { target: { project: p.id, version: next, from: base.version } });
-  return json(200, { ok: true, version: next, warnings: await warnings(cfg, user.co, made.spec) });
-}) };
-
-// The final version before publishing: approve level on Maestro
-export const videoapprove = { POST: handle(async (request, e: VEnv) => {
-  const { cfg, user } = await requireUser(request, e, 'maestro', { write: true, approve: true });
-  const b = await readJson(request);
-  const p = await projectOf(cfg, user.co, b.id);
-  if (!p) return json(404, { error: 'الفيديو مو موجود' });
-  const n = Number(b.version);
-  if (!(await versionsOf(cfg, user.co, p.id)).some(v => v.version === n)) return json(404, { error: 'النسخة مو موجودة' });
-  const r = await sb(cfg, scoped(`/rest/v1/motion_projects?id=eq.${p.id}`, user.co), { method: 'PATCH', admin: true,
-    body: { status: 'approved', approved_version: n, approved_by: user.email, approved_at: new Date().toISOString(), updated_at: new Date().toISOString() } });
-  if (!r.ok) return json(500, { error: 'ما انحفظ الاعتماد' });
-  await audit(cfg, user, 'motion_approve', { target: { project: p.id, version: n } });
   return json(200, { ok: true });
 }) };

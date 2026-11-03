@@ -126,6 +126,7 @@ describe('auth', () => {
     expect(await to('/system')).toBe('/today/'); // nothing open there
     expect(await to('/history/')).toBe('/control/?tab=log');
     expect(await to('/analytics/')).toBe('/');
+    expect(await to('/maestro/video/?id=7')).toBe('/design/video/?id=7'); // motion video moved to Design
     expect(passed(await M(req('/today/', c)))).toBe(true);
   });
 

@@ -38,7 +38,11 @@ app.use(async (c, next) => {
 });
 app.route('/', api);
 // Dashboards built by the pipeline, from R2 (phase 4.1)
-app.use(async (c, next) => (await serveSite(c.req.raw, c.env.FILES)) ?? next());
+app.use(async (c, next) => {
+  let wait: ((p: Promise<unknown>) => void) | undefined;
+  try { const ctx = c.executionCtx; wait = p => ctx.waitUntil(p); } catch { /* no execution context (tests) */ }
+  return (await serveSite(c.req.raw, c.env.FILES, wait)) ?? next();
+});
 app.use(cf());
 app.use(notFound());
 app.use(actions());

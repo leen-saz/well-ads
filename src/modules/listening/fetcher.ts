@@ -1,12 +1,12 @@
-// Fetches mentions for one watch from the news (Google, else Bing, else GDELT), plus Reddit, YouTube, and X and TikTok through Grok when their keys exist,
+// Fetches mentions for one watch from the news (Google, else Bing), plus Reddit, YouTube, and X and TikTok through Grok when their keys exist,
 // stores new ones (deduped by URL per company) and scores up to 20 unscored mentions (Grok when keyed, else Workers AI).
 // Every outside call is I/O; parsing is regex/JSON on small bodies, to stay inside the free 10 ms CPU.
 import { env as authEnv, sb, type AuthEnv, type Cfg } from '../../lib/auth';
 import { type AiRun } from '../content/content';
 import { generate, grokSearch, pick } from '../../lib/llm';
 import {
-  dedupe, due, parseBing, parseGdelt, parseNews, parseReddit, parseSentiment, parseTikTok, parseX, parseYouTube, query, sentimentPrompt,
-  terms, gdeltQuery, type Mention, type Watch,
+  dedupe, due, parseBing, parseNews, parseReddit, parseSentiment, parseTikTok, parseX, parseYouTube, query, sentimentPrompt,
+  terms, type Mention, type Watch,
 } from './social';
 
 export type ListenEnv = AuthEnv & {
@@ -30,30 +30,45 @@ async function redditToken(f: typeof fetch, e: ListenEnv): Promise<string | null
   return j.access_token || null;
 }
 
+// News terms per watch: the name and up to 4 keywords, each its own request on Google (and on Bing when Google gives nothing)
+export const NEWS_TERMS = 5;
+// Outside calls one watch can make: news 2 per term at worst, Reddit 2, YouTube 1, Grok 2, Grok sentiment 1, Supabase 4 (store)
+export const cost = (w: Watch) => 2 * terms(w, NEWS_TERMS).length + 10;
+// Workers allow 50 subrequests per request; 2 go to the session and the watch list, the rest is kept as margin
+export const BUDGET = 45;
+// "Refresh now": due watches in order while their calls fit the budget (the first always runs), at most 3
+export function batch<T extends Watch>(list: T[], budget = BUDGET): T[] {
+  const out: T[] = [];
+  let used = 2;
+  for (const w of list) {
+    if (out.length === 3 || (out.length && used + cost(w) > budget)) break;
+    out.push(w); used += cost(w);
+  }
+  return out;
+}
+
 // One watch: each source on its own; a failing source never stops the others. Returns what each source gave.
 export async function collect(w: Watch & { id: number }, e: ListenEnv, f: typeof fetch = fetch): Promise<{ found: Mention[]; bySource: Record<string, number | string> }> {
   const q = query(w), found: Mention[] = [], bySource: Record<string, number | string> = {};
   const add = (src: string, list: Mention[]) => { bySource[src] = list.length; found.push(...list); };
   const jobs: Promise<void>[] = [];
-  // News: Google News first. Google often refuses Cloudflare's servers, so then Bing News, one term per request, then GDELT.
+  // News: Google News, one quoted term per request (an OR of rare terms gives 0 results there), then Bing News the same way.
+  // Both answer from Cloudflare (Actions > listening-probe, 2026-11-03).
   jobs.push((async () => {
-    const r = await get(f, `https://news.google.com/rss/search?q=${encodeURIComponent(q)}&hl=ar&gl=SA&ceid=SA:ar`);
-    const google = typeof r === 'string' ? [] : parseNews(await r.text(), w.id);
-    bySource.google = typeof r === 'string' ? r : google.length;
-    found.push(...google);
-    if (google.length) return;
-    const bing: Mention[] = [];
-    let failed = '';
-    for (const t of terms(w)) {
-      const b = await get(f, `https://www.bing.com/news/search?q=${encodeURIComponent(t)}&format=rss&cc=SA`);
-      if (typeof b === 'string') failed = b; else bing.push(...parseBing(await b.text(), w.id));
-    }
-    bySource.bing = bing.length || !failed ? bing.length : failed;
-    found.push(...bing);
-    if (bing.length) return;
-    // GDELT (free, no key, meant for servers): the last resort when both search engines refuse Cloudflare
-    const g = await get(f, `https://api.gdeltproject.org/api/v2/doc/doc?query=${encodeURIComponent(gdeltQuery(w))}&mode=artlist&format=json&maxrecords=50&sort=datedesc&timespan=30d`);
-    if (typeof g === 'string') bySource.gdelt = g; else add('gdelt', parseGdelt(await g.text(), w.id));
+    const each = async (src: string, url: (t: string) => string, parse: (xml: string, id: number) => Mention[]) => {
+      const list: Mention[] = [];
+      let failed = '';
+      for (const t of terms(w, NEWS_TERMS)) {
+        const r = await get(f, url(t));
+        if (typeof r === 'string') failed = r; else list.push(...parse(await r.text(), w.id));
+      }
+      bySource[src] = list.length || !failed ? list.length : failed;
+      found.push(...list);
+      return list.length;
+    };
+    const phrase = (t: string) => encodeURIComponent(/\s/.test(t) ? `"${t}"` : t);
+    if (await each('google', t => `https://news.google.com/rss/search?q=${phrase(t)}&hl=ar&gl=SA&ceid=SA:ar`, parseNews)) return;
+    await each('bing', t => `https://www.bing.com/news/search?q=${encodeURIComponent(t)}&format=rss&cc=SA`, parseBing);
   })());
   if (e.REDDIT_CLIENT_ID && e.REDDIT_CLIENT_SECRET) jobs.push((async () => {
     const token = await redditToken(f, e);

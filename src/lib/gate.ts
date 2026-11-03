@@ -21,7 +21,9 @@ export const HUBS: Record<string, [Need, string][]> = {
 };
 const HUB = /^\/(performance|create|review|system)\/?$/;
 // Short and earlier links of the same places
-const ALIAS: Record<string, string> = { '/analytics': '/', '/home': '/today/', '/start': '/today/', '/history': '/control/?tab=log', '/review/history': '/control/?tab=log', '/permissions': '/admin/' };
+const ALIAS: Record<string, string> = { '/analytics': '/', '/home': '/today/', '/start': '/today/', '/history': '/control/?tab=log', '/review/history': '/control/?tab=log', '/permissions': '/admin/',
+  // Motion video moved from Maestro to Design (a video's ?id= goes with it)
+  '/maestro/video': '/design/video/' };
 
 export function need(pathname: string, search: string): Need | null {
   if (PUBLIC.some(r => r.test(pathname))) return null;
@@ -73,7 +75,7 @@ export async function gate(request: Request, e: AuthEnv): Promise<Decision> {
     return redirect(r.toString());
   }
   const alias = ALIAS[url.pathname.replace(/\/$/, '')];
-  if (alias) return redirect(new URL(alias, url.origin).toString());
+  if (alias) return redirect(new URL(alias.includes('?') ? alias : alias + url.search, url.origin).toString());
   const hub = url.pathname.match(HUB)?.[1];
   if (hub) return redirect(new URL(HUBS[hub]!.find(([k]) => can(s, k, cfg))?.[1] ?? '/today/', url.origin).toString());
   // Images: any user with at least one dashboard

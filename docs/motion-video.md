@@ -1,4 +1,4 @@
-# فيديو الموشن من المايسترو: وش يقدر OpenAI يسوي اليوم
+# فيديو الموشن (التصميم ← موشن جرافيك): وش يقدر OpenAI يسوي اليوم
 
 **التاريخ:** 2026-11-03. **الخلاصة في سطر:** OpenAI قفل توليد الفيديو من الـ API، فما نقدر نخلي ChatGPT "يصوّر" الفيديو. نبني الموشن جرافيك بالكود من التصميم والصوت المعتمدين، وChatGPT يكتب المشاهد ويعدّلها.
 
@@ -54,6 +54,6 @@
 ## 4. الملفات
 - `supabase/migrations/018_motion_videos.sql`: `motion_projects` و`motion_versions`
 - `src/modules/maestro/motion.ts`: الخطة، تنظيفها، القالب، البرومبتات، فحص الملفات
-- `src/modules/maestro/routes.ts`: `/api/maestro/videos|videofile|video|videoedit|videoapprove`
-- `src/modules/maestro/VideoPage.astro` + `src/pages/maestro/video/index.astro` + `public/modules/motion/`
+- `src/modules/design/video.ts` (re-exported by `src/modules/design/routes.ts`): `/api/design/videos|videofile|video|videoedit|videoapprove`
+- `src/modules/design/VideoPage.astro` + `src/pages/design/video/index.astro` + `public/modules/motion/`; `/maestro/video/` redirects here (`src/lib/gate.ts`)
 - `src/modules/maestro/motion.test.ts`
