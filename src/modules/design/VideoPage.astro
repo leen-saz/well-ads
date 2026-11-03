@@ -1,6 +1,6 @@
 ---
 import { ClientRouter } from 'astro:transitions';
-// فيديو الموشن من المدير: التصميم والصوت المعتمدين، معاينة، «تعديل»، سجل النسخ، واعتماد النسخة النهائية (docs/motion-video.md).
+// التصميم ← موشن جرافيك: التصميم والصوت المعتمدين، معاينة، «تعديل»، سجل النسخ، واعتماد النسخة النهائية (docs/motion-video.md).
 ---
 <!doctype html>
 <html lang="ar" dir="rtl">
@@ -10,7 +10,7 @@ import { ClientRouter } from 'astro:transitions';
 <meta name="robots" content="noindex,nofollow">
 <meta name="referrer" content="no-referrer">
 <meta name="theme-color" content="#F6F0E3">
-<title>فيديو الموشن · Well</title>
+<title>التصميم · موشن جرافيك · Well</title>
 <link rel="preload" href="/assets/fonts/thmanyahsans-Regular.woff2" as="font" type="font/woff2" crossorigin>
 <link rel="preload" href="/assets/fonts/playfair-display-900.woff2" as="font" type="font/woff2" crossorigin>
 <link rel="stylesheet" href="/assets/app.css">
@@ -36,6 +36,9 @@ import { ClientRouter } from 'astro:transitions';
 .mv-pick{border:0;background:none;padding:0;font:600 14px var(--f-ar);color:var(--text);cursor:pointer;display:flex;gap:6px;align-items:center}
 .mv-ok{background:#2E9E6A;color:#fff}
 .mv-head{display:flex;gap:10px;align-items:center;justify-content:space-between;flex-wrap:wrap}
+.dz-kind{display:inline-flex;padding:4px;gap:2px;background:var(--tint);border-radius:999px;margin:0 0 14px}
+.dz-kind a{height:32px;padding:0 16px;border-radius:999px;display:inline-flex;align-items:center;font:600 14px var(--f-ar);color:var(--muted);text-decoration:none}
+.dz-kind a[aria-current="page"]{background:var(--surface);color:var(--text);box-shadow:var(--shadow)}
 </style>
 </head>
 <body data-page="motion" data-module>
@@ -45,6 +48,7 @@ import { ClientRouter } from 'astro:transitions';
   <div class="main">
     <header class="topbar" id="top"></header>
     <main class="content" id="content">
+      <nav class="dz-kind" aria-label="نوع التصميم"><a href="/design/">صورة</a><a href="/design/video/" aria-current="page">موشن جرافيك</a></nav>
       <div id="setup"></div>
       <p class="so-note" style="margin-bottom:12px">الفيديو هنا موشن جرافيك: تصميمك المعتمد يتحرك على صوتك المعتمد، والمخرج يكتب المشاهد ويعدّلها على طلبك. ما فيه لقطات مصوّرة جديدة.</p>
       <p class="so-note" id="ready" hidden style="margin-bottom:12px">المخرج مو مفعّل للحين: أول نسخة تطلع من قالب ثابت، والتعديل ما يشتغل لين يتفعّل.</p>

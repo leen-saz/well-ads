@@ -1,0 +1,29 @@
+# Which social-listening sources answer from Cloudflare's servers (Actions > listening-probe > Run workflow).
+# Calls staging's GET /api/listening/probe: a sample watch with the free sources, and each news source alone,
+# and prints the count or the refusal per source. Reads only; needs no secret.
+name: listening-probe
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  probe:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 3
+    steps:
+      - name: Ask staging's Worker
+        env:
+          URL: https://well-ads-staging.leen-b9b.workers.dev/api/listening/probe
+        run: |
+          set -euo pipefail
+          body="$(curl -fsS --max-time 60 "$URL")"
+          echo "$body" | jq .
+          {
+            echo "### Listening sources from Cloudflare"
+            echo '```json'
+            echo "$body" | jq .
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"

@@ -1,6 +1,6 @@
 // Maestro: the Paperclip client (company-scoped paths, approval ownership check) and task validation. No network.
 import { describe, expect, it, vi } from 'vitest';
-import { client, cleanTask, items } from './paperclip';
+import { budget, client, cleanTask, items } from './paperclip';
 
 describe('paperclip client', () => {
   it('needs an https URL and a token', () => {
@@ -39,5 +39,11 @@ describe('paperclip client', () => {
     expect(items(null)).toEqual([]);
     expect(cleanTask({ title: '  ' })).toBeNull();
     expect(cleanTask({ title: 'مهمة', priority: 'nope', assigneeAgentId: 'bad id!' })).toEqual({ title: 'مهمة', description: '', priority: 'medium' });
+  });
+
+  it('reads a monthly budget (0 = no cap)', () => {
+    expect(budget({ budgetMonthlyCents: 10000, spentMonthlyCents: 2500 })).toEqual({ cap: 10000, spent: 2500, pct: 25 });
+    expect(budget({ budgetMonthlyCents: 0, spentMonthlyCents: 700 })).toEqual({ cap: 0, spent: 700, pct: null });
+    expect(budget(null)).toEqual({ cap: 0, spent: 0, pct: null });
   });
 });

@@ -72,3 +72,13 @@ describe('overview numbers (same rules as the main dashboard)', () => {
     expect(addDays('2026-10-31', 1)).toBe('2026-11-01');
   });
 });
+
+describe('mover', () => {
+  it('names the platform that changed a number most between two periods', async () => {
+    const { mover } = await import('./numbers');
+    const d = { ads: { m1: { name: 'a', campaign: 'c', platform: 'meta' }, s1: { name: 'b', campaign: 'c', platform: 'snap' } },
+      rows: [['m1', '2026-10-01', 10, 0, 0, 1, 0], ['s1', '2026-10-01', 5, 0, 0, 0, 0], ['m1', '2026-10-02', 12, 0, 0, 1, 0], ['s1', '2026-10-02', 40, 0, 0, 0, 0]] } as never;
+    expect(mover(d, '2026-10-02', '2026-10-02', '2026-10-01', '2026-10-01', 'spend')).toEqual({ platform: 'snap', delta: 35 });
+    expect(mover(d, '2026-10-02', '2026-10-02', '2026-10-01', '2026-10-01', 'res')).toBeNull();
+  });
+});
