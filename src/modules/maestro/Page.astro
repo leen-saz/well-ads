@@ -54,6 +54,9 @@ import { ClientRouter } from 'astro:transitions';
 .mx-dlg{border:0;border-radius:20px;padding:24px;width:min(560px,92vw);box-shadow:var(--shadow-lg);background:var(--surface);color:var(--text)}
 .mx-dlg::backdrop{background:rgba(29,16,105,.25)}
 .mx-row{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.mx-item{flex-wrap:wrap}.mx-bud{font:500 12px var(--f-num);color:var(--muted);display:inline-grid;gap:3px;min-width:120px}
+.mx-bud i{display:block;height:4px;border-radius:2px;background:linear-gradient(to left,var(--accent) var(--p),var(--line) var(--p))}
+.mx-now{flex-basis:100%;font-size:12px;color:var(--muted);padding-inline-start:20px}
 </style>
 </head>
 <body data-page="maestro" data-module>

@@ -93,6 +93,8 @@ describe('auth', () => {
     expect(need('/settings/', '')).toBe('any');
     expect(need('/social/', '')).toBe('social');
     expect(need('/api/social/posts', '')).toBe('social');
+    expect(need('/api/listening/probe', '')).toBeNull(); // the handler opens it on staging only
+    expect(need('/api/listening/refresh', '')).toBe('listening');
     expect(need('/soon/', '?t=seo')).toBe('any');
   });
 
@@ -124,6 +126,7 @@ describe('auth', () => {
     expect(await to('/system')).toBe('/today/'); // nothing open there
     expect(await to('/history/')).toBe('/control/?tab=log');
     expect(await to('/analytics/')).toBe('/');
+    expect(await to('/maestro/video/?id=7')).toBe('/design/video/?id=7'); // motion video moved to Design
     expect(passed(await M(req('/today/', c)))).toBe(true);
   });
 
