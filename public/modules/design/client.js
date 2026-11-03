@@ -141,7 +141,7 @@ export default async function mount() {
   }
 
   $('#f').addEventListener('submit', async e => {
-    e.preventDefault(); const btn = e.submitter; busy(btn, true); say($('#msg'), img ? 'يجهز البريف وChatGPT يحط منتجك في مشهد جديد… (حوالي دقيقة)' : 'يجهز البريف وChatGPT يصمم الخلفية… (حوالي دقيقة)', true);
+    e.preventDefault(); const btn = e.submitter; busy(btn, true); say($('#msg'), img ? 'يصمم: ChatGPT يحط منتجك في مشهد جديد ويكتب النصوص… (حوالي دقيقة)' : 'يصمم: ChatGPT يرسم الخلفية ويكتب النصوص… (حوالي دقيقة)', true);
     try {
       res = await api('/api/design/brief', { method: 'POST', body: { type: $('#type').value, offer: $('#offer').value, audience: $('#aud').value, dept: $('#dept').value,
         product: img ? small(img, 1024).toDataURL('image/jpeg', 0.9) : '',
