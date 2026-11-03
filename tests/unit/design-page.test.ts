@@ -48,7 +48,7 @@ describe('Maestro', () => {
   });
 });
 
-describe('old motion address', () => {
+describe('old motion addresses', () => {
   const E = { SUPABASE_URL: 'https://sb.example', SUPABASE_SERVICE_ROLE_KEY: 's', SESSION_SECRET: 'x'.repeat(40), OWNER_EMAIL: 'leen@example.com' };
   const cfg = A.env(E);
   // A designer without Maestro still reaches the new place
@@ -61,5 +61,7 @@ describe('old motion address', () => {
     expect(r.status).toBe(302);
     expect(r.headers.get('location')).toBe('https://well.example/design/?type=motion');
     expect((await open('/maestro/video/?id=7')).headers.get('location')).toBe('https://well.example/design/?type=motion&id=7');
+    // #132's interim page /design/video/ goes to the same place
+    expect((await open('/design/video/?id=7')).headers.get('location')).toBe('https://well.example/design/?type=motion&id=7');
   });
 });

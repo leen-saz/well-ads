@@ -126,6 +126,8 @@ describe('auth', () => {
     expect(await to('/system')).toBe('/today/'); // nothing open there
     expect(await to('/history/')).toBe('/control/?tab=log');
     expect(await to('/analytics/')).toBe('/');
+    expect(await to('/maestro/video/?id=7')).toBe('/design/?type=motion&id=7'); // motion is a type of the design page
+    expect(await to('/design/video/?id=7')).toBe('/design/?type=motion&id=7');
     expect(passed(await M(req('/today/', c)))).toBe(true);
   });
 

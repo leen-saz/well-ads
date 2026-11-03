@@ -4,7 +4,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 import * as A from '../../lib/auth';
 import { pick } from '../../lib/llm';
 import { checkUpload, cleanSpec, editPrompt, fileKey, ownKey, parseSpec, specPrompt, templateSpec, type Spec } from './motion';
-import { videoapprove, videoedit, video, videos } from './routes';
+import { videoapprove, videoedit, video, videos } from './video';
 // The page's own frame logic (public/modules/design/frame.js), so the preview tested here is the one drawn
 import { frame } from '../../../public/modules/design/frame.js';
 

@@ -1,6 +1,6 @@
 # الموشن جرافيك في تاب التصميم: وش يقدر OpenAI يسوي اليوم
 
-> **تحديث:** الموشن صار نوع تصميم في تاب «التصميم» (`/design/?type=motion`)، مو صفحة في المدير. الرابط القديم `/maestro/video/` يحوّل له.
+> **تحديث:** الموشن صار نوع تصميم في تاب «التصميم» (`/design/?type=motion`)، مو صفحة في المدير. الروابط القديمة `/maestro/video/` و`/design/video/` تحوّل له.
 
 **التاريخ:** 2026-11-03. **الخلاصة في سطر:** OpenAI قفل توليد الفيديو من الـ API، فما نقدر نخلي ChatGPT "يصوّر" الفيديو. نبني الموشن جرافيك بالكود من التصميم والصوت المعتمدين، وChatGPT يكتب المشاهد ويعدّلها.
 
@@ -55,6 +55,6 @@
 ## 4. الملفات
 - `supabase/migrations/018_motion_videos.sql`: `motion_projects` و`motion_versions`
 - `src/modules/design/motion.ts`: الخطة، تنظيفها، القالب، البرومبتات، فحص الملفات
-- `src/modules/design/routes.ts`: `/api/design/videos|videofile|video|videoedit|videoapprove`
+- `src/modules/design/video.ts`: `/api/design/videos|videofile|video|videoedit|videoapprove`
 - `src/modules/design/Page.astro` (نوع «موشن جرافيك») + `public/modules/design/motion.js` و`frame.js`
 - `src/modules/design/motion.test.ts`
