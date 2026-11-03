@@ -1,8 +1,10 @@
 // Copywriter skills: the catalogue, inputs and missing questions, the prompt per skill, parsing the answer, and review.
 /// <reference types="vite/client" />
-import { describe, expect, it } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 import { SKILLS, SKILL, AD_PLATFORMS, partsOf, cleanInputs, missing, skillPrompt, parseVariants, reviewVariant, catalog } from './skills';
 import { styleCard, type Project } from './copy';
+import * as A from '../../lib/auth';
+import { ROUTES } from '../routes';
 
 // The spec files, read through Vite (the typecheck has no Node types)
 const DOCS = Object.keys(import.meta.glob('../../../docs/copywriter-skills/*.md')).map(f => f.split('/').pop());
@@ -95,5 +97,71 @@ describe('review', () => {
     expect(r.compliance.length).toBeGreaterThan(0);
     expect(r.banned).toEqual(['رخيص']);
     expect(r.text).toContain('قصير');
+  });
+});
+
+describe('route /api/copy/skill', () => {
+  const E: A.AuthEnv & { OPENAI_API_KEY?: string } = { SUPABASE_URL: 'https://sb.example', SUPABASE_SERVICE_ROLE_KEY: 's', SESSION_SECRET: 'x'.repeat(40), OWNER_EMAIL: 'leen@example.com' };
+  const cfg = A.env(E);
+  const editor: A.Profile = { id: '22222222-2222-2222-2222-222222222222', email: 'm@example.com', role: 'member', active: true, access: { copy: 'edit' } };
+  const call = async (body: unknown, env = E, who = editor) => ROUTES.copy.skill.POST(new Request('https://well.example/api/copy/skill', {
+    method: 'POST', body: JSON.stringify(body),
+    headers: { cookie: `${A.SESSION}=${encodeURIComponent(await A.sign(A.sessionFor(who, cfg), cfg.secret))}`, origin: 'https://well.example', 'sec-fetch-site': 'same-origin' } }), env);
+  const sent: { url: string; body: string }[] = [];
+  const answer = JSON.stringify({ variants: [{ subject: 'حياك في Well', preheader: 'أول زيارة', body: 'الأفضل في الرياض', cta: 'احجز', ps: '', angle: 'ترحيب', why: 'قريب' }] });
+  const stub = () => {
+    sent.length = 0;
+    vi.stubGlobal('fetch', vi.fn(async (url: string, init: RequestInit = {}) => {
+      sent.push({ url, body: String(init.body || '') });
+      if (url.includes('/profiles?id=eq.')) return new Response(JSON.stringify([editor]));
+      if (url.includes('copy_projects')) return new Response(JSON.stringify([{ id: 1, ...P({ competitors: [{ id: 'c1', name: 'أكمي', url: '', platform: '', samples: ['وش رايك تجرب؟ احجز'] }] }) }]));
+      if (url.includes('/knowledge?')) return new Response(JSON.stringify([{ id: 1, kind: 'voice', title: '', body: 'نتكلم مثل طبيب العائلة', price: null, modules: [], active: true }]));
+      if (url.includes('api.openai.com')) return new Response(JSON.stringify({ output_text: answer }));
+      return new Response('[]');
+    }));
+  };
+  afterEach(() => { vi.unstubAllGlobals(); });
+
+  it('asks for the missing inputs first, and needs a known skill and project', async () => {
+    stub();
+    const r = await call({ project_id: 1, skill: 'email', inputs: { type: 'welcome' } });
+    expect(await r.json()).toEqual({ ask: [{ key: 'point', ask: 'وش الشي الواحد اللي تبيه يسويه أو يعرفه؟' }] });
+    expect(sent.some(s => s.url.includes('openai'))).toBe(false);
+    expect((await call({ project_id: 1, skill: 'nope' })).status).toBe(400);
+  });
+  it('needs edit on the copy tab: a viewer cannot generate', async () => {
+    stub();
+    const viewer = { ...editor, access: { copy: 'view' } };
+    vi.stubGlobal('fetch', vi.fn(async (url: string) => new Response(JSON.stringify(url.includes('/profiles?id=eq.') ? [viewer] : []))));
+    const r = await call({ project_id: 1, skill: 'email', inputs: { type: 'welcome', point: 'x' } }, { ...E, OPENAI_API_KEY: 'k' }, viewer);
+    expect(r.status).toBe(403);
+  });
+  it('sends the inputs capped by the skill: an over-long input is cut before the prompt', async () => {
+    stub();
+    await call({ project_id: 1, skill: 'email', inputs: { type: 'welcome', point: 'ن'.repeat(5000), extra: 'لا توصل' } }, { ...E, OPENAI_API_KEY: 'k' });
+    const prompt = (JSON.parse(sent.find(s => s.url.includes('openai'))!.body) as { input: { content: string }[] }).input[1]!.content;
+    expect(prompt).toContain('ن'.repeat(200));
+    expect(prompt).not.toContain('ن'.repeat(201));
+    expect(prompt).not.toContain('لا توصل');
+  });
+  it('says so without a model instead of writing templates', async () => {
+    stub();
+    const r = await call({ project_id: 1, skill: 'email', inputs: { type: 'welcome', point: 'يحجز أول زيارة' } });
+    expect(r.status).toBe(503);
+  });
+  it('writes with the knowledge as system message and the picked style, and reviews every variant', async () => {
+    stub();
+    const r = await call({ project_id: 1, skill: 'email', inputs: { type: 'welcome', point: 'يحجز أول زيارة' }, count: 9, competitors: ['c1'] }, { ...E, OPENAI_API_KEY: 'k' });
+    expect(r.status).toBe(200);
+    const j = await r.json() as { variants: { parts: Record<string, string>; compliance: { rule: string }[] }[]; parts: { key: string }[]; used: { competitors: string[]; knowledge: boolean } };
+    expect(j.variants[0]!.parts.subject).toBe('حياك في Well');
+    expect(j.variants[0]!.compliance.some(h => h.rule === 'superlative')).toBe(true);
+    expect(j.parts.map(p => p.key)).toEqual(['subject', 'preheader', 'body', 'cta', 'ps']);
+    expect(j.used).toMatchObject({ competitors: ['أكمي'], knowledge: true });
+    const req = JSON.parse(sent.find(s => s.url.includes('openai'))!.body) as { input: { role: string; content: string }[] };
+    expect(req.input[0]).toMatchObject({ role: 'system' });
+    expect(req.input[0]!.content).toContain('طبيب العائلة');
+    expect(req.input[1]!.content).toContain('3 نسخ');   // count capped at the skill's max
+    expect(req.input[1]!.content).toContain('أكمي');
   });
 });
