@@ -1,5 +1,5 @@
 // التصميم: بريف من أفضل إعلاناتنا، نصوص مقترحة مفحوصة على قواعد الامتثال، ومعاينة لكل مقاس.
-// النص دايم طبقة فوق الصورة: الصورة ما تنرفع للسيرفر، والرسم كله في المتصفح، والتحميل PNG.
+// الصورة يصممها ChatGPT (منتجك في مشهد جديد، أو خلفية)، والنص دايم طبقة فوقها في المتصفح، والتحميل PNG.
 import { $, $$, api, say, esc, shell, busy, fmt } from '/assets/common.js';
 
 const PLAT = { meta: 'ميتا', snapchat: 'سناب شات', tiktok: 'تيك توك', google: 'جوجل' };
@@ -117,8 +117,8 @@ export default async function mount() {
     const v = res.variants[pick];
     $('#prev').innerHTML = sizes().map(k => `<figure class="dz-fig"><canvas data-size="${k}" aria-label="معاينة ${esc(res.sizes[k].label)}"></canvas>
       <figcaption><span>${esc(res.sizes[k].label)}</span><a class="btn sm secondary" data-dl="${k}" href="#" download="well-${k}.png">نزّل PNG</a></figcaption></figure>`).join('') || '<p class="muted">اختر مقاس واحد على الأقل.</p>';
-    // The uploaded photo wins; without one, the background ChatGPT drew for this brief
-    $$('#prev canvas').forEach(c => draw(c, res.sizes[c.dataset.size], v, img || drawn, usePal(), brand));
+    // What ChatGPT drew for this brief (the product in a new scene, or a background); the uploaded photo when it did not
+    $$('#prev canvas').forEach(c => draw(c, res.sizes[c.dataset.size], v, drawn || img, usePal(), brand));
   }
 
   function drawResult() {
@@ -139,14 +139,15 @@ export default async function mount() {
   }
 
   $('#f').addEventListener('submit', async e => {
-    e.preventDefault(); const btn = e.submitter; busy(btn, true); say($('#msg'), img ? 'يجهز البريف…' : 'يجهز البريف وChatGPT يصمم الخلفية… (حوالي دقيقة)', true);
+    e.preventDefault(); const btn = e.submitter; busy(btn, true); say($('#msg'), img ? 'يجهز البريف وChatGPT يحط منتجك في مشهد جديد… (حوالي دقيقة)' : 'يجهز البريف وChatGPT يصمم الخلفية… (حوالي دقيقة)', true);
     try {
       res = await api('/api/design/brief', { method: 'POST', body: { type: $('#type').value, offer: $('#offer').value, audience: $('#aud').value, dept: $('#dept').value,
+        product: img ? small(img, 1024).toDataURL('image/jpeg', 0.9) : '',
         images: [...(img ? [{ kind: 'product', data: small(img).toDataURL('image/jpeg', 0.7) }] : []), ...refs.map(r => ({ kind: 'ref', data: small(r).toDataURL('image/jpeg', 0.7) }))] } });
       drawn = res.image ? await picture(res.image).catch(() => null) : null;
       pick = 0; drawResult(); await render();
-      const missed = !img && !drawn && res.engine === 'openai';
-      say($('#msg'), missed ? 'النصوص جاهزة، بس ChatGPT ما رجّع خلفية هالمرة. جرّب مرة ثانية أو ارفع صورة.' : 'جاهز. عدّل النص أو اختر خيار ثاني، والمعاينة تتحدث.', !missed);
+      const missed = !drawn && res.engine === 'openai';
+      say($('#msg'), missed ? (img ? 'النصوص جاهزة، بس ChatGPT ما رجّع صورة هالمرة، فالمعاينة على صورتك الأصلية.' : 'النصوص جاهزة، بس ChatGPT ما رجّع خلفية هالمرة. جرّب مرة ثانية أو ارفع صورة.') : 'جاهز. عدّل النص أو اختر خيار ثاني، والمعاينة تتحدث.', !missed);
     } catch (err) { say($('#msg'), err.message); }
     busy(btn, false);
   });

@@ -3,12 +3,16 @@
 import { analyze } from '../voice/voice';
 import { check, type Rule } from '../compliance/compliance';
 
-export const KINDS: Record<string, { ar: string; max: number }> = {
-  ad: { ar: 'إعلان (نص أساسي)', max: 600 },
-  post: { ar: 'بوست عضوي', max: 1200 },
-  caption: { ar: 'كابشن قصير', max: 220 },
-  story: { ar: 'ستوري / سناب', max: 120 },
+// Ad copy per platform, with each placement's fields and lengths (characters; 0 = the platform has no such field).
+// max = primary text, head = headline, desc = description. Lengths from the platforms' ad specs (what shows uncut).
+export const KINDS: Record<string, { ar: string; max: number; head: number; desc: number; hint: string }> = {
+  meta: { ar: 'إعلان ميتا (فيسبوك وانستقرام)', max: 500, head: 40, desc: 30, hint: 'أول 125 حرف من النص الأساسي هي اللي تبان قبل «المزيد»' },
+  snap: { ar: 'إعلان سناب شات', max: 0, head: 34, desc: 0, hint: 'عنوان واحد فوق الإعلان، والباقي في التصميم' },
+  tiktok: { ar: 'إعلان تيك توك', max: 100, head: 0, desc: 0, hint: 'نص قصير تحت الفيديو' },
+  google: { ar: 'إعلان قوقل (بحث)', max: 0, head: 30, desc: 90, hint: 'عنوان ووصف لكل نسخة، وقوقل يركّبها' },
+  reel: { ar: 'نص على فيديو (ريلز وستوري)', max: 120, head: 0, desc: 0, hint: 'كلام يظهر على الفيديو، سطرين بالكثير' },
 };
+export const DEFAULT_KIND = 'meta';
 
 export interface Competitor { id: string; name: string; url: string; platform: string; samples: string[] }
 export interface Project {
@@ -83,49 +87,73 @@ export function styleCard(samples: string[]): StyleCard | null {
 
 // ---- Writing
 export function writePrompt(p: Project, kind: string, count: number, cards: { name: string; card: StyleCard }[], hooks: string[]): string {
-  const k = KINDS[kind] ?? KINDS.ad!;
+  const k = KINDS[kind] ?? KINDS[DEFAULT_KIND]!;
+  const fields = [
+    k.max ? `"hook": أول سطر يوقف التمرير، "body": باقي النص الأساسي (hook + body أقل من ${k.max} حرف)` : '"hook": "" و "body": ""',
+    k.head ? `"headline": عنوان أقل من ${k.head} حرف` : '"headline": ""',
+    k.desc ? `"description": وصف أقل من ${k.desc} حرف` : '"description": ""',
+    '"cta": نص زر الإعلان (كلمتين)',
+  ];
   const style = cards.map(({ name, card }) => `- ${name}: متوسط ${card.avgWords} كلمة، والجملة ${card.avgSentence} كلمة، وأسئلة في ${card.questions}% من النصوص، وإيموجي ${card.emojiPer} لكل نص`
     + `${card.openers.length ? `، وافتتاحياتهم: ${card.openers.map(o => `«${o.text}»`).join('، ')}` : ''}${card.dialect.length ? `، وكلماتهم السعودية: ${card.dialect.map(d => d.word).join('، ')}` : ''}`
     + `${card.ctas.length ? `، ودعوتهم: ${card.ctas.map(c => c.word).join('، ')}` : ''}.`).join('\n');
   return [
-    `أنت كاتب إعلانات سعودي. اكتب ${count} نسخ مختلفة من «${k.ar}» بلهجة سعودية بيضاء واضحة، قريبة ومهنية، جمل قصيرة.`,
+    `أنت كاتب إعلانات مدفوعة سعودي. اكتب ${count} نسخ مختلفة من «${k.ar}» بلهجة سعودية بيضاء واضحة، قريبة ومهنية، جمل قصيرة. هدف الإعلان: ليد أو حجز.`,
+    `ملاحظة المنصة: ${k.hint}. كل نسخة بزاوية مختلفة (المشكلة، الراحة، العرض، سؤال).`,
     `المشروع: ${p.name}. الخدمة: ${p.service || '—'}. الجمهور: ${p.audience || 'عام في السعودية'}. العرض: ${p.offer || '—'}. الدعوة للخطوة: ${p.cta || 'احجز'}.`,
     p.voice ? `صوت العلامة: ${p.voice}` : '',
     style ? `خذ النمط (الطول والإيقاع والافتتاحية ونوع الدعوة) من هالمنافسين، بدون ما تنسخ ولا جملة منهم:\n${style}` : '',
     hooks.length ? `افتتاحيات نجحت عندنا (أرخص ليد): ${hooks.slice(0, 5).map(h => `«${h}»`).join('، ')}` : '',
     `ممنوع: ادعاءات علاجية أو "مضمون" أو "الأفضل" أو "الوحيد"، وأي مبالغة، وشهادات مرضى${p.banned.length ? `، وهالكلمات: ${p.banned.join('، ')}` : ''}.`,
-    `كل نسخة أقل من ${k.max} حرف. رجّع JSON بس: [{"hook":"…","body":"…","cta":"…"}]`,
+    `الحقول: ${fields.join('، ')}.`,
+    `رجّع JSON بس: [{"hook":"…","body":"…","headline":"…","description":"…","cta":"…"}]`,
   ].filter(Boolean).join('\n');
 }
 
-export interface Draft { hook: string; body: string; cta: string }
+export interface Draft { hook: string; body: string; headline?: string; description?: string; cta: string }
 export function parseDrafts(raw: string, max: number): Draft[] {
   const m = String(raw || '').match(/\[[\s\S]*\]/);
   if (!m) return [];
   try {
     const arr = JSON.parse(m[0]) as unknown[];
-    return arr.map(x => x as Record<string, unknown>).map(x => ({ hook: s(x.hook, 200), body: String(x.body ?? '').trim().slice(0, max), cta: s(x.cta, 80) }))
-      .filter(d => d.hook || d.body).slice(0, 5);
+    return arr.map(x => x as Record<string, unknown>).map(x => ({ hook: s(x.hook, 200), body: String(x.body ?? '').trim().slice(0, max || 600), headline: s(x.headline, 120), description: s(x.description, 200), cta: s(x.cta, 80) }))
+      .filter(d => d.hook || d.body || d.headline).slice(0, 5);
   } catch { return []; }
 }
 
 // No AI binding (or a bad answer): plain drafts from the setup, so the tab still works
-export function fallbackDrafts(p: Project, count: number): Draft[] {
-  const cta = p.cta || 'احجز موعدك';
+export function fallbackDrafts(p: Project, count: number, kind = DEFAULT_KIND): Draft[] {
+  const k = KINDS[kind] ?? KINDS[DEFAULT_KIND]!;
+  const cta = p.cta || 'احجز موعدك', what = p.service || p.name;
   const offer = p.offer ? ` ${p.offer}.` : '';
   const out: Draft[] = [
-    { hook: `تبي ${p.service || p.name} بدون مشوار؟`, body: `فريقنا يجيك لين بيتك.${offer}`, cta },
-    { hook: `${p.service || p.name}، بالطريقة اللي تريحك`, body: `فريقنا معك من أول خطوة.${offer}`, cta },
-    { hook: `وش تحتاج تعرف عن ${p.service || p.name}؟`, body: `نجاوبك على كل سؤال قبل ما تقرر.${offer}`, cta },
+    { hook: `تبي ${what} بدون مشوار؟`, body: `فريقنا يجيك لين بيتك.${offer}`, headline: `${what} في بيتك`, description: 'احجز بخطوات بسيطة', cta },
+    { hook: `${what}، بالطريقة اللي تريحك`, body: `فريقنا معك من أول خطوة.${offer}`, headline: `${what} بدون انتظار`, description: 'فريق مرخّص يجيك', cta },
+    { hook: `وش تحتاج تعرف عن ${what}؟`, body: `نجاوبك على كل سؤال قبل ما تقرر.${offer}`, headline: `اسألنا عن ${what}`, description: 'نرد عليك اليوم', cta },
   ];
-  return out.slice(0, count);
+  return out.slice(0, count).map(d => fit(d, k));
+}
+
+// Fields the placement does not have are emptied; the rest stay as written (length is checked in review, not cut)
+const fit = (d: Draft, k: { max: number; head: number; desc: number }): Draft =>
+  ({ ...d, hook: k.max ? d.hook : '', body: k.max ? d.body : '', headline: k.head ? d.headline || '' : '', description: k.desc ? d.description || '' : '' });
+export const fitDraft = (d: Draft, kind: string) => fit(d, KINDS[kind] ?? KINDS[DEFAULT_KIND]!);
+
+// Each field against its limit: what the platform would cut
+export function overLimits(d: Draft, kind: string): { field: string; len: number; max: number }[] {
+  const k = KINDS[kind] ?? KINDS[DEFAULT_KIND]!, out: { field: string; len: number; max: number }[] = [];
+  const main = [d.hook, d.body].filter(Boolean).join('\n').length;
+  if (k.max && main > k.max) out.push({ field: 'النص الأساسي', len: main, max: k.max });
+  if (k.head && (d.headline || '').length > k.head) out.push({ field: 'العنوان', len: (d.headline || '').length, max: k.head });
+  if (k.desc && (d.description || '').length > k.desc) out.push({ field: 'الوصف', len: (d.description || '').length, max: k.desc });
+  return out;
 }
 
 // Every draft gets the voice checks (dialect, sentence length, CTA, emoji) and the compliance rules,
 // plus the project's own banned words. Notices only: nothing is blocked (Leen's rule).
-export function review(d: Draft, p: Project, extra: Rule[] = []) {
-  const text = [d.hook, d.body, d.cta].filter(Boolean).join('\n');
+export function review(d: Draft, p: Project, extra: Rule[] = [], kind = DEFAULT_KIND) {
+  const text = [d.hook, d.body, d.headline, d.description, d.cta].filter(Boolean).join('\n');
   const v = analyze(text);
   const banned = p.banned.filter(w => text.includes(w));
-  return { ...d, text, score: v.score, dialect: v.dialect, checks: v.checks, compliance: check(text, extra), banned };
+  return { ...d, text, score: v.score, dialect: v.dialect, checks: v.checks, compliance: check(text, extra), banned, over: overLimits(d, kind) };
 }

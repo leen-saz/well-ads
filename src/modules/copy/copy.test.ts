@@ -49,16 +49,16 @@ describe('style card', () => {
 describe('writing', () => {
   it('the prompt carries the setup, the pattern, our hooks and the bans, and says not to copy', () => {
     const card = styleCard(['وش رايك تجرب جلسة؟ احجز'])!;
-    const t = writePrompt(P(), 'caption', 3, [{ name: 'أكمي', card }], ['جلسة في بيتك']);
+    const t = writePrompt(P(), 'tiktok', 3, [{ name: 'أكمي', card }], ['جلسة في بيتك']);
     expect(t).toContain('3 نسخ');
     expect(t).toContain('أكمي');
     expect(t).toContain('بدون ما تنسخ');
     expect(t).toContain('«جلسة في بيتك»');
     expect(t).toContain('رخيص');
-    expect(t).toContain('220');
+    expect(t).toContain('أقل من 100 حرف');
   });
   it('parses the JSON answer, and falls back to plain drafts', () => {
-    expect(parseDrafts('خذ: [{"hook":"تبي راحة؟","body":"نجيك البيت","cta":"احجز"}]', 600)).toEqual([{ hook: 'تبي راحة؟', body: 'نجيك البيت', cta: 'احجز' }]);
+    expect(parseDrafts('خذ: [{"hook":"تبي راحة؟","body":"نجيك البيت","cta":"احجز"}]', 600)).toEqual([{ hook: 'تبي راحة؟', body: 'نجيك البيت', headline: '', description: '', cta: 'احجز' }]);
     expect(parseDrafts('ما فيه', 600)).toEqual([]);
     expect(fallbackDrafts(P(), 2).length).toBe(2);
   });
@@ -117,5 +117,18 @@ describe('review with the company rules', () => {
     const p = { name: 'x', service: '', audience: '', offer: '', cta: '', voice: '', banned: [], competitors: [] };
     const d = review({ hook: '', body: 'عرض خاص من منافسنا', cta: '' }, p as never, companyRules(['منافسنا']));
     expect(d.compliance.some(h => h.rule.startsWith('company_'))).toBe(true);
+  });
+});
+
+describe('ad copy per platform', () => {
+  it('asks for the placement fields and flags what the platform would cut', async () => {
+    const { overLimits, fitDraft } = await import('./copy');
+    const p = { name: 'المحاليل', service: 'فيتامين سي', audience: '', offer: '', cta: '', voice: '', banned: [], competitors: [] };
+    const prompt = writePrompt(p as never, 'google', 3, [], []);
+    expect(prompt).toContain('عنوان أقل من 30 حرف');
+    expect(prompt).toContain('وصف أقل من 90 حرف');
+    const d = fitDraft({ hook: 'سطر', body: 'نص', headline: 'عنوان طويل جداً لإعلان قوقل يتعدى الحد', description: 'وصف', cta: 'احجز' }, 'google');
+    expect(d.body).toBe('');
+    expect(overLimits(d, 'google')).toEqual([{ field: 'العنوان', len: d.headline!.length, max: 30 }]);
   });
 });
