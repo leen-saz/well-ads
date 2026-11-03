@@ -1,6 +1,6 @@
 ---
 import { ClientRouter } from 'astro:transitions';
-// المايسترو: مدير كل الإيجنتس (Paperclip). المهام والإيجنتس والموافقات لكل شركة.
+// المدير: مدير كل الإيجنتس (Paperclip). المهام والإيجنتس والموافقات لكل شركة.
 ---
 <!doctype html>
 <html lang="ar" dir="rtl">
@@ -10,7 +10,7 @@ import { ClientRouter } from 'astro:transitions';
 <meta name="robots" content="noindex,nofollow">
 <meta name="referrer" content="no-referrer">
 <meta name="theme-color" content="#F6F0E3">
-<title>المايسترو · Well</title>
+<title>المدير · Well</title>
 <link rel="preload" href="/assets/fonts/thmanyahsans-Regular.woff2" as="font" type="font/woff2" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@900&display=swap">
 <link rel="stylesheet" href="/assets/app.css">
@@ -66,7 +66,7 @@ import { ClientRouter } from 'astro:transitions';
       <div id="setup"></div>
       <div id="board" hidden>
         <div class="mx-bar">
-          <nav class="mx-tabs" role="tablist" aria-label="المايسترو">
+          <nav class="mx-tabs" role="tablist" aria-label="المدير">
             <button role="tab" data-view="overview">لوحة</button>
             <button role="tab" data-view="inbox">الوارد <span class="mx-cnt" id="inboxCnt"></span></button>
             <button role="tab" data-view="tasks">المهام</button>
@@ -87,7 +87,7 @@ import { ClientRouter } from 'astro:transitions';
           <h2>مهمة جديدة</h2>
           <label for="title">المهمة</label><input type="text" id="title" placeholder="مثال: جهّز 5 منشورات للمحاليل الأسبوع الجاي">
           <label for="desc">التفاصيل</label><textarea id="desc" rows="5"></textarea>
-          <div class="mx-row"><div><label for="agent">الإيجنت</label><select id="agent"><option value="">المايسترو يختار</option></select></div>
+          <div class="mx-row"><div><label for="agent">الإيجنت</label><select id="agent"><option value="">المدير يختار</option></select></div>
           <div><label for="prio">الأولوية</label><select id="prio"><option value="medium">عادية</option><option value="high">عالية</option><option value="urgent">عاجلة</option><option value="low">منخفضة</option></select></div></div>
           <p class="so-note">أي شي حساس (نشر، صرف، إيقاف إعلان) يرجع موافقة قبل التنفيذ.</p>
           <div class="bar" style="margin-top:16px"><button class="btn primary" type="submit" value="send">أرسل</button><button class="btn ghost" type="button" id="cancel">إلغاء</button></div>

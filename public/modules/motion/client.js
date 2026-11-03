@@ -1,4 +1,4 @@
-// فيديو الموشن (المايسترو): التصميم والصوت المعتمدين ← خطة مشاهد من المخرج (ChatGPT، والواجهة ما تسمي الموديل) ← معاينة، «تعديل»، سجل النسخ، والاعتماد.
+// فيديو الموشن (المدير): التصميم والصوت المعتمدين ← خطة مشاهد من المخرج (ChatGPT، والواجهة ما تسمي الموديل) ← معاينة، «تعديل»، سجل النسخ، والاعتماد.
 // الرسم في canvas على وقت الصوت (frame.js)، والتنزيل يسجّل نفس الرسم مع الصوت في المتصفح.
 import { $, api, say, esc, shell, busy, when, pageSignal } from '/assets/common.js';
 import { SIZE, frame, draw } from '/modules/motion/frame.js';
@@ -140,7 +140,7 @@ export default async function mount() {
   };
 
   try {
-    await shell({ active: 'maestro', title: 'فيديو الموشن', tools: '<a class="btn sm secondary" href="/maestro/">المايسترو</a>' });
+    await shell({ active: 'maestro', title: 'فيديو الموشن', tools: '<a class="btn sm secondary" href="/maestro/">المدير</a>' });
     const r = await api('/api/maestro/videos');
     S = r;
     if (r.setup) { $('#setup').innerHTML = `<p class="so-note">${esc(r.setup)}</p>`; return; }

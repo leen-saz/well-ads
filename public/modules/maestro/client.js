@@ -1,4 +1,4 @@
-// المايسترو: تبويبات (لوحة، الوارد، المهام، الإيجنتس) بالرابط، قائمة أو لوحة، فلاتر، بحث، ومهمة جديدة في نافذة.
+// المدير: تبويبات (لوحة، الوارد، المهام، الإيجنتس) بالرابط، قائمة أو لوحة، فلاتر، بحث، ومهمة جديدة في نافذة.
 // اختصارات: C مهمة جديدة، / بحث، 1-4 التبويبات.
 import { $, $$, api, say, esc, shell, busy, pageSignal } from '/assets/common.js';
 
@@ -89,9 +89,9 @@ export default async function mount() {
 
   async function load() {
     try { S = await api('/api/maestro/state'); }
-    catch (err) { $('#setup').innerHTML = `<section class="card pad" style="max-width:640px"><h2>المايسترو</h2><p class="muted">${esc(err.message)}</p><p class="so-note">الإعداد مرة وحدة من مسؤولة النظام.</p></section>`; return; }
+    catch (err) { $('#setup').innerHTML = `<section class="card pad" style="max-width:640px"><h2>المدير</h2><p class="muted">${esc(err.message)}</p><p class="so-note">الإعداد مرة وحدة من مسؤولة النظام.</p></section>`; return; }
     if (!S.connected) {
-      $('#setup').innerHTML = `<section class="card pad" style="max-width:640px"><h2>اربط شركتك بالمايسترو</h2><p class="muted">يجهز لشركتك مساحة فيها إيجنتس، ومهام، وميزانية، وموافقات.</p>
+      $('#setup').innerHTML = `<section class="card pad" style="max-width:640px"><h2>اربط شركتك بالمدير</h2><p class="muted">يجهز لشركتك مساحة فيها إيجنتس، ومهام، وميزانية، وموافقات.</p>
         ${S.owner ? '<button class="btn primary" id="connect">اربط</button>' : '<p class="muted">الربط من المالكة.</p>'}<div class="msg" id="cmsg" role="status"></div></section>`;
       $('#connect')?.addEventListener('click', async e => { busy(e.target, true); try { await api('/api/maestro/connect', { method: 'POST', body: {} }); await load(); } catch (err) { say($('#cmsg'), err.message); busy(e.target, false); } });
       return;
@@ -121,7 +121,7 @@ export default async function mount() {
     const btn = e.submitter; busy(btn, true);
     try {
       await api('/api/maestro/task', { method: 'POST', body: { title: $('#title').value, description: $('#desc').value, assigneeAgentId: $('#agent').value, priority: $('#prio').value } });
-      e.target.reset(); $('#dlg').close(); say($('#msg'), 'وصلت للمايسترو.', true); view = 'tasks'; await load();
+      e.target.reset(); $('#dlg').close(); say($('#msg'), 'وصلت للمدير.', true); view = 'tasks'; await load();
     } catch (err) { say($('#dmsg'), err.message); }
     busy(btn, false);
   });
@@ -133,5 +133,5 @@ export default async function mount() {
     else if (/^[1-4]$/.test(e.key) && !$('#board').hidden) { view = VIEWS[Number(e.key) - 1]; filter = 'all'; draw(); }
   }, { signal: pageSignal() });
 
-  shell({ active: 'maestro', title: 'المايسترو', tools: '<a class="btn sm secondary" href="/maestro/video/">فيديو الموشن</a>' }).then(load).catch(err => say($('#msg'), err.message));
+  shell({ active: 'maestro', title: 'المدير', tools: '<a class="btn sm secondary" href="/maestro/video/">فيديو الموشن</a>' }).then(load).catch(err => say($('#msg'), err.message));
 }

@@ -2,7 +2,7 @@
 // Reads /api/lessons/list?module=<tab>; whoever has the tab's approve level approves or ignores each lesson.
 import { $, api, esc, say, busy } from './common.js';
 
-const ST = { new: 'جديد', reviewed: 'راجعه المايسترو', approved: 'معتمد' };
+const ST = { new: 'جديد', reviewed: 'راجعه المدير', approved: 'معتمد' };
 const when = s => new Intl.DateTimeFormat('ar-SA-u-nu-latn', { day: 'numeric', month: 'short', timeZone: 'Asia/Riyadh' }).format(new Date(s));
 const pct = n => Number.isFinite(Number(n)) && Number(n) > 0 ? `${Math.round(Number(n) * 100)}%` : '';
 
@@ -26,7 +26,7 @@ export async function lessonsCard(module) {
         <span class="muted">${esc(when(l.created_at))}${l.source ? ` · ${esc(l.source)}` : ''}${pct(l.confidence) ? ` · ثقة ${pct(l.confidence)}` : ''}${l.decided_by ? ` · ${esc(l.decided_by)}` : ''}</span>
         ${r.canDecide && l.status !== 'approved' ? `<span class="bar"><button class="btn sm primary" data-act="approve">اعتمد</button><button class="btn sm ghost" data-act="ignore">تجاهل</button></span>` : ''}
       </li>`).join('')}</ul><div class="msg" id="learnedMsg" role="status"></div>`
-      : '<p class="muted" style="margin:0">ما فيه دروس للحين. اللوب اليومي يكتبها هنا من بيانات هالتاب، ويرسلها للمايسترو يراجعها.</p>';
+      : '<p class="muted" style="margin:0">ما فيه دروس للحين. اللوب اليومي يكتبها هنا من بيانات هالتاب، ويرسلها للمدير يراجعها.</p>';
   }
   card.addEventListener('click', async e => {
     const b = e.target.closest('[data-act]'); if (!b) return;
