@@ -1,7 +1,7 @@
 // /api/maestro/*: the maestro tab. Agents, tasks and pending approvals of the user's company, from Paperclip.
 // Connecting a company to Paperclip is owner-only; creating tasks needs edit and deciding approvals needs approve on `maestro`.
 import { sb, json, readJson, handle, requireUser, audit, isOwner, atLeast, notEnabled, type AuthEnv, type Cfg } from '../../lib/auth';
-import { budget, client, cleanTask, performance, STATUS, tabOf, withBrief, type PcEnv } from './paperclip';
+import { budget, chatLines, client, cleanTask, items, performance, STATUS, tabOf, withBrief, type PcEnv } from './paperclip';
 import { MODULES } from '../registry';
 import { knowledgeFor } from '../knowledge/knowledge';
 
@@ -44,6 +44,42 @@ export const agent = { GET: handle(async (request, e: Env) => {
   try { return json(200, { days, ...performance(await pc.agentInputs(c.paperclip_company_id, id, new Date(since).toISOString()), since) }); }
   catch (err) { console.error('maestro_agent_failed', (err as Error).message); return json(502, { error: 'المدير مو متاح الحين، جرّب بعد شوي' }); }
 }) };
+
+// The chat with «المدير» (docs/maestro-plan.md §3). GET reads the thread; POST adds a message (needs edit).
+export const chat = {
+  GET: handle(async (request, e: Env) => {
+    const { cfg, user } = await requireUser(request, e, 'maestro');
+    const pc = client(e);
+    if (!pc) return notSet(user);
+    const c = await companyOf(cfg, user.co);
+    if (!c?.paperclip_company_id) return json(409, { error: 'اربط الشركة بالمدير أول' });
+    try {
+      const issue = await pc.chatIssue(c.paperclip_company_id, false);
+      if (!issue) return json(200, { lines: [] });
+      const [comments, agents] = await Promise.all([pc.comments(String(issue.id)), pc.agents(c.paperclip_company_id)]);
+      return json(200, { lines: chatLines(comments, Object.fromEntries(items(agents).map(a => [String(a.id), String(a.name || '')]))) });
+    } catch (err) { console.error('maestro_chat_failed', (err as Error).message); return json(502, { error: 'المدير مو متاح الحين، جرّب بعد شوي' }); }
+  }),
+  POST: handle(async (request, e: Env) => {
+    const { cfg, user } = await requireUser(request, e, 'maestro', { write: true });
+    const pc = client(e);
+    if (!pc) return notSet(user);
+    const text = String((await readJson(request)).text || '').trim().slice(0, 4000);
+    if (!text) return json(400, { error: 'اكتب رسالتك' });
+    const c = await companyOf(cfg, user.co);
+    if (!c?.paperclip_company_id) return json(409, { error: 'اربط الشركة بالمدير أول' });
+    try {
+      const issue = await pc.chatIssue(c.paperclip_company_id, true);
+      await pc.say(issue!, `${text}\n\n— ${user.email} من لوحة Well`);
+      await audit(cfg, user, 'maestro_chat', { target: { issue: issue!.id } });
+      return json(200, { ok: true });
+    } catch (err) {
+      const m = (err as Error).message;
+      console.error('maestro_chat_send_failed', m);
+      return json(m === 'no ceo' ? 409 : 502, { error: m === 'no ceo' ? 'ما فيه إيجنت CEO في Paperclip يرد على المحادثة' : 'ما وصلت الرسالة، جرّب بعد شوي' });
+    }
+  }),
+};
 
 export const connect = { POST: handle(async (request, e: Env) => {
   const { cfg, user } = await requireUser(request, e, 'owner', { write: true });

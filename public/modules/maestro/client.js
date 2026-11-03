@@ -1,5 +1,5 @@
-// المدير: تبويبات (لوحة، الوارد، المهام، الإيجنتس) بالرابط، قائمة أو لوحة، فلاتر، بحث، ومهمة جديدة في نافذة.
-// اختصارات: C مهمة جديدة، / بحث، 1-4 التبويبات.
+// المدير: تبويبات (لوحة، الوارد، المهام، الإيجنتس، المحادثة) بالرابط، قائمة أو لوحة، فلاتر، بحث، ومهمة جديدة في نافذة.
+// اختصارات: C مهمة جديدة، / بحث، 1-5 التبويبات.
 import { $, $$, api, say, esc, fmt, shell, busy, pageSignal } from '/assets/common.js';
 
 // Runs on every visit of this page (assets/router.js calls it after each ClientRouter navigation).
@@ -9,7 +9,7 @@ export default async function mount() {
   const AG = { active: 'جاهز', idle: 'فاضي', running: 'يشتغل', paused: 'موقف', error: 'فيه خطأ', pending_approval: 'ينتظر موافقة', terminated: 'منتهي' };
   const APPR = { hire_agent: 'توظيف إيجنت', approve_ceo_strategy: 'خطة المدير', budget_override_required: 'تجاوز الميزانية', request_board_approval: 'طلب موافقة' };
   const COLS = ['todo', 'in_progress', 'in_review', 'blocked', 'done'];
-  const VIEWS = ['overview', 'inbox', 'tasks', 'agents'];
+  const VIEWS = ['overview', 'inbox', 'tasks', 'agents', 'chat'];
   const FILTERS = {
     inbox: [['all', 'الكل'], ['approvals', 'موافقات'], ['blocked', 'متوقفة']],
     tasks: [['all', 'الكل'], ['todo', 'جاهزة'], ['in_progress', 'شغالة'], ['in_review', 'للمراجعة'], ['blocked', 'متوقفة'], ['done', 'خلصت']],
@@ -77,6 +77,28 @@ export default async function mount() {
     return tree(null);
   }
 
+  // ---- the chat with «المدير»: approvals and «وين وصلنا؟» answered here from Paperclip's data (no model);
+  // free text goes to the CEO agent as a comment, and its reply shows up on the next refresh
+  let lines = [], local = [], poll = 0;
+  const bubble = l => `<div class="mx-msg${l.agent ? ' them' : ''}"><small class="muted">${esc(l.name)}</small><p>${l.html || esc(l.body)}</p></div>`;
+  function statusNow() {
+    const by = {};
+    for (const i of S.issues || []) { if (!['in_progress', 'blocked', 'todo'].includes(i.status)) continue; const t = tabName(i) || 'عام'; (by[t] ||= { todo: 0, in_progress: 0, blocked: 0 })[i.status]++; }
+    const rows = Object.entries(by).map(([t, c]) => `<li><b>${esc(t)}</b>: ${c.in_progress} شغالة، ${c.todo} جاهزة${c.blocked ? `، <b>${c.blocked} متوقفة</b>` : ''}</li>`).join('');
+    return `${rows ? `<ul>${rows}</ul>` : 'ما فيه مهام مفتوحة.'}${(S.approvals || []).length ? `<br>${(S.approvals || []).length} موافقة تنتظرك، تحت.` : ''}`;
+  }
+  function chat() {
+    const ap = S.approvals || [];
+    return `<div class="mx-chat"><div class="mx-thread" id="thread">${[...lines, ...local].map(bubble).join('') || '<p class="muted">اكتب للمدير: يوزع مهمة، يرد على سؤال، أو يقول لك وين وصل الشغل.</p>'}</div>
+      ${ap.length ? `<div class="mx-list">${ap.map(approvalRow).join('')}</div>` : ''}
+      <div class="mx-quick"><button type="button" class="btn sm secondary" data-q="status">وين وصلنا؟</button>${S.canEdit ? '<button type="button" class="btn sm secondary" data-q="task">أسند مهمة</button>' : ''}</div>
+      ${S.canEdit ? '<form class="mx-say" id="say"><textarea id="sayText" rows="2" placeholder="اكتب للمدير…" aria-label="رسالة للمدير"></textarea><button class="btn primary" type="submit">أرسل</button></form>' : ''}</div>`;
+  }
+  async function loadChat() {
+    try { lines = (await api('/api/maestro/chat')).lines || []; } catch (err) { say($('#msg'), err.message); }
+    if (view === 'chat' && !$('#sayText')?.value) { draw(); const t = $('#thread'); if (t) t.scrollTop = t.scrollHeight; }
+  }
+
   function draw() {
     $$('.mx-tabs [data-view]').forEach(b => b.setAttribute('aria-selected', String(b.dataset.view === view)));
     $('#inboxCnt').textContent = ((S.approvals || []).length + (S.issues || []).filter(i => i.status === 'blocked').length) || '';
@@ -87,7 +109,11 @@ export default async function mount() {
     $('.mx-layout').hidden = !['tasks', 'agents'].includes(view);
     $$('.mx-layout [data-layout]').forEach(b => b.setAttribute('aria-pressed', String(b.dataset.layout === layout)));
     $('#newTask').hidden = !S.canEdit;
-    $('#view').innerHTML = { overview, inbox, tasks, agents }[view]();
+    const draft = $('#sayText')?.value;
+    $('#view').innerHTML = { overview, inbox, tasks, agents, chat }[view]();
+    if (draft && $('#sayText')) $('#sayText').value = draft;
+    clearInterval(poll);
+    if (view === 'chat') poll = setInterval(() => { if (!document.hidden) loadChat(); }, 20000);
     const u = new URL(location.href);
     u.searchParams.set('view', view);
     if (filter === 'all') u.searchParams.delete('f'); else u.searchParams.set('f', filter);
@@ -112,7 +138,22 @@ export default async function mount() {
 
   // ---- interactions
   const openNew = () => { if (S.canEdit && $('#dlg') && !$('#dlg').open) { $('#dlg').showModal(); $('#title').focus(); } };
-  $('.mx-tabs').addEventListener('click', e => { const b = e.target.closest('[data-view]'); if (b) { view = b.dataset.view; filter = 'all'; draw(); } });
+  $('.mx-tabs').addEventListener('click', e => { const b = e.target.closest('[data-view]'); if (b) { view = b.dataset.view; filter = 'all'; draw(); if (view === 'chat') loadChat(); } });
+  $('#view').addEventListener('click', e => {
+    const q = e.target.closest('[data-q]'); if (!q) return;
+    const text = $('#sayText')?.value.trim() || '';
+    if (q.dataset.q === 'status') { local.push({ name: 'أنت', body: 'وين وصلنا؟' }, { agent: true, name: 'المدير', html: statusNow() }); draw(); }
+    else { openNew(); if (text) $('#title').value = text.slice(0, 200); }
+  });
+  $('#view').addEventListener('submit', async e => {
+    if (e.target.id !== 'say') return;
+    e.preventDefault();
+    const btn = e.submitter; busy(btn, true);
+    try { await api('/api/maestro/chat', { method: 'POST', body: { text: $('#sayText').value } }); $('#sayText').value = ''; local = []; await loadChat(); say($('#msg'), 'وصلت للمدير، يرد في تشغيله الجاي.', true); }
+    catch (err) { say($('#msg'), err.message); }
+    busy(btn, false);
+  });
+  pageSignal().addEventListener('abort', () => clearInterval(poll));
   $('#filters').addEventListener('click', e => { const b = e.target.closest('[data-filter]'); if (b) { filter = b.dataset.filter; draw(); } });
   $('.mx-layout').addEventListener('click', e => { const b = e.target.closest('[data-layout]'); if (b) { layout = b.dataset.layout; draw(); } });
   $('#q').addEventListener('input', () => draw());
@@ -157,7 +198,7 @@ export default async function mount() {
     if (e.metaKey || e.ctrlKey || e.altKey || /^(INPUT|TEXTAREA|SELECT)$/.test(document.activeElement?.tagName || '') || $('#dlg')?.open || $('#pdlg')?.open) return;
     if (e.key === 'c' || e.key === 'C') { e.preventDefault(); openNew(); }
     else if (e.key === '/') { e.preventDefault(); $('#q').focus(); }
-    else if (/^[1-4]$/.test(e.key) && !$('#board').hidden) { view = VIEWS[Number(e.key) - 1]; filter = 'all'; draw(); }
+    else if (/^[1-5]$/.test(e.key) && !$('#board').hidden) { view = VIEWS[Number(e.key) - 1]; filter = 'all'; draw(); if (view === 'chat') loadChat(); }
   }, { signal: pageSignal() });
 
   shell({ active: 'maestro', title: 'المدير' }).then(load).catch(err => say($('#msg'), err.message));
