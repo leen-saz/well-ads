@@ -10,7 +10,7 @@ export default async function mount() {
     kill_on: 'شغّل الطوارئ', kill_off: 'أوقف الطوارئ', critic_run: 'المراجع راجع الاقتراحات',
     modules_changed: 'غيّر الموديولات', content_plan: 'حلّل الموقع (المحتوى)', content_approve: 'وافق على بند محتوى', content_reject: 'رفض بند محتوى', content_done: 'نشر بند محتوى', content_draft: 'كتب مسودة محتوى',
     social_scheduled: 'جدول منشور', social_approved: 'وافق على منشور', social_cancelled: 'ألغى منشور', journey_saved: 'حفظ رحلة', journey_started: 'شغّل رحلة لعميل',
-    maestro_connected: 'ربط المايسترو', maestro_task: 'كلّف المايسترو بمهمة', maestro_approve: 'وافق في المايسترو', maestro_reject: 'رفض في المايسترو',
+    maestro_connected: 'ربط المدير', maestro_task: 'كلّف المدير بمهمة', maestro_approve: 'وافق في المدير', maestro_reject: 'رفض في المدير',
     connector_saved: 'ربط منصة', connector_removed: 'فك ربط منصة', suggestion_revert: 'تراجع عن تنفيذ', campaign_requested: 'طلب حملة جديدة', canary_changed: 'غيّر حملات التجربة' };
   let LEVELS = ['view', 'edit', 'approve'];
   const LV = { '': 'بدون', view: 'مشاهدة', edit: 'تعديل', approve: 'موافقة' };

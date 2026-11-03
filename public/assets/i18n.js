@@ -13,7 +13,7 @@ document.addEventListener('astro:after-swap', () => { document.documentElement.l
 
 const EN = {
   // التنقل والهيكل
-  'التحليلات': 'Analytics', 'ملخص الأداء': 'Performance summary', 'المواد الإعلانية بالتفصيل': 'Creatives in detail', 'الحملات والمنصات': 'Campaigns & platforms', 'ملخص اليوم': 'Today', 'الأداء': 'Performance', 'إنشاء المحتوى': 'Content creation', 'المراجعة والتنفيذ': 'Review & execution', 'إدارة النظام': 'System', 'السجل': 'History', 'الصلاحيات': 'Permissions', 'اليوم': 'Today', 'إغلاق القائمة': 'Close menu', 'المواد الإعلانية': 'Creatives', 'المادة الإعلانية': 'Creative', 'بموافقتي': 'With my approval', 'تنفيذ تلقائي': 'Auto-run', 'التنفيذ التلقائي': 'auto-run', 'لوحة القرارات': 'Decision board', 'الصلاحيات والدخول': 'Access & sign-in', 'السوشال': 'Social', 'صورة أو فيديو': 'Photo or video', 'أو حط رابط': 'Or paste a link', 'يرفع…': 'Uploading…', 'انرفع ✓': 'Uploaded ✓', 'الرحلات والرسائل': 'Journeys', 'المحتوى و SEO': 'Content & SEO', 'المايسترو': 'Maestro', 'الموديولات': 'Modules', 'موديولات الشركة': 'Company modules', 'الإعدادات': 'Settings', 'أساسي': 'Core', 'أساسية لتشغيل النظام': 'Needed to run the system',
+  'التحليلات': 'Analytics', 'ملخص الأداء': 'Performance summary', 'المواد الإعلانية بالتفصيل': 'Creatives in detail', 'الحملات والمنصات': 'Campaigns & platforms', 'ملخص اليوم': 'Today', 'الأداء': 'Performance', 'إنشاء المحتوى': 'Content creation', 'المراجعة والتنفيذ': 'Review & execution', 'إدارة النظام': 'System', 'السجل': 'History', 'الصلاحيات': 'Permissions', 'اليوم': 'Today', 'إغلاق القائمة': 'Close menu', 'المواد الإعلانية': 'Creatives', 'المادة الإعلانية': 'Creative', 'بموافقتي': 'With my approval', 'تنفيذ تلقائي': 'Auto-run', 'التنفيذ التلقائي': 'auto-run', 'لوحة القرارات': 'Decision board', 'الصلاحيات والدخول': 'Access & sign-in', 'السوشال': 'Social', 'صورة أو فيديو': 'Photo or video', 'أو حط رابط': 'Or paste a link', 'يرفع…': 'Uploading…', 'انرفع ✓': 'Uploaded ✓', 'الرحلات والرسائل': 'Journeys', 'المحتوى و SEO': 'Content & SEO', 'المدير': 'Manager', 'الموديولات': 'Modules', 'موديولات الشركة': 'Company modules', 'الإعدادات': 'Settings', 'أساسي': 'Core', 'أساسية لتشغيل النظام': 'Needed to run the system',
   'حسابي': 'My account', 'خروج': 'Sign out', 'المالكة': 'Owner', 'عضو': 'Member', 'القائمة': 'Menu', 'التنقل': 'Navigation',
   'عربي': 'عربي', 'English': 'English', 'اللغة': 'Language',
   // الدخول
@@ -222,7 +222,7 @@ const EN = {
   'Settings ← Projects ← المشروع ← General.': 'Settings → Projects → the project → General.',
   'Adobe Developer Console ← مشروع ← Analytics API ← OAuth Server-to-Server.': 'Adobe Developer Console → project → Analytics API → OAuth Server-to-Server.',
   'Google Cloud ← Service account بصلاحية BigQuery Data Viewer ← JSON.': 'Google Cloud → Service account with BigQuery Data Viewer → JSON.',
-  // الصفحات الجديدة: المايسترو، السوشال، الرحلات، المحتوى
+  // الصفحات الجديدة: المدير، السوشال، الرحلات، المحتوى
   'جاهز': 'Ready',
   'فاضي': 'Idle',
   'يشتغل': 'Running',
@@ -240,16 +240,16 @@ const EN = {
   'ما فيه شي ينتظر.': 'Nothing waiting.',
   'ما فيه مهام للحين.': 'No tasks yet.',
   'الإعداد مرة وحدة من مسؤولة النظام.': 'One-time setup by the system admin.',
-  'اربط شركتك بالمايسترو': 'Connect your company to the Maestro',
+  'اربط شركتك بالمدير': 'Connect your company to the Manager',
   'يجهز لشركتك مساحة فيها إيجنتس، ومهام، وميزانية، وموافقات.': 'Sets up a space for your company with agents, tasks, budget and approvals.',
-  'وصلت للمايسترو.': 'Sent to the Maestro.',
-  'المايسترو · Well': 'Maestro · Well',
-  'كلّف المايسترو': 'Assign the Maestro',
+  'وصلت للمدير.': 'Sent to the Manager.',
+  'المدير · Well': 'Manager · Well',
+  'كلّف المدير': 'Assign the Manager',
   'المهمة': 'Task',
   'مثال: جهّز 5 منشورات للمحاليل الأسبوع الجاي': 'Example: prepare 5 posts for IV drips next week',
   'التفاصيل': 'Details',
   'الإيجنت': 'Agent',
-  'المايسترو يختار': 'Maestro picks',
+  'المدير يختار': 'The Manager picks',
   'الأولوية': 'Priority',
   'عادية': 'Normal',
   'عالية': 'High',

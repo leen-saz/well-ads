@@ -1,11 +1,11 @@
-// فيديو الموشن (المايسترو): التصميم والصوت المعتمدين ← خطة مشاهد من المخرج (ChatGPT، والواجهة ما تسمي الموديل) ← معاينة، «تعديل»، سجل النسخ، والاعتماد.
+// فيديو الموشن (المدير): التصميم والصوت المعتمدين ← خطة مشاهد من المخرج (ChatGPT، والواجهة ما تسمي الموديل) ← معاينة، «تعديل»، سجل النسخ، والاعتماد.
 // الرسم في canvas على وقت الصوت (frame.js)، والتنزيل يسجّل نفس الرسم مع الصوت في المتصفح.
 import { $, api, say, esc, shell, busy, when, pageSignal } from '/assets/common.js';
 import { SIZE, frame, draw } from '/modules/motion/frame.js';
 
 export default async function mount() {
   // The sidebar and title first: a fault further down must never leave a blank page
-  await shell({ active: 'maestro', title: 'فيديو الموشن', tools: '<a class="btn sm secondary" href="/maestro/">المايسترو</a>' });
+  await shell({ active: 'maestro', title: 'فيديو الموشن', tools: '<a class="btn sm secondary" href="/maestro/">المدير</a>' });
   let S = {}, P = null, V = [], cur = null, img = null, raf = 0, audioCtx = null;
   const audio = $('#voiceOut'), canvas = $('#stage'), ctx = canvas.getContext('2d');
   const id = new URL(location.href).searchParams.get('id');
