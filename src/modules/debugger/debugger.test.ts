@@ -1,6 +1,7 @@
 // Tracking health: each check fires on the data that should trigger it, and stays quiet otherwise.
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import { diagnose, hasUtm, type Input } from './debugger';
+import { CLAUDE_MODEL, explain, explainPrompt } from './explain';
 
 const base = (over: Partial<Input> = {}): Input => ({
   today: '2026-11-02', ads: [], metrics: [], leads: [], connections: [],
@@ -55,5 +56,27 @@ describe('tracking health', () => {
     const r = diagnose(base({ ads: [ad('t1', 'tiktok')], metrics: [{ ad_key: 't1', day: '2026-10-20', spend: 500, leads: 0 }], tables: { ads: true, metrics: false, leads: true, connections: true } }));
     expect(r.findings[0]?.level).toBe('critical');
     expect(r.summary.critical).toBeGreaterThan(0);
+  });
+});
+
+describe('Claude plan', () => {
+  const findings = [{ id: 'stale', level: 'critical' as const, title: 'سناب وقفت أرقامه', detail: 'آخر يوم 2026-10-30', fix: 'جدّد الربط' }];
+  const platforms = { snapchat: { spend7: 900, leads7: 0, crm7: 4, lastDay: '2026-10-30' } };
+  it('sends the findings with the fallback and effort set, and reads the text', async () => {
+    const f = vi.fn(async () => new Response(JSON.stringify({ id: 'm', type: 'message', role: 'assistant', model: CLAUDE_MODEL, stop_reason: 'end_turn',
+      content: [{ type: 'thinking', thinking: '', signature: 's' }, { type: 'text', text: '1. جدّد ربط سناب' }], usage: { input_tokens: 1, output_tokens: 1 } }), { status: 200, headers: { 'content-type': 'application/json' } }));
+    const r = await explain({ ANTHROPIC_API_KEY: 'sk-ant-test' }, findings, platforms, f as unknown as typeof fetch);
+    expect(r).toEqual({ text: '1. جدّد ربط سناب', model: CLAUDE_MODEL });
+    const [url, init] = f.mock.calls[0] as unknown as [string, RequestInit];
+    expect(String(url)).toContain('/v1/messages');
+    const body = JSON.parse(String(init.body));
+    expect(body).toMatchObject({ model: CLAUDE_MODEL, fallbacks: 'default', output_config: { effort: 'medium' } });
+    expect(body.messages[0].content).toContain('سناب وقفت أرقامه');
+  });
+  it('needs the key, and a refusal is an error, not an empty plan', async () => {
+    await expect(explain({}, findings, platforms)).rejects.toThrow('no_key');
+    const f = vi.fn(async () => new Response(JSON.stringify({ id: 'm', type: 'message', role: 'assistant', model: CLAUDE_MODEL, stop_reason: 'refusal', content: [], usage: { input_tokens: 1, output_tokens: 0 } }), { status: 200, headers: { 'content-type': 'application/json' } }));
+    await expect(explain({ ANTHROPIC_API_KEY: 'k' }, findings, platforms, f as unknown as typeof fetch)).rejects.toThrow('refused');
+    expect(explainPrompt([], {})).toContain('ما فيه مشاكل');
   });
 });

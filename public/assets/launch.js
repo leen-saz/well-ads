@@ -1,6 +1,7 @@
-// فورم إطلاق حملة جديدة: تختار المنصة وتطلع خيارات إعلاناتها هي. الخانة الفاضية يعبيها كلود.
+// فورم إطلاق حملة جديدة: تختار المنصة وتطلع خيارات إعلاناتها هي. الخانة الاختيارية اللي تنترك فاضية تطلع «ناقص» في طلب القرار.
 // الإرسال يسوي طلب "حملة جديدة" في لوحة القرارات، يمر على المراجع، ويحتاج موافقة لين. ما يطلق شي على المنصة بنفسه.
 import { $, $$, esc, api, icon, shell, toast, busy, say } from './common.js';
+import { block } from './compliance-ui.js';
 
 // Runs on every visit of this page (assets/router.js calls it after each ClientRouter navigation).
 export default async function mount() {
@@ -8,28 +9,26 @@ export default async function mount() {
   const DEPTS = { iv: 'المحاليل الوريدية', midwife: 'القبالة / رعاية الحمل', foot: 'تقويم القدم', renan: 'رينان لصحة الطفل' };
   const CODE = { iv: 'IV', midwife: 'Midwife', foot: 'Foot', renan: 'Renan' };
   const PNAME = { meta: 'Meta', snap: 'Snap', tiktok: 'TikTok', google: 'Google' };
-  // كلمات تخالف تعليمات وزارة الصحة في الإعلان الصحي (تطلع تحذير قبل الإرسال)
-  const MOH = ['الأفضل', 'الوحيد', 'الأكثر', 'الخبير', 'مضمون', 'مضمونة', 'علاج فوري', 'نتائج مثبتة', 'تجارب المرضى', 'تجربة مريض', 'شفاء تام', '100%'];
 
   const C = (id, label, type, opt = {}) => ({ id, label, type, ...opt });
   const COMMON = [
     C('dept', 'القسم / الخدمة', 'select', { options: DEPTS, required: true }),
     C('name', 'اسم الحملة', 'text', { hint: 'الصيغة: Platform_service_DDMM. تتعبّى لحالها.' }),
     C('objective', 'الهدف', 'seg', { options: { leads: 'Leads', sales: 'Sales' }, value: 'leads', hint: 'Sales أو Leads بس. Traffic ممنوع.' }),
-    C('budget', 'الميزانية اليومية (ريال)', 'number', { ai: true }),
+    C('budget', 'الميزانية اليومية (ريال)', 'number', { optional: true }),
     C('start', 'تاريخ البداية', 'date', { required: true }),
-    C('end', 'تاريخ النهاية', 'date', { ai: true }),
+    C('end', 'تاريخ النهاية', 'date', { optional: true }),
     C('geo', 'الموقع', 'locked', { value: 'الرياض بس' }),
     C('age_min', 'العمر من', 'number', { value: 30, min: 30 }),
     C('age_max', 'إلى', 'select', { options: { '45': '45', '55': '55', '65': '65+' }, value: '65' }),
     C('gender', 'الجنس', 'seg', { options: { all: 'الكل', female: 'نساء', male: 'رجال' }, value: 'all' }),
     C('lang', 'لغة الإعلان', 'seg', { options: { ar: 'عربي', en: 'إنجليزي' }, value: 'ar' }),
     C('influencer', 'المؤثرة (اختياري)', 'text'),
-    C('wa_message', 'رسالة واتساب الخاصة', 'text', { hint: 'لكل مؤثرة رسالة مختلفة عشان نعرف مصدر المحادثة.', ai: true }),
+    C('wa_message', 'رسالة واتساب الخاصة', 'text', { hint: 'لكل مؤثرة رسالة مختلفة عشان نعرف مصدر المحادثة.', optional: true }),
     C('creative', 'رابط الكرييتف (فيديو أو صورة)', 'url', { required: true }),
-    C('primary', 'النص الأساسي', 'textarea', { ai: true }),
-    C('headline', 'العنوان', 'text', { ai: true }),
-    C('cta', 'زر الدعوة', 'select', { options: { whatsapp: 'راسلنا واتساب', book: 'احجز الآن', learn: 'اعرف أكثر', signup: 'سجّل' }, ai: true }),
+    C('primary', 'النص الأساسي', 'textarea', { optional: true }),
+    C('headline', 'العنوان', 'text', { optional: true }),
+    C('cta', 'زر الدعوة', 'select', { options: { whatsapp: 'راسلنا واتساب', book: 'احجز الآن', learn: 'اعرف أكثر', signup: 'سجّل' }, optional: true }),
   ];
   const PLAT = {
     meta: [
@@ -44,7 +43,7 @@ export default async function mount() {
     snap: [
       C('ad_type', 'نوع الإعلان', 'seg', { options: { single: 'صورة أو فيديو', story: 'ستوري', collection: 'كولكشن' }, value: 'single' }),
       C('goal', 'الهدف في سناب', 'select', { options: { lead_form: 'نموذج ليد داخل سناب', website: 'سوايب للموقع', pixel_purchase: 'شراء (Pixel)' }, value: 'lead_form' }),
-      C('qualify', 'سؤال التأهيل في النموذج', 'text', { hint: 'مثل: متى تبي الجلسة؟', ai: true }),
+      C('qualify', 'سؤال التأهيل في النموذج', 'text', { hint: 'مثل: متى تبي الجلسة؟', optional: true }),
       C('bid', 'المزايدة', 'seg', { options: { auto: 'تلقائي', target: 'تكلفة مستهدفة' }, value: 'auto' }),
     ],
     tiktok: [
@@ -56,10 +55,10 @@ export default async function mount() {
     ],
     google: [
       C('type', 'نوع الحملة', 'locked', { value: 'Search' }),
-      C('keywords', 'الكلمات', 'textarea', { hint: 'كلمة في كل سطر.', ai: true }),
-      C('negatives', 'كلمات سلبية', 'textarea', { value: 'وظائف\nتوظيف\nراتب\nدورة\nمجاني\nPDF', ai: true }),
-      C('headlines', 'العناوين (8 إلى 15)', 'textarea', { hint: 'عنوان في كل سطر، 30 حرف بالكثير.', ai: true }),
-      C('descriptions', 'الأوصاف (2 إلى 4)', 'textarea', { ai: true }),
+      C('keywords', 'الكلمات', 'textarea', { hint: 'كلمة في كل سطر.', optional: true }),
+      C('negatives', 'كلمات سلبية', 'textarea', { value: 'وظائف\nتوظيف\nراتب\nدورة\nمجاني\nPDF', optional: true }),
+      C('headlines', 'العناوين (8 إلى 15)', 'textarea', { hint: 'عنوان في كل سطر، 30 حرف بالكثير.', optional: true }),
+      C('descriptions', 'الأوصاف (2 إلى 4)', 'textarea', { optional: true }),
       C('final_url', 'رابط الصفحة', 'url', { value: 'https://wellcare.sa/' }),
       C('bidding', 'المزايدة', 'select', { options: { max_conv: 'أكبر عدد تحويلات', tcpa: 'تكلفة تحويل مستهدفة' }, value: 'max_conv' }),
     ],
@@ -70,17 +69,16 @@ export default async function mount() {
 
   function field(f) {
     const v = f.value ?? '';
-    const ai = f.ai ? `<span class="chip line ai" data-tip="إذا خليتها فاضية يعبيها كلود">${icon('pen')}يعبيها كلود</span>` : '';
-    const lab = `<label for="${f.id}">${f.label}${f.required ? ' <span class="req">*</span>' : ''} ${ai}</label>`;
+    const lab = `<label for="${f.id}">${f.label}${f.required ? ' <span class="req">*</span>' : ''}${f.optional ? ' <span class="muted">(اختياري)</span>' : ''}</label>`;
     const hint = f.hint ? `<div class="muted">${f.hint}</div>` : '';
     let input;
-    if (f.type === 'select') input = `<select id="${f.id}" name="${f.id}">${f.ai ? '<option value="">— كلود يختار —</option>' : ''}${Object.entries(f.options).map(([k, t]) => `<option value="${k}"${String(v) === k ? ' selected' : ''}>${t}</option>`).join('')}</select>`;
+    if (f.type === 'select') input = `<select id="${f.id}" name="${f.id}">${f.optional ? '<option value="">— اختر —</option>' : ''}${Object.entries(f.options).map(([k, t]) => `<option value="${k}"${String(v) === k ? ' selected' : ''}>${t}</option>`).join('')}</select>`;
     else if (f.type === 'seg') input = `<span class="seg" role="radiogroup" data-seg="${f.id}">${Object.entries(f.options).map(([k, t]) => `<button type="button" data-v="${k}" aria-pressed="${v === k}">${t}</button>`).join('')}</span><input type="hidden" name="${f.id}" value="${v}">`;
     else if (f.type === 'checks') input = `<div class="checks">${Object.entries(f.options).map(([k, t]) => `<label><input type="checkbox" name="${f.id}" value="${k}"${(v || []).includes(k) ? ' checked' : ''}> ${t}</label>`).join('')}</div>`;
     else if (f.type === 'toggle') input = `<label class="toggle"><input type="checkbox" name="${f.id}"${v ? ' checked' : ''}> <span>نعم</span></label>`;
     else if (f.type === 'locked') input = `<div class="locked">${icon('lock')}<span>${esc(v)}</span></div>`;
-    else if (f.type === 'textarea') input = `<textarea id="${f.id}" name="${f.id}" placeholder="${f.ai ? 'فاضي = يعبيه كلود' : ''}">${esc(v)}</textarea>`;
-    else input = `<input type="${f.type === 'url' ? 'url' : f.type}" id="${f.id}" name="${f.id}" value="${esc(v)}"${f.min ? ` min="${f.min}"` : ''} placeholder="${f.ai ? 'فاضي = يعبيه كلود' : ''}"${f.type === 'number' ? ' inputmode="decimal"' : ''}>`;
+    else if (f.type === 'textarea') input = `<textarea id="${f.id}" name="${f.id}">${esc(v)}</textarea>`;
+    else input = `<input type="${f.type === 'url' ? 'url' : f.type}" id="${f.id}" name="${f.id}" value="${esc(v)}"${f.min ? ` min="${f.min}"` : ''}${f.type === 'number' ? ' inputmode="decimal"' : ''}>`;
     return `<div class="fld fld-${f.type}">${lab}${input}${hint}</div>`;
   }
 
@@ -112,9 +110,20 @@ export default async function mount() {
     }
     return out;
   }
+  // Compliance while typing: the same rules as every tab (/api/control/compliance), shown precisely. A notice, never a block.
+  let mohTimer = 0, mohSeq = 0;
   function mohCheck(v) {
-    const text = [v.primary, v.headline, v.wa_message, v.headlines, v.descriptions].join(' ');
-    return MOH.filter(w => text.includes(w));
+    const text = [v.primary, v.headline, v.wa_message, v.headlines, v.descriptions].filter(Boolean).join('\n');
+    clearTimeout(mohTimer);
+    mohTimer = setTimeout(async () => {
+      const seq = ++mohSeq;
+      let hits = [];
+      try { if (text.trim()) hits = (await api('/api/control/compliance', { method: 'POST', body: { text } })).hits; } catch { return; }
+      if (seq !== mohSeq) return;
+      const m = $('#moh');
+      m.className = hits.length ? '' : 'msg';
+      m.innerHTML = block(text, hits);
+    }, 500);
   }
 
   $('#f').addEventListener('click', e => {
@@ -126,10 +135,7 @@ export default async function mount() {
   $('#f').addEventListener('input', e => {
     if (e.target.id === 'name') e.target.dataset.touched = '1';
     if (e.target.id === 'dept' || e.target.id === 'start') autoName();
-    const bad = mohCheck(values());
-    const m = $('#moh');
-    m.className = 'msg' + (bad.length ? ' err' : '');
-    m.innerHTML = bad.length ? icon('alert') + esc(`كلمات تخالف تعليمات وزارة الصحة: ${bad.join('، ')}`) : '';
+    mohCheck(values());
   });
   $('#plat').addEventListener('click', e => {
     const b = e.target.closest('[data-p]'); if (!b || b.dataset.p === platform) return;

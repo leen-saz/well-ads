@@ -1,9 +1,12 @@
+import { withKnowledge } from '../knowledge/knowledge';
+import type { Hit } from '../compliance/compliance';
+
 // إيجنت المحتوى و SEO/AEO: يقرا الموقع (الصفحة الرئيسية + sitemap)، ويطلع الملاحظات بقواعد ثابتة،
 // وبعدين يبني بلان بـ Workers AI (مجاني ضمن حد Cloudflare اليومي). لو الذكاء الاصطناعي ما اشتغل، البلان من القواعد بس.
 // كل بند يحتاج موافقة الماركتير قبل النشر (أو تلقائي مع تنبيه).
 
 export interface PageFacts { url: string; status: number; title: string; description: string; h1: string[]; words: number; schema: string[]; faq: boolean; lang: string; canonical: boolean }
-export interface Item { id: string; kind: 'fix' | 'page' | 'article' | 'faq'; title: string; why: string; priority: 1 | 2 | 3; status: 'proposed' | 'approved' | 'done' | 'rejected'; draft?: string }
+export interface Item { id: string; kind: 'fix' | 'page' | 'article' | 'faq'; title: string; why: string; priority: 1 | 2 | 3; status: 'proposed' | 'approved' | 'done' | 'rejected'; draft?: string; engine?: string; compliance?: Hit[] }
 export interface Gsc { query: string; clicks: number; impressions: number; position: number }
 
 export const AI_MODEL = '@cf/meta/llama-3.3-70b-instruct-fp8-fast';
@@ -108,19 +111,23 @@ const PLAN_SCHEMA = { type: 'json_schema', json_schema: { type: 'object', requir
   position: { type: 'string' }, niche: { type: 'string' },
   items: { type: 'array', items: { type: 'object', required: ['kind', 'title', 'why', 'priority'], properties: {
     kind: { type: 'string', enum: ['article', 'page', 'faq'] }, title: { type: 'string' }, why: { type: 'string' }, priority: { type: 'integer' } } } } } } };
+// Which model wrote it (src/lib/llm.ts says; plain Workers AI says nothing)
+export const engineOf = (out: unknown): string => String((out as { engine?: unknown })?.engine || 'workers-ai').replace(/^workers$/, 'workers-ai');
 // The model's answer: an object in JSON mode, or text with a JSON object inside
 const answer = (out: unknown): string => { const r = (out as { response?: unknown })?.response; return typeof r === 'string' ? r : r ? JSON.stringify(r) : ''; };
 
-export async function plan(ai: AiRun | undefined, site: string, niche: string, competitors: string[], pages: PageFacts[], gsc: Gsc[]) {
+// system = the company's knowledge (src/modules/knowledge), sent as its own system message
+export async function plan(ai: AiRun | undefined, site: string, niche: string, competitors: string[], pages: PageFacts[], gsc: Gsc[], system = '') {
   const rules = audit(pages);
   if (!ai) return { engine: 'rules', analysis: { pages: pages.length }, items: rules };
   try {
-    const messages = [{ role: 'user', content: prompt(site, niche, competitors, pages, gsc, rules) }];
-    let parsed = parsePlan(answer(await ai(AI_MODEL, { messages, max_tokens: 3000, response_format: PLAN_SCHEMA })));
+    const messages = withKnowledge([{ role: 'user', content: prompt(site, niche, competitors, pages, gsc, rules) }], system);
+    let out = await ai(AI_MODEL, { messages, max_tokens: 3000, response_format: PLAN_SCHEMA });
+    let parsed = parsePlan(answer(out));
     // One more try without JSON mode before giving up
-    if (!parsed?.items.length) parsed = parsePlan(answer(await ai(AI_MODEL, { messages, max_tokens: 3000 }))) || parsed;
+    if (!parsed?.items.length) { out = await ai(AI_MODEL, { messages, max_tokens: 3000 }); parsed = parsePlan(answer(out)) || parsed; }
     if (!parsed || !parsed.items.length) return { engine: 'rules', analysis: { pages: pages.length, ai: 'رد غير مفهوم' }, items: rules };
-    return { engine: 'workers-ai', analysis: { pages: pages.length, position: parsed.position, niche: parsed.niche }, items: [...rules, ...parsed.items] };
+    return { engine: engineOf(out), analysis: { pages: pages.length, position: parsed.position, niche: parsed.niche }, items: [...rules, ...parsed.items] };
   } catch { return { engine: 'rules', analysis: { pages: pages.length, ai: 'ما اشتغل' }, items: rules }; }
 }
 

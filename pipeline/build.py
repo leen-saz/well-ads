@@ -111,7 +111,10 @@ def wrap(fragment):
 USERBAR = '<script type="module" src="/assets/nav.js"></script>'
 public = os.path.join(HERE, "web", "public")
 os.makedirs(os.path.join(public, "organic"), exist_ok=True)
-open(os.path.join(public, "index.html"), "w", encoding="utf-8").write(wrap(page))
+# The main dashboard loads its data from /dash.json (cacheable, revalidated); the page itself stays small.
+# The standalone well-ads-dashboard.html above keeps the data inline.
+open(os.path.join(public, "index.html"), "w", encoding="utf-8").write(wrap(tpl.replace("/*__DATA__*/", "")))
+open(os.path.join(public, "dash.json"), "w", encoding="utf-8").write(blob)
 open(os.path.join(public, "organic", "index.html"), "w", encoding="utf-8").write(
     '<!doctype html><html lang="ar" dir="rtl"><head><meta charset="utf-8">'
     '<meta http-equiv="refresh" content="0;url=/?mode=organic">'
@@ -162,7 +165,7 @@ def control_data(data):
     return {"generated_at": data.get("generated_at"), "ads": out}
 # نسخة لكل قسم: فيها إعلانات القسم وأرقامه بس. مدير القسم ما يوصله غيرها (البوابة تحوّله لها)،
 # فبيانات الأقسام الثانية ما تكون موجودة أصلاً في صفحته.
-def dept_page(d):
+def dept_data(d):
     ads = {k: v for k, v in (data.get("ads") or {}).items() if isinstance(v, dict) and v.get("dept") == d}
     sub = dict(data)
     sub["ads"] = ads
@@ -173,9 +176,11 @@ def dept_page(d):
     sub["departments"] = cfg
     sub["organic"] = pending_shell()
     sub["scope"] = {"dept": d}
-    return tpl.replace("/*__DATA__*/", json.dumps(sub, ensure_ascii=False, separators=(",", ":")).replace("</", "<\\/"))
+    return sub
+def dept_page(d):
+    return tpl.replace("/*__DATA__*/", json.dumps(dept_data(d), ensure_ascii=False, separators=(",", ":")).replace("</", "<\\/"))
 # نسخة الكرييتف لليوزر اللي ما عنده التحليلات: إعلانات Meta وSnap وTikTok وأرقامها بس، بدون العضوي ولا Google.
-def creative_page():
+def creative_data():
     ads = {k: v for k, v in (data.get("ads") or {}).items() if isinstance(v, dict) and not str(v.get("platform", "")).startswith("google")}
     sub = dict(data)
     sub["ads"] = ads
@@ -183,12 +188,23 @@ def creative_page():
     sub["channels"] = annotate(ads)
     sub["organic"] = pending_shell()
     sub["scope"] = {"view": "creative"}
-    return tpl.replace("/*__DATA__*/", json.dumps(sub, ensure_ascii=False, separators=(",", ":")).replace("</", "<\\/"))
+    return sub
+def creative_page():
+    return tpl.replace("/*__DATA__*/", json.dumps(creative_data(), ensure_ascii=False, separators=(",", ":")).replace("</", "<\\/"))
 os.makedirs(os.path.join(public, "c"), exist_ok=True)
 open(os.path.join(public, "c", "index.html"), "w", encoding="utf-8").write(wrap(creative_page()))
 for d in [k for k in (data.get("departments") or {}).get("order", []) if k != "brand"]:
     os.makedirs(os.path.join(public, "dept", d), exist_ok=True)
     open(os.path.join(public, "dept", d, "index.html"), "w", encoding="utf-8").write(wrap(dept_page(d)))
+# المرحلة 4.2: نفس النسخ كـ JSON للصفحات الجديدة (/api/dash/data يختار نسخة اليوزر): الكاملة، والكرييتف، ولكل قسم
+def write_json(rel, obj):
+    path = os.path.join(public, "data", rel)
+    os.makedirs(os.path.dirname(path), exist_ok=True)
+    json.dump(obj, open(path, "w", encoding="utf-8"), ensure_ascii=False, separators=(",", ":"))
+write_json("all.json", data)
+write_json("c.json", creative_data())
+for d in [k for k in (data.get("departments") or {}).get("order", []) if k != "brand"]:
+    write_json(os.path.join("dept", d + ".json"), dept_data(d))
 os.makedirs(os.path.join(public, "control"), exist_ok=True)
 json.dump(control_data(data), open(os.path.join(public, "control", "ads.json"), "w", encoding="utf-8"), ensure_ascii=False, separators=(",", ":"))
 headers = [
