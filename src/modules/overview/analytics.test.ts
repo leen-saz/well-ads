@@ -93,11 +93,17 @@ describe('overview: the rest of the analytics page', () => {
     expect([granOf('2026-01-01', '2026-02-15', 'auto'), granOf('2026-01-01', '2026-05-01', 'auto'), granOf('2026-01-01', '2026-12-01', 'auto'), granOf(F, T, 'month')]).toEqual(['day', 'week', 'month', 'month']);
     const day = buckets(D, F, T, 'day');
     expect(day).toHaveLength(10);
-    expect(day[0]).toEqual({ day: '2026-10-01', spend: 100, results: 4, leads: 4, cpl: { instagram: 25 } });
+    expect(day[0]).toEqual({ day: '2026-10-01', spend: 100, results: 4, leads: 4, impr: 1000, clicks: 10, cpl: { instagram: 25 }, plat: { instagram: { spend: 100, results: 4, leads: 4 } } });
     const week = buckets(D, F, T, 'week');
     expect(week.map(b => b.day)).toEqual(['2026-09-27', '2026-10-04']);   // weeks start on Sunday
     expect(week[0]).toMatchObject({ spend: 190, results: 10, leads: 5 });   // Oct 1–3: a 100, b 80, hidden h 10
     expect(week[1]!.cpl).toEqual({ instagram: 55 });                      // 110 over 2 leads; the hidden platform has no line
     expect(buckets(D, F, T, 'month')).toHaveLength(1);
+  });
+
+  it('trend buckets: each platform\'s part of a bar, the hidden one only in the total', () => {
+    const [w] = buckets(D, F, T, 'week');
+    expect(w!.plat).toEqual({ instagram: { spend: 100, results: 4, leads: 4 }, snap: { spend: 80, results: 5, leads: 0 } });
+    expect(w!.spend).toBe(190);
   });
 });

@@ -7,14 +7,14 @@ const num = (v: unknown): number => (typeof v === 'number' && Number.isFinite(v)
 // The main dashboard's platform order (channels.py), then any other platform present
 const FALLBACK = ['facebook', 'instagram', 'messenger', 'snap', 'tiktok', 'google_search', 'google_pmax', 'google_display', 'google_video', 'google_demand_gen', 'google', 'meta'];
 
-type Row = { key: string; ad: Ad; day: string; spend: number; leads: number; conv: number };
+type Row = { key: string; ad: Ad; day: string; spend: number; impr: number; clicks: number; leads: number; conv: number };
 function* rows(d: Dash, from: string, to: string): Generator<Row> {
   const ads = d.ads ?? {};
   for (const r of d.rows ?? []) {
     const key = String(r[0]), day = String(r[1]);
     if (day < from || day > to) continue;
     const ad = ads[key];
-    if (ad) yield { key, ad, day, spend: num(r[2]), leads: num(r[5]), conv: num(r[6]) };
+    if (ad) yield { key, ad, day, spend: num(r[2]), impr: num(r[3]), clicks: num(r[4]), leads: num(r[5]), conv: num(r[6]) };
   }
 }
 
@@ -234,7 +234,10 @@ export function wins(d: Dash, from: string, to: string, compare: boolean): Win[]
 
 // ---- The trend by day, week (from Sunday) or month (template.html granOf + buckets). Auto: day up to 62 days, week to 200, then month.
 export type Gran = 'auto' | 'day' | 'week' | 'month';
-export interface Bucket { day: string; spend: number; results: number; leads: number; cpl: Record<string, number | null> }
+// One bar of the trend chart. `plat` = each shown platform's part, for the stacked bars (template.html stacked());
+// hidden platforms count in the totals only, like everywhere else
+export interface PlatPart { spend: number; results: number; leads: number }
+export interface Bucket { day: string; spend: number; results: number; leads: number; impr: number; clicks: number; cpl: Record<string, number | null>; plat: Record<string, PlatPart> }
 export function granOf(from: string, to: string, g: Gran): Exclude<Gran, 'auto'> {
   if (g !== 'auto') return g;
   const n = Math.round((Date.parse(to) - Date.parse(from)) / 864e5) + 1;
@@ -244,11 +247,13 @@ export function buckets(d: Dash, from: string, to: string, g: Gran = 'auto'): Bu
   const gr = granOf(from, to, g);
   const key = (day: string) => (gr === 'day' ? day : gr === 'week' ? addDays(day, -new Date(day + 'T00:00:00Z').getUTCDay()) : day.slice(0, 8) + '01');
   const out = new Map<string, Bucket & { ls: Record<string, number>; ln: Record<string, number> }>();
-  for (let day = from; day <= to; day = addDays(day, 1)) { const k = key(day); if (!out.has(k)) out.set(k, { day: k, spend: 0, results: 0, leads: 0, cpl: {}, ls: {}, ln: {} }); }
+  for (let day = from; day <= to; day = addDays(day, 1)) { const k = key(day); if (!out.has(k)) out.set(k, { day: k, spend: 0, results: 0, leads: 0, impr: 0, clicks: 0, cpl: {}, plat: {}, ls: {}, ln: {} }); }
   for (const x of rows(d, from, to)) {
     const b = out.get(key(x.day))!;
-    b.spend += x.spend; b.results += x.leads + x.conv; b.leads += x.leads;
-    if (x.ad.goal === 'lead' && !HIDDEN.has(x.ad.platform)) { b.ls[x.ad.platform] = (b.ls[x.ad.platform] ?? 0) + x.spend; b.ln[x.ad.platform] = (b.ln[x.ad.platform] ?? 0) + x.leads; }
+    b.spend += x.spend; b.results += x.leads + x.conv; b.leads += x.leads; b.impr += x.impr; b.clicks += x.clicks;
+    const p = x.ad.platform;
+    if (!HIDDEN.has(p)) { const o = (b.plat[p] ??= { spend: 0, results: 0, leads: 0 }); o.spend += x.spend; o.results += x.leads + x.conv; o.leads += x.leads; }
+    if (x.ad.goal === 'lead' && !HIDDEN.has(p)) { b.ls[p] = (b.ls[p] ?? 0) + x.spend; b.ln[p] = (b.ln[p] ?? 0) + x.leads; }
   }
   return [...out.values()].map(({ ls, ln, ...b }) => ({ ...b, cpl: Object.fromEntries(Object.keys(ls).map(p => [p, ln[p] && ls[p]! > 0 ? ls[p]! / ln[p]! : null])) }));
 }
