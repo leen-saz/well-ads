@@ -15,6 +15,7 @@ describe('which model', () => {
     const e = { OPENAI_API_KEY: 'k', XAI_API_KEY: 'k', AI };
     expect(pick(e, 'content')).toEqual({ provider: 'openai', model: DEFAULTS.openai });
     expect(pick(e, 'design')?.provider).toBe('openai');
+    expect(pick(e, 'copy')?.provider).toBe('openai');
     for (const m of ['social', 'maestro', 'listening']) expect(pick(e, m)).toEqual({ provider: 'xai', model: DEFAULTS.xai });
     expect(pick(e, 'voice')).toEqual({ provider: 'workers', model: AI_MODEL });
   });

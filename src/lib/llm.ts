@@ -13,7 +13,7 @@ export interface LlmInput { messages: Msg[]; max_tokens: number; response_format
 export interface LlmOut { response: string; engine: Provider; model: string }
 
 export const DEFAULTS = { openai: 'gpt-6.1-sol', xai: 'grok-4.7' } as const;
-export const PROVIDER: Record<string, Provider> = { content: 'openai', design: 'openai', social: 'xai', maestro: 'xai', listening: 'xai' };
+export const PROVIDER: Record<string, Provider> = { content: 'openai', design: 'openai', copy: 'openai', social: 'xai', maestro: 'xai', listening: 'xai' };
 const URL_OF = { openai: 'https://api.openai.com/v1/responses', xai: 'https://api.x.ai/v1/responses' } as const;
 const clean = (s: string | undefined) => (s || '').replace(/[^a-z0-9.\-_:]/gi, '').slice(0, 80);
 

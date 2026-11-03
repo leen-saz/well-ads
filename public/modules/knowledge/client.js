@@ -2,7 +2,7 @@
 import { $, $$, api, say, esc, shell, busy, when } from '/assets/common.js';
 import { block } from '/assets/compliance-ui.js';
 
-const MOD = { content: 'المحتوى', design: 'التصميم', voice: 'الصوت', social: 'السوشال', maestro: 'المايسترو', journeys: 'الرحلات' };
+const MOD = { content: 'المحتوى', design: 'التصميم', copy: 'الكوبي رايتر', voice: 'الصوت', social: 'السوشال', maestro: 'المايسترو', journeys: 'الرحلات' };
 
 export default async function mount() {
   let S = { entries: [], kinds: {}, modules: [], canEdit: false, canApprove: false };
