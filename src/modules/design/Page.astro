@@ -68,6 +68,11 @@ import { ClientRouter } from 'astro:transitions';
 .ls-post{padding:12px 14px;display:grid;gap:8px}
 .ls-alert td{font-weight:700}
 .cp-meta{display:flex;gap:8px;flex-wrap:wrap;align-items:center;font-size:13px}
+.dz-sizes{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:8px;border:0;padding:0;margin:8px 0 0}
+.dz-size{display:grid;grid-template-columns:auto 1fr;gap:2px 8px;align-items:center;padding:10px 12px;border:1px solid var(--line);border-radius:12px;cursor:pointer}
+.dz-size span{grid-column:2;font-size:12px;color:var(--muted)}
+.dz-size:has(input:checked){border-color:var(--accent,#7E57FD)}
+.dz-more{margin-top:12px}.dz-more summary{cursor:pointer;font-weight:600;padding:6px 0}
 </style>
 </head>
 <body data-page="design" data-module>
@@ -82,23 +87,25 @@ import { ClientRouter } from 'astro:transitions';
         <section class="card pad">
           <h2>البريف</h2>
           <form id="f" novalidate>
-            <label for="type">النوع</label><select id="type"><option value="ad">إعلان</option><option value="post">بوست عضوي</option><option value="story">ستوري</option></select>
             <label for="offer">وش نعلن عنه</label><input id="offer" type="text" placeholder="مثال: جلسة فيتامين سي بالوريد في البيت">
-            <label for="aud">الفئة المستهدفة</label><input id="aud" type="text" placeholder="مثال: الموظفين اللي يحسون بإرهاق">
-            <label for="dept">القسم</label><select id="dept"><option value="">بدون</option><option value="المحاليل الوريدية">المحاليل الوريدية</option><option value="القبالة / رعاية الحمل">القبالة / رعاية الحمل</option><option value="تقويم القدم">تقويم القدم</option><option value="رينان لصحة الطفل">رينان لصحة الطفل</option></select>
-            <fieldset class="dz-sizes"><legend>المقاسات</legend>
-              <label><input type="checkbox" name="size" value="square" checked> مربع 1080×1080</label>
-              <label><input type="checkbox" name="size" value="story" checked> ستوري 1080×1920</label>
-              <label><input type="checkbox" name="size" value="portrait"> طولي 1080×1350</label>
-              <label><input type="checkbox" name="size" value="landscape"> عرضي 1200×628</label></fieldset>
-            <label for="photo">صورة منتجك الأصلية <span class="muted">(المصمم يحطها في مشهد جديد، وبدونها يصمم خلفية)</span></label><input id="photo" type="file" accept="image/*">
-            <label for="refs">صور مرجعية <span class="muted">(اختياري، حتى 4: تصاميم يعجبك أسلوبها)</span></label><input id="refs" type="file" accept="image/*" multiple>
+            <label for="photo">صورة منتجك الأصلية <span class="muted">(اختياري: المصمم يحطها في مشهد جديد، وبدونها يصمم خلفية)</span></label><input id="photo" type="file" accept="image/*">
             <div class="dz-thumbs" id="thumbs" aria-live="polite"></div>
-            <label class="dz-check"><input type="checkbox" id="useRefColors" checked> خذ الألوان من المراجع</label>
-            <p class="muted" id="brandNote" hidden style="margin:6px 0 0;font-size:13px">يستخدم شعارك وألوانك وخطك من المعرفة ← الهوية والبصريات تلقائياً.</p>
-            <p class="muted dz-note">صورة المنتج تنرسل لخدمة التصميم بالذكاء الاصطناعي بمقاس 1024 عشان يحطها في مشهد جديد. الصور المرجعية تنرسل نسخة صغيرة عشان يوصف أسلوبها بس. ولا وحدة تنحفظ عندنا.</p>
+            <fieldset class="dz-sizes"><legend>وين بينشر؟</legend>
+              <label class="dz-size"><input type="checkbox" name="size" value="square" checked><b>بوست</b><span>إنستغرام وفيسبوك · مربع 1:1</span></label>
+              <label class="dz-size"><input type="checkbox" name="size" value="story" checked><b>ستوري وريلز</b><span>سناب، تيك توك، ستوري · طولي 9:16</span></label>
+              <label class="dz-size"><input type="checkbox" name="size" value="portrait"><b>بوست طولي</b><span>إنستغرام · 4:5</span></label>
+              <label class="dz-size"><input type="checkbox" name="size" value="landscape"><b>إعلان رابط</b><span>فيسبوك وقوقل · عرضي</span></label></fieldset>
             <div class="bar" style="margin-top:14px"><button class="btn primary" type="submit">صمّم</button></div>
             <div class="msg" id="msg" role="status"></div>
+            <details class="dz-more"><summary>خيارات إضافية <span class="muted">(النوع، الفئة، القسم، صور مرجعية)</span></summary>
+            <label for="type">النوع</label><select id="type"><option value="ad">إعلان</option><option value="post">بوست عضوي</option><option value="story">ستوري</option></select>
+            <label for="aud">الفئة المستهدفة</label><input id="aud" type="text" placeholder="مثال: الموظفين اللي يحسون بإرهاق">
+            <label for="dept">القسم</label><select id="dept"><option value="">بدون</option><option value="المحاليل الوريدية">المحاليل الوريدية</option><option value="القبالة / رعاية الحمل">القبالة / رعاية الحمل</option><option value="تقويم القدم">تقويم القدم</option><option value="رينان لصحة الطفل">رينان لصحة الطفل</option></select>
+            <label for="refs">صور مرجعية <span class="muted">(حتى 4: تصاميم يعجبك أسلوبها)</span></label><input id="refs" type="file" accept="image/*" multiple>
+            <label class="dz-check"><input type="checkbox" id="useRefColors" disabled> خذ الألوان من المراجع <span class="muted" id="refColorsNote">(ارفع صورة مرجعية أول)</span></label>
+            </details>
+            <p class="muted" id="brandNote" hidden style="margin:6px 0 0;font-size:13px">يستخدم شعارك وألوانك وخطك من المعرفة ← الهوية والبصريات تلقائياً.</p>
+            <p class="muted dz-note">صورة المنتج تنرسل لخدمة التصميم بالذكاء الاصطناعي بمقاس 1024 عشان يحطها في مشهد جديد. الصور المرجعية تنرسل نسخة صغيرة عشان يوصف أسلوبها بس. ولا وحدة تنحفظ عندنا.</p>
           </form>
         </section>
         <div class="ls-out"><section class="card pad" id="ref"><p class="muted">املأ التفاصيل واضغط "صمّم".</p></section><section class="card pad" id="vars"></section></div>

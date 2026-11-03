@@ -141,7 +141,13 @@ export default async function mount() {
   }
 
   $('#f').addEventListener('submit', async e => {
-    e.preventDefault(); const btn = e.submitter; busy(btn, true); say($('#msg'), 'المصمم شغّال والتصميم بالطريق… (حوالي دقيقة)', true);
+    e.preventDefault(); const btn = e.submitter;
+    // An empty subject designs from the brand and our best ads: said once, and a second press goes ahead
+    if (!$('#offer').value.trim() && !btn.dataset.ok) {
+      btn.dataset.ok = '1'; $('#offer').focus();
+      say($('#msg'), 'ما كتبت وش نعلن عنه: لو ضغطت «صمّم» مرة ثانية، المصمم يعتمد على معرفة العلامة وأفضل إعلاناتنا آخر 30 يوم.', true); return;
+    }
+    delete btn.dataset.ok; busy(btn, true); say($('#msg'), 'المصمم شغّال والتصميم بالطريق… (حوالي دقيقة)', true);
     try {
       res = await api('/api/design/brief', { method: 'POST', body: { type: $('#type').value, offer: $('#offer').value, audience: $('#aud').value, dept: $('#dept').value,
         product: img ? small(img, 1024).toDataURL('image/jpeg', 0.9) : '',
@@ -167,7 +173,10 @@ export default async function mount() {
     const files = [...$('#refs').files];
     if (files.length > 4) say($('#msg'), 'أخذت أول 4 صور مرجعية بس.', true);
     refs = (await Promise.all(files.slice(0, 4).map(f => load(f).catch(() => null)))).filter(Boolean);
-    pal = refs.length ? palette(refs) : null; thumbs(); render();
+    pal = refs.length ? palette(refs) : null;
+    // The reference colours only mean something once there are references
+    $('#useRefColors').disabled = !refs.length; $('#useRefColors').checked = !!refs.length; $('#refColorsNote').hidden = !!refs.length;
+    thumbs(); render();
   });
   $('#useRefColors').addEventListener('change', render);
   $('#vars').addEventListener('change', e => { if (e.target.name === 'var') { pick = +e.target.value; drawResult(); render(); } });
