@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { depts, heat, ideaKey, order, outcome, pace, share, wins } from './analytics';
+import { buckets, depts, granOf, heat, ideaKey, order, outcome, pace, share, wins } from './analytics';
 import type { Dash } from './numbers';
 
 // Made-up numbers: a lead ad (Instagram, IV), a WhatsApp ad (Snap, midwife), and a hidden platform counted in totals only
@@ -87,5 +87,17 @@ describe('overview: the rest of the analytics page', () => {
     expect(t).toContain('أطلقنا حملتين وإعلانين جداد');  // the new ad, and the hidden-platform ad first spent on 10-03 (counted like the main dashboard)
     expect(wins(W, F, T, false).some(w => w.title.startsWith('الليدز'))).toBe(false);   // no comparison without a full earlier period
     expect(ideaKey('clip.mp4_فكرة جديدة - Spark')).toBe('فكرة جديدة');
+  });
+
+  it('trend: day, week from Sunday, or month; auto by the length of the period; cost per lead per platform', () => {
+    expect([granOf('2026-01-01', '2026-02-15', 'auto'), granOf('2026-01-01', '2026-05-01', 'auto'), granOf('2026-01-01', '2026-12-01', 'auto'), granOf(F, T, 'month')]).toEqual(['day', 'week', 'month', 'month']);
+    const day = buckets(D, F, T, 'day');
+    expect(day).toHaveLength(10);
+    expect(day[0]).toEqual({ day: '2026-10-01', spend: 100, results: 4, leads: 4, cpl: { instagram: 25 } });
+    const week = buckets(D, F, T, 'week');
+    expect(week.map(b => b.day)).toEqual(['2026-09-27', '2026-10-04']);   // weeks start on Sunday
+    expect(week[0]).toMatchObject({ spend: 190, results: 10, leads: 5 });   // Oct 1–3: a 100, b 80, hidden h 10
+    expect(week[1]!.cpl).toEqual({ instagram: 55 });                      // 110 over 2 leads; the hidden platform has no line
+    expect(buckets(D, F, T, 'month')).toHaveLength(1);
   });
 });

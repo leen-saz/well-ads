@@ -231,3 +231,24 @@ export function wins(d: Dash, from: string, to: string, compare: boolean): Win[]
   if (launched.length) out.push({ icon: '🚀', title: `أطلقنا ${launched.join(' و')}`, detail: 'أول صرف لها كان في هالفترة' });
   return out;
 }
+
+// ---- The trend by day, week (from Sunday) or month (template.html granOf + buckets). Auto: day up to 62 days, week to 200, then month.
+export type Gran = 'auto' | 'day' | 'week' | 'month';
+export interface Bucket { day: string; spend: number; results: number; leads: number; cpl: Record<string, number | null> }
+export function granOf(from: string, to: string, g: Gran): Exclude<Gran, 'auto'> {
+  if (g !== 'auto') return g;
+  const n = Math.round((Date.parse(to) - Date.parse(from)) / 864e5) + 1;
+  return n > 200 ? 'month' : n > 62 ? 'week' : 'day';
+}
+export function buckets(d: Dash, from: string, to: string, g: Gran = 'auto'): Bucket[] {
+  const gr = granOf(from, to, g);
+  const key = (day: string) => (gr === 'day' ? day : gr === 'week' ? addDays(day, -new Date(day + 'T00:00:00Z').getUTCDay()) : day.slice(0, 8) + '01');
+  const out = new Map<string, Bucket & { ls: Record<string, number>; ln: Record<string, number> }>();
+  for (let day = from; day <= to; day = addDays(day, 1)) { const k = key(day); if (!out.has(k)) out.set(k, { day: k, spend: 0, results: 0, leads: 0, cpl: {}, ls: {}, ln: {} }); }
+  for (const x of rows(d, from, to)) {
+    const b = out.get(key(x.day))!;
+    b.spend += x.spend; b.results += x.leads + x.conv; b.leads += x.leads;
+    if (x.ad.goal === 'lead' && !HIDDEN.has(x.ad.platform)) { b.ls[x.ad.platform] = (b.ls[x.ad.platform] ?? 0) + x.spend; b.ln[x.ad.platform] = (b.ln[x.ad.platform] ?? 0) + x.leads; }
+  }
+  return [...out.values()].map(({ ls, ln, ...b }) => ({ ...b, cpl: Object.fromEntries(Object.keys(ls).map(p => [p, ln[p] && ls[p]! > 0 ? ls[p]! / ln[p]! : null])) }));
+}
