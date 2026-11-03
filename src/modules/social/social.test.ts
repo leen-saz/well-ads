@@ -19,10 +19,14 @@ describe('validate', () => {
     expect(validate({ platforms: ['x'], body: 'ا'.repeat(281), publish_at: later }, NOW).error).toContain('X');
     expect(validate({ platforms: ['instagram'], body: 'x', publish_at: later }, NOW).error).toContain('انستقرام');
   });
-  it('warns on MOH claims without blocking, and defaults to manual', () => {
+  it('warns on MOH claims precisely without blocking, and defaults to manual', () => {
     const v = validate({ platforms: ['facebook'], body: 'علاج نهائي ومضمون', publish_at: later }, NOW);
     expect(v.draft?.mode).toBe('manual');
     expect(v.notices.length).toBe(2);
+    expect(v.notices.join(' ')).toContain('«علاج نهائي»');
+    expect(v.notices.join(' ')).toContain('«مضمون»');
+    // a notice, not a block: the post is still saved (it waits for its approver, #79)
+    expect(validate({ platforms: ['facebook'], body: 'الأفضل في الرياض', publish_at: later }, NOW).draft).toBeDefined();
   });
 });
 

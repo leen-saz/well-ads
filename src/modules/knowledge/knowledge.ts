@@ -3,6 +3,7 @@
 // كل موديول ذكاء اصطناعي يقرا الفعّال منها ويحطه رسالة system قبل طلبه، عشان ما ينخلط مع نص المستخدم.
 import { sb, type Cfg } from '../../lib/auth';
 import { scoped } from '../../lib/tenant';
+import { companyRules, type Rule } from '../compliance/compliance';
 
 export const KINDS = {
   forbidden: { ar: 'ممنوع', hint: 'كلمة أو ادعاء ما ينكتب أبداً', head: 'ممنوع تكتبه أبداً (ولا بصيغة ثانية)' },
@@ -20,7 +21,7 @@ export const AI_MODULES = ['content', 'design', 'voice', 'social', 'maestro', 'j
 
 export interface Entry {
   id: number; kind: Kind; title: string; body: string; price: number | null; modules: string[]; active: boolean;
-  source?: 'manual' | 'training'; topic?: string | null; question?: string | null;
+  source?: 'manual' | 'training' | 'brand_file'; topic?: string | null; question?: string | null;
   created_by?: string | null; updated_by?: string | null; created_at?: string; updated_at?: string;
 }
 
@@ -84,3 +85,8 @@ export async function loadKnowledge(cfg: Cfg, co: string): Promise<Entry[]> {
 }
 
 export const knowledgeFor = async (cfg: Cfg, co: string, module: string): Promise<string> => systemPrompt(await loadKnowledge(cfg, co), module);
+
+// The company's forbidden words as compliance rules: one phrase per line, or between commas
+export const forbiddenRules = (entries: Entry[]): Rule[] =>
+  companyRules(entries.filter(e => e.active && e.kind === 'forbidden').flatMap(e => e.body.split(/[\n،,؛;]+/)));
+export const rulesFor = async (cfg: Cfg, co: string): Promise<Rule[]> => forbiddenRules(await loadKnowledge(cfg, co));

@@ -47,3 +47,7 @@ export function cleanTask(b: Json): Task | null {
   const a = String(b.assigneeAgentId || '');
   return { title, description, priority, ...(ID.test(a) ? { assigneeAgentId: a } : {}) };
 }
+
+// A task's description with the company's knowledge after it (capped: Paperclip keeps descriptions up to 10,000 here)
+export const withBrief = (description: string, knowledge: string): string =>
+  knowledge ? `${description}\n\n---\nمعرفة الشركة (من تاب المعرفة، التزم فيها):\n${knowledge}`.slice(0, 16000) : description;

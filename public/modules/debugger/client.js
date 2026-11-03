@@ -26,5 +26,12 @@ export default async function mount() {
   }
   await shell({ active: 'debugger', title: 'التتبع', tools: '<button class="btn sm secondary" type="button" id="again">افحص من جديد</button>' });
   $('#again')?.addEventListener('click', e => load(e.currentTarget));
+  // Claude reads the findings and writes the plan, in order (paid per use)
+  $('#explain').addEventListener('click', async e => {
+    const btn = e.currentTarget; busy(btn, true);
+    try { const r = await api('/api/debugger/explain', { method: 'POST' }); $('#plan').hidden = false; $('#plan').textContent = r.text; }
+    catch (err) { say($('#msg'), err.message); }
+    busy(btn, false);
+  });
   await load();
 }

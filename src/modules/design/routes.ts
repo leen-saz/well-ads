@@ -1,11 +1,14 @@
 // /api/design/brief: brief + headline variants from our best ads. Reads ads and metrics; writes nothing.
 import { sb, json, readJson, handle, requireUser, type Cfg } from '../../lib/auth';
 import { scoped } from '../../lib/tenant';
-import { AI_MODEL, type AiRun } from '../content/content';
+import { type AiRun } from '../content/content';
+import { generate, pick, type LlmEnv } from '../../lib/llm';
 import { knowledgeFor, withKnowledge } from '../knowledge/knowledge';
-import { SIZES, TYPES, VISION_MODEL, VISION_PROMPT, images, parseVariants, prompt, stylePrompt, templates, winners, type AdIn, type MetIn } from './design';
+import { brandFor, serveFile } from '../knowledge/brand';
+import { SIZES, TYPES, VISION_MODEL, VISION_PROMPT, images, variantsFrom, prompt, stylePrompt, templates, winners, type AdIn, type MetIn } from './design';
 
-type AiEnv = { AI?: { run: AiRun & ((model: string, input: { image: number[]; prompt: string; max_tokens: number }) => Promise<unknown>) } };
+// Vision stays on Workers AI (free); the copy is written by OpenAI when OPENAI_API_KEY is set (src/lib/llm.ts)
+type AiEnv = Omit<LlmEnv, 'AI'> & { AI?: { run: AiRun & ((model: string, input: { image: number[]; prompt: string; max_tokens: number }) => Promise<unknown>) } };
 
 async function pages<T>(cfg: Cfg, path: string, max = 8): Promise<T[]> {
   const out: T[] = [];
@@ -18,9 +21,16 @@ async function pages<T>(cfg: Cfg, path: string, max = 8): Promise<T[]> {
   return out;
 }
 
+// The company's active brand (المعرفة ← الهوية والبصريات) comes with the options, so the page uses it without uploads
 export const options = { GET: handle(async (request, e) => {
-  await requireUser(request, e, 'design');
-  return json(200, { sizes: SIZES, types: TYPES });
+  const { cfg, user } = await requireUser(request, e, 'design');
+  return json(200, { sizes: SIZES, types: TYPES, brand: await brandFor(cfg, user.co) });
+}) };
+
+// An active brand file (logo, font, reference image) for the design page; inactive ones stay hidden here
+export const brandfile = { GET: handle(async (request, e) => {
+  const { cfg, user } = await requireUser(request, e, 'design');
+  return serveFile(cfg, user.co, parseInt(new URL(request.url).searchParams.get('id') || '', 10) || 0, (e as { FILES?: R2Bucket }).FILES, true);
 }) };
 
 export const brief = { POST: handle(async (request, e: AiEnv & Parameters<typeof requireUser>[1]) => {
@@ -41,15 +51,20 @@ export const brief = { POST: handle(async (request, e: AiEnv & Parameters<typeof
     const said = await Promise.all(pics.map(p => e.AI!.run(VISION_MODEL, { image: p.bytes, prompt: VISION_PROMPT, max_tokens: 90 })
       .then(o => String((o as { description?: unknown; response?: unknown })?.description ?? (o as { response?: unknown })?.response ?? '').trim()).catch(() => '')));
     pics.forEach((p, i) => { const t = (said[i] || '').slice(0, 300); if (t) (p.kind === 'product' ? looks.product : looks.refs).push(t); });
-    if (looks.product.length || looks.refs.length) {
-      try { style = String(((await e.AI.run(AI_MODEL, { messages: [{ role: 'user', content: stylePrompt(looks) }], max_tokens: 160 })) as { response?: unknown })?.response ?? '').trim().slice(0, 400); } catch { /* notes are optional */ }
-    }
   }
-  if (e.AI) {
+  // No references sent this time: the brand's approved reference images (described once, at upload) and colours
+  const brand = await brandFor(cfg, user.co);
+  if (!looks.refs.length) looks.refs.push(...brand.notes);
+  if (brand.colors.length) looks.refs.push(`ألوان العلامة: ${brand.colors.join(' ')}`);
+  if (pick(e, 'design') && (looks.product.length || looks.refs.length)) {
+    try { style = (await generate(e, 'design', { messages: [{ role: 'user', content: stylePrompt(looks) }], max_tokens: 160 })).response.trim().slice(0, 400); } catch { /* notes are optional */ }
+  }
+  if (pick(e, 'design')) {
     try {
-      const out = await e.AI.run(AI_MODEL, { messages: withKnowledge([{ role: 'user', content: prompt(input, ref.hooks, looks) }], await knowledgeFor(cfg, user.co, 'design')), max_tokens: 700 });
-      variants = parseVariants(String((out as { response?: unknown })?.response ?? ''), input.offer, input.audience);
-      engine = 'workers-ai';
+      const out = await generate(e, 'design', { messages: withKnowledge([{ role: 'user', content: prompt(input, ref.hooks, looks) }], await knowledgeFor(cfg, user.co, 'design')), max_tokens: 700 });
+      // parseVariants keeps only well-formed variants (length-capped, compliance-flagged) and falls back to the templates
+      const got = variantsFrom(out.response);
+      if (got.length) { variants = got; engine = out.engine === 'workers' ? 'workers-ai' : out.engine; }
     } catch { /* templates stay */ }
   }
   return json(200, { input, reference: ref, variants, engine, sizes: SIZES, style, images: { product: looks.product.length, refs: looks.refs.length, sent: pics.length } });

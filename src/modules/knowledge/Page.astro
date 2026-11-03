@@ -35,6 +35,8 @@ import { ClientRouter } from 'astro:transitions';
 .kn-a{background:color-mix(in srgb,var(--accent) 14%,transparent);justify-self:end}
 .kn-a small{display:block;color:var(--muted);font-size:12px;margin-top:4px}
 .kn-prog{font-size:13px;margin:0 0 12px}
+.kn-thumb{max-width:160px;max-height:120px;border-radius:10px;background:var(--tint);display:block}
+.kn-sw{display:flex;gap:6px}.kn-sw i{width:28px;height:28px;border-radius:8px;border:1px solid var(--line)}
 .kn-pre{white-space:pre-wrap;font-size:13px;max-height:360px;overflow:auto;padding:12px;border-radius:12px;background:var(--tint);margin:8px 0 0}
 </style>
 </head>
@@ -46,7 +48,7 @@ import { ClientRouter } from 'astro:transitions';
     <header class="topbar" id="top"></header>
     <main class="content" id="content">
       <p class="muted" style="margin:0 0 14px">اللي تكتبه هنا يقراه الذكاء الاصطناعي في كل موديول قبل ما يكتب: المحتوى والتصميم والصوت والسوشال. شات التدريب يسألك سؤال سؤال لين تكتمل المعرفة، وكل جواب ينحفظ وتقدر تعدّله من «كل المعرفة». اللي يضيفه أحد بدون صلاحية موافقة يبقى موقوف لين يعتمده المدير.</p>
-      <div class="seg" role="group" aria-label="العرض" style="margin:0 0 14px"><button type="button" data-tab="train" aria-pressed="true">شات التدريب</button><button type="button" data-tab="all" aria-pressed="false">كل المعرفة</button></div>
+      <div class="seg" role="group" aria-label="العرض" style="margin:0 0 14px"><button type="button" data-tab="train" aria-pressed="true">شات التدريب</button><button type="button" data-tab="all" aria-pressed="false">كل المعرفة</button><button type="button" data-tab="brand" aria-pressed="false">الهوية والبصريات</button></div>
       <section id="train" class="card pad">
         <p class="muted kn-prog" id="prog"></p>
         <div class="kn-chat" id="chat"><p class="muted">يحمّل…</p></div>
@@ -55,7 +57,27 @@ import { ClientRouter } from 'astro:transitions';
           <div class="bar" style="margin-top:10px"><button class="btn primary" type="submit" id="send">أرسل</button><button class="btn" type="button" id="skip">تخطَّ السؤال</button></div>
           <div class="msg" id="tmsg" role="status"></div>
         </form>
+        <div id="tcomp" style="max-width:760px"></div>
       </section>
+      <div class="kn-grid" id="brand" hidden>
+        <section class="card pad">
+          <h2 style="margin:0 0 4px">ملفات الهوية</h2>
+          <p class="muted" style="margin:0 0 10px;font-size:13px">التصميم يستخدم الفعّال منها تلقائياً كل مرة: الشعار، الألوان، الخط، والصور المرجعية.</p>
+          <form id="bf" novalidate>
+            <label for="bkind">النوع</label><select id="bkind"></select>
+            <label for="btitle">الاسم <span class="muted">(اختياري)</span></label><input type="text" id="btitle" maxlength="120">
+            <label for="bfile">الملف</label><input type="file" id="bfile">
+            <p class="muted" id="bhint" style="margin:4px 0 0;font-size:13px"></p>
+            <div class="bar" style="margin-top:12px"><button class="btn primary" type="submit" id="bsave">ارفع</button></div>
+          </form>
+          <form id="cf" novalidate style="margin-top:18px">
+            <label for="colors">ألوان العلامة <span class="muted">(hex، الأساسي أول ثم المميز)</span></label><input type="text" id="colors" dir="ltr" placeholder="#1D1069 #7E57FD #F6F0E3">
+            <div class="bar" style="margin-top:10px"><button class="btn" type="submit">احفظ الألوان</button></div>
+          </form>
+          <div class="msg" id="bmsg" role="status"></div>
+        </section>
+        <section id="blist"><p class="muted">يحمّل…</p></section>
+      </div>
       <div class="kn-grid" id="all" hidden>
         <section class="card pad">
           <h2 id="ftitle" style="margin:0 0 8px">أضف معرفة</h2>
@@ -70,6 +92,7 @@ import { ClientRouter } from 'astro:transitions';
             <div class="bar" style="margin-top:16px"><button class="btn primary" type="submit" id="save">احفظ</button><button class="btn" type="button" id="cancel" hidden>إلغاء التعديل</button></div>
             <div class="msg" id="msg" role="status"></div>
           </form>
+          <div id="comp"></div>
           <h3 style="margin:20px 0 4px">وش يوصل للذكاء الاصطناعي</h3>
           <div class="bar"><select id="pv" aria-label="الموديول"></select><button class="btn" type="button" id="pvgo">اعرض</button></div>
           <pre class="kn-pre" id="pvout" hidden></pre>

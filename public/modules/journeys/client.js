@@ -1,5 +1,6 @@
 // الرحلات: بناء الخطوات، والحفظ، وتشغيل رحلة لعميل (جوال أو إيميل). الإرسال يصير من السيرفر خطوة خطوة.
 import { $, $$, api, say, esc, shell, busy } from '/assets/common.js';
+import { block } from '/assets/compliance-ui.js';
 
 // Runs on every visit of this page (assets/router.js calls it after each ClientRouter navigation).
 export default async function mount() {
@@ -14,7 +15,7 @@ export default async function mount() {
   function drawSteps() {
     $('#steps').innerHTML = steps.map((s, i) => `<div class="jr-step" data-i="${i}"><div class="bar"><b>${i + 1}. ${esc(CH[s.type]?.name || s.type)}${CH[s.type]?.soon ? ' <span class="muted">(قريباً)</span>' : ''}</b>
       <span><button class="btn sm ghost" type="button" data-up>↑</button><button class="btn sm ghost" type="button" data-del>احذف</button></span></div>
-      ${fields(s)}${s.type === 'whatsapp' ? `<p class="so-note">${esc(CH.whatsapp.notice)}</p>` : ''}</div>`).join('') || '<p class="muted">ما فيه خطوات. مثال: واتساب ← انتظر 24 ساعة ← إيميل.</p>';
+      ${fields(s)}${s.type === 'whatsapp' ? `<p class="so-note">${esc(CH.whatsapp.notice)}</p>` : ''}${s.type === 'email' || s.type === 'push' ? '<div class="bar"><button class="btn sm secondary" type="button" data-write>اكتب لي من الفكرة</button></div><div data-comp></div>' : ''}</div>`).join('') || '<p class="muted">ما فيه خطوات. مثال: واتساب ← انتظر 24 ساعة ← إيميل.</p>';
   }
   const readSteps = () => $$('.jr-step').map(el => {
     const s = { ...steps[+el.dataset.i] };
@@ -50,9 +51,21 @@ export default async function mount() {
   }
 
   $('#add').onclick = () => { steps = readSteps(); steps.push({ type: $('#addType').value }); drawSteps(); };
-  $('#steps').addEventListener('click', e => {
+  $('#steps').addEventListener('click', async e => {
     const el = e.target.closest('.jr-step'); if (!el) return;
     const i = +el.dataset.i; steps = readSteps();
+    // The text box holds the idea; the AI writes the message (with the company's knowledge) and it is checked
+    const wb = e.target.closest('[data-write]');
+    if (wb) {
+      const s = steps[i]; busy(wb, true);
+      try {
+        const r = await api('/api/journeys/write', { method: 'POST', body: { type: s.type, idea: s.body || '', journey: $('#name').value } });
+        steps[i] = { ...s, [s.type === 'email' ? 'subject' : 'title']: r.head, body: r.body }; drawSteps();
+        $('[data-comp]', $(`.jr-step[data-i="${i}"]`)).innerHTML = block(`${r.head}\n${r.body}`, r.compliance || []);
+        say($('#msg'), 'انكتبت. راجعها قبل ما تحفظ.', true);
+      } catch (err) { say($('#msg'), err.message); busy(wb, false); }
+      return;
+    }
     if (e.target.closest('[data-del]')) steps.splice(i, 1);
     else if (e.target.closest('[data-up]') && i > 0) [steps[i - 1], steps[i]] = [steps[i], steps[i - 1]];
     else return;

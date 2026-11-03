@@ -1,13 +1,16 @@
 // /api/content/*: the content + SEO/AEO agent of the user's company. Analyze -> plan -> approve each item -> draft -> publish.
 import { sb, json, readJson, handle, requireUser, audit, atLeast, NO_APPROVE, type AuthEnv } from '../../lib/auth';
 import { scoped, WELL_COMPANY } from '../../lib/tenant';
-import { knowledgeFor, withKnowledge } from '../knowledge/knowledge';
-import { AI_MODEL, PUBLISH, crawl, normalizeSite, plan, searchConsole, type AiRun, type Item } from './content';
+import { knowledgeFor, rulesFor, withKnowledge } from '../knowledge/knowledge';
+import { check } from '../compliance/compliance';
+import { aiFor, type LlmEnv } from '../../lib/llm';
+import { AI_MODEL, PUBLISH, crawl, engineOf, normalizeSite, plan, searchConsole, type AiRun, type Item } from './content';
 
 type Row = Record<string, unknown>;
-type AiEnv = AuthEnv & { AI?: { run: AiRun } };
+type AiEnv = AuthEnv & LlmEnv;
 const rows = (d: unknown): Row[] => (Array.isArray(d) ? (d as Row[]) : []);
-const aiOf = (e: AiEnv): AiRun | undefined => (e.AI ? (m, i) => e.AI!.run(m, i) : undefined);
+// Content writes with OpenAI when OPENAI_API_KEY is set, else Workers AI (src/lib/llm.ts)
+const aiOf = (e: AiEnv): AiRun | undefined => aiFor(e, 'content');
 
 export const plans = { GET: handle(async (request, e) => {
   const { cfg, user } = await requireUser(request, e, 'content');
@@ -58,7 +61,13 @@ export const item = { PATCH: handle(async (request, e: AiEnv) => {
     const out = await ai(AI_MODEL, { max_tokens: 2500, messages: withKnowledge([{ role: 'user', content:
       `اكتب ${it.kind === 'faq' ? 'أسئلة وأجوبة شائعة (8 أسئلة)' : it.kind === 'page' ? 'نص صفحة خدمة' : 'مقال'} بالعربي السعودي الواضح لموقع ${p.site} بعنوان: "${it.title}". السبب: ${it.why}.
 النبرة مثل: ${(p.competitors as string[]).join('، ') || 'ودودة ومهنية'}. بدون ادعاءات طبية مضمونة (وزارة الصحة). استخدم عناوين فرعية، واختم بدعوة للحجز. Markdown فقط.` }], await knowledgeFor(cfg, user.co, 'content')) });
-    it.draft = String((out as { response?: unknown })?.response ?? '').slice(0, 20000);
+    const draft = String((out as { response?: unknown })?.response ?? '').trim().slice(0, 20000);
+    // Validated before it is shown: a real draft, not an empty or one-line answer
+    if (draft.length < 200) return json(502, { error: 'المسودة طلعت ناقصة، جرّب مرة ثانية' });
+    it.draft = draft;
+    it.engine = engineOf(out);
+    // Precise compliance notes on the draft, shown under it (a notice, not a block)
+    it.compliance = check(it.draft, await rulesFor(cfg, user.co));
   } else it.status = act === 'approve' ? 'approved' : act === 'reject' ? 'rejected' : 'done';
   const r = await sb(cfg, scoped(`/rest/v1/content_plans?id=eq.${id}`, user.co), { method: 'PATCH', admin: true, body: { items } });
   if (!r.ok) return json(500, { error: 'ما انحفظ' });

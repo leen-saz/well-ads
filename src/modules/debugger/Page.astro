@@ -44,7 +44,8 @@ import { ClientRouter } from 'astro:transitions';
       <p class="muted" style="margin:0 0 14px">يفحص التتبع من الأرقام اللي عندنا: الإعلانات، الأرقام اليومية، ليدز الـ CRM، وصفحة الربط. قراءة بس، ما يغيّر شي في حسابات الإعلانات.</p>
       <div class="dg-sum" id="sum"></div>
       <section class="card pad" style="margin:0 0 16px"><h2 style="margin:0 0 10px">كل منصة آخر 7 أيام</h2><div class="tbl"><table class="dg-plat" id="plat"></table></div></section>
-      <h2 style="margin:0 0 10px">المشاكل والحل</h2>
+      <div class="bar" style="justify-content:space-between;margin:0 0 10px"><h2 style="margin:0">المشاكل والحل</h2><button class="btn sm secondary" type="button" id="explain">اشرح لي وش أسوي (Claude)</button></div>
+      <pre class="card pad" id="plan" hidden style="white-space:pre-wrap;font:inherit;margin:0 0 12px"></pre>
       <div class="dg-list" id="list"><p class="muted">يفحص…</p></div>
       <div class="msg" id="msg" role="status"></div>
     </main>

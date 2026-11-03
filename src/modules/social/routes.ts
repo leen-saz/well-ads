@@ -2,7 +2,10 @@
 // Publishing itself runs from the Worker cron (src/modules/social/cron.ts), never from the browser.
 import { sb, json, readJson, handle, requireUser, audit, isOwner, type Cfg } from '../../lib/auth';
 import { scoped } from '../../lib/tenant';
-import { SOCIAL, validate, canApprove, cleanApprovers } from './social';
+import { SOCIAL, validate, canApprove, cleanApprovers, suggestPrompt, cleanSuggestion, type SocialPlatform } from './social';
+import { check } from '../compliance/compliance';
+import { knowledgeFor, rulesFor, withKnowledge } from '../knowledge/knowledge';
+import { generate, pick, type LlmEnv } from '../../lib/llm';
 import { MEDIA_TYPES, MEDIA_MAX, mediaKey } from './media';
 
 type Row = Record<string, unknown>;
@@ -21,11 +24,14 @@ export const posts = {
     const q = new URL(request.url).searchParams;
     const from = day(q.get('from'), Date.now() - 7 * 864e5), to = day(q.get('to'), Date.now() + 31 * 864e5);
     const r = await sb(cfg, scoped(`/rest/v1/social_posts?select=*&publish_at=gte.${from}&publish_at=lte.${to}&order=publish_at.asc&limit=500`, user.co), { admin: true });
-    return r.ok ? json(200, { posts: r.data, platforms: SOCIAL }) : json(500, { error: 'ما قدرت أقرأ المنشورات' });
+    if (!r.ok) return json(500, { error: 'ما قدرت أقرأ المنشورات' });
+    // Each post carries its compliance notice, so an auto post shows it until it goes out
+    const extra = await rulesFor(cfg, user.co);
+    return json(200, { posts: rows(r.data).map(p => ({ ...p, compliance: check(String(p.body || ''), extra) })), platforms: SOCIAL });
   }),
   POST: handle(async (request, e) => {
     const { cfg, user } = await requireUser(request, e, 'social', { write: true });
-    const v = validate(await readJson(request));
+    const v = validate(await readJson(request), Date.now(), await rulesFor(cfg, user.co));
     if (!v.draft) return json(400, { error: v.error, notices: v.notices });
     const r = await sb<Row[]>(cfg, '/rest/v1/social_posts', { method: 'POST', admin: true, headers: { Prefer: 'return=representation' },
       body: { ...v.draft, company_id: user.co, status: 'scheduled', created_by: user.email } });
@@ -102,4 +108,21 @@ export const upload = { POST: handle(async (request, e) => {
   await files.put(key, body, { httpMetadata: { contentType: type, cacheControl: 'public, max-age=31536000, immutable' } });
   const url = new URL('/m/' + key.slice('social/'.length), request.url).toString();
   return json(200, { ok: true, url, type: type.startsWith('video/') ? 'video' : 'image' });
+}) };
+
+// A post written by the social model (Grok when XAI_API_KEY is set, else Workers AI), checked before it is shown
+export const suggest = { POST: handle(async (request, e: Parameters<typeof requireUser>[1] & LlmEnv) => {
+  const { cfg, user } = await requireUser(request, e, 'social', { write: true });
+  const b = await readJson(request);
+  const brief = String(b.brief || '').trim().slice(0, 1000);
+  const platforms = [...new Set(Array.isArray(b.platforms) ? b.platforms : [])].filter((p): p is SocialPlatform => typeof p === 'string' && p in SOCIAL);
+  if (!brief) return json(400, { error: 'اكتب الفكرة في خانة النص أول' });
+  if (!platforms.length) return json(400, { error: 'اختر منصة وحدة على الأقل' });
+  if (!pick(e, 'social')) return json(503, { error: 'الكتابة بالذكاء الاصطناعي غير مفعّلة في هالبيئة' });
+  let out;
+  try { out = await generate(e, 'social', { messages: withKnowledge([{ role: 'user', content: suggestPrompt(brief, platforms) }], await knowledgeFor(cfg, user.co, 'social')), max_tokens: 600 }); }
+  catch { return json(503, { error: 'الذكاء الاصطناعي ما رد الحين، جرّب بعد دقيقة' }); }
+  const text = cleanSuggestion(out.response, platforms);
+  if (text.length < 20) return json(502, { error: 'ما طلع نص واضح، جرّب مرة ثانية' });
+  return json(200, { body: text, engine: out.engine, compliance: check(text, await rulesFor(cfg, user.co)) });
 }) };

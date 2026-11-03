@@ -1,5 +1,6 @@
 // السوشال: إنشاء منشور مجدول لأكثر من منصة، وتقويم الأسبوعين الجايين. النشر يصير من السيرفر في وقته.
 import { $, $$, api, say, esc, shell, busy, LANG } from '/assets/common.js';
+import { block } from '/assets/compliance-ui.js';
 import { t } from '/assets/i18n.js';
 
 // Runs on every visit of this page (assets/router.js calls it after each ClientRouter navigation).
@@ -26,7 +27,7 @@ export default async function mount() {
     return `<article class="card so-post" data-id="${p.id}">
       <div class="so-top">${p.platforms.map(k => `<span class="so-chip">${esc(PLATS[k]?.name || k)}</span>`).join('')}
         <span class="muted">${fmtTime(at)}</span><span class="so-st muted">${waiting ? 'ينتظر الاعتماد' : p.status === 'scheduled' ? `معتمد · ${esc(p.approved_by || '')}` : ST[p.status] || p.status}</span></div>
-      ${p.body ? `<p class="so-body">${esc(p.body)}</p>` : ''}
+      ${p.body ? (p.compliance?.length ? block(p.body, p.compliance) : `<p class="so-body">${esc(p.body)}</p>`) : ''}
       ${errs.length ? `<p class="so-note">${errs.map(esc).join('<br>')}</p>` : ''}
       ${p.status === 'scheduled' ? `<div class="bar">${waiting && APPR.canApprove ? '<button class="btn sm primary" data-act="approve">اعتمد</button>' : ''}<button class="btn sm ghost" data-act="cancel">ألغِ</button></div>` : ''}
     </article>`;
@@ -75,6 +76,18 @@ export default async function mount() {
       if (!res.ok) throw new Error(j.error || 'ما انرفع الملف');
       uploaded = { url: j.url, type: j.type }; $('#media').value = ''; showPrev(uploaded); $('#upMsg').textContent = 'انرفع ✓';
     } catch (err) { $('#upMsg').textContent = err.message; e.target.value = ''; }
+  });
+
+  // Write the idea in the text box, then let the social model write the post (it is checked, and you edit it before scheduling)
+  $('#suggest').addEventListener('click', async e => {
+    const btn = e.currentTarget; busy(btn, true); $('#notices').innerHTML = '';
+    try {
+      const r = await api('/api/social/suggest', { method: 'POST', body: { brief: $('#body').value, platforms: $$('input[name="pl"]:checked').map(x => x.value) } });
+      $('#body').value = r.body; $('#body').dispatchEvent(new Event('input'));
+      say($('#msg'), `${r.engine === 'xai' ? 'كتبه Grok' : 'كتبه الذكاء الاصطناعي'}. راجعه قبل ما تجدوله.`, true);
+      $('#notices').innerHTML = block(r.body, r.compliance || []);
+    } catch (err) { say($('#msg'), err.message); }
+    busy(btn, false);
   });
 
   $('#f').addEventListener('submit', async e => {

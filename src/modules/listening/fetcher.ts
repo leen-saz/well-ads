@@ -1,8 +1,9 @@
 // Fetches mentions for one watch from the news (Google, else Bing), plus Reddit, YouTube and Grok when their keys exist,
-// stores new ones (deduped by URL per company) and scores up to 20 unscored mentions with Workers AI.
+// stores new ones (deduped by URL per company) and scores up to 20 unscored mentions (Grok when keyed, else Workers AI).
 // Every outside call is I/O; parsing is regex/JSON on small bodies, to stay inside the free 10 ms CPU.
 import { env as authEnv, sb, type AuthEnv, type Cfg } from '../../lib/auth';
-import { AI_MODEL, type AiRun } from '../content/content';
+import { type AiRun } from '../content/content';
+import { generate, grokSearch, pick } from '../../lib/llm';
 import {
   dedupe, due, parseBing, parseNews, parseReddit, parseSentiment, parseX, parseYouTube, query, sentimentPrompt,
   terms, type Mention, type Watch,
@@ -61,18 +62,10 @@ export async function collect(w: Watch & { id: number }, e: ListenEnv, f: typeof
     const r = await get(f, u);
     if (typeof r === 'string') bySource.youtube = r; else add('youtube', parseYouTube(await r.json().catch(() => ({})), w.id));
   })());
-  // Grok (optional, paid per use): asks it to search X and list the posts it found as JSON
+  // Grok (optional, PAID per use) with its live X search tool: lists the posts it found as JSON. parseX keeps x.com links only.
   if (e.XAI_API_KEY) jobs.push((async () => {
-    const r = await get(f, 'https://api.x.ai/v1/chat/completions', {
-      method: 'POST', headers: { authorization: `Bearer ${e.XAI_API_KEY}`, 'content-type': 'application/json' },
-      body: JSON.stringify({
-        model: e.XAI_MODEL || 'grok-4-fast', search_parameters: { mode: 'on', sources: [{ type: 'x' }], max_search_results: 15 },
-        messages: [{ role: 'user', content: `ابحث في X (تويتر) عن آخر التغريدات اللي تذكر: ${q}. رد JSON فقط: [{"url":"https://x.com/...","text":"","author":"","date":"YYYY-MM-DD"}]` }],
-      }),
-    });
-    if (typeof r === 'string') { bySource.x = r; return; }
-    const j = await r.json().catch(() => ({})) as { choices?: { message?: { content?: string } }[] };
-    add('x', parseX(j.choices?.[0]?.message?.content || '', w.id));
+    const text = await grokSearch(e, [{ role: 'user', content: `ابحث في X (تويتر) عن آخر التغريدات اللي تذكر: ${q}. رد JSON فقط: [{"url":"https://x.com/...","text":"","author":"","date":"YYYY-MM-DD"}]` }], ['x'], 2000, f);
+    if (text !== null) add('x', parseX(text, w.id)); else bySource.x = 'Grok ما رد';
   })());
   await Promise.all(jobs);
   return { found: dedupe(found), bySource };
@@ -88,13 +81,14 @@ export async function store(cfg: Cfg, co: string, w: Watch & { id: number }, fou
     });
     added = ins.ok && Array.isArray(ins.data) ? ins.data.length : 0;
   }
-  if (e.AI) {
+  // Sentiment: Grok when XAI_API_KEY is set, else Workers AI (src/lib/llm.ts)
+  if (pick(e, 'listening')) {
     const todo = await sb<(Mention & { id: number })[]>(cfg, `/rest/v1/listen_mentions?select=id,watch_id,source,url,title,snippet,author,published_at&company_id=eq.${co}&sentiment=is.null&order=published_at.desc.nullslast&limit=20`, { admin: true });
     const list = todo.ok && Array.isArray(todo.data) ? todo.data : [];
     if (list.length) {
       try {
-        const out = await e.AI.run(AI_MODEL, { messages: [{ role: 'user', content: sentimentPrompt(list, [w.name]) }], max_tokens: 900 });
-        const got = parseSentiment(String((out as { response?: unknown })?.response ?? ''), list.length);
+        const out = await generate(e, 'listening', { messages: [{ role: 'user', content: sentimentPrompt(list, [w.name]) }], max_tokens: 900 });
+        const got = parseSentiment(out.response, list.length);
         const rows = list.map((m, i) => got[i] ? { ...m, company_id: co, sentiment: got[i]!.s, reason: got[i]!.r } : null).filter(Boolean);
         if (rows.length) {
           const up = await sb(cfg, '/rest/v1/listen_mentions?on_conflict=company_id,url', { method: 'POST', admin: true, headers: { Prefer: 'resolution=merge-duplicates,return=minimal' }, body: rows });
