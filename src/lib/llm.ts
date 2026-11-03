@@ -77,14 +77,25 @@ export async function grokSearch(e: LlmEnv, messages: Msg[], sources: ('web' | '
   } catch (err) { console.warn('grok_search_failed', (err as Error).message); return null; }
 }
 
-// A background image from OpenAI's Images API (the design tab). PAID per image (more for higher quality and size).
+// Images from OpenAI's Images API (the design tab). PAID per image (more for higher quality and size).
+// With a product photo it is an edit: the product kept, a new scene around it. Without one, a new background.
 // No fallback: Workers AI has no image model we use. Returns a data: URL, or null with the reason logged.
-export async function openaiImage(e: LlmEnv, prompt: string, f: typeof fetch = fetch): Promise<string | null> {
+export async function openaiImage(e: LlmEnv, prompt: string, f: typeof fetch = fetch, product?: { bytes: Uint8Array<ArrayBuffer>; mime: string }): Promise<string | null> {
   if (!e.OPENAI_API_KEY) return null;
+  const model = clean(e.OPENAI_IMAGE_MODEL) || DEFAULTS.image, opts = { size: '1024x1536', quality: 'medium', output_format: 'jpeg' };
   try {
-    const r = await f('https://api.openai.com/v1/images/generations', { method: 'POST', headers: { authorization: `Bearer ${e.OPENAI_API_KEY}`, 'content-type': 'application/json' },
-      body: JSON.stringify({ model: clean(e.OPENAI_IMAGE_MODEL) || DEFAULTS.image, prompt, n: 1, size: '1024x1536', quality: 'medium', output_format: 'jpeg' }) });
-    if (!r.ok) { console.warn('image_failed', r.status); return null; }
+    let r: Response;
+    if (product) {
+      const form = new FormData();
+      form.append('model', model); form.append('prompt', prompt); form.append('n', '1');
+      for (const [k, v] of Object.entries(opts)) form.append(k, v);
+      form.append('image', new Blob([product.bytes], { type: product.mime }), product.mime === 'image/png' ? 'product.png' : 'product.jpg');
+      r = await f('https://api.openai.com/v1/images/edits', { method: 'POST', headers: { authorization: `Bearer ${e.OPENAI_API_KEY}` }, body: form });
+    } else {
+      r = await f('https://api.openai.com/v1/images/generations', { method: 'POST', headers: { authorization: `Bearer ${e.OPENAI_API_KEY}`, 'content-type': 'application/json' },
+        body: JSON.stringify({ model, prompt, n: 1, ...opts }) });
+    }
+    if (!r.ok) { console.warn('image_failed', product ? 'edit' : 'new', r.status); return null; }
     const b64 = ((await r.json()) as { data?: { b64_json?: string }[] })?.data?.[0]?.b64_json;
     return b64 ? `data:image/jpeg;base64,${b64}` : null;
   } catch (err) { console.warn('image_failed', (err as Error).message); return null; }

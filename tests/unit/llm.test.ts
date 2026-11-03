@@ -94,3 +94,15 @@ describe('openaiImage', () => {
     expect(await openaiImage({ OPENAI_API_KEY: 'k' }, 'bg', f)).toBeNull();
   });
 });
+
+describe('openaiImage with a product photo', () => {
+  it('sends the photo to the edits endpoint as a file', async () => {
+    let url = '', form: FormData | null = null;
+    const f = (async (u: string, init: RequestInit) => { url = u; form = init.body as FormData; return new Response(JSON.stringify({ data: [{ b64_json: 'WFla' }] })); }) as unknown as typeof fetch;
+    const out = await openaiImage({ OPENAI_API_KEY: 'k' }, 'scene', f, { bytes: new Uint8Array([1, 2, 3]), mime: 'image/jpeg' });
+    expect(out).toBe('data:image/jpeg;base64,WFla');
+    expect(url).toBe('https://api.openai.com/v1/images/edits');
+    expect(form!.get('model')).toBe('gpt-image-2');
+    expect(form!.get('image')).toBeInstanceOf(Blob);
+  });
+});

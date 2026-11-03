@@ -76,6 +76,7 @@ export default async function mount() {
   const flagHTML = d => [
     ...d.checks.filter(c => !c.ok && c.title !== 'الامتثال').map(c => `<div class="cw-flag">${esc(c.title)}: ${esc(c.detail)}</div>`),
     ...d.compliance.map(h => `<div class="cw-flag${h.level === 'critical' ? ' bad' : ''}">امتثال: ${esc(h.title)} «${esc(h.match)}». ${esc(h.fix)}</div>`),
+    ...(d.over || []).map(o => `<div class="cw-flag">${esc(o.field)} ${o.len} حرف، والمنصة تقص بعد ${o.max}</div>`),
     ...(d.banned.length ? [`<div class="cw-flag bad">كلمات ممنوعة في المشروع: ${d.banned.map(esc).join('، ')}</div>`] : []),
   ].join('');
   $('#wf').addEventListener('submit', async e => {
@@ -85,7 +86,10 @@ export default async function mount() {
       const r = await api('/api/copy/write', { method: 'POST', body: { project_id: CUR.id, kind: $('#kind').value, count: $('#count').value, competitors: $$('input[name="use"]:checked').map(x => x.value) } });
       $('#engine').textContent = r.engine === 'templates' ? 'قوالب ثابتة (الذكاء الاصطناعي مو متصل)' : `${{ openai: 'ChatGPT', xai: 'Grok' }[r.engine] || 'الذكاء الاصطناعي المجاني'}${r.used.competitors.length ? ` · نمط ${r.used.competitors.join('، ')}` : ''}`;
       $('#out').innerHTML = r.drafts.map((d, i) => `<article class="card cw-d">
-          <p class="t">${d.hook ? `<b>${esc(d.hook)}</b>` : ''}${esc(d.body)}${d.cta ? `\n${esc(d.cta)}` : ''}</p>
+          ${d.hook || d.body ? `<p class="t"><span class="muted">النص الأساسي</span>\n${d.hook ? `<b>${esc(d.hook)}</b>` : ''}${esc(d.body)}</p>` : ''}
+          ${d.headline ? `<p class="t"><span class="muted">العنوان</span>\n<b>${esc(d.headline)}</b></p>` : ''}
+          ${d.description ? `<p class="t"><span class="muted">الوصف</span>\n${esc(d.description)}</p>` : ''}
+          ${d.cta ? `<p class="t"><span class="muted">زر الإعلان</span>\n${esc(d.cta)}</p>` : ''}
           <div class="meta"><span class="cw-score">${d.score}/100</span><span class="muted">${d.dialect === 'saudi' ? 'سعودي' : d.dialect === 'msa' ? 'فصحى' : d.dialect === 'mixed' ? 'مخلوط' : 'محايد'}</span>
             <button class="btn sm secondary" type="button" data-copy="${i}" style="margin-inline-start:auto">انسخ</button></div>
           ${flagHTML(d)}</article>`).join('');
@@ -94,5 +98,7 @@ export default async function mount() {
     busy(b, false);
   });
 
+  const hint = () => { $('#kindHint').textContent = $('#kind').selectedOptions[0]?.dataset.hint || ''; };
+  $('#kind').addEventListener('change', hint); hint();
   shell({ active: 'copy', title: 'الكوبي رايتر' }).then(() => load()).catch(err => say($('#pmsg'), err.message));
 }

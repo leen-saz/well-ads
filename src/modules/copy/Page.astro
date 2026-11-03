@@ -84,8 +84,9 @@ import { KINDS } from './copy';
           <h2>اكتب</h2>
           <form id="wf" novalidate>
             <div class="cw-two">
-              <div><label for="kind">النوع</label><select id="kind">{Object.entries(KINDS).map(([k, v]) => <option value={k}>{v.ar}</option>)}</select></div>
+              <div><label for="kind">النوع</label><select id="kind">{Object.entries(KINDS).map(([k, v]) => <option value={k} data-hint={v.hint}>{v.ar}</option>)}</select></div>
               <div><label for="count">كم نسخة</label><select id="count"><option>3</option><option>4</option><option>5</option><option>1</option><option>2</option></select></div>
+              <p class="muted" id="kindHint" style="grid-column:1/-1;margin:0;font-size:13px"></p>
             </div>
             <label>خذ النمط من</label><div class="checks" id="usec"><span class="muted">أضف منافس بنصوصه أول.</span></div>
             <div class="bar" style="margin-top:14px"><button class="btn primary" type="submit" id="go">اكتب النسخ</button><span class="muted" id="engine"></span></div>
