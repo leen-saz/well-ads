@@ -19,8 +19,8 @@ export default async function mount() {
   function impact(s) {
     const sp = (s.evidence || {}).spend;
     if (sp == null) return null;
-    if (s.kind === 'pause' || s.kind === 'pause_campaign') return { v: sp, n: sar(sp), l: 'ر.س/أسبوع توفير', t: `يوفر ~${sar(sp)} ر.س/أسبوع` };
-    if (s.kind === 'budget_up') { const v = sp * ((s.params || {}).pct || 0) / 100; return { v, n: `+${sar(v)}`, l: 'ر.س/أسبوع صرف إضافي', t: `+~${sar(v)} ر.س/أسبوع صرف إضافي` }; }
+    if (s.kind === 'pause' || s.kind === 'pause_campaign') return { v: sp, n: `~${sar(sp)}`, l: 'ر.س/أسبوع توفير متوقع', t: `تقدير: يوفر ~${sar(sp)} ر.س/أسبوع (صرفه آخر 7 أيام)` };
+    if (s.kind === 'budget_up') { const v = sp * ((s.params || {}).pct || 0) / 100; return { v, n: `+~${sar(v)}`, l: 'ر.س/أسبوع صرف إضافي متوقع', t: `تقدير: +~${sar(v)} ر.س/أسبوع (${(s.params || {}).pct || 0}% من صرف آخر 7 أيام)` }; }
     return null;
   }
   const adOf = s => S.ads[(PRE[s.platform] || '') + s.target_id] || null;
@@ -32,6 +32,21 @@ export default async function mount() {
   // إعلان واتساب ومعه إعلانات ثانية شغّالة في مجموعته: Meta يرفض إيقافه بمفتاحنا (ما عنده صلاحية واتساب)، فينفّذه الفريق يدوي
   const waManual = s => s.platform === 'meta' && s.level === 'ad' && s.kind === 'pause' ? (adOf(s) || {}).wa_siblings || 0 : 0;
   const WA_NOTE = n => `إعلان واتساب، وفي مجموعته ${n === 1 ? 'إعلان ثاني شغّال' : n === 2 ? 'إعلانين ثانيين شغّالين' : `${n} إعلانات ثانية شغّالة`}. الإيقاف التلقائي للإعلان الواحد يحتاج صلاحية واتساب لمفتاح الداشبورد، فبعد الموافقة نفّذه يدوي من Ads Manager.`;
+  // What «وافق» does for this suggestion, said before the click: run on the platform, or only recorded
+  const runs = s => s.platform === 'meta' && (s.level === 'ad' || s.level === 'adset') && (s.kind === 'pause' || s.kind === 'resume');
+  function outcome(s) {
+    if (runs(s)) {
+      if (waManual(s)) return { k: 'manual', t: 'تنحفظ الموافقة · تنفيذ يدوي', tip: WA_NOTE(waManual(s)) };
+      if (S.kill.kill) return { k: 'manual', t: 'تنحفظ الموافقة · التنفيذ موقوف', tip: 'إيقاف الطوارئ مفعّل، فما يتنفّذ شي لين ينلغى' };
+      if ((S.kill.canary || []).includes(s.campaign)) return { k: 'run', t: 'يتنفّذ في Meta خلال ساعة', tip: 'الحملة من حملات التجربة: التحديث الجاي ينفّذه، وتقدر تتراجع من السجل' };
+      return { k: 'link', t: 'تنحفظ الموافقة · الحملة مو تجربة', tip: 'التنفيذ التلقائي داخل حملات التجربة بس. أضفها من «حدود التنفيذ» أو نفّذه يدوي' };
+    }
+    return { k: 'out', t: 'تنحفظ الموافقة بس · خارج التنفيذ الحالي', tip: 'التنفيذ الحين إيقاف إعلانات Meta بس. الموافقة تنحفظ في السجل والفريق ينفّذها يدوي' };
+  }
+  const outcomeChip = s => { const o = outcome(s); return `<span class="chip ${o.k === 'run' ? 'solid' : 'line'} outc" data-tip="${esc(o.tip)}">${icon(o.k === 'run' ? 'check' : 'lock')}${esc(o.t)}</span>`; };
+  // More than one open suggestion for the same ad: they are alternatives, and deciding one does not decide the others
+  const siblings = s => S.open.filter(x => x.id !== s.id && x.platform === s.platform && x.target_id === s.target_id).length;
+  const siblingChip = s => { const n = siblings(s); return n ? `<span class="chip line" data-tip="اقتراحات بديلة لنفس الإعلان. قرارك على واحد ما يقرر الثاني، فراجعهم مع بعض">${n === 1 ? '+ اقتراح ثاني لنفس الإعلان' : `+ ${n} اقتراحات ثانية لنفس الإعلان`}</span>` : ''; };
   const waChip = s => { const n = waManual(s); return n ? `<span class="chip line crit bad" data-tip="${esc(WA_NOTE(n))}">${icon('alert')}يدوي · واتساب</span>` : ''; };
   const ruleOf = s => s.source === 'manual' ? `طلب من ${s.requested_by || ''}` : s.source === 'claude' ? 'اقتراح كلود' : (s.kind === 'budget_up' && s.evidence?.metric === 'chats' ? 'محادثات أرخص من الهدف بـ 20% أو أكثر' : RULE[s.kind] || 'قاعدة');
 
@@ -68,7 +83,7 @@ export default async function mount() {
     const decided = S.done.filter(s => s.status !== 'expired');
     const rate = decided.length ? 100 * decided.filter(s => s.status === 'approved' || s.status === 'modified' || s.status === 'executed').length / decided.length : null;
     const k = (t, v, u = '') => `<div class="card kpi"><div class="k">${t}</div><div class="v">${v}${u ? `<small>${u}</small>` : ''}</div></div>`;
-    $('#kpis').innerHTML = k('مبلغ معرّض للهدر', sar(wasted), 'ر.س/أسبوع') + k('اقتراحات مفتوحة', fmt(S.open.length)) + k('نُفّذ هالأسبوع', fmt(executed)) + k('نسبة الموافقة', rate == null ? '—' : fmt(rate, 0) + '%');
+    $('#kpis').innerHTML = k('مبلغ معرّض للهدر (تقدير)', sar(wasted), 'ر.س/أسبوع حسب آخر 7 أيام') + k('اقتراحات مفتوحة', fmt(S.open.length)) + k('نُفّذ هالأسبوع', fmt(executed)) + k('نسبة الموافقة', rate == null ? '—' : fmt(rate, 0) + '%');
   }
   function modes() {
     const same = S.settings.every(x => x.mode === (S.settings[0] || {}).mode);
@@ -157,13 +172,13 @@ export default async function mount() {
         <td class="c-thumb">${thumb(s)}</td>
         <td class="ad c-ad"><b>${esc(s.target_name || s.target_id)}</b><span>${esc(s.campaign || '')}</span></td>
         <td class="c-plat"><span class="chip">${PLAT[s.platform]}</span></td>
-        <td class="sg c-sg"><span class="chip solid">${KIND[s.kind] || esc(s.kind)}${(s.params || {}).pct ? ` ${s.params.pct}%` : ''}</span><span>${esc(ruleOf(s))}</span>${criticChip(s)}${waChip(s)}</td>
+        <td class="sg c-sg"><span class="chip solid">${KIND[s.kind] || esc(s.kind)}${(s.params || {}).pct ? ` ${s.params.pct}%` : ''}</span><span>${esc(ruleOf(s))}</span>${criticChip(s)}${waChip(s)}${outcomeChip(s)}${siblingChip(s)}</td>
         <td class="imp c-imp">${im ? `<b class="num">${esc(im.n)}</b><span>${esc(im.l)}</span>` : '<span class="muted">—</span>'}</td>
         <td class="ev c-ev">${evidence(s)}</td>
         <td class="num c-age">${age == null ? '—' : `${age} يوم`}</td>
-        <td class="c-acts"><div class="acts"><button class="btn icon ghost" data-a="approve" data-tip="${blocked(s) ? esc(blocked(s)) : 'وافق (a)'}" aria-label="وافق"${blocked(s) ? ' disabled' : ''}>${icon('check')}</button>
-          <button class="btn icon ghost" data-a="modify" data-tip="وافق بتعديل" aria-label="وافق بتعديل"${blocked(s) ? ' disabled' : ''}>${icon('pen')}</button>
-          <button class="btn icon ghost" data-a="reject" data-tip="ارفض (r)" aria-label="ارفض">${icon('x')}</button></div></td></tr>`; }).join('')}
+        <td class="c-acts"><div class="acts"><button class="btn sm ghost" data-a="approve" data-tip="${blocked(s) ? esc(blocked(s)) : `${esc(outcome(s).t)} (a a)`}"${blocked(s) ? ' disabled' : ''}>${icon('check')}وافق</button>
+          <button class="btn sm ghost" data-a="modify" data-tip="وافق بتعديل"${blocked(s) ? ' disabled' : ''}>${icon('pen')}عدّل</button>
+          <button class="btn sm ghost" data-a="reject" data-tip="ارفض (r)">${icon('x')}ارفض</button></div></td></tr>`; }).join('')}
       </tbody></table>`;
     selbar();
   }
@@ -294,7 +309,7 @@ export default async function mount() {
         <div><h3>الصرف مقابل الليدز · آخر 14 يوم</h3>${spark(a)}</div>
         <div><h3>سجل هذا الإعلان</h3><div id="phist" class="muted">يحمّل…</div></div>
       </div>
-      <footer><button class="btn primary" data-a="approve"${blocked(s) ? ' disabled' : ''}>${icon('check')}وافق</button><button class="btn secondary" data-a="modify"${blocked(s) ? ' disabled' : ''}>${icon('pen')}وافق بتعديل</button><button class="btn secondary" data-a="reject">${icon('x')}ارفض</button></footer>`;
+      <footer><p class="muted" style="flex-basis:100%;margin:0 0 6px">لو وافقت: <b>${esc(outcome(s).t)}</b>. ${esc(outcome(s).tip)}${siblings(s) ? ' · فيه اقتراحات ثانية لنفس الإعلان.' : ''}</p><button class="btn primary" data-a="approve"${blocked(s) ? ' disabled' : ''}>${icon('check')}وافق</button><button class="btn secondary" data-a="modify"${blocked(s) ? ' disabled' : ''}>${icon('pen')}وافق بتعديل</button><button class="btn secondary" data-a="reject">${icon('x')}ارفض</button></footer>`;
     p.dataset.id = s.id; p.classList.add('open'); p.setAttribute('aria-hidden', 'false'); $('#veil').classList.add('open');
     $('[data-close]', p).focus();
     try {
@@ -376,7 +391,12 @@ export default async function mount() {
       const row = () => $(`tr[data-id="${S.list[S.cursor].id}"]`);
       if (e.key === 'j' || e.key === 'k') { S.cursor = Math.max(0, Math.min(S.list.length - 1, S.cursor + (e.key === 'j' ? 1 : -1))); inbox(); row().scrollIntoView({ block: 'nearest' }); }
       else if (e.key === 'x') { S.sel.has(cur.id) ? S.sel.delete(cur.id) : S.sel.add(cur.id); inbox(); }
-      else if (e.key === 'a') decide(S.sel.size ? [...S.sel] : [cur.id], 'approve', '', null);
+      // Approving changes campaigns: one key press only arms it, a second within 2 seconds approves
+      else if (e.key === 'a') {
+        const ids = S.sel.size ? [...S.sel] : [cur.id];
+        if (S.armed && S.armed.key === ids.join(',') && Date.now() - S.armed.at < 2000) { S.armed = null; decide(ids, 'approve', '', null); }
+        else { S.armed = { key: ids.join(','), at: Date.now() }; toast(ids.length > 1 ? `اضغط a مرة ثانية للموافقة على ${ids.length}` : `اضغط a مرة ثانية: ${outcome(cur).t}`); }
+      }
       else if (e.key === 'r') askNote(row(), S.sel.size ? [...S.sel] : [cur.id], 'reject');
       else if (e.key === 'Enter') openPanel(cur);
       else return;
