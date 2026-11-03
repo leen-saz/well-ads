@@ -10,11 +10,12 @@ type Json = Record<string, unknown>;
 export const STATUS: Record<string, string> = { backlog: 'بالانتظار', todo: 'جاهزة', in_progress: 'شغالة', in_review: 'للمراجعة', blocked: 'متوقفة', done: 'خلصت', cancelled: 'ملغية' };
 const ID = /^[A-Za-z0-9_-]{1,64}$/;
 
-// Each tab's agents work in one Paperclip project, «Well · <tab key>», made on first use. A task for a tab lands there,
+// Each tab's agents work in one Paperclip project, «tab · <tab key>», made on first use (the older «Well · <key>» is still found).
+// The prefix is neutral: every tenant's Paperclip company sees it. A task for a tab lands there,
 // and the agent it is assigned to (or the CEO agent, who routes unassigned work) picks it up on its next heartbeat.
 export const CHAT = 'محادثة المدير';
-export const PROJECT = (tab: string) => `Well · ${tab}`;
-export const tabOf = (name: unknown): string | null => { const m = /^Well · ([a-z]+)$/.exec(String(name || '')); return m ? m[1]! : null; };
+export const PROJECT = (tab: string) => `tab · ${tab}`;
+export const tabOf = (name: unknown): string | null => { const m = /^(?:tab|Well) · ([a-z]+)$/.exec(String(name || '')); return m ? m[1]! : null; };
 
 // List endpoints are documented without an example shape: accept a bare array or a wrapped one
 export const items = (d: unknown): Json[] => (Array.isArray(d) ? d : Array.isArray((d as Json)?.items) ? (d as Json).items : Array.isArray((d as Json)?.data) ? (d as Json).data : []) as Json[];
@@ -40,9 +41,9 @@ export function client(e: PcEnv, f: typeof fetch = fetch) {
     projects: async (c: string) => items(await call('GET', `${co(c)}/projects`)),
     // The tab's project, made the first time a task is sent to that tab
     projectFor: async (c: string, tab: string, label: string): Promise<string> => {
-      const found = items(await call('GET', `${co(c)}/projects`)).find(p => p.name === PROJECT(tab));
+      const found = items(await call('GET', `${co(c)}/projects`)).find(p => tabOf(p.name) === tab);
       if (found?.id) return String(found.id);
-      const made = (await call('POST', `${co(c)}/projects`, { name: PROJECT(tab), description: `مهام تاب «${label}» في لوحة Well` })) as Json;
+      const made = (await call('POST', `${co(c)}/projects`, { name: PROJECT(tab), description: `مهام تاب «${label}»` })) as Json;
       if (!made?.id) throw new Error('no project');
       return String(made.id);
     },

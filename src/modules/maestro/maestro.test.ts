@@ -50,7 +50,10 @@ describe('paperclip client', () => {
     const pc = client({ PAPERCLIP_URL: 'https://pc.example', PAPERCLIP_TOKEN: 't' }, f)!;
     expect(await pc.projectFor('c1', 'social', 'السوشال')).toBe('p1');
     expect(await pc.projectFor('c1', 'social', 'السوشال')).toBe('p1');
-    expect(projects).toEqual([{ id: 'p1', name: 'Well · social' }]);
+    expect(projects).toEqual([{ id: 'p1', name: 'tab · social' }]);
+    projects.push({ id: 'old', name: 'Well · design' });
+    expect(await pc.projectFor('c1', 'design', 'التصميم')).toBe('old');
+    expect(tabOf('Well · design')).toBe('design');
     expect(tabOf(PROJECT('design'))).toBe('design');
     expect(tabOf('Other project')).toBeNull();
     expect(cleanTask({ title: 'x', tab: 'social' })?.tab).toBe('social');
