@@ -38,7 +38,9 @@ export default async function mount() {
     const r = await api(`/api/social/posts?from=${from.toISOString()}&to=${to.toISOString()}`);
     PLATS = r.platforms;
     if (!$('#plats').innerHTML) {
-      $('#plats').innerHTML = Object.entries(PLATS).map(([k, p]) => `<label><input type="checkbox" name="pl" value="${k}"> ${esc(p.name)}${p.live ? '' : ' <span class="muted">(قريباً)</span>'}</label>`).join('');
+      // Each platform says up front whether it can publish by itself (account connected) or not
+      const R = r.ready || {};
+      $('#plats').innerHTML = Object.entries(PLATS).map(([k, p]) => `<label title="${esc(R[k] || 'جاهز للنشر')}"><input type="checkbox" name="pl" value="${k}"> ${esc(p.name)}${!p.live ? ' <span class="muted">(قريباً)</span>' : R[k] ? ' <span class="so-warn">· مو مربوط</span>' : ' <span class="muted">· جاهز</span>'}</label>`).join('');
       $$('input[name="pl"]').forEach(x => x.addEventListener('change', counter));
     }
     $('#range').textContent = `${fmtDay(from)} ← ${fmtDay(to)}`;

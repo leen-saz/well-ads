@@ -1,5 +1,5 @@
 // أدوات مشتركة: الطلبات، والأيقونات، والتواريخ، وهيكل التطبيق (القائمة الجانبية والشريط العلوي)
-import { LANG, t, langSwitch } from './i18n.js';
+import { LANG, t, langSwitch, restoreDraft } from './i18n.js';
 import { sections, TIP } from './sidebar.js';
 export { LANG, t, langSwitch };
 // Pages switch with Astro's ClientRouter: listeners on document/window of one page are removed when it leaves
@@ -129,6 +129,7 @@ export async function shell({ active, title, badge = '', tools = '' }) {
   $('#top', app).innerHTML = `<div class="t"><button class="btn icon ghost burger" id="burger" aria-label="القائمة" aria-controls="side" aria-expanded="false">${icon('menu')}</button><h1>${esc(title)}</h1>${badge}</div><div class="tools"><span id="tools">${tools}</span>${langSwitch()}</div>`;
   bindMe();
   drawer(app, side);
+  restoreDraft();
   warmAnalytics(app);
   // Every live tab ends with its lessons card (learning loop, docs/learning-loops.md)
   if ((me.modules || []).some(m => m.key === active && m.status === 'live' && m.ok && !m.locked)) import('./lessons.js').then(m => m.lessonsCard(active)).catch(() => {});

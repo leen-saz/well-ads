@@ -1,6 +1,6 @@
 // /api/debugger/*: tracking health for the user's company, computed from stored data (read-only).
 // report = the findings; explain = Claude's plan for them (paid, needs ANTHROPIC_API_KEY).
-import { sb, json, handle, requireUser, type AuthEnv, type Cfg, type Session } from '../../lib/auth';
+import { sb, json, handle, requireUser, notEnabled, type AuthEnv, type Cfg, type Session } from '../../lib/auth';
 import { scoped } from '../../lib/tenant';
 import { diagnose, type AdRow, type ConnRow, type LeadRow, type MetricRow } from './debugger';
 import { explain as claude, type ClaudeEnv } from './explain';
@@ -40,7 +40,7 @@ export const report = { GET: handle(async (request, e) => {
 // The findings are read again on the server: Claude gets this company's data, never what the page sends
 export const explain = { POST: handle(async (request, e: AuthEnv & ClaudeEnv) => {
   const { cfg, user } = await requireUser(request, e, 'debugger', { write: true });
-  if (!e.ANTHROPIC_API_KEY) return json(503, { error: 'الشرح بـ Claude مو مفعّل للحين، تواصل مع مسؤولة النظام' });
+  if (!e.ANTHROPIC_API_KEY) return json(503, { error: notEnabled(user, 'الشرح بـ Claude', 'ANTHROPIC_API_KEY') });
   const r = await build(cfg, user);
   try { return json(200, await claude(e, r.findings, r.platforms)); }
   catch (err) { console.warn('debugger_explain_failed', (err as Error).message); return json(502, { error: 'Claude ما رد الحين، جرّب بعد دقيقة' }); }

@@ -59,7 +59,11 @@ const EN = {
   'ليدز أرخص من الهدف بـ 20% أو أكثر': 'Leads 20%+ cheaper than target', 'محادثات أرخص من الهدف بـ 20% أو أكثر': 'Chats 20%+ cheaper than target', 'محادثات': 'Chats', 'نسبة النقر نزلت 30% أو أكثر': 'CTR down 30% or more',
   'اقتراح كلود': 'Claude suggestion', 'قاعدة': 'Rule', 'حملة': 'Campaign', 'مجموعة': 'Ad set', 'إعلان': 'Ad',
   'وافق': 'Approve', 'رفض': 'Rejected', 'وافق بتعديل': 'Approve with change', 'تنفّذ': 'Executed', 'فشل': 'Failed', 'انتهى': 'Expired', 'ارفض': 'Reject',
-  'وافق (a)': 'Approve (a)', 'ارفض (r)': 'Reject (r)', 'مختارة': 'selected', 'إلغاء التحديد': 'Clear selection', 'إلغاء': 'Cancel',
+  'وافق (a)': 'Approve (a)', 'عدّل': 'Edit', 'يتنفّذ في Meta خلال ساعة': 'Runs in Meta within the hour', 'تنحفظ الموافقة · تنفيذ يدوي': 'Approval saved · done by hand',
+  'تنحفظ الموافقة · التنفيذ موقوف': 'Approval saved · execution stopped', 'تنحفظ الموافقة · الحملة مو تجربة': 'Approval saved · not a test campaign',
+  'تنحفظ الموافقة بس · خارج التنفيذ الحالي': 'Approval saved only · outside current execution', 'مبلغ معرّض للهدر (تقدير)': 'Spend at risk (estimate)',
+  'ر.س/أسبوع توفير متوقع': 'SAR/week expected saving', 'ر.س/أسبوع صرف إضافي متوقع': 'SAR/week expected extra spend', 'لو وافقت:': 'If you approve:',
+  'اقتراح من الذكاء الاصطناعي': 'AI suggestion', 'تعذّر مطابقة الليدز مع الـ CRM': 'Could not match leads with the CRM', 'ارفض (r)': 'Reject (r)', 'مختارة': 'selected', 'إلغاء التحديد': 'Clear selection', 'إلغاء': 'Cancel',
   'سبب الرفض': 'Reason for rejecting', 'وش التعديل المطلوب؟': 'What should change?', 'مطلوب. لو تبي نسوي شي بداله اكتبه هنا.': 'Required. If you want something else done instead, write it here.',
   'مثال: ارفعها 10% بس.': 'Example: raise it 10% only.', 'وافق بالتعديل': 'Approve with change', 'الملاحظة مطلوبة': 'A note is required',
   'انحفظت الموافقة': 'Approval saved', 'انحفظ الرفض': 'Rejection saved', 'انحفظت الموافقة بالتعديل': 'Approval with change saved',
@@ -466,7 +470,7 @@ const EN = {
   'يبني تفاصيل التصميم من أفضل إعلاناتنا، ويقترح نصوص مفحوصة على قواعد الامتثال، ويرسم معاينة لكل مقاس. النص دايم طبقة فوق الصورة، والصورة ما تطلع من جهازك.': 'Builds the design details from our best ads, suggests copy checked against the compliance rules, and draws a preview for every size. Text is always a layer over the photo, and the photo never leaves your device.',
   'تفاصيل التصميم': 'Design details', 'النوع': 'Type', 'بوست عضوي': 'Organic post', 'وش نعلن عنه': 'What we advertise',
   'مثال: جلسة فيتامين سي بالوريد في البيت': 'Example: an IV vitamin C session at home', 'الفئة المستهدفة': 'Audience', 'مثال: الموظفين اللي يحسون بإرهاق': 'Example: employees who feel drained',
-  'بدون': 'None', 'المقاسات': 'Sizes', 'صورة المنتج أو الخدمة': 'Product or service photo', '(تبقى في جهازك)': '(stays on your device)', 'جهّز تفاصيل التصميم': 'Prepare the design details',
+  'بدون': 'None', 'المقاسات': 'Sizes', 'صورة المنتج أو الخدمة': 'Product or service photo', '(تبقى في جهازك)': '(stays on your device)', 'جهّز تفاصيل التصميم': 'Prepare the design details', 'صمّم': 'Design',
   'ولّد الصوت': 'Generate the voice', 'اللهجة': 'Accent', 'النبرة': 'Tone', 'نزّل WAV': 'Download WAV',
   'يتولّد بلهجة سعودية، وتسمعه وتنزله ملف WAV.': 'Generated in a Saudi accent; play it and download a WAV file.',
   'اسمعه بسرعة من جهازك': 'Quick listen on your device', 'من أصوات جهازك، للتجربة السريعة بس.': "Your device's voices, for a quick try only.",
@@ -480,7 +484,7 @@ const EN = {
   'أسلوب صورك': 'The style of your images', 'المنتج': 'Product', 'ألوان المراجع': 'Reference colours',
   'ما قدر الذكاء الاصطناعي يوصف الصور هالمرة، والنصوص طلعت بدونها.': 'The AI could not describe the images this time; the copy was written without them.',
   'ما قدرت أقرا صورة المنتج. جرّب JPG أو PNG.': 'Could not read the product photo. Try JPG or PNG.', 'أخذت أول 4 صور مرجعية بس.': 'Took the first 4 reference images only.',
-  'املأ تفاصيل التصميم واضغط "جهّز تفاصيل التصميم".': 'Fill in the design details and press "Prepare the design details".', 'المعاينة': 'Preview', 'وش نجح عندنا آخر 30 يوم': 'What worked for us in the last 30 days',
+  'املأ تفاصيل التصميم واضغط "جهّز تفاصيل التصميم".': 'Fill in the design details and press "Prepare the design details".', 'املأ التفاصيل واضغط "صمّم".': 'Fill in the details and press "Design".', 'المصمم شغّال والتصميم بالطريق… (حوالي دقيقة)': 'The designer is working, your design is on its way… (about a minute)', 'المعاينة': 'Preview', 'وش نجح عندنا آخر 30 يوم': 'What worked for us in the last 30 days',
   'الصيغة': 'Format', 'النصوص المقترحة': 'Suggested copy', '· ذكاء اصطناعي': '· AI', '· قوالب': '· templates',
   'السطر الثاني': 'Second line', 'الزر': 'Button', 'نزّل PNG': 'Download PNG', 'اختر مقاس واحد على الأقل.': 'Pick at least one size.',
   'يجهز تفاصيل التصميم…': 'Preparing the design details…', 'جاهز. عدّل النص أو اختر خيار ثاني، والمعاينة تتحدث.': 'Ready. Edit the copy or pick another option, and the preview updates.',
@@ -523,7 +527,7 @@ const PAT = [
   // أسباب الاقتراحات من suggest.py
   [/^صرف ([\d.,]+) ريال آخر 7 أيام بدون ولا ليد، وهذا ضعف تكلفة الليد المستهدفة \(([\d.,]+)\) أو أكثر\.$/, 'Spent $1 SAR in the last 7 days with no lead, at least 2× the target CPL ($2).'],
   [/^جاب ([\d.,]+) ليد آخر 7 أيام بتكلفة ([\d.,]+) ريال، أقل من هدف المنصة \(([\d.,]+)\) بـ (\d+)%\. ارفع ميزانية مجموعته 20%\.$/, 'Got $1 leads in the last 7 days at $2 SAR each, $4% under the platform target ($3). Raise its ad set budget 20%.'],
-  [/^نسبة النقر نزلت من ([\d.,]+)% في أول 7 أيام إلى ([\d.,]+)% آخر 7 أيام\. (?:الكرييتف بدأ يتعب|المادة الإعلانية بدأت تتعب)، جهّز بديل\.$/, 'CTR fell from $1% in the first 7 days to $2% in the last 7. The creative is wearing out; prepare a replacement.'],
+  [/^نسبة النقر نزلت من ([\d.,]+)% في أول 7 أيام إلى ([\d.,]+)% آخر 7 أيام\. (?:المادة الإعلانية بدأت تتعب|المادة الإعلانية بدأت تتعب)، جهّز بديل\.$/, 'CTR fell from $1% in the first 7 days to $2% in the last 7. The creative is wearing out; prepare a replacement.'],
   [/^حملة هدفها Traffic\. القاعدة: الهدف Sales أو Leads بس، أبد مو Traffic\.$/, 'Traffic-objective campaign. Rule: Sales or Leads only, never Traffic.'],
 ];
 
@@ -562,8 +566,32 @@ if (LANG === 'en') {
 export function langSwitch() {
   return `<span class="seg lang" role="group" aria-label="اللغة"><button data-lang="ar" aria-pressed="${LANG === 'ar'}">عربي</button><button data-lang="en" aria-pressed="${LANG === 'en'}">English</button></span>`;
 }
+// The switch reloads the page: what was typed on it is kept for the reload (shell() puts it back), and a page with
+// results of its own (the design tab) gets 'well:before-lang' to keep them too
+const DRAFT = 'well-draft:';
+function saveDraft() {
+  const fields = {};
+  for (const el of document.querySelectorAll('#content input[id], #content textarea[id], #content select[id]')) {
+    if (el.type === 'file' || el.type === 'password' || el.type === 'hidden') continue;
+    fields[el.id] = el.type === 'checkbox' || el.type === 'radio' ? { c: el.checked } : { v: el.value };
+  }
+  try { sessionStorage.setItem(DRAFT + location.pathname, JSON.stringify({ at: Date.now(), fields })); } catch {}
+  document.dispatchEvent(new CustomEvent('well:before-lang'));
+}
+// Once, within a minute of the switch: the fields the page has, as they were typed
+export function restoreDraft() {
+  let d = null;
+  try { d = JSON.parse(sessionStorage.getItem(DRAFT + location.pathname) || 'null'); sessionStorage.removeItem(DRAFT + location.pathname); } catch {}
+  if (!d || Date.now() - d.at > 60_000) return;
+  for (const [id, f] of Object.entries(d.fields || {})) {
+    const el = document.getElementById(id); if (!el) continue;
+    if ('c' in f) el.checked = f.c;
+    else if (el.tagName !== 'SELECT' || [...el.options].some(o => o.value === f.v)) el.value = f.v;
+  }
+}
 document.addEventListener('click', e => {
   const b = e.target.closest('[data-lang]'); if (!b || b.dataset.lang === LANG) return;
   try { localStorage.setItem('well-ads-lang', b.dataset.lang); } catch {}
+  saveDraft();
   const u = new URL(location.href); u.searchParams.delete('lang'); if (b.dataset.lang === 'en') u.searchParams.set('lang', 'en'); location.href = u.toString();
 });

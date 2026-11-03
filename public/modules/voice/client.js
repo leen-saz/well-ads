@@ -83,7 +83,13 @@ export default async function mount() {
     $('#gv').innerHTML = t.voices.map(v => `<option value="${esc(v.id)}">${esc(v.ar)}</option>`).join('');
     $('#ga').innerHTML = Object.entries(t.accents).map(([k, v]) => `<option value="${k}">${esc(v)}</option>`).join('');
     $('#gt').innerHTML = Object.entries(t.tones).map(([k, v]) => `<option value="${k}">${esc(v)}</option>`).join('');
-    if (!t.ready) { $('#speak').disabled = true; $('#genNote').textContent = 'توليد الصوت مو مفعّل للحين، تواصل مع مسؤولة النظام.'; }
+    // Not ready: say so first and hide the voice settings that cannot be used; checking and rewriting still work
+    if (!t.ready) {
+      $('#speak').disabled = true; $('#genNote').textContent = t.why || 'توليد الصوت يحتاج تفعيل.';
+      $('#genNote').classList.add('msg', 'err');
+      for (const id of ['gv', 'ga', 'gt']) { $('#' + id).hidden = true; const l = $(`label[for="${id}"]`); if (l) l.hidden = true; }
+      $('#speak').closest('.bar').hidden = true;
+    }
     $('#guide').innerHTML = g.guide.map(x => `<div class="vc-g"><b>${esc(x.title)}</b><span><span class="vc-yes">نعم:</span> ${esc(x.do)}</span><span class="muted"><span class="vc-no">لا:</span> ${esc(x.dont)}</span></div>`).join('');
   } catch (err) { say($('#msg'), err.message); }
 }

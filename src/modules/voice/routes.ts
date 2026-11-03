@@ -1,5 +1,5 @@
 // /api/voice/*: brand-voice check and an optional AI rewrite. Nothing is stored; read-only.
-import { json, readJson, handle, requireUser } from '../../lib/auth';
+import { json, readJson, handle, requireUser, notEnabled } from '../../lib/auth';
 import { AI_MODEL, type AiRun } from '../content/content';
 import { knowledgeFor, rulesFor, withKnowledge } from '../knowledge/knowledge';
 import { ACCENTS, GUIDE, TONES, TTS_MODEL, TTS_VOICES, analyze, rewritePrompt, ttsBody, ttsInput } from './voice';
@@ -8,8 +8,9 @@ type AiEnv = { AI?: { run: AiRun } };
 type TtsEnv = { GEMINI_API_KEY?: string; GEMINI_TTS_MODEL?: string };
 
 export const guide = { GET: handle(async (request, e) => {
-  await requireUser(request, e, 'voice');
-  return json(200, { guide: GUIDE, tts: { ready: !!(e as TtsEnv).GEMINI_API_KEY, voices: TTS_VOICES, accents: ACCENTS, tones: TONES } });
+  const { user } = await requireUser(request, e, 'voice');
+  const ready = !!(e as TtsEnv).GEMINI_API_KEY;
+  return json(200, { guide: GUIDE, tts: { ready, why: ready ? '' : notEnabled(user, 'توليد الصوت', 'GEMINI_API_KEY'), voices: TTS_VOICES, accents: ACCENTS, tones: TONES } });
 }) };
 
 export const check = { POST: handle(async (request, e) => {
@@ -37,10 +38,10 @@ export const rewrite = { POST: handle(async (request, e: AiEnv & Parameters<type
 // /api/voice/speak: Gemini TTS. The audio JSON is passed straight through (no parsing here: the free Workers
 // plan allows 10 ms of CPU); the page turns the PCM into a WAV file. The key never reaches the browser.
 export const speak = { POST: handle(async (request, e: TtsEnv & Parameters<typeof requireUser>[1]) => {
-  await requireUser(request, e, 'voice', { write: true });
+  const { user } = await requireUser(request, e, 'voice', { write: true });
   const i = ttsInput(await readJson(request));
   if (!i.text) return json(400, { error: 'اكتب النص أول' });
-  if (!e.GEMINI_API_KEY) return json(503, { error: 'توليد الصوت مو مفعّل للحين، تواصل مع مسؤولة النظام' });
+  if (!e.GEMINI_API_KEY) return json(503, { error: notEnabled(user, 'توليد الصوت', 'GEMINI_API_KEY') });
   const model = (e.GEMINI_TTS_MODEL || TTS_MODEL).replace(/[^a-z0-9.\-]/gi, '');
   let r: Response;
   try {

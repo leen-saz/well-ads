@@ -63,6 +63,14 @@ async function graph(f: typeof fetch, path: string, params: Record<string, strin
   return res.json();
 }
 
+// Before scheduling: can this platform go out on its own with the accounts connected? '' = yes, else why not
+export function readiness(platform: SocialPlatform, t: Tokens): string {
+  if (!SOCIAL[platform].live) return 'النشر التلقائي لهالمنصة قريباً: بينحفظ كتذكير';
+  if (platform === 'facebook' && (!t.META_PAGE_ACCESS_TOKEN || !t.META_PAGE_ID)) return 'صفحة فيسبوك مو مربوطة: اربطها من صفحة الربط قبل الموعد';
+  if (platform === 'instagram' && (!t.META_PAGE_ACCESS_TOKEN || !t.IG_USER_ID)) return 'حساب انستقرام مو مربوط: اربطه من صفحة الربط قبل الموعد';
+  return '';
+}
+
 export async function publishOne(platform: SocialPlatform, post: Draft, t: Tokens, f: typeof fetch = fetch): Promise<Result> {
   if (!SOCIAL[platform].live) return { ok: false, error: 'النشر التلقائي لهالمنصة قريباً' };
   const token = t.META_PAGE_ACCESS_TOKEN;

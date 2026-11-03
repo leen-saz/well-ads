@@ -5,7 +5,7 @@ import { type AiRun } from '../content/content';
 import { generate, openaiImage, pick, type LlmEnv } from '../../lib/llm';
 import { knowledgeFor, withKnowledge } from '../knowledge/knowledge';
 import { brandFor, serveFile } from '../knowledge/brand';
-import { SIZES, TYPES, VISION_MODEL, VISION_PROMPT, backgroundPrompt, images, variantsFrom, prompt, stylePrompt, templates, winners, type AdIn, type MetIn } from './design';
+import { SIZES, TYPES, VISION_MODEL, VISION_PROMPT, backgroundPrompt, images, productPhoto, variantsFrom, prompt, stylePrompt, templates, winners, type AdIn, type MetIn } from './design';
 
 // Vision stays on Workers AI (free); the copy is written by OpenAI when OPENAI_API_KEY is set (src/lib/llm.ts)
 type AiEnv = Omit<LlmEnv, 'AI'> & { AI?: { run: AiRun & ((model: string, input: { image: number[]; prompt: string; max_tokens: number }) => Promise<unknown>) } };
@@ -35,8 +35,8 @@ export const brandfile = { GET: handle(async (request, e) => {
 
 export const brief = { POST: handle(async (request, e: AiEnv & Parameters<typeof requireUser>[1]) => {
   const { cfg, user } = await requireUser(request, e, 'design', { write: true });
-  // Up to 5 small images (product + 4 references, each capped in images()) ride in this body
-  const b = await readJson(request, 1_100_000);
+  // Up to 5 small images (product + 4 references, each capped in images()) and the product at 1024 px ride in this body
+  const b = await readJson(request, 3_200_000);
   const input = { type: String(b.type || 'ad'), offer: String(b.offer || '').slice(0, 200), audience: String(b.audience || '').slice(0, 200), dept: String(b.dept || '').slice(0, 60) };
   const since = new Date(Date.now() - 30 * 864e5).toISOString().slice(0, 10);
   const [ads, metrics] = await Promise.all([
@@ -59,8 +59,10 @@ export const brief = { POST: handle(async (request, e: AiEnv & Parameters<typeof
   if (pick(e, 'design') && (looks.product.length || looks.refs.length)) {
     try { style = (await generate(e, 'design', { messages: [{ role: 'user', content: stylePrompt(looks) }], max_tokens: 160 })).response.trim().slice(0, 400); } catch { /* notes are optional */ }
   }
-  // No product photo: ChatGPT draws the background (OpenAI Images, PAID per image), while the text is written
-  const drawing = !pics.some(p => p.kind === 'product') && e.OPENAI_API_KEY ? openaiImage(e, backgroundPrompt(input, brand.colors, style)) : Promise.resolve(null);
+  // ChatGPT draws the picture (OpenAI Images, PAID per image) while the text is written: the product photo put in a
+  // new scene when one is given, else a new background
+  const hd = productPhoto(b.product);
+  const drawing = e.OPENAI_API_KEY ? openaiImage(e, backgroundPrompt(input, brand.colors, style, !!hd), fetch, hd ?? undefined) : Promise.resolve(null);
   if (pick(e, 'design')) {
     try {
       const out = await generate(e, 'design', { messages: withKnowledge([{ role: 'user', content: prompt(input, ref.hooks, looks) }], await knowledgeFor(cfg, user.co, 'design')), max_tokens: 700 });

@@ -80,3 +80,18 @@ describe('Claude plan', () => {
     expect(explainPrompt([], {})).toContain('ما فيه مشاكل');
   });
 });
+
+describe('platform names', () => {
+  it('compares snap ads with snapchat CRM leads, and facebook ads with meta, in one row', () => {
+    const leads = Array.from({ length: 25 }, () => ({ source_platform: 'snapchat_form', ad_id: '1', created_at: '2026-10-31T10:00:00Z' }));
+    const r = diagnose(base({ ads: [ad('s1', 'snap'), ad('f1', 'facebook')], metrics: [{ ad_key: 's1', day: '2026-11-01', spend: 500, leads: 26 }, { ad_key: 'f1', day: '2026-11-01', spend: 100, leads: 3 }], leads }));
+    expect(r.platforms.snap).toBeUndefined();
+    expect(r.platforms.snapchat).toMatchObject({ leads7: 26, crm7: 25 });
+    expect(r.platforms.meta?.leads7).toBe(3);
+    expect(r.findings.some(x => x.id === 'gap:snapchat')).toBe(false);
+  });
+  it('says the match failed, not that leads were lost, when the CRM has none for the platform', () => {
+    const r = diagnose(base({ ads: [ad('s1', 'snap')], metrics: [{ ad_key: 's1', day: '2026-11-01', spend: 500, leads: 40 }], leads: [{ source_platform: 'meta_form', ad_id: '1', created_at: '2026-10-31T10:00:00Z' }] }));
+    expect(r.findings.find(x => x.id === 'gap:snapchat')?.title).toContain('تعذّر مطابقة');
+  });
+});

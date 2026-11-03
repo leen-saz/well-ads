@@ -1,6 +1,6 @@
 // /api/maestro/*: the maestro tab. Agents, tasks and pending approvals of the user's company, from Paperclip.
 // Connecting a company to Paperclip is owner-only; creating tasks needs edit and deciding approvals needs approve on `maestro`.
-import { sb, json, readJson, handle, requireUser, audit, isOwner, atLeast, type AuthEnv, type Cfg } from '../../lib/auth';
+import { sb, json, readJson, handle, requireUser, audit, isOwner, atLeast, notEnabled, type AuthEnv, type Cfg } from '../../lib/auth';
 import { client, cleanTask, STATUS, withBrief, type PcEnv } from './paperclip';
 import { knowledgeFor } from '../knowledge/knowledge';
 
@@ -11,12 +11,12 @@ async function companyOf(cfg: Cfg, co: string): Promise<Co | null> {
   const r = await sb<Co[]>(cfg, `/rest/v1/companies?id=eq.${co}&select=id,name,paperclip_company_id`, { admin: true });
   return r.ok && Array.isArray(r.data) ? r.data[0] || null : null;
 }
-const notSet = () => json(503, { error: 'المايسترو مو جاهز للحين، تواصل مع مسؤولة النظام', setup: true });
+const notSet = (user?: { role: string }) => json(503, { error: notEnabled(user, 'المايسترو', 'PAPERCLIP_URL و PAPERCLIP_TOKEN'), setup: true });
 
 export const state = { GET: handle(async (request, e: Env) => {
   const { cfg, user } = await requireUser(request, e, 'maestro');
   const pc = client(e);
-  if (!pc) return notSet();
+  if (!pc) return notSet(user);
   const c = await companyOf(cfg, user.co);
   if (!c?.paperclip_company_id) return json(200, { connected: false, owner: isOwner(user, cfg), statuses: STATUS });
   let agents: unknown[] = [], issues: unknown[] = [], approvals: unknown[] = [];
@@ -28,7 +28,7 @@ export const state = { GET: handle(async (request, e: Env) => {
 export const connect = { POST: handle(async (request, e: Env) => {
   const { cfg, user } = await requireUser(request, e, 'owner', { write: true });
   const pc = client(e);
-  if (!pc) return notSet();
+  if (!pc) return notSet(user);
   const c = await companyOf(cfg, user.co);
   if (!c) return json(404, { error: 'شركة غير معروفة' });
   if (c.paperclip_company_id) return json(200, { ok: true, id: c.paperclip_company_id });
@@ -46,7 +46,7 @@ export const connect = { POST: handle(async (request, e: Env) => {
 export const task = { POST: handle(async (request, e: Env) => {
   const { cfg, user } = await requireUser(request, e, 'maestro', { write: true });
   const pc = client(e);
-  if (!pc) return notSet();
+  if (!pc) return notSet(user);
   const t = cleanTask(await readJson(request));
   if (!t) return json(400, { error: 'اكتب عنوان المهمة' });
   const c = await companyOf(cfg, user.co);
@@ -60,7 +60,7 @@ export const task = { POST: handle(async (request, e: Env) => {
 export const approval = { POST: handle(async (request, e: Env) => {
   const { cfg, user } = await requireUser(request, e, 'maestro', { write: true, approve: true });
   const pc = client(e);
-  if (!pc) return notSet();
+  if (!pc) return notSet(user);
   const b = await readJson(request);
   const act = b.action === 'approve' ? 'approve' : b.action === 'reject' ? 'reject' : null;
   if (!act) return json(400, { error: 'طلب غير صحيح' });
