@@ -2,7 +2,7 @@
 import { TrendingDown, TrendingUp } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardAction, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
-import { type Dash, canCompare, change, previous, summarize } from './numbers';
+import { type Dash, canCompare, change, mover, platformName, previous, summarize } from './numbers';
 import { pct, qty, sar } from './format';
 
 interface Props { data: Dash; from: string; to: string }
@@ -15,9 +15,17 @@ export function SectionCards({ data, from, to }: Props) {
   const ok = canCompare(data, from, to);
   const vs = (a: number | null, b: number | null) => (ok ? change(a, b) : null);
   // lowerIsBetter: a drop in cost per result is good news; spend is neither good nor bad (null)
-  const cards: { label: string; value: string; d: number | null; lowerIsBetter: boolean | null; note: string }[] = [
-    { label: 'الصرف', value: sar(now.spend), d: vs(now.spend, was.spend), lowerIsBetter: null, note: ok ? `قبلها ${sar(was.spend)}` : 'ما فيه مقارنة: الفترة اللي قبلها ناقصة' },
-    { label: 'النتائج', value: qty(now.results), d: vs(now.results, was.results), lowerIsBetter: false, note: 'الليدز والمحادثات' },
+  // The 'why' line: the platform that moved the number most (shadcn dashboard-01 card footer)
+  const why = (field: 'spend' | 'res', fmt: (n: number) => string) => {
+    if (!ok) return null;
+    const m = mover(data, from, to, pf, pt, field);
+    if (!m) return null;
+    const sign = m.delta > 0 ? '+' : '−';
+    return `${m.delta > 0 ? 'أكبر زيادة' : 'أكبر نزول'} من ${platformName(m.platform)}: ${sign}${fmt(Math.abs(m.delta))}`;
+  };
+  const cards: { label: string; value: string; d: number | null; lowerIsBetter: boolean | null; note: string; why?: string | null }[] = [
+    { label: 'الصرف', value: sar(now.spend), d: vs(now.spend, was.spend), lowerIsBetter: null, note: ok ? `قبلها ${sar(was.spend)}` : 'ما فيه مقارنة: الفترة اللي قبلها ناقصة', why: why('spend', sar) },
+    { label: 'النتائج', value: qty(now.results), d: vs(now.results, was.results), lowerIsBetter: false, note: 'الليدز والمحادثات', why: why('res', qty) },
     { label: 'تكلفة النتيجة', value: sar(now.cpr), d: vs(now.cpr, was.cpr), lowerIsBetter: true, note: ok ? `قبلها ${sar(was.cpr)}` : 'الصرف ÷ الليدز والمحادثات' },
     { label: 'نسبة النقر', value: pct(now.ctr), d: vs(now.ctr, was.ctr), lowerIsBetter: false, note: `${qty(now.clicks)} نقرة من ${qty(now.impr)} ظهور` },
   ];
@@ -40,7 +48,10 @@ export function SectionCards({ data, from, to }: Props) {
                 </CardAction>
               )}
             </CardHeader>
-            <CardFooter className="text-sm text-muted-foreground">{c.note}</CardFooter>
+            <CardFooter className="flex-col items-start gap-1 text-sm">
+              {c.why && <div className="flex gap-2 font-medium">{c.why}</div>}
+              <div className="text-muted-foreground">{c.note}</div>
+            </CardFooter>
           </Card>
         );
       })}

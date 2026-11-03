@@ -35,6 +35,8 @@ const P = {
   user: '<circle cx="12" cy="8" r="4"/><path d="M20 21a8 8 0 0 0-16 0"/>',
   out: '<path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><path d="m16 17 5-5-5-5"/><path d="M21 12H9"/>',
   menu: '<path d="M4 6h16M4 12h16M4 18h16"/>',
+  plus: '<path d="M12 5v14M5 12h14"/>',
+  panel: '<rect x="3" y="3" width="18" height="18" rx="2"/><path d="M15 3v18"/>',
   check: '<path d="M20 6 9 17l-5-5"/>',
   x: '<path d="M18 6 6 18M6 6l12 12"/>',
   pen: '<path d="M12 20h9"/><path d="M16.4 3.6a2 2 0 0 1 3 3L7 19l-4 1 1-4Z"/>',
@@ -95,7 +97,14 @@ function drawSide(side, me, active) {
   side.dataset.sig = sig;
   const initials = (me.name || me.email).trim().split(/\s+/).map(w => w[0]).join('').slice(0, 2).toUpperCase();
   // كل الأقسام تطلع للكل: اللي ما له صلاحية عليه أو مقفل لشركته يطلع بقفل
-  side.innerHTML = `<a class="brand mark" href="/" data-astro-reload aria-label="Well">Well<i>.</i></a>
+  // Quick create (shadcn dashboard-01 'Quick Create'): only what this user can open
+  const NEW = [['control', '/control/new/', 'قرار جديد', 'gavel'], ['social', '/social/', 'منشور جديد', 'calendar'], ['design', '/design/', 'تصميم جديد', 'image'], ['copy', '/copy/', 'نص إعلان جديد', 'pen']];
+  const can = new Set(sections(me, L).flatMap(sec => sec.items).filter(it => it.state === 'ok').map(it => it.key));
+  const quick = NEW.filter(([k]) => can.has(k));
+  side.innerHTML = `<div class="side-top"><a class="brand mark" href="/" data-astro-reload aria-label="Well">Well<i>.</i></a>
+    <button type="button" class="btn icon ghost side-fold" id="sideFold" aria-label="${L('طي القائمة', 'Collapse menu')}" aria-pressed="false">${icon('panel')}</button></div>
+    ${quick.length ? `<div class="qc"><button type="button" class="btn primary qc-btn" id="qcBtn" aria-haspopup="menu" aria-expanded="false">${icon('plus')}<span>${L('جديد', 'New')}</span></button>
+      <div class="menu qc-menu" id="qcMenu" role="menu" hidden>${quick.map(([, href, t, ic]) => `<a href="${href}" role="menuitem">${icon(ic)}${t}</a>`).join('')}</div></div>` : ''}
     ${sections(me, L).map(sec => `<div class="side-sec"><small class="side-h">${esc(sec.label)}</small>${sec.items.map(it => {
       const ic = it.svg ? `<svg class="i" viewBox="0 0 24 24" aria-hidden="true">${it.svg}</svg>` : icon(it.ic);
       if (it.state === 'ok' || it.state === 'soon') return `<a class="navi${it.state === 'soon' ? ' soon' : ''}" href="${it.href}" data-k="${esc(it.key)}"${FULL(it.href)}${it.key === active ? ' aria-current="page"' : ''}>${ic}<span>${esc(it.text)}</span>${it.state === 'soon' ? `<small class="tag">${L('قريباً', 'Soon')}</small>` : ''}</a>`;
@@ -107,6 +116,19 @@ function drawSide(side, me, active) {
       <span class="who"><b>${esc(me.name || me.email)}</b><span class="muted">${me.role === 'owner' ? 'المالكة' : (me.departments || []).length ? 'مدير قسم' : 'عضو'}</span></span></button>
     <div class="menu" id="meMenu" role="menu" hidden><a href="/account/" role="menuitem">${icon('user')}حسابي</a><form method="post" action="/api/auth/logout" style="margin:0"><button type="submit" role="menuitem">${icon('out')}خروج</button></form></div>`;
   side.querySelector('form')?.addEventListener('submit', () => { try { sessionStorage.removeItem(ME_KEY); } catch { /* storage blocked */ } });
+  // Navigation labels as tooltips, used when the menu is folded to icons
+  side.querySelectorAll('.navi').forEach(a => { const t = a.querySelector('span')?.textContent; if (t && !a.title) a.title = t; });
+  const qb = $('#qcBtn', side), qm = $('#qcMenu', side);
+  if (qb) qb.onclick = e => { e.stopPropagation(); qm.hidden = !qm.hidden; qb.setAttribute('aria-expanded', String(!qm.hidden)); };
+  $('#sideFold', side).onclick = () => fold(!document.getElementById('app')?.classList.contains('mini'));
+}
+
+// Folded menu (icons only), remembered on this device
+function fold(on) {
+  const app = document.getElementById('app'); if (!app) return;
+  app.classList.toggle('mini', on);
+  $('#sideFold')?.setAttribute('aria-pressed', String(on));
+  try { localStorage.setItem('wl-mini', on ? '1' : '0'); } catch { /* storage blocked */ }
 }
 
 function bindMe() {
@@ -126,6 +148,9 @@ export async function shell({ active, title, badge = '', tools = '' }) {
     if (Date.now() - ME.t > FRESH) fetchMe().then(v => { if (JSON.stringify(v) !== JSON.stringify(me)) { drawSide(side, v, active); bindMe(); } }).catch(() => {});
   }
   drawSide(side, me, active);
+  let mini = false; try { mini = localStorage.getItem('wl-mini') === '1'; } catch { /* storage blocked */ }
+  app.classList.toggle('mini', mini); $('#sideFold')?.setAttribute('aria-pressed', String(mini));
+  document.addEventListener('click', e => { const m = $('#qcMenu'); if (m && !m.hidden && !e.target.closest('.qc')) { m.hidden = true; $('#qcBtn')?.setAttribute('aria-expanded', 'false'); } }, { signal: pageSignal() });
   $('#top', app).innerHTML = `<div class="t"><button class="btn icon ghost burger" id="burger" aria-label="القائمة">${icon('menu')}</button><h1>${esc(title)}</h1>${badge}</div><div class="tools"><span id="tools">${tools}</span>${langSwitch()}</div>`;
   bindMe();
   // Phone menu: Escape closes it too, and the keyboard goes back to the menu button
