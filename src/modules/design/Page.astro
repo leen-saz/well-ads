@@ -77,7 +77,7 @@ import { ClientRouter } from 'astro:transitions';
   <div class="main">
     <header class="topbar" id="top"></header>
     <main class="content" id="content">
-      <p class="muted" style="margin:0 0 14px">يبني بريف التصميم من أفضل إعلاناتنا، ويقترح نصوص مفحوصة على قواعد الامتثال، ويرسم معاينة لكل مقاس. ChatGPT يصمم الصورة، والنص دايم طبقة فوقها تقدر تعدّلها.</p>
+      <p class="muted" style="margin:0 0 14px">يبني بريف التصميم من أفضل إعلاناتنا، ويقترح نصوص مفحوصة على قواعد الامتثال، ويرسم معاينة لكل مقاس. المصمم يصمم الصورة، والنص دايم طبقة فوقها تقدر تعدّلها.</p>
       <div class="so-grid">
         <section class="card pad">
           <h2>البريف</h2>
@@ -91,12 +91,12 @@ import { ClientRouter } from 'astro:transitions';
               <label><input type="checkbox" name="size" value="story" checked> ستوري 1080×1920</label>
               <label><input type="checkbox" name="size" value="portrait"> طولي 1080×1350</label>
               <label><input type="checkbox" name="size" value="landscape"> عرضي 1200×628</label></fieldset>
-            <label for="photo">صورة منتجك الأصلية <span class="muted">(ChatGPT يحطها في مشهد جديد، وبدونها يصمم خلفية)</span></label><input id="photo" type="file" accept="image/*">
+            <label for="photo">صورة منتجك الأصلية <span class="muted">(المصمم يحطها في مشهد جديد، وبدونها يصمم خلفية)</span></label><input id="photo" type="file" accept="image/*">
             <label for="refs">صور مرجعية <span class="muted">(اختياري، حتى 4: تصاميم يعجبك أسلوبها)</span></label><input id="refs" type="file" accept="image/*" multiple>
             <div class="dz-thumbs" id="thumbs" aria-live="polite"></div>
             <label class="dz-check"><input type="checkbox" id="useRefColors" checked> خذ الألوان من المراجع</label>
             <p class="muted" id="brandNote" hidden style="margin:6px 0 0;font-size:13px">يستخدم شعارك وألوانك وخطك من المعرفة ← الهوية والبصريات تلقائياً.</p>
-            <p class="muted dz-note">صورة المنتج تنرسل لـ ChatGPT (OpenAI) بمقاس 1024 عشان يحطها في مشهد جديد. الصور المرجعية تنرسل نسخة صغيرة عشان يوصف أسلوبها بس. ولا وحدة تنحفظ عندنا.</p>
+            <p class="muted dz-note">صورة المنتج تنرسل لخدمة التصميم بالذكاء الاصطناعي بمقاس 1024 عشان يحطها في مشهد جديد. الصور المرجعية تنرسل نسخة صغيرة عشان يوصف أسلوبها بس. ولا وحدة تنحفظ عندنا.</p>
             <div class="bar" style="margin-top:14px"><button class="btn primary" type="submit">صمّم</button></div>
             <div class="msg" id="msg" role="status"></div>
           </form>

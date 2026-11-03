@@ -1,5 +1,5 @@
 // التصميم: بريف من أفضل إعلاناتنا، نصوص مقترحة مفحوصة على قواعد الامتثال، ومعاينة لكل مقاس.
-// الصورة يصممها ChatGPT (منتجك في مشهد جديد، أو خلفية)، والنص دايم طبقة فوقها في المتصفح، والتحميل PNG.
+// الصورة يصممها المصمم (OpenAI Images: منتجك في مشهد جديد، أو خلفية)، والنص دايم طبقة فوقها في المتصفح، والتحميل PNG.
 import { $, $$, api, say, esc, shell, busy, fmt } from '/assets/common.js';
 
 const PLAT = { meta: 'ميتا', snapchat: 'سناب شات', tiktok: 'تيك توك', google: 'جوجل' };
@@ -132,7 +132,7 @@ export default async function mount() {
         <p class="muted" style="margin:8px 0 0">${r.medianWords ? `النص الناجح حوالي ${fmt(r.medianWords)} كلمة. ` : ''}${Object.entries(r.formats).map(([f, n]) => `${esc(f)}: ${fmt(n)}`).join(' · ')}</p>
         ${r.hooks.length ? `<div class="ls-topics" style="margin-top:8px">${r.hooks.map(h => `<span class="so-chip">${esc(h)}</span>`).join('')}</div>` : ''}`
         : '<p class="muted">ما فيه إعلانات ليدز بثلاث ليدز أو أكثر آخر 30 يوم، فالنصوص من القوالب.</p>'}`;
-    $('#vars').innerHTML = `<h2>النصوص المقترحة <span class="muted" style="font-size:13px">${{ openai: '· ChatGPT', xai: '· Grok', 'workers-ai': '· ذكاء اصطناعي' }[res.engine] || '· قوالب'}</span></h2>
+    $('#vars').innerHTML = `<h2>النصوص المقترحة <span class="muted" style="font-size:13px">${res.engine === 'templates' ? '· قوالب' : ''}</span></h2>
       <div class="dz-vars">${res.variants.map((v, i) => `<label class="card dz-var${i === pick ? ' on' : ''}"><input type="radio" name="var" value="${i}" ${i === pick ? 'checked' : ''}>
         <b>${esc(v.headline)}</b><span>${esc(v.sub)}</span><span class="so-chip">${esc(v.cta)}</span>
         ${v.flags.map(f => `<span class="dz-flag" title="${esc((f.source || []).map(s => `${s.name}، ${s.ref}`).join(' / '))}">${LEVEL[f.level] || ''}: ${esc(f.title)} «${esc(f.match)}»${f.fix ? `. ${esc(f.fix)}` : ''}</span>`).join('')}</label>`).join('')}</div>
@@ -141,7 +141,7 @@ export default async function mount() {
   }
 
   $('#f').addEventListener('submit', async e => {
-    e.preventDefault(); const btn = e.submitter; busy(btn, true); say($('#msg'), img ? 'يصمم: ChatGPT يحط منتجك في مشهد جديد ويكتب النصوص… (حوالي دقيقة)' : 'يصمم: ChatGPT يرسم الخلفية ويكتب النصوص… (حوالي دقيقة)', true);
+    e.preventDefault(); const btn = e.submitter; busy(btn, true); say($('#msg'), 'المصمم شغّال والتصميم بالطريق… (حوالي دقيقة)', true);
     try {
       res = await api('/api/design/brief', { method: 'POST', body: { type: $('#type').value, offer: $('#offer').value, audience: $('#aud').value, dept: $('#dept').value,
         product: img ? small(img, 1024).toDataURL('image/jpeg', 0.9) : '',
@@ -149,7 +149,7 @@ export default async function mount() {
       drawn = res.image ? await picture(res.image).catch(() => null) : null;
       pick = 0; drawResult(); await render();
       const missed = !drawn && res.engine === 'openai';
-      say($('#msg'), missed ? (img ? 'النصوص جاهزة، بس ChatGPT ما رجّع صورة هالمرة، فالمعاينة على صورتك الأصلية.' : 'النصوص جاهزة، بس ChatGPT ما رجّع خلفية هالمرة. جرّب مرة ثانية أو ارفع صورة.') : 'جاهز. عدّل النص أو اختر خيار ثاني، والمعاينة تتحدث.', !missed);
+      say($('#msg'), missed ? (img ? 'النصوص جاهزة، بس المصمم ما رجّع صورة هالمرة، فالمعاينة على صورتك الأصلية.' : 'النصوص جاهزة، بس المصمم ما رجّع خلفية هالمرة. جرّب مرة ثانية أو ارفع صورة.') : 'جاهز. عدّل النص أو اختر خيار ثاني، والمعاينة تتحدث.', !missed);
     } catch (err) { say($('#msg'), err.message); }
     busy(btn, false);
   });
