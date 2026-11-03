@@ -1,12 +1,12 @@
-// Motion video: the plan is cleaned before it is stored, the frames follow the voice's clock, and the routes keep every
+// Motion graphics (the Design tab's «موشن جرافيك» type): the plan is cleaned before it is stored, the frames follow the voice's clock, and the routes keep every
 // version (an edit adds one, never changes one), need approve to approve, and only take this company's files.
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import * as A from '../../lib/auth';
 import { pick } from '../../lib/llm';
 import { checkUpload, cleanSpec, editPrompt, fileKey, ownKey, parseSpec, specPrompt, templateSpec, type Spec } from './motion';
 import { videoapprove, videoedit, video, videos } from './routes';
-// The page's own frame logic (public/modules/motion/frame.js), so the preview tested here is the one drawn
-import { frame } from '../../../public/modules/motion/frame.js';
+// The page's own frame logic (public/modules/design/frame.js), so the preview tested here is the one drawn
+import { frame } from '../../../public/modules/design/frame.js';
 
 const CO = '00000000-0000-0000-0000-000000000001';
 const KEY = (x: string, ext: string) => `motion/${CO}/${x.repeat(32)}.${ext}`;
@@ -89,7 +89,7 @@ describe('frames', () => {
 const E = { SUPABASE_URL: 'https://sb.example', SUPABASE_SERVICE_ROLE_KEY: 's', SESSION_SECRET: 'x'.repeat(40), OWNER_EMAIL: 'leen@example.com' };
 const cfg = A.env(E);
 const OWNER: A.Profile = { id: '11111111-1111-1111-1111-111111111111', email: 'leen@example.com', active: true, company_id: CO };
-const EDITOR: A.Profile = { id: '33333333-3333-3333-3333-333333333333', email: 'sara@example.com', active: true, company_id: CO, access: { maestro: 'edit' } };
+const EDITOR: A.Profile = { id: '33333333-3333-3333-3333-333333333333', email: 'sara@example.com', active: true, company_id: CO, access: { design: 'edit' } };
 const req = async (who: A.Profile, path: string, body?: unknown) => new Request('https://well.example' + path, {
   method: body === undefined ? 'GET' : 'POST', ...(body === undefined ? {} : { body: JSON.stringify(body) }),
   headers: { cookie: `${A.SESSION}=${encodeURIComponent(await A.sign(A.sessionFor(who, cfg), cfg.secret))}`, origin: 'https://well.example', 'sec-fetch-site': 'same-origin' } });
@@ -126,7 +126,7 @@ describe('video routes', () => {
   it('creates a project and v1 from ChatGPT, then an edit adds v2 and keeps v1 as it was', async () => {
     const db = world(OWNER);
     const env = { ...E, OPENAI_API_KEY: 'sk-test' };
-    const r = await video.POST(await req(OWNER, '/api/maestro/video', NEW), env);
+    const r = await video.POST(await req(OWNER, '/api/design/video', NEW), env);
     expect(r.status).toBe(200);
     expect(await r.json()).toMatchObject({ ok: true, id: 7, engine: 'openai' });
     expect(db.versions).toHaveLength(1);
@@ -135,7 +135,7 @@ describe('video routes', () => {
     const v1 = JSON.stringify(db.versions[0]);
 
     db.project!.status = 'approved'; db.project!.approved_version = 1;
-    const e = await videoedit.POST(await req(OWNER, '/api/maestro/videoedit', { id: 7, from: 1, change: 'خل الزر «اطلب زيارة»' }), env);
+    const e = await videoedit.POST(await req(OWNER, '/api/design/videoedit', { id: 7, from: 1, change: 'خل الزر «اطلب زيارة»' }), env);
     expect(e.status).toBe(200);
     expect(await e.json()).toMatchObject({ ok: true, version: 2 });
     expect(db.versions).toHaveLength(2);
@@ -145,17 +145,17 @@ describe('video routes', () => {
     // an edit after approval sends the project back to draft
     expect(db.project).toMatchObject({ status: 'draft', approved_version: null });
 
-    const list = await (await videos.GET(await req(OWNER, '/api/maestro/videos?id=7'), env)).json() as { versions: unknown[]; ready: boolean };
+    const list = await (await videos.GET(await req(OWNER, '/api/design/videos?id=7'), env)).json() as { versions: unknown[]; ready: boolean };
     expect(list.versions).toHaveLength(2);
     expect(list.ready).toBe(true);
   });
 
   it('falls back to the template without a key, and refuses edits then', async () => {
     const db = world(OWNER);
-    const r = await video.POST(await req(OWNER, '/api/maestro/video', NEW), E);
+    const r = await video.POST(await req(OWNER, '/api/design/video', NEW), E);
     expect(await r.json()).toMatchObject({ engine: 'templates' });
     expect(db.openai).toEqual([]);
-    const e = await videoedit.POST(await req(OWNER, '/api/maestro/videoedit', { id: 7, change: 'أي شي' }), E);
+    const e = await videoedit.POST(await req(OWNER, '/api/design/videoedit', { id: 7, change: 'أي شي' }), E);
     expect(e.status).toBe(503);
     expect(db.versions).toHaveLength(1);
   });
@@ -163,20 +163,20 @@ describe('video routes', () => {
   it("refuses another company's files and a missing voice length", async () => {
     world(OWNER);
     const other = `motion/00000000-0000-0000-0000-000000000002/${'c'.repeat(32)}.png`;
-    expect((await video.POST(await req(OWNER, '/api/maestro/video', { ...NEW, design_key: other }), E)).status).toBe(400);
-    expect((await video.POST(await req(OWNER, '/api/maestro/video', { ...NEW, voice_seconds: 1 }), E)).status).toBe(400);
+    expect((await video.POST(await req(OWNER, '/api/design/video', { ...NEW, design_key: other }), E)).status).toBe(400);
+    expect((await video.POST(await req(OWNER, '/api/design/video', { ...NEW, voice_seconds: 1 }), E)).status).toBe(400);
   });
 
-  it('approving needs approve on Maestro, and only an existing version', async () => {
+  it('approving needs approve on Design, and only an existing version', async () => {
     const db = world(EDITOR);
-    await video.POST(await req(EDITOR, '/api/maestro/video', NEW), E);
-    expect((await videoapprove.POST(await req(EDITOR, '/api/maestro/videoapprove', { id: 7, version: 1 }), E)).status).toBe(403);
+    await video.POST(await req(EDITOR, '/api/design/video', NEW), E);
+    expect((await videoapprove.POST(await req(EDITOR, '/api/design/videoapprove', { id: 7, version: 1 }), E)).status).toBe(403);
     expect(db.patches).toEqual([]);
 
     const db2 = world(OWNER);
-    await video.POST(await req(OWNER, '/api/maestro/video', NEW), E);
-    expect((await videoapprove.POST(await req(OWNER, '/api/maestro/videoapprove', { id: 7, version: 3 }), E)).status).toBe(404);
-    expect((await videoapprove.POST(await req(OWNER, '/api/maestro/videoapprove', { id: 7, version: 1 }), E)).status).toBe(200);
+    await video.POST(await req(OWNER, '/api/design/video', NEW), E);
+    expect((await videoapprove.POST(await req(OWNER, '/api/design/videoapprove', { id: 7, version: 3 }), E)).status).toBe(404);
+    expect((await videoapprove.POST(await req(OWNER, '/api/design/videoapprove', { id: 7, version: 1 }), E)).status).toBe(200);
     expect(db2.project).toMatchObject({ status: 'approved', approved_version: 1, approved_by: 'leen@example.com' });
   });
 });

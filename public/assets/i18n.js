@@ -471,6 +471,7 @@ const EN = {
   'تفاصيل التصميم': 'Design details', 'النوع': 'Type', 'بوست عضوي': 'Organic post', 'وش نعلن عنه': 'What we advertise',
   'مثال: جلسة فيتامين سي بالوريد في البيت': 'Example: an IV vitamin C session at home', 'الفئة المستهدفة': 'Audience', 'مثال: الموظفين اللي يحسون بإرهاق': 'Example: employees who feel drained',
   'بدون': 'None', 'المقاسات': 'Sizes', 'صورة المنتج أو الخدمة': 'Product or service photo', '(تبقى في جهازك)': '(stays on your device)', 'جهّز تفاصيل التصميم': 'Prepare the design details', 'صمّم': 'Design',
+  'نوع التصميم': 'Design type', 'صورة': 'Image', 'موشن جرافيك': 'Motion graphics', 'موشن جديد': 'New motion', 'جهّز الفيديو': 'Prepare the video', 'سجل النسخ': 'Version history',
   'ولّد الصوت': 'Generate the voice', 'اللهجة': 'Accent', 'النبرة': 'Tone', 'نزّل WAV': 'Download WAV',
   'يتولّد بلهجة سعودية، وتسمعه وتنزله ملف WAV.': 'Generated in a Saudi accent; play it and download a WAV file.',
   'اسمعه بسرعة من جهازك': 'Quick listen on your device', 'من أصوات جهازك، للتجربة السريعة بس.': "Your device's voices, for a quick try only.",

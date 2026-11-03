@@ -1,6 +1,6 @@
 // Motion-graphics video (docs/motion-video.md). OpenAI's video API was shut down on 2026-09-24, so the video is code:
 // ChatGPT writes a scene plan (Spec) over the approved design and voice, the browser animates it
-// (public/modules/motion/frame.js). Every plan from a model passes cleanSpec() before it is stored.
+// (public/modules/design/frame.js). Every plan from a model passes cleanSpec() before it is stored.
 import type { Msg } from '../../lib/llm';
 
 export type Ratio = '9:16' | '1:1' | '16:9';
@@ -81,7 +81,7 @@ const RULES = `قواعد:
 - رد بـ JSON فقط بهالشكل: ${SHAPE}`;
 
 export function specPrompt(i: { headline: string; script: string; seconds: number; ratio: Ratio; colors: string[] }): Msg[] {
-  return [{ role: 'user', content: `أنت مخرج موشن جرافيك لإعلانات Well (رعاية صحية منزلية في السعودية).
+  return [{ role: 'user', content: `أنت مصمم موشن جرافيك لإعلانات Well (رعاية صحية منزلية في السعودية).
 عندك تصميم معتمد (صورة ثابتة، مقاس ${i.ratio}) وتعليق صوتي معتمد مدته ${i.seconds} ثانية. اكتب خطة مشاهد تتحرك فوق التصميم على وقت الصوت.
 العنوان: ${i.headline || '—'}
 نص التعليق الصوتي: ${i.script || '—'}

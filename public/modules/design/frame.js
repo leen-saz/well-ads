@@ -1,4 +1,4 @@
-// What is on screen at second t of a motion plan (src/modules/maestro/motion.ts). Pure: no DOM, tested in motion.test.ts.
+// What is on screen at second t of a motion plan (src/modules/design/motion.ts). Pure: no DOM, tested in motion.test.ts.
 // draw() turns one frame into canvas calls; the page and the export both use it, so the download matches the preview.
 export const SIZE = { '9:16': [720, 1280], '1:1': [1080, 1080], '16:9': [1280, 720] };
 const IN = 0.45, OUT = 0.3;
