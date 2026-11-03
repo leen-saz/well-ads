@@ -22,6 +22,15 @@ class DashTemplateTests(unittest.TestCase):
         self.assertEqual(len(re.findall(r"<script>\n\(async function\(\)\{\n", html)), 1)
         self.assertIn("\n})();\n</script>", html)
 
+    def test_personas_use_the_real_age_by_gender(self):
+        # #101: age inside each gender from Meta's joint rows; region, device and hour for everyone; results = leads + chats.
+        # A change made only in the old single template.html would be lost in the split, so the assembled page must carry it.
+        html = template()
+        self.assertIn("A.agegender", html)
+        self.assertIn("كل المشاهدين", html)
+        self.assertIn("النتايج (ليدز ومحادثات)", html)
+        self.assertNotIn("فالعمر داخل كل جنس تقريبي", html)
+
 
 if __name__ == "__main__":
     unittest.main()
