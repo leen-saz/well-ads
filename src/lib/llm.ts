@@ -1,5 +1,5 @@
 // One adapter for the text models, so each tab names a provider and the rest stays the same.
-// Leen's choice: Content + Design → OpenAI; Social, Maestro and Listening → Grok (xAI). Voice and the rest stay on Workers AI.
+// Leen's choice: Content + Design + the motion video plan (Maestro's video page) → OpenAI; Social, Maestro and Listening → Grok (xAI). Voice and the rest stay on Workers AI.
 // PAID: OpenAI and Grok (xAI) bill every call; so does the Debugger's Claude (Anthropic SDK, src/modules/debugger/explain.ts).
 // Workers AI is free within Cloudflare's daily limit and stays the fallback when a key is missing or the provider fails.
 // Keys are Worker secrets Leen adds herself: OPENAI_API_KEY, XAI_API_KEY (docs/secrets/worker.env.example).
@@ -13,7 +13,7 @@ export interface LlmInput { messages: Msg[]; max_tokens: number; response_format
 export interface LlmOut { response: string; engine: Provider; model: string }
 
 export const DEFAULTS = { openai: 'gpt-6.1-sol', xai: 'grok-4.7', image: 'gpt-image-2' } as const;
-export const PROVIDER: Record<string, Provider> = { content: 'openai', design: 'openai', copy: 'openai', social: 'xai', maestro: 'xai', listening: 'xai' };
+export const PROVIDER: Record<string, Provider> = { content: 'openai', design: 'openai', copy: 'openai', motion: 'openai', social: 'xai', maestro: 'xai', listening: 'xai' };
 const URL_OF = { openai: 'https://api.openai.com/v1/responses', xai: 'https://api.x.ai/v1/responses' } as const;
 const clean = (s: string | undefined) => (s || '').replace(/[^a-z0-9.\-_:]/gi, '').slice(0, 80);
 

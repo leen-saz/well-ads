@@ -4,7 +4,8 @@ import * as React from 'react';
 import { Direction } from 'radix-ui';
 import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group';
 import { Skeleton } from '@/components/ui/skeleton';
-import { type Dash, addDays, lastDay } from './numbers';
+import { addDays, lastDay } from './numbers';
+import { useDash } from './useDash';
 import { SectionCards } from './SectionCards';
 import { TrendChart } from './TrendChart';
 import { AdsTable } from './AdsTable';
@@ -16,18 +17,8 @@ const RANGES = [['7', '7 أيام'], ['30', '30 يوم'], ['90', '90 يوم']] a
 type Range = (typeof RANGES)[number][0];
 
 export default function Overview() {
-  const [data, setData] = React.useState<Dash | null>(null);
-  const [error, setError] = React.useState('');
+  const { data, error } = useDash();
   const [range, setRange] = React.useState<Range>('30');
-
-  React.useEffect(() => {
-    let on = true;
-    fetch('/api/overview/data', { credentials: 'same-origin' })
-      .then(async r => (r.ok ? (r.json() as Promise<Dash>) : Promise.reject(new Error(((await r.json().catch(() => ({}))) as { error?: string }).error || 'ما قدرت أجيب الأرقام. حاول مرة ثانية'))))
-      .then(d => { if (on) setData(d); })
-      .catch((e: Error) => { if (on) setError(e.message); });
-    return () => { on = false; };
-  }, []);
 
   if (error) return <p className="ui text-destructive">{error}</p>;
   if (!data) {

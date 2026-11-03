@@ -1,0 +1,9 @@
+---
+// تابات الأداء فوق المحتوى: ملخص الأداء، والمواد الإعلانية بالتفصيل. نفس شكل تابات الإعدادات.
+interface Props { current: 'overview' | 'creative' }
+const { current } = Astro.props;
+const tabs = [['/overview/', 'ملخص الأداء', 'overview'], ['/overview/creative/', 'المواد الإعلانية بالتفصيل', 'creative']] as const;
+---
+<nav class="tabs settings-tabs" aria-label="الأداء">
+  {tabs.map(([href, text, key]) => <a href={href} aria-current={key === current ? 'page' : undefined}>{text}</a>)}
+</nav>

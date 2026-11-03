@@ -8,6 +8,7 @@ import * as control from './routes/control';
 import * as dash from './routes/dash';
 import * as lessons from './routes/lessons';
 import * as today from './routes/today';
+import * as vitals from './routes/vitals';
 import { ROUTES } from '../modules/routes';
 
 type Group = Record<string, Partial<Record<string, Handler>>>;
@@ -31,6 +32,7 @@ api.all('/control/:action', group(control));
 api.all('/dash/:action', group(dash));
 api.all('/lessons/:action', group(lessons));
 api.all('/today/:action', group(today));
+api.all('/vitals/:action', group(vitals));
 // One route group per live module (src/modules/routes.ts)
 for (const [key, routes] of Object.entries(ROUTES)) api.all(`/${key}/:action`, group(routes));
 

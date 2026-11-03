@@ -49,7 +49,7 @@ def plan(s):
     else:
         s["before"] = s["after"] = None
         s["expect"] = {}
-        s["measure_plan"] = "نسبة النقر للكرييتف الجديد بعد 7 أيام."
+        s["measure_plan"] = "نسبة النقر للمادة الإعلانية الجديدة بعد 7 أيام."
         s["reversal_plan"] = "ما يلمس المنصة."
     if sp and ev.get("target_cpl") and sp >= 3 * ev["target_cpl"] * 7:
         risk.append("صرف عالي")

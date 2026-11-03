@@ -18,12 +18,14 @@ export function sections(me, L) {
   const core = (href, ar, en, ic, key, ok = has(key)) => ({ href, text: L(ar, en), ...(ic.startsWith('<') ? { svg: ic } : { ic }), key, state: ok ? 'ok' : 'noaccess' });
   const mod = m => ({ href: m.status === 'soon' ? `/soon/?t=${m.key}` : `/${m.key}/`, text: L(m.ar, m.en), svg: m.icon, key: m.status === 'soon' ? 'soon:' + m.key : m.key,
     state: m.locked ? 'locked' : m.status === 'soon' ? 'soon' : m.ok ? 'ok' : 'noaccess' });
-  const mods = g => (me.modules || []).filter(m => m.group === g).map(mod);
+  // A live module's extra pages sit right under it, with the module's own access
+  const sub = m => m.status === 'soon' ? [] : (m.pages || []).map(p => ({ ...mod(m), href: `/${m.key}/${p.path}/`, text: L(p.ar, p.en), svg: p.icon, key: `${m.key}:${p.path}` }));
+  const mods = (g, keep = () => true) => (me.modules || []).filter(m => m.group === g && keep(m)).flatMap(m => [mod(m), ...sub(m)]);
   const items = {
     today: [core('/today/', 'ملخص اليوم', 'Today', SUN, 'today', true), ...mods('today')],
-    // ملخص الأداء (موديول overview) أول، بعده اللوحة الكاملة بتبويباتها، بعدها المواد الإعلانية والرصد
-    performance: [...mods('performance').filter(m => m.key === 'overview'), core('/', 'الحملات والمنصات', 'Campaigns & platforms', 'chart', 'ceo'),
-      core('/?view=creative', 'المواد الإعلانية', 'Creatives', 'image', 'creative'), ...mods('performance').filter(m => m.key !== 'overview')],
+    // ملخص الأداء (موديول overview وصفحاته) أول، بعده اللوحة الكاملة بتبويباتها، بعدها المواد الإعلانية والرصد
+    performance: [...mods('performance', m => m.key === 'overview'), core('/', 'الحملات والمنصات', 'Campaigns & platforms', 'chart', 'ceo'),
+      core('/?view=creative', 'المواد الإعلانية', 'Creatives', 'image', 'creative'), ...mods('performance', m => m.key !== 'overview')],
     create: mods('create'),
     review: [core('/control/', 'لوحة القرارات', 'Decision board', 'gavel', 'control'), ...mods('review'),
       core('/control/?tab=log', 'السجل', 'History', 'clock', 'control:log', has('control'))],

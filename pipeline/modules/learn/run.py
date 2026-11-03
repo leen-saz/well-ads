@@ -14,7 +14,7 @@ from statistics import median
 from modules.core.supa import Supa
 
 PN = {"meta": "Meta", "snap": "Snap", "tiktok": "TikTok", "google": "Google"}
-KIND = {"pause": "الإيقاف", "pause_campaign": "إيقاف الحملة", "budget_up": "رفع الميزانية", "budget_down": "تنزيل الميزانية", "refresh_creative": "تغيير الكرييتف", "new_campaign": "الحملات الجديدة"}
+KIND = {"pause": "الإيقاف", "pause_campaign": "إيقاف الحملة", "budget_up": "رفع الميزانية", "budget_down": "تنزيل الميزانية", "refresh_creative": "تغيير المادة الإعلانية", "new_campaign": "الحملات الجديدة"}
 
 
 def lessons(decisions, outcomes, activity):
