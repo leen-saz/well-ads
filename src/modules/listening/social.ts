@@ -116,7 +116,8 @@ export function parseBing(xml: string, watchId: number): Mention[] {
   }).filter(m => /^https?:\/\//.test(m.url) && !/^https?:\/\/(www\.)?bing\.com\//.test(m.url));
 }
 
-// GDELT DOC API (free, no key, built for servers): {"articles":[{url,title,seendate:"20261103T120000Z",domain}]}.
+// GDELT DOC API (free, no key), read by the sources check only: it answers 429 to Cloudflare's shared servers.
+// {"articles":[{url,title,seendate:"20261103T120000Z",domain}]}.
 // On a bad query it answers plain text, which gives no mentions.
 export function parseGdelt(body: string, watchId: number): Mention[] {
   let j: { articles?: Record<string, unknown>[] };
@@ -126,12 +127,6 @@ export function parseGdelt(body: string, watchId: number): Mention[] {
     return { watch_id: watchId, source: 'news', url: String(a.url), title: clip(a.title, 220), snippet: '', author: clip(a.domain, 80),
       published_at: d ? `${d[1]}-${d[2]}-${d[3]}T${d[4]}:${d[5]}:${d[6]}.000Z` : null };
   });
-}
-
-// GDELT wants OR inside parentheses and drops terms shorter than 3 letters
-export function gdeltQuery(w: Watch): string {
-  const t = terms(w, 5).filter(x => x.length >= 3).map(x => (/\s/.test(x) ? `"${x}"` : x));
-  return t.length > 1 ? `(${t.join(' OR ')})` : (t[0] || '');
 }
 
 // The name and keywords as separate plain terms, for sources without OR (max 3: one request each)

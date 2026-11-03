@@ -158,18 +158,27 @@ def load(transport=None):
         start += 1000
 
 
+def report(crm, today=None):
+    """The build log line. The repo is public, so are its Actions logs: by default only that the CRM loaded and how many
+    rows. Closings, amounts and the breakdowns print only with PIPELINE_DEBUG=1, which no workflow sets."""
+    print(f"crm: ok, {crm['total']} rows")
+    if os.environ.get("PIPELINE_DEBUG") != "1":
+        return
+    st = crm["stats"]
+    print(f"crm: {len(crm['rows'])} leads matched to ads | {crm['unmatched']} without an ad | {crm['via_customer']} paid leads credited to the same customer's ad")
+    print("crm status:", st["status"])
+    print("crm by source [leads, matched to an ad, closings]:", st["by_source"])
+    print("crm closings (paid) by payment month:", st["closings_by_paid_month"])
+    print("crm last 30 days, all sources, by payment day:", last_days(crm["paid_all"], today or datetime.now(RIYADH).strftime("%Y-%m-%d")))
+
+
 def attach_from_db(data):
     """Used by build.py. No Supabase or no table yet: the dashboard simply has no CRM block."""
     if not supabase_store.enabled():
         return None
     try:
         crm = attach(data, load())
-        print(f"crm: {len(crm['rows'])} leads matched to ads | {crm['unmatched']} without an ad | {crm['via_customer']} paid leads credited to the same customer's ad")
-        st = crm["stats"]
-        print("crm status:", st["status"])
-        print("crm by source [leads, matched to an ad, closings]:", st["by_source"])
-        print("crm closings (paid) by payment month:", st["closings_by_paid_month"])
-        print("crm last 30 days, all sources, by payment day:", last_days(crm["paid_all"], datetime.now(RIYADH).strftime("%Y-%m-%d")))
+        report(crm)
         return crm
     except Exception as ex:  # noqa: BLE001 - the dashboard must still build
         print("crm: skipped —", str(ex)[:160])

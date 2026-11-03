@@ -1,9 +1,11 @@
-// الكوبي رايتر: مشروع (إعداد + منافسين)، وبطاقة نمط لكل منافس من نصوصه، وكتابة نسخ مفحوصة.
+// الكوبي رايتر: مشروع (إعداد + منافسين)، وبطاقة نمط لكل منافس من نصوصه، ونوع الطلب (المهارة) بمدخلاته، ونسخ مفحوصة.
 import { $, $$, api, say, esc, shell, busy } from '/assets/common.js';
 
 // Runs on every visit of this page (assets/router.js calls it after each ClientRouter navigation).
 export default async function mount() {
-  let LIST = [], CUR = null;
+  let LIST = [], CUR = null, SK = null;
+  const SKILLS = JSON.parse($('#skillsData')?.textContent || '[]');
+  const DOCS = 'https://github.com/leen-saz/well-ads/blob/main/docs/copywriter-skills/';
   const FIELDS = ['name', 'service', 'audience', 'offer', 'cta', 'voice'];
   const PLAT = { facebook: 'فيسبوك', instagram: 'انستقرام', tiktok: 'تيك توك', x: 'X', snapchat: 'سناب', linkedin: 'لينكدإن', web: 'موقع' };
 
@@ -73,32 +75,69 @@ export default async function mount() {
     catch (err) { say($('#cmsg'), err.message); busy(b, false); }
   });
 
+  // ---- The skill: its form from its inputs, then its variants
+  const fieldHTML = f => {
+    const id = `in-${f.key}`, req = f.required ? '' : ' <span class="muted">(اختياري)</span>';
+    const input = f.type === 'select' ? `<select id="${id}" data-in="${esc(f.key)}">${f.options.map(([v, t]) => `<option value="${esc(v)}">${esc(t)}</option>`).join('')}</select>`
+      : f.type === 'area' ? `<textarea id="${id}" data-in="${esc(f.key)}" rows="3" dir="auto" maxlength="${f.max || 200}" placeholder="${esc(f.placeholder || '')}"></textarea>`
+      : `<input type="text" id="${id}" data-in="${esc(f.key)}" maxlength="${f.max || 200}" placeholder="${esc(f.placeholder || '')}">`;
+    return `<div${f.type === 'area' ? ' style="grid-column:1/-1"' : ''}><label for="${id}">${esc(f.ar)}${f.type === 'select' && !f.required ? '' : req}</label>${input}</div>`;
+  };
+  function choose(key) {
+    SK = SKILLS.find(k => k.key === key) || null;
+    $$('[data-skill]').forEach(b => b.setAttribute('aria-pressed', String(b.dataset.skill === key)));
+    $('#wf').hidden = !SK; $('#out').innerHTML = ''; $('#ask').hidden = true; $('#engine').textContent = '';
+    if (!SK) return;
+    $('#skTitle').textContent = SK.ar;
+    $('#skDoc').href = DOCS + SK.doc;
+    $('#skEx').textContent = `مثال: ${SK.example}`;
+    $('#fields').innerHTML = SK.inputs.map(fieldHTML).join('');
+    const [lo, hi] = SK.count;
+    $('#count').innerHTML = Array.from({ length: hi }, (_, i) => i + 1).map(n => `<option${n === lo ? ' selected' : ''}>${n}</option>`).join('');
+    $('#skChecks').innerHTML = SK.checks.map(c => `<li>${esc(c)}</li>`).join('');
+    $('#wf').scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+  }
+  $('#skills').addEventListener('click', e => { const b = e.target.closest('[data-skill]'); if (b) choose(b.dataset.skill); });
+  $('#skBack').onclick = () => { choose(null); $('#skills').scrollIntoView({ behavior: 'smooth', block: 'nearest' }); };
+
   const flagHTML = d => [
     ...d.checks.filter(c => !c.ok && c.title !== 'الامتثال').map(c => `<div class="cw-flag">${esc(c.title)}: ${esc(c.detail)}</div>`),
     ...d.compliance.map(h => `<div class="cw-flag${h.level === 'critical' ? ' bad' : ''}">امتثال: ${esc(h.title)} «${esc(h.match)}». ${esc(h.fix)}</div>`),
-    ...(d.over || []).map(o => `<div class="cw-flag">${esc(o.field)} ${o.len} حرف، والمنصة تقص بعد ${o.max}</div>`),
+    ...(d.over || []).map(o => `<div class="cw-flag">${esc(o.field)}${o.n ? ` ${o.n}` : ''}: ${o.len} حرف، والحد ${o.max}</div>`),
     ...(d.banned.length ? [`<div class="cw-flag bad">كلمات ممنوعة في المشروع: ${d.banned.map(esc).join('، ')}</div>`] : []),
   ].join('');
+  const partHTML = (p, v) => {
+    const val = v.parts[p.key];
+    if (!val || (Array.isArray(val) && !val.length)) return '';
+    return `<div class="t"><span class="muted">${esc(p.ar)}</span>\n${Array.isArray(val) ? `<ol>${val.map(x => `<li>${esc(x)}</li>`).join('')}</ol>` : esc(val)}</div>`;
+  };
+  const DIALECT = { saudi: 'سعودي', msa: 'فصحى', mixed: 'مخلوط' };
   $('#wf').addEventListener('submit', async e => {
-    e.preventDefault(); if (!CUR) return;
-    const b = e.submitter; busy(b, true); $('#out').innerHTML = ''; $('#engine').textContent = '';
+    e.preventDefault(); if (!CUR || !SK) return;
+    const b = e.submitter; busy(b, true); $('#out').innerHTML = ''; $('#engine').textContent = ''; $('#ask').hidden = true;
+    $$('.cw-miss').forEach(x => x.classList.remove('cw-miss'));
+    const inputs = Object.fromEntries($$('[data-in]').map(x => [x.dataset.in, x.value]));
     try {
-      const r = await api('/api/copy/write', { method: 'POST', body: { project_id: CUR.id, kind: $('#kind').value, count: $('#count').value, competitors: $$('input[name="use"]:checked').map(x => x.value) } });
-      $('#engine').textContent = r.engine === 'templates' ? 'قوالب ثابتة (الذكاء الاصطناعي مو متصل)' : `${{ openai: 'ChatGPT', xai: 'Grok' }[r.engine] || 'الذكاء الاصطناعي المجاني'}${r.used.competitors.length ? ` · نمط ${r.used.competitors.join('، ')}` : ''}`;
-      $('#out').innerHTML = r.drafts.map((d, i) => `<article class="card cw-d">
-          ${d.hook || d.body ? `<p class="t"><span class="muted">النص الأساسي</span>\n${d.hook ? `<b>${esc(d.hook)}</b>` : ''}${esc(d.body)}</p>` : ''}
-          ${d.headline ? `<p class="t"><span class="muted">العنوان</span>\n<b>${esc(d.headline)}</b></p>` : ''}
-          ${d.description ? `<p class="t"><span class="muted">الوصف</span>\n${esc(d.description)}</p>` : ''}
-          ${d.cta ? `<p class="t"><span class="muted">زر الإعلان</span>\n${esc(d.cta)}</p>` : ''}
-          <div class="meta"><span class="cw-score">${d.score}/100</span><span class="muted">${d.dialect === 'saudi' ? 'سعودي' : d.dialect === 'msa' ? 'فصحى' : d.dialect === 'mixed' ? 'مخلوط' : 'محايد'}</span>
-            <button class="btn sm secondary" type="button" data-copy="${i}" style="margin-inline-start:auto">انسخ</button></div>
-          ${flagHTML(d)}</article>`).join('');
-      $$('[data-copy]', $('#out')).forEach(x => x.onclick = async () => { try { await navigator.clipboard.writeText(r.drafts[x.dataset.copy].text); x.textContent = 'انسخ ✓'; } catch { x.textContent = 'ما قدرت أنسخ'; } });
+      const r = await api('/api/copy/skill', { method: 'POST', body: { project_id: CUR.id, skill: SK.key, inputs, count: $('#count').value, competitors: $$('input[name="use"]:checked').map(x => x.value) } });
+      if (r.ask) {
+        $('#ask').innerHTML = `قبل ما أكتب، أحتاج أعرف:<ul>${r.ask.map(a => `<li>${esc(a.ask)}</li>`).join('')}</ul>`;
+        $('#ask').hidden = false;
+        r.ask.forEach(a => $(`#in-${a.key}`)?.classList.add('cw-miss'));
+        $(`#in-${r.ask[0].key}`)?.focus();
+      } else {
+        $('#engine').textContent = [r.used.knowledge ? 'قرا معرفة الشركة' : 'ما فيه معرفة للحين', r.used.competitors.length ? `نمط ${r.used.competitors.join('، ')}` : '', r.used.hooks.length ? 'افتتاحياتنا اللي نجحت' : ''].filter(Boolean).join(' · ');
+        $('#out').innerHTML = r.variants.map((v, i) => `<article class="card cw-d">
+            ${v.angle ? `<div class="meta"><span class="chip line">${esc(v.angle)}</span></div>` : ''}
+            ${r.parts.map(p => partHTML(p, v)).join('')}
+            ${v.why ? `<p class="cw-why">${esc(v.why)}</p>` : ''}
+            <div class="meta"><span class="cw-score">${v.score}/100</span><span class="muted">${DIALECT[v.dialect] || 'محايد'}</span>
+              <button class="btn sm secondary" type="button" data-copy="${i}" style="margin-inline-start:auto">انسخ</button></div>
+            ${flagHTML(v)}</article>`).join('');
+        $$('[data-copy]', $('#out')).forEach(x => x.onclick = async () => { try { await navigator.clipboard.writeText(r.variants[x.dataset.copy].text); x.textContent = 'انسخ ✓'; } catch { x.textContent = 'ما قدرت أنسخ'; } });
+      }
     } catch (err) { say($('#wmsg'), err.message); }
     busy(b, false);
   });
 
-  const hint = () => { $('#kindHint').textContent = $('#kind').selectedOptions[0]?.dataset.hint || ''; };
-  $('#kind').addEventListener('change', hint); hint();
   shell({ active: 'copy', title: 'الكوبي رايتر' }).then(() => load()).catch(err => say($('#pmsg'), err.message));
 }

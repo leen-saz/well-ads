@@ -9,6 +9,8 @@
 @font-face{font-family:"Thmanyah Serif";src:url(/assets/fonts/thmanyahseriftext-Bold.woff2) format("woff2");font-weight:700;font-display:swap}
 @font-face{font-family:"Thmanyah Display";src:url(/assets/fonts/thmanyahserifdisplay-Bold.woff2) format("woff2");font-weight:700;font-display:swap}
 @font-face{font-family:"Thmanyah Display";src:url(/assets/fonts/thmanyahserifdisplay-Black.woff2) format("woff2");font-weight:900;font-display:swap}
+/* The "Well." mark: Playfair Display 900, Google's Latin file served from here (OFL, public/assets/fonts/OFL-playfair-display.txt) */
+@font-face{font-family:"Playfair Display";src:url(/assets/fonts/playfair-display-900.woff2) format("woff2");font-weight:900;font-display:swap}
 /* المرجع: wellcare.sa — خطوط ثمانية، أزرار حبة بلون Pulse Purple، كروت 24px بظل بنفسجي ناعم، هيدر زجاجي. بدون وضع داكن مثل الموقع. */
 :root{
   --bg:#F6F0E3;        /* Warm Ivory */

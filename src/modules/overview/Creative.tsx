@@ -9,12 +9,12 @@ import { Card, CardContent } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle } from '@/components/ui/sheet';
-import { Skeleton } from '@/components/ui/skeleton';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group';
 import { type Dash, GOAL, addDays, lastDay, platformName } from './numbers';
 import { ALL, type CreativeAd, type Dir, type Filters, type Idea, type Metrics, type Sort, best, cplDiffers, ideas, media, options, sortIdeas } from './creatives';
 import { useDash } from './useDash';
+import { CreativeSkeleton } from './Skeletons';
 import { longDay, pct, qty, sar } from './format';
 
 const RANGES = [['7', '7 أيام'], ['30', '30 يوم'], ['90', '90 يوم'], ['all', 'كل البيانات']] as const;
@@ -43,13 +43,7 @@ export default function Creative() {
   React.useEffect(() => setShown(PAGE), [from, f, sort]);
 
   if (error) return <p className="ui text-destructive">{error}</p>;
-  if (!data || !opts) {
-    return (
-      <div className="ui grid gap-4 sm:grid-cols-2 xl:grid-cols-3" aria-busy="true">
-        {[0, 1, 2, 3, 4, 5].map(i => <Skeleton key={i} className="h-96 rounded-xl" />)}
-      </div>
-    );
-  }
+  if (!data || !opts) return <CreativeSkeleton />;
   if (!to) return <p className="ui text-muted-foreground">ما فيه أرقام للحين.</p>;
   const set = (k: keyof Filters) => (v: string) => setF(o => ({ ...o, [k]: v }));
   const pick = (k: keyof Filters, label: string, all: string, values: string[], name: (v: string) => string) => (
