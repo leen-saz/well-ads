@@ -1,7 +1,7 @@
 // Social listening: source parsing, dedupe, sentiment parsing, watch cleaning, the cron/refresh flow and scoping.
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { adLibraryUrl, cleanWatch, dedupe, due, missingTable, normUrl, parseBing, parseGdelt, parseNews, parseReddit, parseSentiment, parseTikTok, parseX, parseYouTube, query, sentimentPrompt, sources, terms } from './social';
-import { collect, store } from './fetcher';
+import { batch, collect, cost, store } from './fetcher';
 import { raw } from './probe';
 // The page's own maths (plain JS in public/)
 import { summarize, filterMentions } from '../../../public/modules/listening/social.js';
@@ -114,7 +114,22 @@ describe('fetch flow', () => {
       return new Response('', { status: 500 }); }) as unknown as typeof fetch;
     const r = await collect({ id: 9, kind: 'brand', name: 'ويل يونيون', keywords: ['wellcare', 'تطبيق ويل', 'رابع'] }, {} as never, f);
     expect(r.bySource).toEqual({ google: 1 });
-    expect(seen.map(u => u.match(/q=([^&]*)/)![1])).toEqual(['"ويل يونيون"', 'wellcare', '"تطبيق ويل"']);
+    expect(seen.map(u => u.match(/q=([^&]*)/)![1])).toEqual(['"ويل يونيون"', 'wellcare', '"تطبيق ويل"', 'رابع']);
+  });
+  it('searches every term of a 4-term brand watch, and Refresh keeps its calls under the Worker limit', async () => {
+    const seen: string[] = [];
+    const f = (async (u: string) => { seen.push(decodeURIComponent(String(u)));
+      return new Response(String(u).includes('wellcare') ? RSS : '<rss></rss>', { status: 200 }); }) as unknown as typeof fetch;
+    const brand = { id: 1, kind: 'brand' as const, name: 'ويل يونيون', keywords: ['تطبيق ويل', 'wellunion', 'wellcare'] };
+    const r = await collect(brand, {} as never, f);
+    expect(seen.filter(u => u.includes('news.google')).map(u => u.match(/q=([^&]*)/)![1])).toEqual(['"ويل يونيون"', '"تطبيق ويل"', 'wellunion', 'wellcare']);
+    expect(r.bySource).toEqual({ google: 1 });
+    expect(cost(brand)).toBe(18);
+    const big = (id: number) => ({ id, kind: 'competitor' as const, name: `c${id}`, keywords: ['a', 'b', 'c', 'd', 'e', 'f'] }); // 5 terms searched: 20 calls
+    expect(batch([brand, big(2), big(3)]).map(w => w.id)).toEqual([1, 2]); // 2 + 18 + 20 = 40; a third would make 60
+    expect(batch([brand, { ...brand, id: 2 }, { ...brand, id: 3 }]).map(w => w.id)).toEqual([1, 2]); // 2 + 54 > 45
+    expect(batch([{ id: 4, kind: 'alert' as const, name: 'x', keywords: [] }, { id: 5, kind: 'alert' as const, name: 'y', keywords: [] }, { id: 6, kind: 'alert' as const, name: 'z', keywords: [] }, { id: 7, kind: 'alert' as const, name: 'w', keywords: [] }]).map(w => w.id)).toEqual([4, 5, 6]);
+    expect(batch([big(8)], 10).map(w => w.id)).toEqual([8]); // the first always runs
   });
   it('reads GDELT', () => {
     expect(parseGdelt('Your search contained a keyword that was too short', 1)).toEqual([]);

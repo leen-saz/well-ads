@@ -30,6 +30,23 @@ async function redditToken(f: typeof fetch, e: ListenEnv): Promise<string | null
   return j.access_token || null;
 }
 
+// News terms per watch: the name and up to 4 keywords, each its own request on Google (and on Bing when Google gives nothing)
+export const NEWS_TERMS = 5;
+// Outside calls one watch can make: news 2 per term at worst, Reddit 2, YouTube 1, Grok 2, Grok sentiment 1, Supabase 4 (store)
+export const cost = (w: Watch) => 2 * terms(w, NEWS_TERMS).length + 10;
+// Workers allow 50 subrequests per request; 2 go to the session and the watch list, the rest is kept as margin
+export const BUDGET = 45;
+// "Refresh now": due watches in order while their calls fit the budget (the first always runs), at most 3
+export function batch<T extends Watch>(list: T[], budget = BUDGET): T[] {
+  const out: T[] = [];
+  let used = 2;
+  for (const w of list) {
+    if (out.length === 3 || (out.length && used + cost(w) > budget)) break;
+    out.push(w); used += cost(w);
+  }
+  return out;
+}
+
 // One watch: each source on its own; a failing source never stops the others. Returns what each source gave.
 export async function collect(w: Watch & { id: number }, e: ListenEnv, f: typeof fetch = fetch): Promise<{ found: Mention[]; bySource: Record<string, number | string> }> {
   const q = query(w), found: Mention[] = [], bySource: Record<string, number | string> = {};
@@ -41,7 +58,7 @@ export async function collect(w: Watch & { id: number }, e: ListenEnv, f: typeof
     const each = async (src: string, url: (t: string) => string, parse: (xml: string, id: number) => Mention[]) => {
       const list: Mention[] = [];
       let failed = '';
-      for (const t of terms(w)) {
+      for (const t of terms(w, NEWS_TERMS)) {
         const r = await get(f, url(t));
         if (typeof r === 'string') failed = r; else list.push(...parse(await r.text(), w.id));
       }
