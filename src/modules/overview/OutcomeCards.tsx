@@ -3,12 +3,13 @@ import * as React from 'react';
 import { Card, CardAction, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group';
 import { type Dash, canCompare, change, previous } from './numbers';
-import { type CrmBy, type Outcome, outcome } from './analytics';
+import { type CrmBy, type Fmt, type JStat, type Outcome, journey, outcome } from './analytics';
 import { qty, sar } from './format';
 
 interface Props { data: Dash; from: string; to: string }
 const p2 = (v: number | null) => (v == null ? '—' : `${v.toFixed(2)}%`);
 const x2 = (v: number | null) => (v == null ? '—' : `${v.toFixed(2)}×`);
+const show: Record<Fmt, (v: number | null) => string> = { qty: v => (v == null ? '—' : qty(v)), sar: v => (v == null ? '—' : sar(v)), pct: p2, x: x2 };
 
 // The change against the same length before; lowerIsBetter colours a drop in cost as good news, null = neither
 function Delta({ now, was, lowerIsBetter }: { now: number | null; was: number | null; lowerIsBetter: boolean | null }) {
@@ -35,14 +36,8 @@ export function OutcomeCards({ data, from, to }: Props) {
   // Same rule as the main dashboard: no comparison when the earlier period is incomplete
   const b: Partial<Outcome> = canCompare(data, from, to) ? outcome(data, pf, pt, by) : {};
   const v = (k: keyof Outcome) => (b[k] as number | null | undefined) ?? null;
-  const stages = [
-    { n: 'الوعي', hint: 'كم شخص شاف الإعلان', main: ['الظهور', qty(a.impr), a.impr, v('impr'), false], sub: [['تكلفة الألف ظهور', sar(a.cpm), a.cpm, v('cpm'), true]] },
-    { n: 'الاهتمام', hint: 'كم واحد ضغط', rate: ['نسبة النقر', p2(a.ctr), a.ctr, v('ctr')], main: ['نقرات الرابط والسوايب', qty(a.clicks), a.clicks, v('clicks'), false], sub: [['تكلفة النقرة', sar(a.cpc), a.cpc, v('cpc'), true]] },
-    { n: 'التحويل', hint: 'كم واحد ترك بياناته أو راسلنا', rate: ['من نقرة إلى ليد أو محادثة', p2(a.clickToResult), a.clickToResult, v('clickToResult')], main: ['الليدز', qty(a.leads), a.leads, v('leads'), false],
-      sub: [['تكلفة الليد', sar(a.cpl), a.cpl, v('cpl'), true], ['محادثات واتساب وماسنجر', qty(a.conv), a.conv, v('conv'), false]] },
-    ...(a.crm ? [{ n: 'البيع', hint: 'كم واحد دفع', rate: ['من ليد إلى إقفالة', p2(a.closeRate), a.closeRate, v('closeRate')], main: ['إقفالات مدفوعة', qty(a.closings), a.closings, v('closings'), false],
-      sub: [['إقفالات من الإعلانات', qty(a.booked), a.booked, v('booked'), false], ['العائد من الإعلانات', x2(a.roas), a.roas, v('roas'), false]] }] : []),
-  ] as { n: string; hint: string; rate?: [string, string, number | null, number | null]; main: [string, string, number, number | null, boolean]; sub: [string, string, number | null, number | null, boolean][] }[];
+  const j = journey(a);
+  const was = (x: JStat) => (x.key ? v(x.key) : null);
 
   return (
     <div className="grid gap-4">
@@ -70,18 +65,44 @@ export function OutcomeCards({ data, from, to }: Props) {
         </CardContent>
       </Card>
       <Card>
-        <CardHeader><CardTitle>رحلة العميل</CardTitle><CardDescription>كل مرحلة بعددها وتكلفتها، والنسبة اللي تنقل الناس للمرحلة اللي بعدها.</CardDescription></CardHeader>
-        <CardContent className="grid gap-2">
-          {stages.map((s, i) => (
-            <React.Fragment key={s.n}>
-              {s.rate && <p className="text-sm text-muted-foreground">↓ {s.rate[0]}: <b className="tabular-nums text-foreground">{s.rate[1]}</b> <Delta now={s.rate[2]} was={s.rate[3]} lowerIsBetter={false} /></p>}
-              <div className="grid items-center gap-3 rounded-lg border p-3 sm:grid-cols-[10rem_1fr_minmax(12rem,auto)]" style={{ marginInline: `${i * 4}%` }}>
-                <div><b>{i + 1}. {s.n}</b><div className="text-xs text-muted-foreground">{s.hint}</div></div>
-                <Stat big label={s.main[0]} value={s.main[1]} now={s.main[2]} was={s.main[3]} lowerIsBetter={s.main[4]} />
-                <div className="grid gap-2">{s.sub.map(x => <Stat key={x[0]} label={x[0]} value={x[1]} now={x[2]} was={x[3]} lowerIsBetter={x[4]} />)}</div>
-              </div>
-            </React.Fragment>
-          ))}
+        <CardHeader><CardTitle>رحلة العميل</CardTitle><CardDescription>كل مرحلة أضيق من اللي فوقها: عددها في النص، تكلفتها على الجنب، والنسبة اللي تنقل الناس للمرحلة اللي بعدها بينهم.</CardDescription></CardHeader>
+        <CardContent>
+          {/* Same funnel as the main dashboard (template.html .ffun): layer name, a trapezoid band, the cost beside it */}
+          <ol className="grid" aria-label="رحلة العميل">
+            {j.stages.map((s, i) => (
+              <li key={s.n} className="grid">
+                {s.rate && (
+                  <div className="flex items-center justify-center gap-2 py-1.5 text-sm">
+                    <span aria-hidden="true" className="font-bold text-primary">↓</span>
+                    <span className="flex flex-wrap items-baseline gap-1.5 rounded-full bg-primary/10 px-3 py-0.5">
+                      <span className="text-xs text-muted-foreground">{s.rate.label}</span>
+                      <b className="tabular-nums">{show[s.rate.fmt](s.rate.now)}</b>
+                      <Delta now={s.rate.now} was={was(s.rate)} lowerIsBetter={false} />
+                    </span>
+                  </div>
+                )}
+                <div className="grid items-center gap-1.5 md:grid-cols-[minmax(7.5rem,1fr)_minmax(0,2.4fr)_minmax(9rem,1fr)] md:gap-3.5">
+                  <div className="flex flex-wrap items-center gap-2">
+                    <b className="grid size-6 place-items-center rounded-full bg-primary text-xs text-primary-foreground">{i + 1}</b>
+                    <span className="font-semibold">{s.n}</span>
+                    <span className="basis-full text-xs text-muted-foreground">{s.hint}</span>
+                  </div>
+                  <div className="flex justify-center">
+                    <div className="grid justify-items-center gap-0.5 px-5 pt-3 pb-3.5 text-center text-white md:min-w-44"
+                      style={{ width: `${s.width}%`, background: s.colour, clipPath: 'polygon(0 0,100% 0,94% 100%,6% 100%)' }}>
+                      <span className="text-sm opacity-85">{s.main.label}</span>
+                      <span className="text-2xl font-semibold tabular-nums">{show[s.main.fmt](s.main.now)}</span>
+                      <span className="opacity-85 [&_span]:text-white!"><Delta now={s.main.now} was={was(s.main)} lowerIsBetter={s.main.lowerIsBetter} /></span>
+                    </div>
+                  </div>
+                  <div className="grid grid-cols-2 gap-x-3 gap-y-1 md:grid-cols-1">
+                    {s.sub.map(x => <Stat key={x.label} label={x.label} value={show[x.fmt](x.now)} now={x.now} was={was(x)} lowerIsBetter={x.lowerIsBetter} />)}
+                  </div>
+                </div>
+              </li>
+            ))}
+          </ol>
+          {j.noCrm && <p className="mt-3 text-sm text-muted-foreground">{j.noCrm}</p>}
         </CardContent>
       </Card>
     </div>
