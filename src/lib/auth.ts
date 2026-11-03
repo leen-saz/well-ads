@@ -193,6 +193,11 @@ export const missingSchema = (r: SbResult<unknown>): boolean =>
   !r.ok && ['PGRST205', 'PGRST204', '42P01', '42703'].includes(String((r.data as { code?: unknown } | null)?.code ?? ''));
 export const notApplied = (file: string) => `الجدول ناقص في قاعدة البيانات: شغّل ${file} في Supabase ← SQL Editor`;
 
+// A feature waiting for a key: the owner gets the exact step, everyone else a plain sentence
+export const notEnabled = (user: { role: string } | null | undefined, what: string, key: string) =>
+  user?.role === 'owner' ? `${what} يحتاج تفعيل: أضف ${key} في Cloudflare ← Workers ← well-ads ← Settings ← Variables and Secrets.`
+    : `${what} يحتاج تفعيل من الإدارة. بلّغ مالك الحساب.`;
+
 // Diagnostics: the kind of key in use, never the key. JWT keys expose only their role claim.
 export function keyKind(k: string): string {
   if (k.startsWith('sb_secret_')) return 'sb_secret';
