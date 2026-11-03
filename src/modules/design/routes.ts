@@ -75,3 +75,5 @@ export const brief = { POST: handle(async (request, e: AiEnv & Parameters<typeof
   return json(200, { input, reference: ref, variants, engine, sizes: SIZES, style, image, images: { product: looks.product.length, refs: looks.refs.length, sent: pics.length } });
 }) };
 
+// «موشن جرافيك»: the video projects of this tab (src/modules/design/video.ts)
+export { videos, videofile, video, videoedit, videoapprove } from './video';

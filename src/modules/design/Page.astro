@@ -73,6 +73,9 @@ import { ClientRouter } from 'astro:transitions';
 .dz-size span{grid-column:2;font-size:12px;color:var(--muted)}
 .dz-size:has(input:checked){border-color:var(--accent,#7E57FD)}
 .dz-more{margin-top:12px}.dz-more summary{cursor:pointer;font-weight:600;padding:6px 0}
+.dz-kind{display:inline-flex;padding:4px;gap:2px;background:var(--tint);border-radius:999px;margin:0 0 14px}
+.dz-kind a{height:32px;padding:0 16px;border-radius:999px;display:inline-flex;align-items:center;font:600 14px var(--f-ar);color:var(--muted);text-decoration:none}
+.dz-kind a[aria-current="page"]{background:var(--surface);color:var(--text);box-shadow:var(--shadow)}
 </style>
 </head>
 <body data-page="design" data-module>
@@ -82,6 +85,7 @@ import { ClientRouter } from 'astro:transitions';
   <div class="main">
     <header class="topbar" id="top"></header>
     <main class="content" id="content">
+      <nav class="dz-kind" aria-label="نوع التصميم"><a href="/design/" aria-current="page">صورة</a><a href="/design/video/">موشن جرافيك</a></nav>
       <p class="muted" style="margin:0 0 14px">يبني تفاصيل التصميم من أفضل إعلاناتنا، ويقترح نصوص مفحوصة على قواعد الامتثال، ويرسم معاينة لكل مقاس. المصمم يصمم الصورة، والنص دايم طبقة فوقها تقدر تعدّلها.</p>
       <div class="so-grid">
         <section class="card pad">
