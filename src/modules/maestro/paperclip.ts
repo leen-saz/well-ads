@@ -12,6 +12,7 @@ const ID = /^[A-Za-z0-9_-]{1,64}$/;
 
 // Each tab's agents work in one Paperclip project, «Well · <tab key>», made on first use. A task for a tab lands there,
 // and the agent it is assigned to (or the CEO agent, who routes unassigned work) picks it up on its next heartbeat.
+export const CHAT = 'محادثة المدير';
 export const PROJECT = (tab: string) => `Well · ${tab}`;
 export const tabOf = (name: unknown): string | null => { const m = /^Well · ([a-z]+)$/.exec(String(name || '')); return m ? m[1]! : null; };
 
@@ -52,6 +53,21 @@ export function client(e: PcEnv, f: typeof fetch = fetch) {
       const q = (p: string) => call('GET', p).catch(() => null);
       const [costs, runs, done] = await Promise.all([q(`${co(c)}/costs/by-agent?from=${encodeURIComponent(from)}`), q(`${co(c)}/heartbeat-runs?agentId=${agentId}&limit=100`), q(`${co(c)}/issues?assigneeAgentId=${agentId}&status=done&limit=100`)]);
       return { cost: costs === null ? null : items(costs).find(r => r.agentId === agentId) || {}, runs: runs === null ? null : items(runs), done: done === null ? null : items(done) };
+    },
+    // The chat with «المدير»: one standing issue assigned to the CEO agent; a message is a comment on it, which wakes the
+    // assignee, and the CEO replies with a comment on its next heartbeat. Found by its exact title in the company's issues.
+    chatIssue: async (c: string, make: boolean): Promise<Json | null> => {
+      const found = items(await call('GET', `${co(c)}/issues?q=${encodeURIComponent(CHAT)}&limit=50`)).find(i => i.title === CHAT);
+      if (found || !make) return found || null;
+      const ceo = items(await call('GET', `${co(c)}/agents`)).find(a => a.role === 'ceo');
+      if (!ceo?.id) throw new Error('no ceo');
+      return (await call('POST', `${co(c)}/issues`, { title: CHAT, description: 'محادثة المالك مع المدير من لوحة Well. رد على كل تعليق بتعليق قصير.', status: 'todo', priority: 'medium', assigneeAgentId: ceo.id })) as Json;
+    },
+    comments: async (issueId: string) => { if (!ID.test(issueId)) throw new Error('bad issue'); return items(await call('GET', `/issues/${issueId}/comments`)); },
+    // A closed chat issue is reopened with the message, so the CEO still wakes for it
+    say: async (issue: Json, body: string) => {
+      if (!ID.test(String(issue.id))) throw new Error('bad issue');
+      return call('PATCH', `/issues/${issue.id}`, { comment: body, ...(['done', 'cancelled'].includes(String(issue.status)) ? { status: 'todo' } : {}) });
     },
     approvals: async (c: string) => items(await call('GET', `${co(c)}/approvals?status=pending`)),
     // only approvals that belong to this company: checked against its own pending list first
@@ -100,3 +116,8 @@ export function performance(inp: { cost: Json | null; runs: Json[] | null; done:
     lastError: failed ? String(failed.error || failed.status).slice(0, 200) : null,
   };
 }
+
+// A comment → a chat line: who wrote it (the owner via the board, or an agent) and what. Oldest first, last 50.
+export const chatLines = (comments: Json[], names: Record<string, string>) => comments
+  .map(m => ({ agent: !!m.authorAgentId, name: m.authorAgentId ? names[String(m.authorAgentId)] || 'المدير' : 'أنت', body: String(m.body || '').slice(0, 4000), at: String(m.createdAt || '') }))
+  .sort((a, b) => Date.parse(a.at) - Date.parse(b.at)).slice(-50);
