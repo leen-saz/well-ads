@@ -72,14 +72,15 @@ export function toast(text) {
 }
 export function busy(btn, on) { if (!btn) return; btn.classList.toggle('loading', on); btn.disabled = on; }
 
-// The user's name and dashboards. Shared with nav.js (same key) so a full page load draws the sidebar at once
-// from this tab's last copy; a copy older than 5 minutes is refreshed in the background.
+// The user's name and dashboards. Shared with nav.js (same key) so a full page load, also in a new tab, draws the
+// sidebar and starts the page at once from this browser's last copy; a copy older than 5 minutes is refreshed in the
+// background. Signing in (login.js) or out clears it.
 const ME_KEY = 'well-me-2', FRESH = 5 * 60 * 1000;
 let ME = null;
-try { ME = JSON.parse(sessionStorage.getItem(ME_KEY) || 'null'); } catch { /* storage blocked */ }
+try { ME = JSON.parse(localStorage.getItem(ME_KEY) || 'null'); } catch { /* storage blocked */ }
 const fetchMe = () => api('/api/account/password').then(v => {
   ME = { t: Date.now(), v };
-  try { sessionStorage.setItem(ME_KEY, JSON.stringify(ME)); } catch { /* storage blocked */ }
+  try { localStorage.setItem(ME_KEY, JSON.stringify(ME)); } catch { /* storage blocked */ }
   return v;
 });
 // The dashboards (/ and /?view=…) are pipeline-built pages outside Astro: open them with a full load
@@ -114,7 +115,7 @@ function drawSide(side, me, active) {
     <button class="me" id="meBtn" aria-haspopup="menu" aria-expanded="false"><span class="avatar">${esc(initials)}</span>
       <span class="who"><b>${esc(me.name || me.email)}</b><span class="muted">${me.role === 'owner' ? 'المالكة' : (me.departments || []).length ? 'مدير قسم' : 'عضو'}</span></span></button>
     <div class="menu" id="meMenu" role="menu" hidden><a href="/account/" role="menuitem">${icon('user')}حسابي</a><form method="post" action="/api/auth/logout" style="margin:0"><button type="submit" role="menuitem">${icon('out')}خروج</button></form></div>`;
-  side.querySelector('form')?.addEventListener('submit', () => { try { sessionStorage.removeItem(ME_KEY); } catch { /* storage blocked */ } });
+  side.querySelector('form')?.addEventListener('submit', () => { try { localStorage.removeItem(ME_KEY); } catch { /* storage blocked */ } });
   // Navigation labels as tooltips, used when the menu is folded to icons
   side.querySelectorAll('.navi').forEach(a => { const t = a.querySelector('span')?.textContent; if (t && !a.title) a.title = t; });
   const qb = $('#qcBtn', side), qm = $('#qcMenu', side);
@@ -140,6 +141,8 @@ function bindMe() {
 // الهيكل: قائمة جانبية بأيقونات + شريط علوي. tools = HTML لأدوات الشريط.
 export async function shell({ active, title, badge = '', tools = '' }) {
   const app = $('#app'), side = $('#side', app);
+  // The title bar needs nothing from the server: it goes up before the user is known
+  $('#top', app).innerHTML = `<div class="t"><button class="btn icon ghost burger" id="burger" aria-label="القائمة" aria-controls="side" aria-expanded="false">${icon('menu')}</button><h1>${esc(title)}</h1>${badge}</div><div class="tools"><span id="tools">${tools}</span>${langSwitch()}</div>`;
   let me;
   if (!ME?.v) me = await fetchMe();
   else {
@@ -150,7 +153,6 @@ export async function shell({ active, title, badge = '', tools = '' }) {
   let mini = false; try { mini = localStorage.getItem('wl-mini') === '1'; } catch { /* storage blocked */ }
   app.classList.toggle('mini', mini); $('#sideFold')?.setAttribute('aria-pressed', String(mini));
   document.addEventListener('click', e => { const m = $('#qcMenu'); if (m && !m.hidden && !e.target.closest('.qc')) { m.hidden = true; $('#qcBtn')?.setAttribute('aria-expanded', 'false'); } }, { signal: pageSignal() });
-  $('#top', app).innerHTML = `<div class="t"><button class="btn icon ghost burger" id="burger" aria-label="القائمة" aria-controls="side" aria-expanded="false">${icon('menu')}</button><h1>${esc(title)}</h1>${badge}</div><div class="tools"><span id="tools">${tools}</span>${langSwitch()}</div>`;
   bindMe();
   drawer(app, side);
   restoreDraft();

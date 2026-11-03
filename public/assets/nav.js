@@ -24,15 +24,15 @@ const P = {
 const I = n => `<svg class="wl-i" viewBox="0 0 24 24" aria-hidden="true">${P[n]}</svg>`;
 const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 
-// The sidebar needs the user's name and dashboards on every page. The last copy in this tab draws it at once
-// (no wait on the database between tabs), then a fresh copy replaces it if it is older than 5 minutes.
-// The server still checks every request.
+// The sidebar needs the user's name and dashboards on every page. The last copy in this browser draws it at once
+// (no wait on the database, also in a new tab), then a fresh copy replaces it if it is older than 5 minutes.
+// Signing in or out clears it (login.js, the sign-out form). The server still checks every request.
 const ME_KEY = 'well-me-2'; // v2: carries the modules list
 const FRESH = 5 * 60 * 1000;
 let cached = null;
-try { cached = JSON.parse(sessionStorage.getItem(ME_KEY) || 'null'); } catch { /* storage blocked */ }
+try { cached = JSON.parse(localStorage.getItem(ME_KEY) || 'null'); } catch { /* storage blocked */ }
 const fetchMe = () => fetch('/api/account/password', { credentials: 'same-origin' }).then(r => r.ok ? r.json() : null).catch(() => null)
-  .then(v => { try { if (v) sessionStorage.setItem(ME_KEY, JSON.stringify({ t: Date.now(), v })); } catch { /* storage blocked */ } return v; });
+  .then(v => { try { if (v) localStorage.setItem(ME_KEY, JSON.stringify({ t: Date.now(), v })); } catch { /* storage blocked */ } return v; });
 
 // The frame (space, colours, burger) goes up before the user is known, so the page does not jump when it fills in
 const creative = /view=creative/.test(location.search) || location.pathname.startsWith('/creative');
@@ -119,7 +119,7 @@ function draw(me) {
     <a class="wl-navi" href="/settings/">${I('settings')}<span>${L('الإعدادات', 'Settings')}</span></a>
     <form method="post" action="/api/auth/logout" class="wl-out"><button type="submit" class="wl-navi">${I('out')}<span>${L('خروج', 'Sign out')}</span></button></form>
     <div class="wl-me"><span class="wl-av">${esc(initials)}</span><span><b>${esc(me.name || me.email)}</b><small>${role}</small></span></div>`;
-  side.querySelector('.wl-out')?.addEventListener('submit', () => { try { sessionStorage.removeItem(ME_KEY); } catch { /* storage blocked */ } });
+  side.querySelector('.wl-out')?.addEventListener('submit', () => { try { localStorage.removeItem(ME_KEY); } catch { /* storage blocked */ } });
 }
 
 if (cached?.v) {
