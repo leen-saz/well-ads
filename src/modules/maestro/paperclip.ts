@@ -27,6 +27,7 @@ export function client(e: PcEnv, f: typeof fetch = fetch) {
   const co = (id: string) => { if (!ID.test(id)) throw new Error('bad company'); return `/companies/${id}`; };
   return {
     createCompany: async (name: string, budgetMonthlyCents = 0) => (await call('POST', '/companies', { name, description: 'Well Ads SaaS tenant', budgetMonthlyCents })) as Json,
+    company: async (c: string) => (await call('GET', co(c))) as Json,
     agents: async (c: string) => items(await call('GET', `${co(c)}/agents`)),
     issues: async (c: string) => items(await call('GET', `${co(c)}/issues?limit=100`)),
     createIssue: async (c: string, t: Task) => (await call('POST', `${co(c)}/issues`, { title: t.title, description: t.description, status: 'todo', priority: t.priority, ...(t.assigneeAgentId ? { assigneeAgentId: t.assigneeAgentId } : {}) })) as Json,
@@ -51,3 +52,9 @@ export function cleanTask(b: Json): Task | null {
 // A task's description with the company's knowledge after it (capped: Paperclip keeps descriptions up to 10,000 here)
 export const withBrief = (description: string, knowledge: string): string =>
   knowledge ? `${description}\n\n---\nمعرفة الشركة (من تاب المعرفة، التزم فيها):\n${knowledge}`.slice(0, 16000) : description;
+
+// A month's budget in cents (Paperclip: 0 = no cap) → what the board shows
+export const budget = (b: Json | null | undefined) => {
+  const cap = Number(b?.budgetMonthlyCents) || 0, spent = Number(b?.spentMonthlyCents) || 0;
+  return { cap, spent, pct: cap > 0 ? Math.min(100, Math.round((spent / cap) * 100)) : null };
+};
