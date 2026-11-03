@@ -73,7 +73,7 @@ async function organic() {
 // ---------------- Social listening ----------------
 const KIND = { brand: 'علامتنا', competitor: 'المنافسين', alert: 'كلمات التنبيه' };
 const SENT = { positive: 'إيجابي', negative: 'سلبي', neutral: 'محايد', unscored: 'ما تصنّف للحين' };
-const SOURCE = { news: 'أخبار', reddit: 'ريديت', youtube: 'يوتيوب', x: 'X' };
+const SOURCE = { news: 'أخبار', reddit: 'ريديت', youtube: 'يوتيوب', x: 'X', tiktok: 'تيك توك' };
 // Colours: ours is the brand purple; competitors get muted indigo shades; sentiment strip uses deep / soft / pulse
 const COL = ['#7E57FD', '#1D1069', '#221196', '#ACA6E1', '#5B4BC4', '#8F86D6', '#3A2FA0'];
 const MOOD = { positive: 'var(--deep)', neutral: 'var(--soft)', negative: 'var(--pulse)', unscored: 'rgba(29,16,105,.12)' };
@@ -91,7 +91,7 @@ async function listening() {
     const s = d.sources || {};
     const chip = (on, label, need) => `<span class="${on ? '' : 'off'}" title="${on ? 'شغّال' : esc(need)}">${on ? '✓' : '○'} ${esc(label)}${on ? '' : ` · ${esc(need)}`}</span>`;
     $('#src').innerHTML = chip(s.news, 'الأخبار (قوقل، وإذا رفض فـ Bing)', '') + chip(s.reddit, 'ريديت', 'يحتاج REDDIT_CLIENT_ID و REDDIT_CLIENT_SECRET') + chip(s.youtube, 'يوتيوب', 'يحتاج YOUTUBE_API_KEY')
-      + chip(s.x, 'X عن طريق Grok (مدفوع)', 'يحتاج XAI_API_KEY') + chip(s.sentiment, 'تحليل الشعور', 'يحتاج Workers AI');
+      + chip(s.x, 'X عن طريق Grok (مدفوع)', 'يحتاج XAI_API_KEY') + chip(s.tiktok, 'تيك توك عن طريق Grok (مدفوع)', 'يحتاج XAI_API_KEY') + chip(s.sentiment, 'تحليل الشعور', 'يحتاج Workers AI');
     $('#refresh').disabled = !!d.missing; $('#wf button[type=submit]').disabled = !!d.missing;
   }
 
@@ -179,7 +179,7 @@ async function listening() {
     if (run) { busy(run, true); await refresh(+run.dataset.run); busy(run, false); }
   });
   // Sources that refused, per watch: "ايفر كير: قوقل رفض (503)"
-  const ASKED = { google: 'قوقل', bing: 'Bing', reddit: 'ريديت', youtube: 'يوتيوب', x: 'X' };
+  const ASKED = { google: 'قوقل', bing: 'Bing', reddit: 'ريديت', youtube: 'يوتيوب', x: 'X', tiktok: 'تيك توك' };
   function failures(report = {}) {
     const bad = Object.entries(report).flatMap(([name, by]) => Object.entries(by || {}).filter(([, v]) => typeof v === 'string')
       .map(([src, v]) => `${name}: ${ASKED[src] || src} رفض (${String(v).replace('error ', '')})`));

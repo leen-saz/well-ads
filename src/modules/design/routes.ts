@@ -1,4 +1,4 @@
-// /api/design/brief: brief + headline variants from our best ads. Reads ads and metrics; writes nothing.
+// /api/design/brief: brief + headline variants from our best ads, and a ChatGPT background when no photo is given. Writes nothing.
 import { sb, json, readJson, handle, requireUser, type Cfg } from '../../lib/auth';
 import { scoped } from '../../lib/tenant';
 import { type AiRun } from '../content/content';
@@ -59,6 +59,8 @@ export const brief = { POST: handle(async (request, e: AiEnv & Parameters<typeof
   if (pick(e, 'design') && (looks.product.length || looks.refs.length)) {
     try { style = (await generate(e, 'design', { messages: [{ role: 'user', content: stylePrompt(looks) }], max_tokens: 160 })).response.trim().slice(0, 400); } catch { /* notes are optional */ }
   }
+  // No product photo: ChatGPT draws the background (OpenAI Images, PAID per image), while the text is written
+  const drawing = !pics.some(p => p.kind === 'product') && e.OPENAI_API_KEY ? openaiImage(e, backgroundPrompt(input, brand.colors, style)) : Promise.resolve(null);
   if (pick(e, 'design')) {
     try {
       const out = await generate(e, 'design', { messages: withKnowledge([{ role: 'user', content: prompt(input, ref.hooks, looks) }], await knowledgeFor(cfg, user.co, 'design')), max_tokens: 700 });
@@ -67,17 +69,7 @@ export const brief = { POST: handle(async (request, e: AiEnv & Parameters<typeof
       if (got.length) { variants = got; engine = out.engine === 'workers' ? 'workers-ai' : out.engine; }
     } catch { /* templates stay */ }
   }
-  return json(200, { input, reference: ref, variants, engine, sizes: SIZES, style, images: { product: looks.product.length, refs: looks.refs.length, sent: pics.length } });
+  const image = await drawing;
+  return json(200, { input, reference: ref, variants, engine, sizes: SIZES, style, image, images: { product: looks.product.length, refs: looks.refs.length, sent: pics.length } });
 }) };
 
-// A background drawn by ChatGPT (OpenAI Images) for this brief, in the brand's colours. PAID per image; only on a click.
-export const background = { POST: handle(async (request, e: AiEnv & Parameters<typeof requireUser>[1]) => {
-  const { cfg, user } = await requireUser(request, e, 'design', { write: true });
-  if (!e.OPENAI_API_KEY) return json(503, { error: 'تصميم الخلفيات يحتاج OPENAI_API_KEY' });
-  const b = await readJson(request);
-  const input = { type: String(b.type || 'ad'), offer: String(b.offer || '').slice(0, 200), audience: String(b.audience || '').slice(0, 200), dept: String(b.dept || '').slice(0, 60) };
-  const brand = await brandFor(cfg, user.co);
-  const image = await openaiImage(e, backgroundPrompt(input, brand.colors, String(b.style || '').slice(0, 400)));
-  if (!image) return json(502, { error: 'ChatGPT ما رجّع صورة هالمرة، جرّب بعد دقيقة' });
-  return json(200, { image });
-}) };

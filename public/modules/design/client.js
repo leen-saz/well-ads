@@ -84,7 +84,7 @@ export function palette(imgs) {
 }
 
 export default async function mount() {
-  let res = null, pick = 0, img = null, refs = [], pal = null;
+  let res = null, pick = 0, img = null, refs = [], pal = null, drawn = null;
   // The brand from المعرفة: colours, logo and font load once; the references uploaded here still win for colours
   let brand = null;
   const usePal = () => ($('#useRefColors')?.checked && pal) || (brand && brand.pal) || null;
@@ -117,7 +117,8 @@ export default async function mount() {
     const v = res.variants[pick];
     $('#prev').innerHTML = sizes().map(k => `<figure class="dz-fig"><canvas data-size="${k}" aria-label="معاينة ${esc(res.sizes[k].label)}"></canvas>
       <figcaption><span>${esc(res.sizes[k].label)}</span><a class="btn sm secondary" data-dl="${k}" href="#" download="well-${k}.png">نزّل PNG</a></figcaption></figure>`).join('') || '<p class="muted">اختر مقاس واحد على الأقل.</p>';
-    $$('#prev canvas').forEach(c => draw(c, res.sizes[c.dataset.size], v, img, usePal(), brand));
+    // The uploaded photo wins; without one, the background ChatGPT drew for this brief
+    $$('#prev canvas').forEach(c => draw(c, res.sizes[c.dataset.size], v, img || drawn, usePal(), brand));
   }
 
   function drawResult() {
@@ -138,16 +139,19 @@ export default async function mount() {
   }
 
   $('#f').addEventListener('submit', async e => {
-    e.preventDefault(); const btn = e.submitter; busy(btn, true); say($('#msg'), 'يجهز البريف…', true);
+    e.preventDefault(); const btn = e.submitter; busy(btn, true); say($('#msg'), img ? 'يجهز البريف…' : 'يجهز البريف وChatGPT يصمم الخلفية… (حوالي دقيقة)', true);
     try {
       res = await api('/api/design/brief', { method: 'POST', body: { type: $('#type').value, offer: $('#offer').value, audience: $('#aud').value, dept: $('#dept').value,
         images: [...(img ? [{ kind: 'product', data: small(img).toDataURL('image/jpeg', 0.7) }] : []), ...refs.map(r => ({ kind: 'ref', data: small(r).toDataURL('image/jpeg', 0.7) }))] } });
-      pick = 0; drawResult(); await render(); say($('#msg'), 'جاهز. عدّل النص أو اختر خيار ثاني، والمعاينة تتحدث.', true);
+      drawn = res.image ? await picture(res.image).catch(() => null) : null;
+      pick = 0; drawResult(); await render();
+      const missed = !img && !drawn && res.engine === 'openai';
+      say($('#msg'), missed ? 'النصوص جاهزة، بس ChatGPT ما رجّع خلفية هالمرة. جرّب مرة ثانية أو ارفع صورة.' : 'جاهز. عدّل النص أو اختر خيار ثاني، والمعاينة تتحدث.', !missed);
     } catch (err) { say($('#msg'), err.message); }
     busy(btn, false);
   });
   function thumbs() {
-    const all = [...(img ? [[img, 'الصورة']] : []), ...refs.map((r, i) => [r, `مرجع ${i + 1}`])];
+    const all = [...(img ? [[img, 'المنتج']] : []), ...refs.map((r, i) => [r, `مرجع ${i + 1}`])];
     $('#thumbs').innerHTML = all.map(([im, l]) => `<figure><img alt="${esc(l)}" src="${small(im, 144).toDataURL('image/jpeg', 0.8)}"><figcaption>${esc(l)}</figcaption></figure>`).join('')
       + (pal ? `<div class="sw" aria-label="ألوان المراجع">${pal.swatches.map(c => `<i style="background:rgb(${c.join(',')})"></i>`).join('')}</div>` : '');
   }
@@ -155,16 +159,6 @@ export default async function mount() {
     const f = $('#photo').files[0]; img = f ? await load(f).catch(() => null) : null;
     if (f && !img) say($('#msg'), 'ما قدرت أقرا صورة المنتج. جرّب JPG أو PNG.');
     thumbs(); render();
-  });
-  // ChatGPT draws a background for the brief (no text on it); it takes the product photo's place
-  $('#bg').addEventListener('click', async () => {
-    const b = $('#bg'); busy(b, true); say($('#msg'), 'ChatGPT يرسم الخلفية… (حوالي دقيقة)', true);
-    try {
-      const r = await api('/api/design/background', { method: 'POST', body: { type: $('#type').value, offer: $('#offer').value, audience: $('#aud').value, dept: $('#dept').value, style: res?.style || '' } });
-      img = await picture(r.image); thumbs(); await render();
-      say($('#msg'), res ? 'الخلفية جاهزة في المعاينة.' : 'الخلفية جاهزة. اضغط "جهّز البريف" عشان تطلع النصوص فوقها.', true);
-    } catch (err) { say($('#msg'), err.message); }
-    busy(b, false);
   });
   $('#refs').addEventListener('change', async () => {
     const files = [...$('#refs').files];
