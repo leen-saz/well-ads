@@ -104,9 +104,9 @@ describe('route /api/copy/skill', () => {
   const E: A.AuthEnv & { OPENAI_API_KEY?: string } = { SUPABASE_URL: 'https://sb.example', SUPABASE_SERVICE_ROLE_KEY: 's', SESSION_SECRET: 'x'.repeat(40), OWNER_EMAIL: 'leen@example.com' };
   const cfg = A.env(E);
   const editor: A.Profile = { id: '22222222-2222-2222-2222-222222222222', email: 'm@example.com', role: 'member', active: true, access: { copy: 'edit' } };
-  const call = async (body: unknown, env = E) => ROUTES.copy.skill.POST(new Request('https://well.example/api/copy/skill', {
+  const call = async (body: unknown, env = E, who = editor) => ROUTES.copy.skill.POST(new Request('https://well.example/api/copy/skill', {
     method: 'POST', body: JSON.stringify(body),
-    headers: { cookie: `${A.SESSION}=${encodeURIComponent(await A.sign(A.sessionFor(editor, cfg), cfg.secret))}`, origin: 'https://well.example', 'sec-fetch-site': 'same-origin' } }), env);
+    headers: { cookie: `${A.SESSION}=${encodeURIComponent(await A.sign(A.sessionFor(who, cfg), cfg.secret))}`, origin: 'https://well.example', 'sec-fetch-site': 'same-origin' } }), env);
   const sent: { url: string; body: string }[] = [];
   const answer = JSON.stringify({ variants: [{ subject: 'حياك في Well', preheader: 'أول زيارة', body: 'الأفضل في الرياض', cta: 'احجز', ps: '', angle: 'ترحيب', why: 'قريب' }] });
   const stub = () => {
@@ -128,6 +128,21 @@ describe('route /api/copy/skill', () => {
     expect(await r.json()).toEqual({ ask: [{ key: 'point', ask: 'وش الشي الواحد اللي تبيه يسويه أو يعرفه؟' }] });
     expect(sent.some(s => s.url.includes('openai'))).toBe(false);
     expect((await call({ project_id: 1, skill: 'nope' })).status).toBe(400);
+  });
+  it('needs edit on the copy tab: a viewer cannot generate', async () => {
+    stub();
+    const viewer = { ...editor, access: { copy: 'view' } };
+    vi.stubGlobal('fetch', vi.fn(async (url: string) => new Response(JSON.stringify(url.includes('/profiles?id=eq.') ? [viewer] : []))));
+    const r = await call({ project_id: 1, skill: 'email', inputs: { type: 'welcome', point: 'x' } }, { ...E, OPENAI_API_KEY: 'k' }, viewer);
+    expect(r.status).toBe(403);
+  });
+  it('sends the inputs capped by the skill: an over-long input is cut before the prompt', async () => {
+    stub();
+    await call({ project_id: 1, skill: 'email', inputs: { type: 'welcome', point: 'ن'.repeat(5000), extra: 'لا توصل' } }, { ...E, OPENAI_API_KEY: 'k' });
+    const prompt = (JSON.parse(sent.find(s => s.url.includes('openai'))!.body) as { input: { content: string }[] }).input[1]!.content;
+    expect(prompt).toContain('ن'.repeat(200));
+    expect(prompt).not.toContain('ن'.repeat(201));
+    expect(prompt).not.toContain('لا توصل');
   });
   it('says so without a model instead of writing templates', async () => {
     stub();
