@@ -5,7 +5,7 @@ import { scoped } from '../../lib/tenant';
 import { weekly, type Lead } from './listening';
 import { readJson } from '../../lib/auth';
 import { SQL, adLibraryUrl, cleanWatch, due, missingTable, sources, type Mention, type Watch } from './social';
-import { collect, store, type ListenEnv } from './fetcher';
+import { batch, collect, store, type ListenEnv } from './fetcher';
 export { probe } from './probe';
 
 export const demand = { GET: handle(async (request, e) => {
@@ -64,13 +64,14 @@ export const mentions = { GET: handle(async (request, e: ListenEnv) => {
   return json(200, { missing: false, mentions: r.ok && Array.isArray(r.data) ? r.data : [] });
 }) };
 
-// "Refresh now": up to 3 due watches (or one named watch, even if not due), so one click stays inside the request limits
+// "Refresh now": the due watches that fit the subrequest budget, at most 3 (or one named watch, even if not due)
 export const refresh = { POST: handle(async (request, e: ListenEnv) => {
   const { cfg, user } = await requireUser(request, e, 'listening', { write: true });
   const id = Number((await readJson(request)).id) || 0;
   const r = await sb<(Watch & { id: number })[]>(cfg, scoped(`/rest/v1/listen_watch?select=*${id ? `&id=eq.${id}` : ''}&order=fetched_at.asc.nullsfirst&limit=10`, user.co), { admin: true });
   if (missingTable(r)) return json(409, { error: 'جداول الرصد ما انضافت للحين. شغّل SQL الرصد في Supabase أول.' });
-  const list = (r.ok && Array.isArray(r.data) ? r.data : []).filter(w => id || due(w)).slice(0, id ? 1 : 3);
+  const all = (r.ok && Array.isArray(r.data) ? r.data : []).filter(w => id || due(w));
+  const list = id ? all.slice(0, 1) : batch(all);
   if (!list.length) return json(200, { ok: true, ran: 0, added: 0, note: 'كل الكلمات انحدّثت آخر 24 ساعة' });
   let added = 0, scored = 0;
   const report: Record<string, Record<string, number | string>> = {};

@@ -180,7 +180,7 @@ async function listening() {
     if (run) { busy(run, true); await refresh(+run.dataset.run); busy(run, false); }
   });
   // Sources that refused, per watch: "ايفر كير: قوقل رفض (503)"
-  const ASKED = { google: 'قوقل', bing: 'Bing', gdelt: 'GDELT', reddit: 'ريديت', youtube: 'يوتيوب', x: 'X', tiktok: 'تيك توك' };
+  const ASKED = { google: 'قوقل', bing: 'Bing', reddit: 'ريديت', youtube: 'يوتيوب', x: 'X', tiktok: 'تيك توك' };
   function failures(report = {}) {
     const bad = Object.entries(report).flatMap(([name, by]) => Object.entries(by || {}).filter(([, v]) => typeof v === 'string')
       .map(([src, v]) => `${name}: ${ASKED[src] || src} رفض (${String(v).replace('error ', '')})`));
