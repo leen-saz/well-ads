@@ -1,7 +1,7 @@
 // الكوبي رايتر (docs/learning-loops.md، C1): إعداد لكل مشروع، ومنافسين بنصوصهم، وبطاقة نمط لكل منافس،
 // ونصوص سعودية تمر على فاحص الصوت والامتثال. البطاقة حسابات ثابتة (بدون LLM)، والـ LLM للكتابة بس.
 import { analyze } from '../voice/voice';
-import { check } from '../compliance/compliance';
+import { check, type Rule } from '../compliance/compliance';
 
 export const KINDS: Record<string, { ar: string; max: number }> = {
   ad: { ar: 'إعلان (نص أساسي)', max: 600 },
@@ -123,9 +123,9 @@ export function fallbackDrafts(p: Project, count: number): Draft[] {
 
 // Every draft gets the voice checks (dialect, sentence length, CTA, emoji) and the compliance rules,
 // plus the project's own banned words. Notices only: nothing is blocked (Leen's rule).
-export function review(d: Draft, p: Project) {
+export function review(d: Draft, p: Project, extra: Rule[] = []) {
   const text = [d.hook, d.body, d.cta].filter(Boolean).join('\n');
   const v = analyze(text);
   const banned = p.banned.filter(w => text.includes(w));
-  return { ...d, text, score: v.score, dialect: v.dialect, checks: v.checks, compliance: check(text), banned };
+  return { ...d, text, score: v.score, dialect: v.dialect, checks: v.checks, compliance: check(text, extra), banned };
 }

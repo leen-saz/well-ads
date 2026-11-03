@@ -2,10 +2,10 @@
 import { sb, json, readJson, handle, requireUser, type Cfg } from '../../lib/auth';
 import { scoped } from '../../lib/tenant';
 import { type AiRun } from '../content/content';
-import { generate, pick, type LlmEnv } from '../../lib/llm';
+import { generate, openaiImage, pick, type LlmEnv } from '../../lib/llm';
 import { knowledgeFor, withKnowledge } from '../knowledge/knowledge';
 import { brandFor, serveFile } from '../knowledge/brand';
-import { SIZES, TYPES, VISION_MODEL, VISION_PROMPT, images, variantsFrom, prompt, stylePrompt, templates, winners, type AdIn, type MetIn } from './design';
+import { SIZES, TYPES, VISION_MODEL, VISION_PROMPT, backgroundPrompt, images, variantsFrom, prompt, stylePrompt, templates, winners, type AdIn, type MetIn } from './design';
 
 // Vision stays on Workers AI (free); the copy is written by OpenAI when OPENAI_API_KEY is set (src/lib/llm.ts)
 type AiEnv = Omit<LlmEnv, 'AI'> & { AI?: { run: AiRun & ((model: string, input: { image: number[]; prompt: string; max_tokens: number }) => Promise<unknown>) } };
@@ -68,4 +68,16 @@ export const brief = { POST: handle(async (request, e: AiEnv & Parameters<typeof
     } catch { /* templates stay */ }
   }
   return json(200, { input, reference: ref, variants, engine, sizes: SIZES, style, images: { product: looks.product.length, refs: looks.refs.length, sent: pics.length } });
+}) };
+
+// A background drawn by ChatGPT (OpenAI Images) for this brief, in the brand's colours. PAID per image; only on a click.
+export const background = { POST: handle(async (request, e: AiEnv & Parameters<typeof requireUser>[1]) => {
+  const { cfg, user } = await requireUser(request, e, 'design', { write: true });
+  if (!e.OPENAI_API_KEY) return json(503, { error: 'تصميم الخلفيات يحتاج OPENAI_API_KEY' });
+  const b = await readJson(request);
+  const input = { type: String(b.type || 'ad'), offer: String(b.offer || '').slice(0, 200), audience: String(b.audience || '').slice(0, 200), dept: String(b.dept || '').slice(0, 60) };
+  const brand = await brandFor(cfg, user.co);
+  const image = await openaiImage(e, backgroundPrompt(input, brand.colors, String(b.style || '').slice(0, 400)));
+  if (!image) return json(502, { error: 'ChatGPT ما رجّع صورة هالمرة، جرّب بعد دقيقة' });
+  return json(200, { image });
 }) };

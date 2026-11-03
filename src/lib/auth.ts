@@ -188,6 +188,11 @@ export async function sb<T = unknown>(cfg: Cfg, path: string,
   return { ok: res.ok, status: res.status, data: data as T };
 }
 
+// A table or column a migration adds, read before that migration is applied (PostgREST / Postgres error codes)
+export const missingSchema = (r: SbResult<unknown>): boolean =>
+  !r.ok && ['PGRST205', 'PGRST204', '42P01', '42703'].includes(String((r.data as { code?: unknown } | null)?.code ?? ''));
+export const notApplied = (file: string) => `الجدول ناقص في قاعدة البيانات: شغّل ${file} في Supabase ← SQL Editor`;
+
 // Diagnostics: the kind of key in use, never the key. JWT keys expose only their role claim.
 export function keyKind(k: string): string {
   if (k.startsWith('sb_secret_')) return 'sb_secret';

@@ -1,5 +1,6 @@
 ---
 import { ClientRouter } from 'astro:transitions';
+import { KINDS } from './copy';
 // الكوبي رايتر: مشروع لكل خدمة، منافسين ببطاقة نمط، ونصوص سعودية مفحوصة (docs/learning-loops.md، C1).
 ---
 <!doctype html>
@@ -83,7 +84,7 @@ import { ClientRouter } from 'astro:transitions';
           <h2>اكتب</h2>
           <form id="wf" novalidate>
             <div class="cw-two">
-              <div><label for="kind">النوع</label><select id="kind"></select></div>
+              <div><label for="kind">النوع</label><select id="kind">{Object.entries(KINDS).map(([k, v]) => <option value={k}>{v.ar}</option>)}</select></div>
               <div><label for="count">كم نسخة</label><select id="count"><option>3</option><option>4</option><option>5</option><option>1</option><option>2</option></select></div>
             </div>
             <label>خذ النمط من</label><div class="checks" id="usec"><span class="muted">أضف منافس بنصوصه أول.</span></div>

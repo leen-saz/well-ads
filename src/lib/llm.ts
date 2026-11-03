@@ -7,12 +7,12 @@
 import { AI_MODEL, type AiRun } from '../modules/content/content';
 
 export type Provider = 'openai' | 'xai' | 'workers';
-export interface LlmEnv { OPENAI_API_KEY?: string; OPENAI_MODEL?: string; XAI_API_KEY?: string; XAI_MODEL?: string; AI?: { run: AiRun } }
+export interface LlmEnv { OPENAI_API_KEY?: string; OPENAI_MODEL?: string; OPENAI_IMAGE_MODEL?: string; XAI_API_KEY?: string; XAI_MODEL?: string; AI?: { run: AiRun } }
 export type Msg = { role: string; content: string };
 export interface LlmInput { messages: Msg[]; max_tokens: number; response_format?: unknown; search?: ('web' | 'x')[] }
 export interface LlmOut { response: string; engine: Provider; model: string }
 
-export const DEFAULTS = { openai: 'gpt-6.1-sol', xai: 'grok-4.7' } as const;
+export const DEFAULTS = { openai: 'gpt-6.1-sol', xai: 'grok-4.7', image: 'gpt-image-2' } as const;
 export const PROVIDER: Record<string, Provider> = { content: 'openai', design: 'openai', copy: 'openai', social: 'xai', maestro: 'xai', listening: 'xai' };
 const URL_OF = { openai: 'https://api.openai.com/v1/responses', xai: 'https://api.x.ai/v1/responses' } as const;
 const clean = (s: string | undefined) => (s || '').replace(/[^a-z0-9.\-_:]/gi, '').slice(0, 80);
@@ -75,4 +75,17 @@ export async function grokSearch(e: LlmEnv, messages: Msg[], sources: ('web' | '
     if (!r.ok) { console.warn('grok_search_failed', r.status); return null; }
     return textOf(await r.json());
   } catch (err) { console.warn('grok_search_failed', (err as Error).message); return null; }
+}
+
+// A background image from OpenAI's Images API (the design tab). PAID per image (more for higher quality and size).
+// No fallback: Workers AI has no image model we use. Returns a data: URL, or null with the reason logged.
+export async function openaiImage(e: LlmEnv, prompt: string, f: typeof fetch = fetch): Promise<string | null> {
+  if (!e.OPENAI_API_KEY) return null;
+  try {
+    const r = await f('https://api.openai.com/v1/images/generations', { method: 'POST', headers: { authorization: `Bearer ${e.OPENAI_API_KEY}`, 'content-type': 'application/json' },
+      body: JSON.stringify({ model: clean(e.OPENAI_IMAGE_MODEL) || DEFAULTS.image, prompt, n: 1, size: '1024x1536', quality: 'medium', output_format: 'jpeg' }) });
+    if (!r.ok) { console.warn('image_failed', r.status); return null; }
+    const b64 = ((await r.json()) as { data?: { b64_json?: string }[] })?.data?.[0]?.b64_json;
+    return b64 ? `data:image/jpeg;base64,${b64}` : null;
+  } catch (err) { console.warn('image_failed', (err as Error).message); return null; }
 }

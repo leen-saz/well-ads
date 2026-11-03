@@ -92,6 +92,7 @@ import { ClientRouter } from 'astro:transitions';
               <label><input type="checkbox" name="size" value="portrait"> طولي 1080×1350</label>
               <label><input type="checkbox" name="size" value="landscape"> عرضي 1200×628</label></fieldset>
             <label for="photo">صورة منتجك الأصلية</label><input id="photo" type="file" accept="image/*">
+            <button class="btn sm secondary" type="button" id="bg">صمّم خلفية بـ ChatGPT</button> <span class="muted" style="font-size:13px">بدل الصورة، مدفوع لكل صورة</span>
             <label for="refs">صور مرجعية <span class="muted">(اختياري، حتى 4: تصاميم يعجبك أسلوبها)</span></label><input id="refs" type="file" accept="image/*" multiple>
             <div class="dz-thumbs" id="thumbs" aria-live="polite"></div>
             <label class="dz-check"><input type="checkbox" id="useRefColors" checked> خذ الألوان من المراجع</label>
