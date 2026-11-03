@@ -1,12 +1,12 @@
-// Motion video: the plan is cleaned before it is stored, the frames follow the voice's clock, and the routes keep every
+// Motion graphics (the Design tab's «موشن جرافيك» type): the plan is cleaned before it is stored, the frames follow the voice's clock, and the routes keep every
 // version (an edit adds one, never changes one), need approve to approve, and only take this company's files.
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import * as A from '../../lib/auth';
 import { pick } from '../../lib/llm';
 import { checkUpload, cleanSpec, editPrompt, fileKey, ownKey, parseSpec, specPrompt, templateSpec, type Spec } from './motion';
 import { videoapprove, videoedit, video, videos } from './video';
-// The page's own frame logic (public/modules/motion/frame.js), so the preview tested here is the one drawn
-import { frame } from '../../../public/modules/motion/frame.js';
+// The page's own frame logic (public/modules/design/frame.js), so the preview tested here is the one drawn
+import { frame } from '../../../public/modules/design/frame.js';
 
 const CO = '00000000-0000-0000-0000-000000000001';
 const KEY = (x: string, ext: string) => `motion/${CO}/${x.repeat(32)}.${ext}`;
@@ -167,7 +167,7 @@ describe('video routes', () => {
     expect((await video.POST(await req(OWNER, '/api/design/video', { ...NEW, voice_seconds: 1 }), E)).status).toBe(400);
   });
 
-  it('approving needs approve on Maestro, and only an existing version', async () => {
+  it('approving needs approve on Design, and only an existing version', async () => {
     const db = world(EDITOR);
     await video.POST(await req(EDITOR, '/api/design/video', NEW), E);
     expect((await videoapprove.POST(await req(EDITOR, '/api/design/videoapprove', { id: 7, version: 1 }), E)).status).toBe(403);

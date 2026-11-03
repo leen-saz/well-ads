@@ -1,24 +1,15 @@
-// Design → «موشن جرافيك» (docs/motion-video.md): /design/video/. The approved design and voice become a motion video;
-// projects and their versions, a version is never changed. Moved here from Maestro: Maestro orchestrates the agents.
-import { sb, json, readJson, handle, requireUser, audit, atLeast, notEnabled, missingSchema, notApplied, type AuthEnv, type Cfg } from '../../lib/auth';
+// Design → «موشن جرافيك» (docs/motion-video.md): the motion type of /design/ (/design/?type=motion). The approved design
+// and voice become a motion video; projects and their versions, a version is never changed. Moved here from Maestro.
+import { sb, json, readJson, handle, requireUser, audit, atLeast, notEnabled, missingSchema, notApplied, type Cfg } from '../../lib/auth';
 import { scoped } from '../../lib/tenant';
 import { generate, pick, type LlmEnv, type Msg } from '../../lib/llm';
-import { client, type PcEnv } from '../maestro/paperclip';
 import { knowledgeFor, rulesFor, withKnowledge } from '../knowledge/knowledge';
 import { brandFor } from '../knowledge/brand';
 import { check } from '../compliance/compliance';
 import { ANIMS, RATIOS, checkUpload, clampSeconds, cleanSpec, editPrompt, fileKey, ownKey, parseSpec, ratioOf, specPrompt, templateSpec, type Spec } from './motion';
 
-type Env = AuthEnv & PcEnv;
-type Co = { id: string; name: string; paperclip_company_id: string | null };
-// The company's Maestro (Paperclip) link: a new video opens a task there when connected
-async function companyOf(cfg: Cfg, co: string): Promise<Co | null> {
-  const r = await sb<Co[]>(cfg, `/rest/v1/companies?id=eq.${co}&select=id,name,paperclip_company_id`, { admin: true });
-  return r.ok && Array.isArray(r.data) ? r.data[0] || null : null;
-}
-
 // The plan is written by ChatGPT (OpenAI, PAID per version: one text call); without the key v1 comes from a template.
-type VEnv = Env & LlmEnv & { FILES?: R2Bucket };
+type VEnv = Parameters<typeof requireUser>[1] & LlmEnv & { FILES?: R2Bucket };
 interface Project { id: number; title: string; headline: string; script: string; ratio: string; design_key: string; design_mime: string; voice_key: string; voice_mime: string;
   voice_seconds: number; status: 'draft' | 'approved'; approved_version: number | null; approved_by: string | null; approved_at: string | null; pc_issue: string | null; created_by: string | null; created_at: string }
 interface Version { id: number; project_id: number; version: number; parent_version: number | null; change_request: string | null; spec: Spec; engine: string; model: string | null; created_by: string | null; created_at: string }
@@ -95,7 +86,7 @@ export const videofile = {
   }),
 };
 
-// A new video: the approved design + voice → project + v1. A Maestro task is opened too when the company is connected.
+// A new video: the approved design + voice → project + v1.
 export const video = { POST: handle(async (request, e: VEnv) => {
   const { cfg, user } = await requireUser(request, e, 'design', { write: true });
   const b = await readJson(request);
@@ -119,15 +110,6 @@ export const video = { POST: handle(async (request, e: VEnv) => {
   const v = await sb<Version[]>(cfg, '/rest/v1/motion_versions', { method: 'POST', admin: true, headers: { Prefer: 'return=representation' },
     body: { company_id: user.co, project_id: p.id, version: 1, spec: v1.spec, engine: v1.engine, model: v1.model, created_by: user.email } });
   if (!v.ok) return json(500, { error: 'ما انحفظت النسخة' });
-  // Maestro (Paperclip) gets a task for the video when connected; the video does not depend on it
-  const pc = client(e), c = pc ? await companyOf(cfg, user.co) : null;
-  if (pc && c?.paperclip_company_id) {
-    try {
-      const issue = await pc.createIssue(c.paperclip_company_id, { title: `فيديو موشن: ${p.title}`.slice(0, 200), priority: 'medium',
-        description: `فيديو موشن من تصميم وصوت معتمدين. المعاينة والنسخ والاعتماد في /design/video/?id=${p.id}\n\n— طلبه ${user.email} من لوحة Well` });
-      if (issue.id) await sb(cfg, scoped(`/rest/v1/motion_projects?id=eq.${p.id}`, user.co), { method: 'PATCH', admin: true, body: { pc_issue: String(issue.id) } });
-    } catch (err) { console.warn('motion_task_failed', (err as Error).message); }
-  }
   await audit(cfg, user, 'motion_create', { target: { project: p.id, engine: v1.engine } });
   return json(200, { ok: true, id: p.id, engine: v1.engine, warnings: await warnings(cfg, user.co, v1.spec) });
 }) };
@@ -148,7 +130,7 @@ export const videoedit = { POST: handle(async (request, e: VEnv) => {
   const current = cleanSpec(base.spec, seconds, ratio);
   if (!current) return json(409, { error: 'النسخة هذي ما تنقرى' });
   const made = await plan(e, cfg, user.co, editPrompt(current, change), seconds, ratio, (await brandFor(cfg, user.co)).colors);
-  if (!made || made.engine !== 'openai') return json(502, { error: 'المخرج ما رجّع نسخة صالحة، جرّب تكتب التعديل بشكل ثاني' });
+  if (!made || made.engine !== 'openai') return json(502, { error: 'المصمم ما رجّع نسخة صالحة، جرّب تكتب التعديل بشكل ثاني' });
   const next = (all[all.length - 1]?.version || 0) + 1;
   const v = await sb<Version[]>(cfg, '/rest/v1/motion_versions', { method: 'POST', admin: true, headers: { Prefer: 'return=representation' },
     body: { company_id: user.co, project_id: p.id, version: next, parent_version: base.version, change_request: change, spec: made.spec, engine: made.engine, model: made.model, created_by: user.email } });
@@ -160,7 +142,7 @@ export const videoedit = { POST: handle(async (request, e: VEnv) => {
   return json(200, { ok: true, version: next, warnings: await warnings(cfg, user.co, made.spec) });
 }) };
 
-// The final version before publishing: approve level on Maestro
+// The final version before publishing: approve level on Design
 export const videoapprove = { POST: handle(async (request, e: VEnv) => {
   const { cfg, user } = await requireUser(request, e, 'design', { write: true, approve: true });
   const b = await readJson(request);

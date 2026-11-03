@@ -1,5 +1,6 @@
 // التصميم: تفاصيل تصميم من أفضل إعلاناتنا، نصوص مقترحة مفحوصة على قواعد الامتثال، ومعاينة لكل مقاس.
 // الصورة يصممها المصمم (OpenAI Images: منتجك في مشهد جديد، أو خلفية)، والنص دايم طبقة فوقها في المتصفح، والتحميل PNG.
+// «نوع التصميم»: صورة (هذا الملف) أو موشن جرافيك (motion.js)، والنوع ينحفظ في الرابط ?type=motion.
 import { $, $$, api, say, esc, shell, busy, fmt } from '/assets/common.js';
 
 const PLAT = { meta: 'ميتا', snapchat: 'سناب شات', tiktok: 'تيك توك', google: 'جوجل' };
@@ -194,6 +195,22 @@ export default async function mount() {
   };
   document.addEventListener('well:before-lang', keepState);
   await shell({ active: 'design', title: 'التصميم' });
+  let motion = null;
+  const showKind = kind => {
+    const isMotion = kind === 'motion';
+    $$('#kind [data-kind]').forEach(b => b.setAttribute('aria-pressed', String(b.dataset.kind === (isMotion ? 'motion' : 'image'))));
+    $('#imageFlow').hidden = isMotion; $('#motionFlow').hidden = !isMotion;
+    if (isMotion) motion ||= import('/modules/design/motion.js').then(m => m.mountMotion()).catch(err => say($('#mmsg'), err.message));
+  };
+  $('#kind').onclick = ev => {
+    const b = ev.target.closest('[data-kind]');
+    if (!b) return;
+    const u = new URL(location.href);
+    if (b.dataset.kind === 'motion') u.searchParams.set('type', 'motion'); else { u.searchParams.delete('type'); u.searchParams.delete('id'); }
+    history.replaceState(history.state, '', u);
+    showKind(b.dataset.kind);
+  };
+  showKind(new URL(location.href).searchParams.get('type'));
   let kept = null;
   try { kept = JSON.parse(sessionStorage.getItem('well-design') || 'null'); sessionStorage.removeItem('well-design'); } catch {}
   if (kept?.res) {

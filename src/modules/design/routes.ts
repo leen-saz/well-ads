@@ -1,4 +1,5 @@
 // /api/design/brief: brief + headline variants from our best ads, and a ChatGPT background when no photo is given. Writes nothing.
+// /api/design/videos|videofile|video|videoedit|videoapprove: the «موشن جرافيك» type (motion projects and their versions).
 import { sb, json, readJson, handle, requireUser, type Cfg } from '../../lib/auth';
 import { scoped } from '../../lib/tenant';
 import { type AiRun } from '../content/content';

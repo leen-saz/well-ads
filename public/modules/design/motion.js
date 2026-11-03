@@ -1,11 +1,10 @@
-// التصميم ← موشن جرافيك: التصميم والصوت المعتمدين ← خطة مشاهد من المخرج (ChatGPT، والواجهة ما تسمي الموديل) ← معاينة، «تعديل»، سجل النسخ، والاعتماد.
+// التصميم ← «موشن جرافيك»: التصميم والصوت المعتمدين ← خطة مشاهد من المصمم (ChatGPT، والواجهة ما تسمي الموديل) ← معاينة، «تعديل»، سجل النسخ، والاعتماد.
+// client.js يرسم الشريط الجانبي ويشغّل هذا لما يختار المستخدم النوع.
 // الرسم في canvas على وقت الصوت (frame.js)، والتنزيل يسجّل نفس الرسم مع الصوت في المتصفح.
-import { $, api, say, esc, shell, busy, when, pageSignal } from '/assets/common.js';
-import { SIZE, frame, draw } from '/modules/motion/frame.js';
+import { $, api, say, esc, busy, when, pageSignal } from '/assets/common.js';
+import { SIZE, frame, draw } from '/modules/design/frame.js';
 
-export default async function mount() {
-  // The sidebar and title first: a fault further down must never leave a blank page
-  await shell({ active: 'design', title: 'التصميم' });
+export async function mountMotion() {
   let S = {}, P = null, V = [], cur = null, img = null, raf = 0, audioCtx = null;
   const audio = $('#voiceOut'), canvas = $('#stage'), ctx = canvas.getContext('2d');
   const id = new URL(location.href).searchParams.get('id');
@@ -20,7 +19,7 @@ export default async function mount() {
 
   function list() {
     const ps = S.projects || [];
-    $('#list').innerHTML = ps.length ? ps.map(p => `<a class="card mv-item" href="/design/video/?id=${p.id}"><b>${esc(p.title)}</b>
+    $('#list').innerHTML = ps.length ? ps.map(p => `<a class="card mv-item" href="/design/?type=motion&id=${p.id}"><b>${esc(p.title)}</b>
       <span class="so-chip">${p.status === 'approved' ? `معتمد · v${p.approved_version}` : 'مسودة'}</span><span class="muted">${when(p.created_at)}</span></a>`).join('')
       : '<p class="muted">ما فيه فيديوهات للحين.</p>';
   }
@@ -30,7 +29,7 @@ export default async function mount() {
       <button type="button" class="mv-pick" data-v="${v.version}"><b>v${v.version}</b>${v.version === 1 ? ' · الأصلية' : ` · من v${v.parent_version}`}
       ${P.approved_version === v.version ? '<span class="so-chip mv-ok">معتمدة</span>' : ''}</button>
       <p class="muted">${v.change_request ? `«${esc(v.change_request)}»` : 'أول نسخة من التصميم والصوت'}</p>
-      <p class="muted">${esc(v.created_by || '')} · ${when(v.created_at)} · ${v.engine === 'templates' ? 'قالب ثابت' : 'المخرج'}</p></li>`).join('');
+      <p class="muted">${esc(v.created_by || '')} · ${when(v.created_at)} · ${v.engine === 'templates' ? 'قالب ثابت' : 'المصمم'}</p></li>`).join('');
     const approvedHere = P.approved_version === cur;
     $('#approve').hidden = !S.canApprove || approvedHere;
     $('#approve').textContent = `اعتمد v${cur} نسخة نهائية`;
@@ -84,10 +83,10 @@ export default async function mount() {
     busy(btn, true); say($('#nmsg'), 'نرفع الملفات…', true);
     try {
       const [dk, vk, secs] = await Promise.all([upload('design', d), upload('voice', v), seconds(v)]);
-      say($('#nmsg'), 'المخرج يكتب المشاهد…', true);
+      say($('#nmsg'), 'المصمم يكتب المشاهد…', true);
       const r = await api('/api/design/video', { method: 'POST', body: { title: $('#vtitle').value, headline: $('#headline').value, script: $('#script').value, ratio: $('#ratio').value,
         design_key: dk.key, design_mime: dk.mime, voice_key: vk.key, voice_mime: vk.mime, voice_seconds: secs } });
-      location.href = `/design/video/?id=${r.id}`;
+      location.href = `/design/?type=motion&id=${r.id}`;
     } catch (err) { say($('#nmsg'), err.message); busy(btn, false); }
   };
 
@@ -98,12 +97,12 @@ export default async function mount() {
     ev.preventDefault();
     const change = $('#change').value.trim(), btn = $('#editGo');
     if (!change) return say($('#emsg'), 'اكتب وش تبي تغيّر');
-    busy(btn, true); say($('#emsg'), 'المخرج يسوّي النسخة الجديدة…', true);
+    busy(btn, true); say($('#emsg'), 'المصمم يسوّي النسخة الجديدة…', true);
     try {
       const r = await api('/api/design/videoedit', { method: 'POST', body: { id: P.id, from: cur, change } });
       $('#change').value = ''; $('#editBox').hidden = true;
       await openProject(); choose(r.version);
-      say($('#msg'), `انضافت v${r.version}. النسخ القديمة باقية في السجل.${warn(r.warnings)}`, !r.warnings?.length);
+      say($('#mmsg'), `انضافت v${r.version}. النسخ القديمة باقية في السجل.${warn(r.warnings)}`, !r.warnings?.length);
     } catch (err) { say($('#emsg'), err.message); }
     busy(btn, false);
   };
@@ -113,8 +112,8 @@ export default async function mount() {
   $('#approve').onclick = async () => {
     if (!confirm(`تعتمد v${cur} نسخة نهائية للنشر؟`)) return;
     busy($('#approve'), true);
-    try { await api('/api/design/videoapprove', { method: 'POST', body: { id: P.id, version: cur } }); await openProject(); say($('#msg'), `v${cur} معتمدة`, true); }
-    catch (err) { say($('#msg'), err.message); }
+    try { await api('/api/design/videoapprove', { method: 'POST', body: { id: P.id, version: cur } }); await openProject(); say($('#mmsg'), `v${cur} معتمدة`, true); }
+    catch (err) { say($('#mmsg'), err.message); }
     busy($('#approve'), false);
   };
 
@@ -122,8 +121,8 @@ export default async function mount() {
   $('#download').onclick = async () => {
     const btn = $('#download');
     const type = ['video/mp4;codecs=avc1,mp4a.40.2', 'video/mp4', 'video/webm;codecs=vp9,opus', 'video/webm'].find(t => window.MediaRecorder?.isTypeSupported(t));
-    if (!type || !canvas.captureStream) return say($('#msg'), 'متصفحك ما يدعم تسجيل الفيديو، جرّب Chrome أو Safari');
-    busy(btn, true); say($('#msg'), 'نسجّل الفيديو بوقته الحقيقي، خل الصفحة مفتوحة…', true);
+    if (!type || !canvas.captureStream) return say($('#mmsg'), 'متصفحك ما يدعم تسجيل الفيديو، جرّب Chrome أو Safari');
+    busy(btn, true); say($('#mmsg'), 'نسجّل الفيديو بوقته الحقيقي، خل الصفحة مفتوحة…', true);
     try {
       if (!audioCtx) { audioCtx = new AudioContext(); const src = audioCtx.createMediaElementSource(audio); audioCtx.dest = audioCtx.createMediaStreamDestination(); src.connect(audioCtx.destination); src.connect(audioCtx.dest); }
       await audioCtx.resume();
@@ -136,8 +135,8 @@ export default async function mount() {
       rec.stop(); await done;
       const a = document.createElement('a');
       a.href = URL.createObjectURL(new Blob(parts, { type })); a.download = `well-video-v${cur}.${type.startsWith('video/mp4') ? 'mp4' : 'webm'}`; a.click();
-      say($('#msg'), 'نزل الفيديو', true);
-    } catch (err) { say($('#msg'), err.message || 'ما قدرنا نسجّل الفيديو'); }
+      say($('#mmsg'), 'نزل الفيديو', true);
+    } catch (err) { say($('#mmsg'), err.message || 'ما قدرنا نسجّل الفيديو'); }
     busy(btn, false);
   };
 
@@ -149,5 +148,5 @@ export default async function mount() {
     $('#new').hidden = !r.canEdit;
     list();
     if (id) await openProject();
-  } catch (err) { say($('#msg'), err.message); }
+  } catch (err) { say($('#mmsg'), err.message); }
 }

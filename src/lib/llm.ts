@@ -1,5 +1,5 @@
 // One adapter for the text models, so each tab names a provider and the rest stays the same.
-// Leen's choice: Content + Design + the motion video plan (Maestro's video page) → OpenAI; Social, Maestro and Listening → Grok (xAI). Voice and the rest stay on Workers AI.
+// Leen's choice: Content + Design + the motion graphics plan (Design's «موشن جرافيك» type) → OpenAI; Social, Maestro and Listening → Grok (xAI). Voice and the rest stay on Workers AI.
 // PAID: OpenAI and Grok (xAI) bill every call; so does the Debugger's Claude (Anthropic SDK, src/modules/debugger/explain.ts).
 // Workers AI is free within Cloudflare's daily limit and stays the fallback when a key is missing or the provider fails.
 // Keys are Worker secrets Leen adds herself: OPENAI_API_KEY, XAI_API_KEY (docs/secrets/worker.env.example).
