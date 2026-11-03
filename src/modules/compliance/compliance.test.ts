@@ -85,6 +85,36 @@ describe('precision', () => {
     const h = check('عندنا دكتور عالمي', extra);
     expect(h[0]).toMatchObject({ level: 'critical', match: 'دكتور عالمي', title: 'كلمة ممنوعة عند الشركة' });
   });
+  it('matches a company word as a whole word, with the Arabic prefixes joined to it', () => {
+    const extra = companyRules(['سر']);
+    const hit = (t: string) => check(t, extra).filter(h => h.rule.startsWith('company_')).map(h => h.match);
+    // never inside another word
+    expect(hit('توصيل سريع للبيت')).toEqual([]);
+    expect(hit('سرير طبي وأسرة')).toEqual([]);
+    expect(hit('السرير جاهز')).toEqual([]);
+    // on its own, at the edges and next to punctuation
+    expect(hit('سر')).toEqual(['سر']);
+    expect(hit('هذا سر الجمال')).toEqual(['سر']);
+    expect(hit('اعرف السر!')).toEqual(['سر']);
+    expect(hit('«سر»، وبس')).toEqual(['سر']);
+    expect(hit('سر.')).toEqual(['سر']);
+    // joined prefixes (و ف ب ل ك ال): the word is still there, and the hit starts at it
+    expect(hit('بالسر نقولك')).toEqual(['سر']);
+    expect(hit('والسر في الخلطة')).toEqual(['سر']);
+    expect(hit('فالسر بسيط')).toEqual(['سر']);
+    // a suffix makes another word: not matched (see companyRules)
+    expect(hit('سرها بسيط')).toEqual([]);
+  });
+  it('keeps the position of a prefixed hit on the phrase itself', () => {
+    const [h] = check('عرض بالأرخص اليوم', companyRules(['الأرخص'])).filter(x => x.rule.startsWith('company_'));
+    expect(h).toMatchObject({ match: 'الأرخص' });
+    expect('عرض بالأرخص اليوم'.slice(h!.start, h!.end)).toBe('الأرخص');
+  });
+  it('matches Latin words whole too', () => {
+    const extra = companyRules(['best']);
+    expect(check('the best care', extra).some(h => h.rule.startsWith('company_'))).toBe(true);
+    expect(check('bestseller', extra).some(h => h.rule.startsWith('company_'))).toBe(false);
+  });
 });
 
 describe('scan', () => {

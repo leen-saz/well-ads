@@ -127,12 +127,16 @@ const RANK: Record<Level, number> = { critical: 0, warn: 1, info: 2 };
 const TERMS = R('(لين|حتى|ينتهي|لاول|لفتر[هة]|لمد[هة]|until|ends)');
 const TOTAL = R('(شامل|يشمل|الاجمالي|اجمالي|بدون رسوم|مع الضريب[هة])');
 
-// Company words (المعرفة → ممنوع): one phrase per line or between commas
+// Company words (المعرفة → ممنوع): one phrase per line or between commas. A phrase matches as a whole word, never inside
+// another one («سر» is not in «سريع»). Arabic writes some words joined to the next: و/ف, then ب/ل/ك, then ال may come
+// in front («بالسر»، «والسر» match), and the hit starts at the phrase itself. Nothing is allowed after it («سرها» is not
+// matched): a suffix list would bring back the false hits this fixes.
+const CLITICS = '(?<=(?:^|[^\\p{L}\\p{N}])(?:[وف]?[بلك]?(?:ال)?))';
 export function companyRules(phrases: string[]): Rule[] {
   const esc = (s: string) => s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
   return [...new Set(phrases.map(p => normalize(p.trim()).t).filter(p => p.length >= 2 && p.length <= 60))].map((p, i) => ({
     id: `company_${i + 1}`, level: 'critical' as const, title: 'كلمة ممنوعة عند الشركة', why: 'مكتوبة في الممنوع في تاب المعرفة.',
-    fix: 'احذفها أو بدّلها بصياغة معتمدة.', source: [COMPANY], re: [new RegExp(esc(p), 'i')],
+    fix: 'احذفها أو بدّلها بصياغة معتمدة.', source: [COMPANY], re: [new RegExp(`${CLITICS}${esc(p)}(?![\\p{L}\\p{N}])`, 'iu')],
   }));
 }
 
