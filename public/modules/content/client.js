@@ -1,4 +1,4 @@
-// إيجنت المحتوى و SEO/AEO: يحلل الموقع ويبني بلان، والماركتير يوافق على كل بند، ويكتب مسودة، وينشر (تصدير الحين).
+// إيجنت المحتوى و SEO/AEO: يحلل الموقع ويبني خطة، والماركتير يوافق على كل بند، ويكتب مسودة، وينشر (تصدير الحين).
 import { $, api, say, esc, shell, busy, LANG } from '/assets/common.js';
 import { marked, hitsHTML } from '/assets/compliance-ui.js';
 
@@ -14,12 +14,12 @@ export default async function mount() {
   function stage(n) { document.querySelectorAll('.ct-flow li').forEach(li => li.classList.toggle('on', +li.dataset.s <= n)); }
 
   function drawPlan() {
-    if (!cur) { $('#plan').innerHTML = '<p class="muted">حلّل موقع عشان يطلع البلان هنا.</p>'; stage(1); return; }
+    if (!cur) { $('#plan').innerHTML = '<p class="muted">حلّل موقع عشان يطلع الخطة هنا.</p>'; stage(1); return; }
     const a = cur.analysis || {}, items = [...cur.items].sort((x, y) => x.priority - y.priority);
     stage(items.some(i => i.status === 'done') ? 5 : items.some(i => i.status === 'approved') ? 4 : 3);
-    $('#plan').innerHTML = `<div class="bar" style="justify-content:space-between"><h2 style="margin:0">البلان · <span dir="ltr">${esc(cur.site.replace('https://', ''))}</span></h2>
+    $('#plan').innerHTML = `<div class="bar" style="justify-content:space-between"><h2 style="margin:0">الخطة · <span dir="ltr">${esc(cur.site.replace('https://', ''))}</span></h2>
         <span class="muted">${Array.isArray(a.pages) ? a.pages.length : Number(a.pages) || 0} صفحة · ${(a.gsc || []).length ? 'Search Console مربوط' : 'Search Console مو مربوط'} · ${ENGINE[cur.engine] ? `${ENGINE[cur.engine]} + قواعد` : 'قواعد ثابتة'}</span></div>
-      ${a.position ? `<p class="so-note ct-pos"><b>البوزشن:</b> ${esc(a.position)}${a.niche ? `<br><b>النيش:</b> ${esc(a.niche)}` : ''}</p>` : ''}
+      ${a.position ? `<p class="so-note ct-pos"><b>البوزشن:</b> ${esc(a.position)}${a.niche ? `<br><b>مجال النشاط:</b> ${esc(a.niche)}` : ''}</p>` : ''}
       <div style="display:grid;gap:10px">${items.map(it => `<article class="card ct-item ${it.status}" data-item="${esc(it.id)}">
         <div class="so-top"><span class="so-chip">${KIND[it.kind] || it.kind}</span><span class="so-chip">أولوية ${it.priority}</span>${it.basis === 'search' ? `<span class="so-chip" title="كلمة من Search Console">من بيانات البحث: ${esc(it.query || '')}</span>` : it.basis === 'idea' ? '<span class="so-chip line" title="ما وراه بيانات بحث، راجعه قبل الموافقة">اقتراح من الذكاء الاصطناعي</span>' : ''}<b>${esc(it.title)}</b><span class="so-st muted">${ST[it.status]}</span></div>
         ${it.why ? `<p class="muted" style="margin:0">${esc(it.why)}</p>` : ''}
@@ -48,7 +48,7 @@ export default async function mount() {
     const btn = e.submitter; busy(btn, true); say($('#msg'), 'يحلل الموقع… ياخذ دقيقة تقريباً', true); stage(2);
     try {
       const r = await api('/api/content/analyze', { method: 'POST', body: { site: $('#site').value, niche: $('#niche').value, competitors: $('#comp').value } });
-      say($('#msg'), 'جاهز البلان.', true); await load(r.plan.id);
+      say($('#msg'), 'الخطة جاهزة.', true); await load(r.plan.id);
     } catch (err) { say($('#msg'), err.message); stage(1); }
     busy(btn, false);
   });

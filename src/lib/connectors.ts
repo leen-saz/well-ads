@@ -12,8 +12,8 @@ const ID = (env: string, label: string, opts: FieldOpts = {}): Field => F(env, l
 
 // The platforms the system needs to run, with what stops without them (the connect page lists them first)
 export const CORE: Record<string, string> = {
-  meta: 'التحليلات والكرييتف ولوحة القرارات', google_ads: 'التحليلات ولوحة القرارات', snap: 'التحليلات والكرييتف ولوحة القرارات',
-  tiktok: 'التحليلات والكرييتف', meta_pages: 'النشر في السوشال', ga4: 'التحليلات العضوية', search_console: 'المحتوى و SEO',
+  meta: 'الحملات والمواد الإعلانية ولوحة القرارات', google_ads: 'الحملات ولوحة القرارات', snap: 'الحملات والمواد الإعلانية ولوحة القرارات',
+  tiktok: 'الحملات والمواد الإعلانية', meta_pages: 'النشر في السوشال', ga4: 'التحليلات العضوية', search_console: 'المحتوى و SEO',
 };
 export const PLATFORMS: Platform[] = [
   // ---- الإعلانات

@@ -96,7 +96,7 @@ describe('auth', () => {
     expect(need('/soon/', '?t=seo')).toBe('any');
   });
 
-  it('gate: no cookie → login, wrong dashboard → own home, allowed → through', async () => {
+  it('gate: no cookie → login, wrong dashboard → start page, allowed → through', async () => {
     let r = await M(req('/'));
     expect(status(r)).toBe(302);
     expect(location(r)).toMatch(/\/login\/\?next=%2F$/);
@@ -106,11 +106,25 @@ describe('auth', () => {
     r = await M(req('/', c));
     expect(status(r)).toBe(302);
     const u = new URL(location(r));
-    expect(u.pathname + u.search).toBe('/?view=creative');
+    expect(u.pathname + u.search).toBe('/today/');
     r = await M(req('/admin/', c));
     expect(status(r)).toBe(302);
     r = await M(req('/?view=creative', c));
     expect(rewrite(r)).toBe('https://well.example/c/?view=creative'); // creative without analytics
+  });
+
+  it('gate: destinations open their first allowed tool, old and short links redirect', async () => {
+    expect(need('/today/', '')).toBe('any');
+    expect(need('/api/today/state', '')).toBe('any');
+    expect(need('/performance/', '')).toBe('any');
+    expect(need('/history', '')).toBe('any');
+    const c = await cookieFor(member);
+    const to = async (path: string) => { const r = await M(req(path, c)); expect(status(r)).toBe(302); const u = new URL(location(r)); return u.pathname + u.search; };
+    expect(await to('/performance/')).toBe('/?view=creative'); // no summary or analytics: creatives
+    expect(await to('/system')).toBe('/today/'); // nothing open there
+    expect(await to('/history/')).toBe('/control/?tab=log');
+    expect(await to('/analytics/')).toBe('/');
+    expect(passed(await M(req('/today/', c)))).toBe(true);
   });
 
   it('gate: stale session re-checks permissions', async () => {

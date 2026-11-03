@@ -14,6 +14,7 @@ import { meta as copyMeta } from './copy/module';
 import { meta as knowledgeMeta } from './knowledge/module';
 import { meta as overviewMeta } from './overview/module';
 
-export const MODULES: ModuleMeta[] = [maestroMeta, socialMeta, journeysMeta, contentMeta, copyMeta, debuggerMeta, complianceMeta, listeningMeta, designMeta, voiceMeta, knowledgeMeta, overviewMeta];
+// Grouped by sidebar destination: performance, create, review, system
+export const MODULES: ModuleMeta[] = [overviewMeta, listeningMeta, designMeta, copyMeta, voiceMeta, socialMeta, contentMeta, journeysMeta, complianceMeta, maestroMeta, knowledgeMeta, debuggerMeta];
 export const LIVE = MODULES.filter(m => m.status === 'live').map(m => m.key);
 export const isModule = (k: string): boolean => MODULES.some(m => m.key === k);

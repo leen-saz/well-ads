@@ -1,4 +1,4 @@
-// الكرييتف بالتفصيل (تاب تحت الأداء): كل فكرة بمعاينتها ونصها وأرقامها، وفلاتر المنصة والقسم والهدف والصيغة والفترة.
+// المواد الإعلانية بالتفصيل (تاب تحت الأداء): كل فكرة بمعاينتها ونصها وأرقامها، وفلاتر المنصة والقسم والهدف والصيغة والفترة.
 // الضغط على فكرة يفتح لوحة فيها نسخها جنب بعض والإعلانات المربوطة فيها. الحساب كله في creatives.ts.
 import * as React from 'react';
 import { Direction } from 'radix-ui';
@@ -84,14 +84,14 @@ export default function Creative() {
         </Select>
       </div>
       <p className="text-sm text-muted-foreground">
-        {qty(list.length)} فكرة في {qty(ads)} إعلان. الفكرة الوحدة = نفس الكرييتف في أكثر من مجموعة أو منصة أو نسخة. اضغط على أي فكرة تشوف نسخها جنب بعض.
+        {qty(list.length)} فكرة في {qty(ads)} إعلان. الفكرة الوحدة = نفس المادة الإعلانية في أكثر من مجموعة أو منصة أو نسخة. اضغط على أي فكرة تشوف نسخها جنب بعض.
       </p>
       {list.length ? (
         <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
           {list.slice(0, shown).map(x => <IdeaCard key={x.key} idea={x} onOpen={() => setOpen(x)} />)}
         </div>
       ) : (
-        <Card><CardContent className="py-10 text-center text-muted-foreground">ما فيه كرييتف يطابق الفلاتر في هالفترة. جرّب تغيّر الفلتر أو تكبّر الفترة.</CardContent></Card>
+        <Card><CardContent className="py-10 text-center text-muted-foreground">ما فيه مادة إعلانية تطابق الفلاتر في هالفترة. جرّب تغيّر الفلتر أو تكبّر الفترة.</CardContent></Card>
       )}
       {list.length > shown && (
         <Button variant="outline" className="justify-self-center" onClick={() => setShown(n => n + PAGE)}>اعرض أكثر ({qty(list.length - shown)} باقي)</Button>
@@ -186,7 +186,7 @@ function IdeaDetail({ data, idea }: { data: Dash; idea: Idea }) {
           <Preview ad={idea.ad} play className="max-h-96 sm:aspect-square" />
           <div className="grid content-start gap-3">
             {idea.ad.text && <p className="text-sm leading-relaxed whitespace-pre-line">{idea.ad.text}</p>}
-            {m.open && <Button asChild variant="outline" size="sm" className="justify-self-start"><a href={m.open} target="_blank" rel="noopener"><ExternalLink />افتح الكرييتف</a></Button>}
+            {m.open && <Button asChild variant="outline" size="sm" className="justify-self-start"><a href={m.open} target="_blank" rel="noopener"><ExternalLink />افتح المادة الإعلانية</a></Button>}
             <div className="grid grid-cols-2 gap-2 text-sm sm:grid-cols-3">
               <Stat label="الصرف" value={sar(idea.spend)} />
               <Stat label="النتائج" value={qty(idea.results)} note={`${qty(idea.leads)} ليد · ${qty(idea.conv)} محادثة`} />
@@ -233,7 +233,7 @@ function IdeaDetail({ data, idea }: { data: Dash; idea: Idea }) {
         )}
 
         <section className="grid gap-2" aria-label="الإعلانات المربوطة">
-          <h3 className="font-medium">الإعلانات المربوطة بهالكرييتف</h3>
+          <h3 className="font-medium">الإعلانات المربوطة بهالمادة الإعلانية</h3>
           <div className="overflow-x-auto rounded-lg border">
             <Table>
               <TableHeader className="bg-muted">

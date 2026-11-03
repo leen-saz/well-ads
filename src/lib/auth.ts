@@ -8,7 +8,7 @@ export const SESSION = '__Host-well_session';
 export const SESSION_HOURS = 12;
 export const RECHECK_MS = 10 * 60 * 1000; // pages re-read the user's permissions every 10 minutes
 // Core dashboards, then one per live module (src/modules/registry.ts)
-const CORE = { ceo: 'التحليلات', creative: 'الكرييتف', control: 'لوحة القرارات', connectors: 'الربط' };
+const CORE = { ceo: 'الحملات والمنصات', creative: 'المواد الإعلانية', control: 'لوحة القرارات', connectors: 'الربط' };
 export const DASHBOARDS: Record<string, string> = { ...CORE, ...Object.fromEntries(MODULES.filter(m => LIVE.includes(m.key)).map(m => [m.key, m.ar])) };
 // Department scope: empty = all departments. A department manager sees only their department.
 export const DEPTS = { iv: 'المحاليل الوريدية', midwife: 'القبالة / رعاية الحمل', foot: 'تقويم القدم', renan: 'رينان لصحة الطفل' } as const;
@@ -133,17 +133,9 @@ export function can(s: Session | null | undefined, need: Need, cfg?: Cfg): boole
   if (need === 'owner') return false;
   return Array.isArray(s.dash) && (s.dash as string[]).includes(need);
 }
-// First dashboard the user may open
-export function home(s: Session, cfg?: Cfg): string {
-  if (can(s, 'ceo', cfg)) return '/';
-  if (can(s, 'creative', cfg)) return '/?view=creative';
-  if (can(s, 'control', cfg)) return '/control/';
-  if (can(s, 'connectors', cfg)) return '/connectors/';
-  if (can(s, 'social', cfg)) return '/social/';
-  if (can(s, 'journeys', cfg)) return '/journeys/';
-  if (can(s, 'content', cfg)) return '/content/';
-  return '/account/';
-}
+// Where the user lands after sign-in, and where a page they may not open sends them: the start page. Every user may
+// open it, and it lists what they can reach (src/api/routes/today.ts).
+export const home = (): string => '/today/';
 // Blocks redirects to another site after login
 export const safePath = (p: unknown): string =>
   typeof p === 'string' && /^\/(?!\/)[^\s\\]*$/.test(p) ? p : '';

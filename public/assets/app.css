@@ -98,6 +98,7 @@ input[type=checkbox]{width:16px;height:16px;accent-color:var(--ink);margin:0;cur
 .app{display:grid;grid-template-columns:var(--side) 1fr;min-height:100vh}
 .side{position:sticky;top:0;height:100vh;overflow-y:auto;display:flex;flex-direction:column;gap:4px;padding:24px 16px;background:color-mix(in srgb,#FFFFFF 55%,transparent);-webkit-backdrop-filter:blur(12px);backdrop-filter:blur(12px)}
 .side .brand{padding:4px 10px 18px}
+.side-top{display:flex;align-items:center;justify-content:space-between;gap:8px}.side-x{display:none}
 .navi{display:flex;align-items:center;gap:12px;height:44px;padding:0 16px;border-radius:999px;text-decoration:none;color:var(--muted);font-size:15px;position:relative;transition:background var(--ease),color var(--ease)}
 .navi:hover{background:var(--tint);color:var(--text)}
 .navi.locked{opacity:.45;cursor:not-allowed}.navi.locked:hover{background:transparent;color:var(--muted)}.navi .lk{width:14px;height:14px;margin-inline-start:auto}
@@ -130,6 +131,7 @@ input[type=checkbox]{width:16px;height:16px;accent-color:var(--ink);margin:0;cur
   .app.open .side{transform:none}
   .app.open .scrim{display:block;position:fixed;inset:0;background:color-mix(in srgb,var(--ink) 35%,transparent);z-index:60}
   .burger{display:inline-flex}
+  .side-x{display:inline-flex}
   .topbar{padding:12px 16px}
   .content{padding:16px 16px 96px}
 }

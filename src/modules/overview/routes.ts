@@ -10,7 +10,7 @@ export const data = { GET: handle(async (request, e) => {
   const { cfg, user } = await requireUser(request, e, 'overview');
   if (user.co !== WELL_COMPANY) return json(404, { error: 'ما فيه أرقام لشركتك للحين' });
   if (!can(user, 'ceo', cfg)) return json(403, { error: 'ما عندك صلاحية على أرقام التحليلات' });
-  if (Array.isArray(user.depts) && user.depts.length) return json(403, { error: 'نظرة عامة لكل الأقسام. أرقام قسمك في صفحة التحليلات' });
+  if (Array.isArray(user.depts) && user.depts.length) return json(403, { error: 'ملخص الأداء لكل الأقسام. أرقام قسمك في صفحة الحملات والمنصات' });
   const files = (e as unknown as FilesEnv).FILES;
   const obj = files ? await files.get('site/dash.json') : null;
   if (!obj) return json(404, { error: 'ما فيه أرقام للحين' });

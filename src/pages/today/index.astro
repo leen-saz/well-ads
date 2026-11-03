@@ -1,0 +1,58 @@
+---
+import { ClientRouter } from 'astro:transitions';
+// اليوم: صفحة البداية لكل مستخدم حسب صلاحياته. وش جاهز، وش ناقص من الإعداد، أهم إجراء اليوم، والأدوات المسموحة له.
+// الأرقام من /api/today/state (src/api/routes/today.ts)، والسكربت public/assets/today.js
+---
+<!doctype html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="robots" content="noindex,nofollow">
+<meta name="referrer" content="no-referrer">
+<meta name="theme-color" content="#F6F0E3">
+<title>اليوم · Well</title>
+<link rel="preload" href="/assets/fonts/thmanyahsans-Regular.woff2" as="font" type="font/woff2" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@900&display=swap">
+<link rel="stylesheet" href="/assets/app.css">
+<ClientRouter />
+<style is:global>
+.td-hello{margin:0 0 18px;max-width:760px}
+.td-next{padding:20px 24px;display:flex;gap:16px;align-items:center;flex-wrap:wrap;box-shadow:inset 3px 0 0 var(--accent);margin:0 0 20px}
+.td-next div{flex:1 1 260px}.td-next h2{margin:0 0 4px;font-size:18px}.td-next p{margin:0}
+.td-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:16px;margin:0 0 20px}
+.td-grid .card{padding:18px 20px}.td-grid h2{margin:0 0 12px;font-size:16px}
+.td-list{list-style:none;margin:0;padding:0;display:grid;gap:8px}
+.td-list li{display:flex;gap:8px;align-items:flex-start;font-size:14px}.td-list .i{flex:none;margin-top:2px}
+.td-ok .i{color:#14532D}.td-miss .i{color:#7A4B00}
+.td-kpis{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px 16px}
+.td-kpis b{display:block;font-size:20px}.td-kpis small{color:var(--muted);font-size:12px}
+.td-tools h2{margin:0 0 6px;font-size:16px}
+.td-tools .td-sec{margin:0 0 16px}.td-tools .td-sec h3{margin:0 0 8px;font-size:13px;color:var(--muted);font-weight:500}
+.td-links{display:flex;flex-wrap:wrap;gap:8px}
+.td-links a{display:inline-flex;align-items:center;gap:8px;min-height:40px;padding:0 14px;border-radius:999px;border:1px solid var(--line);color:inherit;text-decoration:none;font-size:14px}
+.td-links a:hover{background:var(--tint)}.td-links a:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+</style>
+</head>
+<body data-page="today">
+<div class="app" id="app">
+  <aside class="side" id="side" aria-label="القائمة" transition:persist="side"></aside>
+  <div class="scrim"></div>
+  <div class="main">
+    <header class="topbar" id="top"></header>
+    <main class="content" id="content">
+      <p class="muted td-hello" id="hello"></p>
+      <section class="card td-next" id="next" aria-live="polite"><div><h2>يحمّل…</h2></div></section>
+      <div class="td-grid">
+        <section class="card" aria-labelledby="perfH"><h2 id="perfH">ملخص الأداء</h2><div id="perf" class="muted">يحمّل…</div></section>
+        <section class="card" aria-labelledby="readyH"><h2 id="readyH">وش جاهز</h2><ul class="td-list" id="ready"></ul></section>
+        <section class="card" aria-labelledby="missH"><h2 id="missH">وش ناقص من الإعداد</h2><ul class="td-list" id="miss"></ul></section>
+      </div>
+      <section class="card pad td-tools" aria-labelledby="toolsH"><h2 id="toolsH">أدواتك</h2><p class="muted" style="margin:0 0 14px">اللي تسمح فيه صلاحياتك.</p><div id="mytools"></div></section>
+      <div class="msg" id="msg" role="status"></div>
+    </main>
+  </div>
+</div>
+<script is:inline type="module" src="/assets/router.js"></script>
+</body>
+</html>

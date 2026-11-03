@@ -225,7 +225,7 @@ export const campaigns = {
     if (!Object.hasOwn(DEPTS, dept)) return json(400, { error: 'اختر القسم' });
     const start = typeof f.start === 'string' ? f.start : '';
     if (!/^\d{4}-\d{2}-\d{2}$/.test(start)) return json(400, { error: 'تاريخ البداية ناقص' });
-    if (!/^https?:\/\//i.test(typeof f.creative === 'string' ? f.creative : '')) return json(400, { error: 'رابط الكرييتف لازم يبدأ بـ http' });
+    if (!/^https?:\/\//i.test(typeof f.creative === 'string' ? f.creative : '')) return json(400, { error: 'رابط المادة الإعلانية لازم يبدأ بـ http' });
     const issues = check(f);
     // One compliance list for every tab (src/modules/compliance) + the company's forbidden words. A notice for Leen, not a block.
     const hits = comply(copyOf(f), await rulesFor(cfg, user.co));

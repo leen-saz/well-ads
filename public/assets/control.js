@@ -8,12 +8,14 @@ export default async function mount() {
 
   const PLAT = { meta: 'Meta', snap: 'Snap', tiktok: 'TikTok', google: 'Google' };
   const PRE = { meta: 'm', snap: 's', tiktok: 't', google: 'g' };
-  const KIND = { new_campaign: 'حملة جديدة', pause: 'إيقاف', pause_campaign: 'إيقاف الحملة', budget_up: 'رفع الميزانية', budget_down: 'تنزيل الميزانية', refresh_creative: 'كرييتف جديد', resume: 'تشغيل (تراجع)' };
+  const KIND = { new_campaign: 'حملة جديدة', pause: 'إيقاف', pause_campaign: 'إيقاف الحملة', budget_up: 'رفع الميزانية', budget_down: 'تنزيل الميزانية', refresh_creative: 'مادة إعلانية جديدة', resume: 'تشغيل (تراجع)' };
   const RULE = { pause: 'صرف ضعف الهدف بدون نتيجة', pause_campaign: 'حملة هدفها Traffic', budget_up: 'ليدز أرخص من الهدف بـ 20% أو أكثر', refresh_creative: 'نسبة النقر نزلت 30% أو أكثر' };
   const LEVEL = { campaign: 'حملة', adset: 'مجموعة', ad: 'إعلان' };
   const STATUS = { approved: 'وافق', rejected: 'رفض', modified: 'وافق بتعديل', executed: 'تنفّذ', failed: 'فشل', expired: 'انتهى' };
 
-  const S = { kill: { kill: false }, tab: 'all', q: '', kind: '', level: '', sort: 'impact', open: [], done: [], ads: {}, gen: null, settings: [], owner: false, sel: new Set(), cursor: 0, hist: { status: '' } };
+  // ?tab=log opens the past decisions (the «السجل» link in the sidebar, and /history/)
+  const urlTab = new URLSearchParams(location.search).get('tab');
+  const S = { kill: { kill: false }, tab: ['log', 'learn'].includes(urlTab) ? urlTab : 'all', q: '', kind: '', level: '', sort: 'impact', open: [], done: [], ads: {}, gen: null, settings: [], owner: false, sel: new Set(), cursor: 0, hist: { status: '' } };
 
   // الأثر بالريال لكل أسبوع: الإيقاف يوفر صرف آخر 7 أيام، والرفع يضيف نسبة منه
   function impact(s) {
@@ -87,13 +89,13 @@ export default async function mount() {
   }
   function modes() {
     const same = S.settings.every(x => x.mode === (S.settings[0] || {}).mode);
-    const seg = `<span class="seg" role="group" aria-label="الوضع"><button aria-pressed="true">Manual</button><button disabled data-tip="يفتح بعد ما ينجح التنفيذ في حملات التجربة">${icon('lock')}Auto</button></span>`;
+    const seg = `<span class="seg" role="group" aria-label="الوضع"><button aria-pressed="true">بموافقتي</button><button disabled data-tip="يفتح بعد ما ينجح التنفيذ في حملات التجربة">${icon('lock')}تنفيذ تلقائي</button></span>`;
     if (same) {
       $('#modes').innerHTML = `<b>الوضع</b>${seg}<span class="muted">كل المنصات</span><span class="grow"></span><button class="btn sm secondary" id="limitsBtn" aria-haspopup="dialog">${icon('gear')}حدود التنفيذ</button>`;
       return limits();
     }
     $('#modes').innerHTML = `<b>الوضع</b>${S.settings.map(s => `<span class="bar" style="gap:6px"><span class="muted">${PLAT[s.platform]}</span>
-      <span class="seg" role="group" aria-label="وضع ${PLAT[s.platform]}"><button aria-pressed="true">Manual</button><button disabled data-tip="يفتح بعد ما ينجح التنفيذ في حملات التجربة">${icon('lock')}Auto</button></span></span>`).join('')}
+      <span class="seg" role="group" aria-label="وضع ${PLAT[s.platform]}"><button aria-pressed="true">بموافقتي</button><button disabled data-tip="يفتح بعد ما ينجح التنفيذ في حملات التجربة">${icon('lock')}تنفيذ تلقائي</button></span></span>`).join('')}
       <span class="grow"></span><button class="btn sm secondary" id="limitsBtn" aria-haspopup="dialog">${icon('gear')}حدود التنفيذ</button>`;
     limits();
   }
@@ -102,7 +104,7 @@ export default async function mount() {
       <li>${icon('check')}أقصى تغيير ميزانية بخطوة وحدة: <b class="num">20%</b></li>
       <li>${icon('check')}سقف الصرف اليومي: يتحدد مع المرحلة B</li>
       <li>${icon('check')}ما فيه إيقاف قبل <b class="num">3</b> أيام من التشغيل</li>
-      <li>${icon('check')}أي حملة جديدة تحتاج موافقة لين، حتى في Auto</li>
+      <li>${icon('check')}أي حملة جديدة تحتاج موافقة لين، حتى في التنفيذ التلقائي</li>
       <li>${icon('check')}التنفيذ الحين: <b>إيقاف إعلان في Meta بس</b>، داخل حملات التجربة، وبحد أقصى <b class="num">10</b> بالساعة</li></ul>
       <h3 style="margin-top:14px">حملات التجربة</h3>${canaryHtml()}`, pop => {
       const save = $('[data-canary]', pop); if (!save) return;
@@ -166,7 +168,7 @@ export default async function mount() {
     if (S.cursor >= list.length) S.cursor = Math.max(0, list.length - 1);
     if (!list.length) { $('#inbox').innerHTML = `<div class="empty">${icon('inbox')}<div>ما فيه قرارات تنتظرك</div></div>`; selbar(); return; }
     $('#inbox').innerHTML = `<table><thead><tr><th style="width:36px"><input type="checkbox" id="all" aria-label="تحديد الكل"${list.every(s => S.sel.has(s.id)) ? ' checked' : ''}></th>
-      <th>الكرييتف</th><th>الإعلان</th><th>المنصة</th><th>الاقتراح</th><th>الأثر</th><th>الدليل</th><th>عمر الإعلان</th><th></th></tr></thead><tbody>
+      <th>المادة الإعلانية</th><th>الإعلان</th><th>المنصة</th><th>الاقتراح</th><th>الأثر</th><th>الدليل</th><th>عمر الإعلان</th><th></th></tr></thead><tbody>
       ${list.map((s, i) => { const im = impact(s), age = ageOf(s); return `<tr data-id="${s.id}" aria-selected="${S.sel.has(s.id)}" class="${i === S.cursor ? 'cursor' : ''}">
         <td class="c-pick"><input type="checkbox" data-pick aria-label="تحديد"${S.sel.has(s.id) ? ' checked' : ''}></td>
         <td class="c-thumb">${thumb(s)}</td>
@@ -325,7 +327,7 @@ export default async function mount() {
     return '—';
   }
   const FIELD = { dept: 'القسم', objective: 'الهدف', budget: 'الميزانية اليومية', start: 'البداية', end: 'النهاية', geo: 'الموقع', age_min: 'العمر من', age_max: 'إلى', gender: 'الجنس', lang: 'اللغة',
-    influencer: 'المؤثرة', wa_message: 'رسالة واتساب', creative: 'الكرييتف', primary: 'النص', headline: 'العنوان', cta: 'الزر', destination: 'الوجهة', optimization: 'التحسين', placements: 'أماكن الظهور',
+    influencer: 'المؤثرة', wa_message: 'رسالة واتساب', creative: 'المادة الإعلانية', primary: 'النص', headline: 'العنوان', cta: 'الزر', destination: 'الوجهة', optimization: 'التحسين', placements: 'أماكن الظهور',
     budget_type: 'نوع الميزانية', partnership: 'شراكة', radius: 'نصف القطر', pixel: 'البكسل', ad_type: 'نوع الإعلان', goal: 'الهدف في سناب', qualify: 'سؤال التأهيل', bid: 'المزايدة', spark: 'Spark',
     spark_code: 'كود Spark', lead_form: 'نموذج فوري', type: 'النوع', keywords: 'الكلمات', negatives: 'السلبية', headlines: 'العناوين', descriptions: 'الأوصاف', final_url: 'الرابط', bidding: 'المزايدة' };
   function campaignHTML(s) {

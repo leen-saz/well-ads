@@ -23,7 +23,7 @@ describe('registry', () => {
   it('every live module has routes, and only live ones', () => {
     expect(Object.keys(ROUTES).sort()).toEqual([...LIVE].sort());
     expect(new Set(MODULES.map(m => m.key)).size).toBe(MODULES.length);
-    expect(A.DASHBOARDS).toMatchObject({ ceo: 'التحليلات', maestro: 'المايسترو', social: 'السوشال' });
+    expect(A.DASHBOARDS).toMatchObject({ ceo: 'الحملات والمنصات', maestro: 'المايسترو', social: 'السوشال' });
     for (const m of MODULES.filter(x => x.status === 'soon')) expect(Object.keys(A.DASHBOARDS)).not.toContain(m.key); // soon modules are not dashboards
     expect(A.DASHBOARDS).toMatchObject({ voice: 'الصوت', debugger: 'التتبع' });
     expect(Object.keys(routesModule)).toEqual(['ROUTES']);

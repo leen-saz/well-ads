@@ -2,7 +2,7 @@ import { withKnowledge } from '../knowledge/knowledge';
 import type { Hit } from '../compliance/compliance';
 
 // إيجنت المحتوى و SEO/AEO: يقرا الموقع (الصفحة الرئيسية + sitemap)، ويطلع الملاحظات بقواعد ثابتة،
-// وبعدين يبني بلان بـ Workers AI (مجاني ضمن حد Cloudflare اليومي). لو الذكاء الاصطناعي ما اشتغل، البلان من القواعد بس.
+// وبعدين يبني خطة بـ Workers AI (مجاني ضمن حد Cloudflare اليومي). لو الذكاء الاصطناعي ما اشتغل، الخطة من القواعد بس.
 // كل بند يحتاج موافقة الماركتير قبل النشر (أو تلقائي مع تنبيه).
 
 export interface PageFacts { url: string; status: number; title: string; description: string; h1: string[]; words: number; schema: string[]; faq: boolean; lang: string; canonical: boolean }
@@ -79,14 +79,14 @@ export function audit(pages: PageFacts[]): Item[] {
 }
 
 export function prompt(site: string, niche: string, competitors: string[], pages: PageFacts[], gsc: Gsc[], rules: Item[]): string {
-  return `أنت خبير SEO و AEO للسوق السعودي (الرياض). الموقع: ${site}. النيش: ${niche || 'غير محدد'}.
+  return `أنت خبير SEO و AEO للسوق السعودي (الرياض). الموقع: ${site}. مجال النشاط: ${niche || 'غير محدد'}.
 المنافسين اللي يعجبون الماركتير (نبرة وأسلوب كمرجع): ${competitors.join('، ') || 'ما فيه'}.
 صفحات الموقع (عنوان | كلمات | schema):
 ${pages.map(p => `- ${p.url} | ${p.title} | ${p.words} | ${p.schema.join(',') || '-'}`).join('\n')}
 أعلى كلمات البحث من Search Console (كلمة | ظهور | نقرات | ترتيب):
 ${gsc.slice(0, 30).map(g => `- ${g.query} | ${g.impressions} | ${g.clicks} | ${g.position.toFixed(1)}`).join('\n') || '- غير مربوط'}
 ملاحظات القواعد الثابتة: ${rules.map(r => r.title).join('؛ ')}
-المطلوب: حدد البوزشن والنيش باختصار، وبعدين 8 بنود محتوى جديدة (مقالات، صفحات خدمات، أسئلة شائعة) بالسعودي لخدماتنا في الرياض، بدون ادعاءات طبية (وزارة الصحة).
+المطلوب: حدد البوزشن ومجال النشاط باختصار، وبعدين 8 بنود محتوى جديدة (مقالات، صفحات خدمات، أسئلة شائعة) بالسعودي لخدماتنا في الرياض، بدون ادعاءات طبية (وزارة الصحة).
 كل بند: إذا مبني على كلمة من Search Console فوق، اكتبها بنصها في "query". إذا هو فكرة بدون بيانات بحث خلّ "query" فاضي، ولا تقول في "why" إن عليه بحث أو طلب.
 راجع كل عنوان قبل ما ترجعه: منطقي ومتسق (الفئة العمرية، الخدمة، المكان)، ومن خدماتنا فعلاً. أي عنوان فيه تناقض لا ترجعه.
 رد JSON فقط بهالشكل: {"position":"...","niche":"...","items":[{"kind":"article|page|faq","title":"...","why":"...","priority":1,"query":""}]}`;

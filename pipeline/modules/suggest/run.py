@@ -49,7 +49,7 @@ def plan(s):
     else:
         s["before"] = s["after"] = None
         s["expect"] = {}
-        s["measure_plan"] = "نسبة النقر للكرييتف الجديد بعد 7 أيام."
+        s["measure_plan"] = "نسبة النقر للمادة الإعلانية الجديدة بعد 7 أيام."
         s["reversal_plan"] = "ما يلمس المنصة."
     if sp and ev.get("target_cpl") and sp >= 3 * ev["target_cpl"] * 7:
         risk.append("صرف عالي")
@@ -139,7 +139,7 @@ def build(data, today=None):
             f, l = w(d[:7]), w(d[-7:])
             if f and l is not None and l < 0.7 * f:
                 add(p, "ad", tid, a.get("name"), a.get("campaign"), "refresh_creative",
-                    f"نسبة النقر نزلت من {f:.2f}% في أول 7 أيام إلى {l:.2f}% آخر 7 أيام. الكرييتف بدأ يتعب، جهّز بديل.",
+                    f"نسبة النقر نزلت من {f:.2f}% في أول 7 أيام إلى {l:.2f}% آخر 7 أيام. المادة الإعلانية بدأت تتعب، جهّز بديل.",
                     {"ctr": round(l, 2), "ctr_first": round(f, 2), "days": len(d)}, 40)
 
     for (p, camp), live in camp_live.items():

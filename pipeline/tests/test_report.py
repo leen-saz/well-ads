@@ -470,7 +470,7 @@ class PreviewTests(unittest.TestCase):
         self.assertIn('data-v="off"', html)
         self.assertIn("function passesStatus", html)
         self.assertIn("function applyStat", html)
-        self.assertIn("عرض الكرييتف", html)
+        self.assertIn("عرض المادة الإعلانية", html)
         self.assertIn("function openCreative", html)
         self.assertIn("preview_url", html)
         self.assertNotIn("SUPABASE_SERVICE_ROLE_KEY", html)
