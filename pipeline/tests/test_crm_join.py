@@ -1,4 +1,5 @@
-import os, sys, unittest
+import io, os, re, sys, unittest
+from contextlib import redirect_stdout
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from crm import join  # noqa: E402
@@ -67,6 +68,30 @@ class JoinTests(unittest.TestCase):
         self.assertEqual([r[3] for r in crm["paid_all"]], ["meta_form", "manual"])
         self.assertEqual(join.last_days(crm["paid_all"], "2026-11-01"),
                          {"from": "2026-10-03", "to": "2026-11-01", "closings": 1, "paid_sar": 700.0})
+
+    def test_the_build_log_has_no_business_figures_by_default(self):
+        # The repo and its Actions logs are public: closings, amounts and breakdowns only with PIPELINE_DEBUG=1
+        crm = join.attach({"ads": ADS}, [
+            lead(ad_id="444", status="booked", payment_status="paid", amount_paid_sar=500, paid_at="2026-10-20T10:00:00Z"),
+            lead(lead_id="L-2", source_platform="manual", ad_id=None, payment_status="paid", amount_paid_sar=700, paid_at="2026-10-21T10:00:00Z")])
+        def out():
+            buf = io.StringIO()
+            with redirect_stdout(buf):
+                join.report(crm, today="2026-11-01")
+            return buf.getvalue()
+        os.environ.pop("PIPELINE_DEBUG", None)
+        quiet = out()
+        self.assertEqual(quiet, "crm: ok, 2 rows\n")
+        self.assertNotRegex(quiet, re.compile(r"crm by source.*\d", re.S))
+        for figure in ("500", "700", "1200", "paid", "closings"):
+            self.assertNotIn(figure, quiet)
+        os.environ["PIPELINE_DEBUG"] = "1"
+        try:
+            loud = out()
+        finally:
+            del os.environ["PIPELINE_DEBUG"]
+        self.assertIn("crm by source", loud)
+        self.assertIn("1200", loud)
 
 
 if __name__ == "__main__":
