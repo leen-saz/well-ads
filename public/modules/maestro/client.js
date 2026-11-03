@@ -133,5 +133,5 @@ export default async function mount() {
     else if (/^[1-4]$/.test(e.key) && !$('#board').hidden) { view = VIEWS[Number(e.key) - 1]; filter = 'all'; draw(); }
   }, { signal: pageSignal() });
 
-  shell({ active: 'maestro', title: 'المايسترو' }).then(load).catch(err => say($('#msg'), err.message));
+  shell({ active: 'maestro', title: 'المايسترو', tools: '<a class="btn sm secondary" href="/maestro/video/">فيديو الموشن</a>' }).then(load).catch(err => say($('#msg'), err.message));
 }
