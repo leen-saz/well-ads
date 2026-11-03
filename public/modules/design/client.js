@@ -83,6 +83,8 @@ export function palette(imgs) {
   return { dark: d, accent: `rgb(${vivid.join(',')})`, swatches: cols.slice(0, 5) };
 }
 
+let keepState = null;
+
 export default async function mount() {
   let res = null, pick = 0, img = null, refs = [], pal = null, drawn = null;
   // The brand from المعرفة: colours, logo and font load once; the references uploaded here still win for colours
@@ -173,6 +175,23 @@ export default async function mount() {
   $$('input[name=size]').forEach(x => x.addEventListener('change', render));
   $('#prev').addEventListener('click', e => { const a = e.target.closest('[data-dl]'); if (!a) return; const c = $(`#prev canvas[data-size="${a.dataset.dl}"]`); a.href = c.toDataURL('image/png'); });
 
+  // The language switch reloads the page: the brief's results and pictures come back with it (a minute at most)
+  // One listener per page visit (the router runs mount() on every visit)
+  if (keepState) document.removeEventListener('well:before-lang', keepState);
+  keepState = () => {
+    if (!res) return;
+    const keep = { res, pick, drawn: drawn?.src || '', img: img ? small(img, 1024).toDataURL('image/jpeg', 0.9) : '' };
+    try { sessionStorage.setItem('well-design', JSON.stringify(keep)); } catch { try { sessionStorage.setItem('well-design', JSON.stringify({ ...keep, img: '' })); } catch {} }
+  };
+  document.addEventListener('well:before-lang', keepState);
   await shell({ active: 'design', title: 'التصميم' });
+  let kept = null;
+  try { kept = JSON.parse(sessionStorage.getItem('well-design') || 'null'); sessionStorage.removeItem('well-design'); } catch {}
+  if (kept?.res) {
+    res = kept.res; pick = kept.pick || 0;
+    drawn = kept.drawn ? await picture(kept.drawn).catch(() => null) : null;
+    img = kept.img ? await picture(kept.img).catch(() => null) : null;
+    thumbs(); drawResult(); await render();
+  }
   await loadBrand();
 }

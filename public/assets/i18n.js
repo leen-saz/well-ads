@@ -562,8 +562,32 @@ if (LANG === 'en') {
 export function langSwitch() {
   return `<span class="seg lang" role="group" aria-label="اللغة"><button data-lang="ar" aria-pressed="${LANG === 'ar'}">عربي</button><button data-lang="en" aria-pressed="${LANG === 'en'}">English</button></span>`;
 }
+// The switch reloads the page: what was typed on it is kept for the reload (shell() puts it back), and a page with
+// results of its own (the design tab) gets 'well:before-lang' to keep them too
+const DRAFT = 'well-draft:';
+function saveDraft() {
+  const fields = {};
+  for (const el of document.querySelectorAll('#content input[id], #content textarea[id], #content select[id]')) {
+    if (el.type === 'file' || el.type === 'password' || el.type === 'hidden') continue;
+    fields[el.id] = el.type === 'checkbox' || el.type === 'radio' ? { c: el.checked } : { v: el.value };
+  }
+  try { sessionStorage.setItem(DRAFT + location.pathname, JSON.stringify({ at: Date.now(), fields })); } catch {}
+  document.dispatchEvent(new CustomEvent('well:before-lang'));
+}
+// Once, within a minute of the switch: the fields the page has, as they were typed
+export function restoreDraft() {
+  let d = null;
+  try { d = JSON.parse(sessionStorage.getItem(DRAFT + location.pathname) || 'null'); sessionStorage.removeItem(DRAFT + location.pathname); } catch {}
+  if (!d || Date.now() - d.at > 60_000) return;
+  for (const [id, f] of Object.entries(d.fields || {})) {
+    const el = document.getElementById(id); if (!el) continue;
+    if ('c' in f) el.checked = f.c;
+    else if (el.tagName !== 'SELECT' || [...el.options].some(o => o.value === f.v)) el.value = f.v;
+  }
+}
 document.addEventListener('click', e => {
   const b = e.target.closest('[data-lang]'); if (!b || b.dataset.lang === LANG) return;
   try { localStorage.setItem('well-ads-lang', b.dataset.lang); } catch {}
+  saveDraft();
   const u = new URL(location.href); u.searchParams.delete('lang'); if (b.dataset.lang === 'en') u.searchParams.set('lang', 'en'); location.href = u.toString();
 });
