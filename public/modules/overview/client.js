@@ -1,6 +1,7 @@
-// نظرة عامة: القائمة والعنوان بس. الأرقام والرسم والجدول قطعة React (src/modules/overview/Overview.tsx) تشتغل لحالها.
+// نظرة عامة والكرييتف بالتفصيل (تابات الأداء): القائمة والعنوان بس. المحتوى قطع React في src/modules/overview تشتغل لحالها.
 import { shell } from '/assets/common.js';
 
 export default async function mount() {
-  await shell({ active: 'overview', title: 'نظرة عامة' });
+  const creative = location.pathname.startsWith('/overview/creative');
+  await shell({ active: creative ? 'overview:creative' : 'overview', title: creative ? 'الكرييتف بالتفصيل' : 'نظرة عامة' });
 }
