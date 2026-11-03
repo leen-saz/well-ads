@@ -21,11 +21,18 @@ export function sections(me, L) {
   // A live module's extra pages sit right under it, with the module's own access
   const sub = m => m.status === 'soon' ? [] : (m.pages || []).map(p => ({ ...mod(m), href: `/${m.key}/${p.path}/`, text: L(p.ar, p.en), svg: p.icon, key: `${m.key}:${p.path}` }));
   const mods = (g, keep = () => true) => (me.modules || []).filter(m => m.group === g && keep(m)).flatMap(m => [mod(m), ...sub(m)]);
+  // One entry per place. The performance summary and the creatives exist twice (the Overview module's new pages and
+  // the dashboard's): the entry opens the new page when Overview is on for this company and this user may open it,
+  // else the dashboard. Overview's other numbers are reached from its own page, not from a second sidebar entry.
+  const ov = (me.modules || []).find(m => m.key === 'overview' && m.status === 'live' && m.ok && !m.locked);
+  const one = (useNew, newer, older) => (useNew ? newer : older);
   const items = {
     today: [core('/today/', 'ملخص اليوم', 'Today', SUN, 'today', true), ...mods('today')],
     // ملخص الأداء (موديول overview وصفحاته) أول، بعده اللوحة الكاملة بتبويباتها، بعدها المواد الإعلانية والرصد
-    performance: [...mods('performance', m => m.key === 'overview'), core('/', 'الحملات والمنصات', 'Campaigns & platforms', 'chart', 'ceo'),
-      core('/?view=creative', 'المواد الإعلانية', 'Creatives', 'image', 'creative'), ...mods('performance', m => m.key !== 'overview')],
+    performance: [
+      one(ov, core('/overview/', 'ملخص الأداء', 'Performance summary', 'chart', 'overview', true), core('/', 'ملخص الأداء', 'Performance summary', 'chart', 'ceo')),
+      one(ov, core('/overview/creative/', 'المواد الإعلانية', 'Creatives', 'image', 'overview:creative', true), core('/?view=creative', 'المواد الإعلانية', 'Creatives', 'image', 'creative')),
+      ...mods('performance', m => m.key !== 'overview')],
     create: mods('create'),
     review: [core('/control/', 'لوحة القرارات', 'Decision board', 'gavel', 'control'), ...mods('review'),
       core('/control/?tab=log', 'السجل', 'History', 'clock', 'control:log', has('control'))],

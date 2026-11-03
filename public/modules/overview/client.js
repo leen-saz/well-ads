@@ -3,5 +3,5 @@ import { shell } from '/assets/common.js';
 
 export default async function mount() {
   const creative = location.pathname.startsWith('/overview/creative');
-  await shell({ active: creative ? 'overview:creative' : 'overview', title: creative ? 'المواد الإعلانية بالتفصيل' : 'ملخص الأداء' });
+  await shell({ active: creative ? 'overview:creative' : 'overview', title: creative ? 'المواد الإعلانية' : 'ملخص الأداء' });
 }
