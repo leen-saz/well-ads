@@ -10,5 +10,7 @@
 - منصات تصرف بدون Conversions API، وربط قرب ينتهي.
 - روابط مواقع بدون UTM.
 
+- **«اشرح لي وش أسوي» (Claude):** Claude يقرا نتيجة الفحص ويكتب خطة مرتبة حسب الأثر (`explain.ts`، `POST /api/debugger/explain`). **مدفوع**، ويحتاج `ANTHROPIC_API_KEY` (والنموذج `ANTHROPIC_MODEL`، الافتراضي `claude-opus-5-5`). بدون المفتاح الفحص يشتغل عادي والزر يقول إنه مو مفعّل.
+
 الملفات: `debugger.ts` (القواعد، دالة `diagnose` بدون شبكة)، `routes.ts` (`GET /api/debugger/report`)، `Page.astro`، `public/modules/debugger/client.js`.
 ما يحتاج جداول جديدة: يقرأ `ads` و`ad_metrics` و`crm_leads` و`connections`. لو جدول ما رد، الفحص يكمل بالباقي.
