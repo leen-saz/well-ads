@@ -93,6 +93,8 @@ describe('auth', () => {
     expect(need('/settings/', '')).toBe('any');
     expect(need('/social/', '')).toBe('social');
     expect(need('/api/social/posts', '')).toBe('social');
+    expect(need('/api/listening/probe', '')).toBeNull(); // the handler opens it on staging only
+    expect(need('/api/listening/refresh', '')).toBe('listening');
     expect(need('/soon/', '?t=seo')).toBe('any');
   });
 

@@ -6,6 +6,7 @@ import { weekly, type Lead } from './listening';
 import { readJson } from '../../lib/auth';
 import { SQL, adLibraryUrl, cleanWatch, due, missingTable, sources, type Mention, type Watch } from './social';
 import { collect, store, type ListenEnv } from './fetcher';
+export { probe } from './probe';
 
 export const demand = { GET: handle(async (request, e) => {
   const { cfg, user } = await requireUser(request, e, 'listening');

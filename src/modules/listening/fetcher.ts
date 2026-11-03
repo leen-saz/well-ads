@@ -1,12 +1,12 @@
-// Fetches mentions for one watch from the news (Google, else Bing), plus Reddit, YouTube, and X and TikTok through Grok when their keys exist,
+// Fetches mentions for one watch from the news (Google, else Bing, else GDELT), plus Reddit, YouTube, and X and TikTok through Grok when their keys exist,
 // stores new ones (deduped by URL per company) and scores up to 20 unscored mentions (Grok when keyed, else Workers AI).
 // Every outside call is I/O; parsing is regex/JSON on small bodies, to stay inside the free 10 ms CPU.
 import { env as authEnv, sb, type AuthEnv, type Cfg } from '../../lib/auth';
 import { type AiRun } from '../content/content';
 import { generate, grokSearch, pick } from '../../lib/llm';
 import {
-  dedupe, due, parseBing, parseNews, parseReddit, parseSentiment, parseTikTok, parseX, parseYouTube, query, sentimentPrompt,
-  terms, type Mention, type Watch,
+  dedupe, due, parseBing, parseGdelt, parseNews, parseReddit, parseSentiment, parseTikTok, parseX, parseYouTube, query, sentimentPrompt,
+  terms, gdeltQuery, type Mention, type Watch,
 } from './social';
 
 export type ListenEnv = AuthEnv & {
@@ -15,7 +15,7 @@ export type ListenEnv = AuthEnv & {
 const UA = 'well-ads-listening/1.0 (social listening for Well; contact via well-ads.pages.dev)';
 
 // The answer, or why not ("error 403", "error network"): the page shows it next to the source
-async function get(f: typeof fetch, url: string, init?: RequestInit): Promise<Response | string> {
+export async function get(f: typeof fetch, url: string, init?: RequestInit): Promise<Response | string> {
   try { const r = await f(url, { ...init, headers: { 'user-agent': UA, ...(init?.headers || {}) } }); return r.ok ? r : `error ${r.status}`; } catch { return 'error network'; }
 }
 
@@ -35,7 +35,7 @@ export async function collect(w: Watch & { id: number }, e: ListenEnv, f: typeof
   const q = query(w), found: Mention[] = [], bySource: Record<string, number | string> = {};
   const add = (src: string, list: Mention[]) => { bySource[src] = list.length; found.push(...list); };
   const jobs: Promise<void>[] = [];
-  // News: Google News first. Google often refuses Cloudflare's servers, so then Bing News, one term per request.
+  // News: Google News first. Google often refuses Cloudflare's servers, so then Bing News, one term per request, then GDELT.
   jobs.push((async () => {
     const r = await get(f, `https://news.google.com/rss/search?q=${encodeURIComponent(q)}&hl=ar&gl=SA&ceid=SA:ar`);
     const google = typeof r === 'string' ? [] : parseNews(await r.text(), w.id);
@@ -50,6 +50,10 @@ export async function collect(w: Watch & { id: number }, e: ListenEnv, f: typeof
     }
     bySource.bing = bing.length || !failed ? bing.length : failed;
     found.push(...bing);
+    if (bing.length) return;
+    // GDELT (free, no key, meant for servers): the last resort when both search engines refuse Cloudflare
+    const g = await get(f, `https://api.gdeltproject.org/api/v2/doc/doc?query=${encodeURIComponent(gdeltQuery(w))}&mode=artlist&format=json&maxrecords=50&sort=datedesc&timespan=30d`);
+    if (typeof g === 'string') bySource.gdelt = g; else add('gdelt', parseGdelt(await g.text(), w.id));
   })());
   if (e.REDDIT_CLIENT_ID && e.REDDIT_CLIENT_SECRET) jobs.push((async () => {
     const token = await redditToken(f, e);
