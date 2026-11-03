@@ -2,15 +2,15 @@ import { describe, expect, it } from 'vitest';
 import type { Dash } from './numbers';
 import { ALL, type CreativeAd, adStats, best, cplDiffers, formatOf, ideaName, ideas, matches, media, options, sortIdeas, video } from './creatives';
 
-// Made-up ads: one idea («عرض الأسنان») as a Meta ad on two placements, a copy of it, and a Spark version on TikTok;
+// Made-up ads: one idea («محاليل بالبيت») as a Meta ad on two placements, a copy of it, and a Spark version on TikTok;
 // a WhatsApp ad of another idea; and an image ad with no results
 const D: Dash & { ads: Record<string, CreativeAd> } = {
   range: { start: '2026-10-01', end: '2026-10-05', today: '2026-10-06' },
   ads: {
-    'm1|facebook': { name: 'clip.mp4_عرض الأسنان', campaign: 'أسنان ليدز', platform: 'facebook', dept: 'dental', goal: 'lead', live: true, format: 'فيديو', thumb: '/thumbs/m1.jpg', vid: { i: 1000, v: 300, c: 60 } },
-    'm1|instagram': { name: 'clip.mp4_عرض الأسنان', campaign: 'أسنان ليدز', platform: 'instagram', dept: 'dental', goal: 'lead', live: true, format: 'فيديو', thumb: '/thumbs/m1.jpg', vid: { i: 1000, v: 300, c: 60 } },
-    m2: { name: 'عرض الأسنان - نسخة 2', campaign: 'أسنان رسايل', platform: 'facebook', dept: 'dental', goal: 'messages', format: 'فيديو', vid: { i: 500, v: 50, c: 5 } },
-    t1: { name: 'عرض الأسنان - Spark', campaign: 'تيك توك', platform: 'tiktok', dept: 'dental', goal: 'lead', format: 'VIDEO', text: 'ابتسامتك تستاهل', video: 'https://cdn.example/t1.mp4' },
+    'm1|facebook': { name: 'clip.mp4_محاليل بالبيت', campaign: 'محاليل ليدز', platform: 'facebook', dept: 'iv', goal: 'lead', live: true, format: 'فيديو', thumb: '/thumbs/m1.jpg', vid: { i: 1000, v: 300, c: 60 } },
+    'm1|instagram': { name: 'clip.mp4_محاليل بالبيت', campaign: 'محاليل ليدز', platform: 'instagram', dept: 'iv', goal: 'lead', live: true, format: 'فيديو', thumb: '/thumbs/m1.jpg', vid: { i: 1000, v: 300, c: 60 } },
+    m2: { name: 'محاليل بالبيت - نسخة 2', campaign: 'محاليل رسايل', platform: 'facebook', dept: 'iv', goal: 'messages', format: 'فيديو', vid: { i: 500, v: 50, c: 5 } },
+    t1: { name: 'محاليل بالبيت - Spark', campaign: 'تيك توك', platform: 'tiktok', dept: 'iv', goal: 'lead', format: 'VIDEO', text: 'طاقتك ترجع لك', video: 'https://cdn.example/t1.mp4' },
     w1: { name: 'زيارة منزلية', campaign: 'واتساب', platform: 'snap', dept: 'home', goal: 'messages', format: 'صورة' },
     i1: { name: 'صورة بدون نتيجة', campaign: 'صور', platform: 'snap', goal: 'lead', format: 'صورة' },
   },
@@ -29,16 +29,16 @@ const FROM = '2026-10-01', TO = '2026-10-05';
 describe('creative ideas', () => {
   it('groups versions of the same idea: file prefix, copy and Spark suffixes go', () => {
     const list = ideas(D, FROM, TO);
-    const teeth = list.find(x => x.key === 'عرض الأسنان')!;
+    const teeth = list.find(x => x.key === 'محاليل بالبيت')!;
     expect(list).toHaveLength(2);
     expect(teeth.ads.map(x => x.key).sort()).toEqual(['m1|facebook', 'm1|instagram', 'm2', 't1']);
     expect(teeth.platforms.sort()).toEqual(['meta', 'tiktok']);
-    expect(teeth.depts).toEqual(['dental']);
+    expect(teeth.depts).toEqual(['iv']);
     expect(teeth.live).toBe(true);
   });
 
   it('adds up the period only, and drops ads with no spend and no result', () => {
-    const teeth = ideas(D, FROM, TO).find(x => x.key === 'عرض الأسنان')!;
+    const teeth = ideas(D, FROM, TO).find(x => x.key === 'محاليل بالبيت')!;
     expect(teeth.spend).toBe(250);
     expect(teeth.impr).toBe(6800);
     expect(teeth.results).toBe(20); // 12 leads + 8 chats
@@ -46,7 +46,7 @@ describe('creative ideas', () => {
   });
 
   it('cost per lead uses only lead-goal spend and leads, like the creative wall', () => {
-    const teeth = ideas(D, FROM, TO).find(x => x.key === 'عرض الأسنان')!;
+    const teeth = ideas(D, FROM, TO).find(x => x.key === 'محاليل بالبيت')!;
     expect(teeth.leadSpend).toBe(210); // the WhatsApp copy's 40 stays out
     expect(teeth.leadN).toBe(12);
     expect(teeth.cpl).toBeCloseTo(17.5);
@@ -57,12 +57,12 @@ describe('creative ideas', () => {
   });
 
   it('click rate is clicks ÷ impressions', () => {
-    const teeth = ideas(D, FROM, TO).find(x => x.key === 'عرض الأسنان')!;
+    const teeth = ideas(D, FROM, TO).find(x => x.key === 'محاليل بالبيت')!;
     expect(teeth.ctr).toBeCloseTo(88 / 6800);
   });
 
   it('one Meta ad across placements is one version; versions come biggest spender first', () => {
-    const v = ideas(D, FROM, TO).find(x => x.key === 'عرض الأسنان')!.versions;
+    const v = ideas(D, FROM, TO).find(x => x.key === 'محاليل بالبيت')!.versions;
     expect(v.map(x => x.id)).toEqual(['m1', 't1', 'm2']);
     expect(v[0]!.spend).toBe(150);
     expect(v[0]!.platforms.sort()).toEqual(['facebook', 'instagram']);
@@ -71,13 +71,13 @@ describe('creative ideas', () => {
   });
 
   it('names the idea without the file prefix or the copy and Spark suffixes', () => {
-    expect(ideas(D, FROM, TO).find(x => x.key === 'عرض الأسنان')!.name).toBe('عرض الأسنان');
-    expect(ideaName('Teeth Offer - Spark')).toBe('Teeth Offer');
+    expect(ideas(D, FROM, TO).find(x => x.key === 'محاليل بالبيت')!.name).toBe('محاليل بالبيت');
+    expect(ideaName('IV at home - Spark')).toBe('IV at home');
     expect(ideaName('clip.mp4_')).toBe('clip.mp4_');
   });
 
   it('the idea is shown by an ad with a picture, then by spend', () => {
-    expect(ideas(D, FROM, TO).find(x => x.key === 'عرض الأسنان')!.ad.thumb).toBe('/thumbs/m1.jpg');
+    expect(ideas(D, FROM, TO).find(x => x.key === 'محاليل بالبيت')!.ad.thumb).toBe('/thumbs/m1.jpg');
   });
 });
 
@@ -95,12 +95,12 @@ describe('hook rate', () => {
 describe('filters', () => {
   it('platform filters by family, and the rest by the ad', () => {
     const f = (o: Partial<typeof ALL>) => ideas(D, FROM, TO, { ...ALL, ...o }).map(x => x.key).sort();
-    expect(f({ platform: 'meta' })).toEqual(['عرض الأسنان']);
+    expect(f({ platform: 'meta' })).toEqual(['محاليل بالبيت']);
     expect(f({ platform: 'snap' })).toEqual(['زيارة منزلية']);
     expect(f({ dept: 'home' })).toEqual(['زيارة منزلية']);
-    expect(f({ goal: 'messages' }).sort()).toEqual(['زيارة منزلية', 'عرض الأسنان']);
+    expect(f({ goal: 'messages' }).sort()).toEqual(['زيارة منزلية', 'محاليل بالبيت']);
     expect(f({ format: 'صورة' })).toEqual(['زيارة منزلية']);
-    expect(f({ q: 'ابتسامتك' })).toEqual(['عرض الأسنان']);
+    expect(f({ q: 'طاقتك' })).toEqual(['محاليل بالبيت']);
   });
   it('a filter narrows the idea down to its matching versions', () => {
     const teeth = ideas(D, FROM, TO, { ...ALL, goal: 'messages' })[0]!;
@@ -113,7 +113,7 @@ describe('filters', () => {
   it('offers only what is in the data', () => {
     const o = options(D);
     expect(o.platforms.sort()).toEqual(['meta', 'snap', 'tiktok']);
-    expect(o.depts.sort()).toEqual(['brand', 'dental', 'home']);
+    expect(o.depts.sort()).toEqual(['brand', 'home', 'iv']);
     expect(o.formats).toEqual(['صورة', 'فيديو']);
   });
   it('reads the format in Arabic or English', () => {
@@ -127,8 +127,8 @@ describe('filters', () => {
 describe('sorting and comparing', () => {
   const list = ideas(D, FROM, TO);
   it('sorts by spend, results, cost, click rate and hook', () => {
-    expect(sortIdeas(list, 'spend')[0]!.key).toBe('عرض الأسنان');
-    expect(sortIdeas(list, 'cpl')[0]!.key).toBe('عرض الأسنان'); // the other has no leads: last
+    expect(sortIdeas(list, 'spend')[0]!.key).toBe('محاليل بالبيت');
+    expect(sortIdeas(list, 'cpl')[0]!.key).toBe('محاليل بالبيت'); // the other has no leads: last
     expect(sortIdeas(list, 'hook')[1]!.key).toBe('زيارة منزلية');
   });
   it('the best value in a row: highest, lowest for costs, nothing for spend or a single value', () => {
