@@ -34,6 +34,13 @@ const add = (o: Sums, x: Sums) => { for (const f of Object.keys(o) as (keyof Sum
 const base = (key: string) => key.split('|')[0]!;
 const uniq = (xs: string[]) => [...new Set(xs.filter(Boolean))];
 
+// The idea's title: the ad name without the uploaded file prefix and the Spark/copy suffix (ideaKey, keeping the case)
+export function ideaName(name: string): string {
+  const n = String(name || '').replace(/[\u200e\u200f\u202a-\u202e]/g, '')
+    .replace(/^.*?\.(mp4|mov|webm|jpe?g|png|gif)_/i, '').replace(/\s*-\s*(spark|own)\s*$/i, '').replace(/\s*[-–]?\s*(copy|نسخة)(\s*\d+)?\s*$/i, '');
+  return n.replace(/\s+/g, ' ').trim() || name;
+}
+
 // The format as the filter shows it: video, image, or what the platform calls it (search text, carousel...)
 export function formatOf(a: CreativeAd): string {
   const f = (a.format || '').trim();
@@ -107,7 +114,7 @@ export function ideas(d: Dash, from: string, to: string, f: Filters = ALL): Idea
     for (const x of ads) add(s, x);
     const top = face(ads);
     return {
-      key, name: top.ad.name, ad: top.ad, versions: versionsOf(ads), ads: [...ads].sort((p, q) => q.spend - p.spend),
+      key, name: ideaName(top.ad.name), ad: top.ad, versions: versionsOf(ads), ads: [...ads].sort((p, q) => q.spend - p.spend),
       platforms: uniq(ads.map(x => family(x.ad.platform))), formats: uniq(ads.map(x => formatOf(x.ad))),
       depts: uniq(ads.map(x => x.ad.dept || 'brand')), live: ads.some(x => !!x.ad.live), ...metrics(s, ads),
     };

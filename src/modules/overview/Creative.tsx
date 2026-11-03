@@ -68,8 +68,8 @@ export default function Creative() {
     <div className="ui grid gap-4">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <p className="text-sm text-muted-foreground">من {longDay(from)} إلى {longDay(to)}</p>
-        <ToggleGroup type="single" variant="outline" value={range} onValueChange={v => v && setRange(v as Range)} aria-label="الفترة" className="max-w-full overflow-x-auto">
-          {RANGES.map(([v, t]) => <ToggleGroupItem key={v} value={v} className="px-3 sm:px-4">{t}</ToggleGroupItem>)}
+        <ToggleGroup type="single" variant="outline" value={range} onValueChange={v => v && setRange(v as Range)} aria-label="الفترة" className="w-full sm:w-auto">
+          {RANGES.map(([v, t]) => <ToggleGroupItem key={v} value={v} className="flex-1 px-2 whitespace-nowrap sm:flex-none sm:px-4">{t}</ToggleGroupItem>)}
         </ToggleGroup>
       </div>
       <div className="grid grid-cols-2 gap-2 sm:flex sm:flex-wrap sm:items-center">
@@ -136,7 +136,7 @@ function IdeaCard({ idea, onOpen }: { idea: Idea; onOpen: () => void }) {
   return (
     <Card role="button" tabIndex={0} aria-label={`تفاصيل ${idea.name}`} onClick={onOpen} onKeyDown={e => (e.key === 'Enter' || e.key === ' ') && (e.preventDefault(), onOpen())}
       className="cursor-pointer gap-3 py-4 transition-shadow hover:shadow-md focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none">
-      <div className="px-4"><Preview ad={idea.ad} className="aspect-square" /></div>
+      <div className="px-4"><Preview ad={idea.ad} className="aspect-[4/3]" /></div>
       <div className="grid gap-2 px-4">
         <div className="flex flex-wrap gap-1">
           {idea.platforms.map(p => <Badge key={p} variant="secondary">{platformName(p)}</Badge>)}

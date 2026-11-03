@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import type { Dash } from './numbers';
-import { ALL, type CreativeAd, adStats, best, cplDiffers, formatOf, ideas, matches, media, options, sortIdeas, video } from './creatives';
+import { ALL, type CreativeAd, adStats, best, cplDiffers, formatOf, ideaName, ideas, matches, media, options, sortIdeas, video } from './creatives';
 
 // Made-up ads: one idea («عرض الأسنان») as a Meta ad on two placements, a copy of it, and a Spark version on TikTok;
 // a WhatsApp ad of another idea; and an image ad with no results
@@ -68,6 +68,12 @@ describe('creative ideas', () => {
     expect(v[0]!.platforms.sort()).toEqual(['facebook', 'instagram']);
     expect(v[0]!.cpl).toBe(15);
     expect(v[2]!.cpl).toBeNull();
+  });
+
+  it('names the idea without the file prefix or the copy and Spark suffixes', () => {
+    expect(ideas(D, FROM, TO).find(x => x.key === 'عرض الأسنان')!.name).toBe('عرض الأسنان');
+    expect(ideaName('Teeth Offer - Spark')).toBe('Teeth Offer');
+    expect(ideaName('clip.mp4_')).toBe('clip.mp4_');
   });
 
   it('the idea is shown by an ad with a picture, then by spend', () => {
