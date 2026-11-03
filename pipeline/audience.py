@@ -1,6 +1,6 @@
 """تفاصيل المشاهدين لكل إعلان: العمر والجنس، والمنطقة، والجهاز، والمنصة، وساعة المشاهدة.
 
-كل منصة ترجع {key: {"age": [...], "gender": [...], ...}} وكل صف [الفئة، ظهور، نقرات، صرف بالريال، ليدز أو None].
+كل منصة ترجع {key: {"age": [...], "gender": [...], ...}} وكل صف [الفئة، ظهور، نقرات، صرف بالريال، نتايج أو None]. نتايج ميتا = ليدز + محادثات، و agegender = العمر داخل كل جنس.
 الليدز None يعني المنصة ما تقسمها على الفئات (سناب)، مو صفر.
 النافذة آخر 30 يوم لكل الأبعاد، والساعة آخر 7 أيام في سناب وتيك توك. الساعة بتوقيت الرياض.
 قوقل يعطي العمر والجنس والمنطقة والساعة على مستوى المجموعة الإعلانية، فتنكتب "lvl": "group".
@@ -56,10 +56,15 @@ def meta(E, get, act, usd_sar, now):
                      time_range=json.dumps({"since": since, "until": until}),
                      fields="ad_id,impressions,inline_link_clicks,spend,actions"):
             doc = docs.setdefault(x["ad_id"], {})
-            vals = (x.get("impressions"), x.get("inline_link_clicks"), float(x.get("spend") or 0) * usd_sar, act(x.get("actions"), "lead"))
+            # النتايج = الليدز + المحادثات (أغلب إعلانات ميتا هدفها محادثات واتساب، فالليدز لحالها تطلع صفر)
+            vals = (x.get("impressions"), x.get("inline_link_clicks"), float(x.get("spend") or 0) * usd_sar,
+                    act(x.get("actions"), "lead") + act(x.get("actions"), "onsite_conversion.messaging_conversation_started_7d"))
             if dim is None:
                 _add(doc, "age", x.get("age"), *vals)
                 _add(doc, "gender", x.get("gender"), *vals)
+                # العمر داخل كل جنس فعلي (ميتا ترجعهم مع بعض): "female|35-44"
+                if x.get("gender") and x.get("age"):
+                    _add(doc, "agegender", f'{str(x["gender"]).lower()}|{x["age"]}', *vals)
             elif dim == "hour":
                 _add(doc, "hour", int(str(x.get(bd, "0"))[:2]), *vals)
             else:
