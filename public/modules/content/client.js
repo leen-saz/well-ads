@@ -1,5 +1,8 @@
 // إيجنت المحتوى و SEO/AEO: يحلل الموقع ويبني بلان، والماركتير يوافق على كل بند، ويكتب مسودة، وينشر (تصدير الحين).
 import { $, api, say, esc, shell, busy, LANG } from '/assets/common.js';
+import { marked, hitsHTML } from '/assets/compliance-ui.js';
+
+const ENGINE = { openai: 'ChatGPT', xai: 'Grok', 'workers-ai': 'ذكاء اصطناعي مجاني' };
 
 // Runs on every visit of this page (assets/router.js calls it after each ClientRouter navigation).
 export default async function mount() {
@@ -15,12 +18,12 @@ export default async function mount() {
     const a = cur.analysis || {}, items = [...cur.items].sort((x, y) => x.priority - y.priority);
     stage(items.some(i => i.status === 'done') ? 5 : items.some(i => i.status === 'approved') ? 4 : 3);
     $('#plan').innerHTML = `<div class="bar" style="justify-content:space-between"><h2 style="margin:0">البلان · <span dir="ltr">${esc(cur.site.replace('https://', ''))}</span></h2>
-        <span class="muted">${a.pages || 0} صفحة · ${(a.gsc || []).length ? 'Search Console مربوط' : 'Search Console مو مربوط'} · ${cur.engine === 'workers-ai' ? 'ذكاء اصطناعي + قواعد' : 'قواعد ثابتة'}</span></div>
+        <span class="muted">${a.pages || 0} صفحة · ${(a.gsc || []).length ? 'Search Console مربوط' : 'Search Console مو مربوط'} · ${ENGINE[cur.engine] ? `${ENGINE[cur.engine]} + قواعد` : 'قواعد ثابتة'}</span></div>
       ${a.position ? `<p class="so-note ct-pos"><b>البوزشن:</b> ${esc(a.position)}${a.niche ? `<br><b>النيش:</b> ${esc(a.niche)}` : ''}</p>` : ''}
       <div style="display:grid;gap:10px">${items.map(it => `<article class="card ct-item ${it.status}" data-item="${esc(it.id)}">
         <div class="so-top"><span class="so-chip">${KIND[it.kind] || it.kind}</span><span class="so-chip">أولوية ${it.priority}</span><b>${esc(it.title)}</b><span class="so-st muted">${ST[it.status]}</span></div>
         ${it.why ? `<p class="muted" style="margin:0">${esc(it.why)}</p>` : ''}
-        ${it.draft ? `<pre class="ct-draft" dir="auto">${esc(it.draft)}</pre>` : ''}
+        ${it.draft ? `<pre class="ct-draft" dir="auto">${it.compliance?.length ? marked(it.draft, it.compliance) : esc(it.draft)}</pre>${hitsHTML(it.compliance || [])}` : ''}
         <div class="bar">${it.status === 'proposed' ? '<button class="btn sm primary" data-act="approve">وافق</button><button class="btn sm ghost" data-act="reject">ارفض</button>' : ''}
           ${it.status === 'approved' && it.kind !== 'fix' ? `<button class="btn sm secondary" data-act="draft">${it.draft ? 'أعد كتابة المسودة' : 'اكتب مسودة'}</button>` : ''}
           ${it.status === 'approved' ? `<button class="btn sm secondary" data-copy>${esc(PUB.export?.name || 'تصدير')}</button><button class="btn sm ghost" data-act="done">تم النشر</button>

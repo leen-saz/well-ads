@@ -1,7 +1,8 @@
 // /api/maestro/*: the maestro tab. Agents, tasks and pending approvals of the user's company, from Paperclip.
 // Connecting a company to Paperclip is owner-only; creating tasks needs edit and deciding approvals needs approve on `maestro`.
 import { sb, json, readJson, handle, requireUser, audit, isOwner, atLeast, type AuthEnv, type Cfg } from '../../lib/auth';
-import { client, cleanTask, STATUS, type PcEnv } from './paperclip';
+import { client, cleanTask, STATUS, withBrief, type PcEnv } from './paperclip';
+import { knowledgeFor } from '../knowledge/knowledge';
 
 type Env = AuthEnv & PcEnv;
 type Co = { id: string; name: string; paperclip_company_id: string | null };
@@ -50,7 +51,8 @@ export const task = { POST: handle(async (request, e: Env) => {
   if (!t) return json(400, { error: 'اكتب عنوان المهمة' });
   const c = await companyOf(cfg, user.co);
   if (!c?.paperclip_company_id) return json(409, { error: 'اربط الشركة بالمايسترو أول' });
-  const issue = await pc.createIssue(c.paperclip_company_id, { ...t, description: `${t.description}\n\n— طلبها ${user.email} من لوحة Well` });
+  // The agents run in Paperclip: the company's knowledge goes with each task so they write by it
+  const issue = await pc.createIssue(c.paperclip_company_id, { ...t, description: withBrief(`${t.description}\n\n— طلبها ${user.email} من لوحة Well`, await knowledgeFor(cfg, user.co, 'maestro')) });
   await audit(cfg, user, 'maestro_task', { target: { issue: issue.id, title: t.title, agent: t.assigneeAgentId || null } });
   return json(200, { ok: true, issue });
 }) };

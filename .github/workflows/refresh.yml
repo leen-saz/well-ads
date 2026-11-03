@@ -218,7 +218,10 @@ jobs:
           put() { npx wrangler r2 object put "$BUCKET/site/$1" --file "$2" --content-type "$3" --remote >/dev/null; }
           put csp.txt csp.txt "text/plain; charset=utf-8"
           put control/ads.json public/control/ads.json "application/json"
+          put dash.json public/dash.json "application/json"
           for f in public/c/index.html public/dept/*/index.html public/index.html; do put "${f#public/}" "$f" "text/html; charset=utf-8"; done
+          # Phase 4.2: the same data as JSON per audience (full, creative, each department) for /api/dash/data
+          for f in public/data/*.json public/data/dept/*.json; do put "${f#public/}" "$f" "application/json"; done
           npx wrangler r2 object put "$BUCKET/data.json" --file ../data.json --content-type application/json --remote >/dev/null
           echo "::notice title=refresh::$(wc -l < now.txt) covers in use, $(find public -name index.html | wc -l) pages uploaded"
 

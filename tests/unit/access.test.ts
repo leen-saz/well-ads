@@ -31,7 +31,7 @@ describe('levels', () => {
     expect(A.atLeast(A.sessionFor({ id: 'o', email: 'leen@example.com' }, cfg), 'content', 'approve', cfg)).toBe(true);
   });
 
-  it('view can read but not write; edit can write but not approve', async () => {
+  it('view can read but not write; edit can write and cancel; approving needs the named approver', async () => {
     const viewer = member({ social: 'view' });
     stub(viewer, () => []);
     expect((await ROUTES.social.posts.GET(req('/api/social/posts', await cookieFor(viewer)), E)).status).toBe(200);
@@ -43,11 +43,13 @@ describe('levels', () => {
     stub(editor, () => [{ id: 1 }]);
     const a = await ROUTES.social.posts.PATCH(req('/api/social/posts', await cookieFor(editor), 'PATCH', { id: 1, action: 'approve' }), E);
     expect(a.status).toBe(403);
-    expect(((await a.json()) as { error: string }).error).toBe(A.NO_APPROVE);
     expect((await ROUTES.social.posts.PATCH(req('/api/social/posts', await cookieFor(editor), 'PATCH', { id: 1, action: 'cancel' }), E)).status).toBe(200);
 
+    // Leen: only the manager she names approves; the "approve" level alone is not enough
     const approver = member({ social: 'approve' });
     stub(approver, () => [{ id: 1 }]);
+    expect((await ROUTES.social.posts.PATCH(req('/api/social/posts', await cookieFor(approver), 'PATCH', { id: 1, action: 'approve' }), E)).status).toBe(403);
+    stub(approver, url => url.includes('/companies') ? [{ social_approvers: ['m@example.com'] }] : [{ id: 1 }]);
     expect((await ROUTES.social.posts.PATCH(req('/api/social/posts', await cookieFor(approver), 'PATCH', { id: 1, action: 'approve' }), E)).status).toBe(200);
   });
 

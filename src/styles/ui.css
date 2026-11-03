@@ -1,0 +1,84 @@
+/* shadcn/ui on Well's palette (public/assets/app.css). Loaded only by pages that use src/components/ui,
+   so the rest of the site keeps its own styles. No preflight: the page shell (app.css) already resets. */
+@layer theme, base, components, utilities;
+@import "tailwindcss/theme.css" layer(theme);
+@import "tailwindcss/utilities.css" layer(utilities);
+@import "tw-animate-css";
+
+@source "../components";
+@source "../modules/overview";
+
+@custom-variant dark (&:is(.dark *));
+
+:root {
+  /* Prefixed so they never clash with app.css (--accent, --muted…); portals (menus, sheet) see them too */
+  --ui-radius: 14px;
+  --ui-background: #FFFFFF;
+  --ui-foreground: #1D1069;
+  --ui-card: #FFFFFF;
+  --ui-card-foreground: #1D1069;
+  --ui-popover: #FFFFFF;
+  --ui-popover-foreground: #1D1069;
+  --ui-primary: #7E57FD;
+  --ui-primary-foreground: #FFFFFF;
+  --ui-secondary: color-mix(in srgb, #7E57FD 7%, #FFFFFF);
+  --ui-secondary-foreground: #1D1069;
+  --ui-muted: color-mix(in srgb, #7E57FD 7%, #FFFFFF);
+  --ui-muted-foreground: color-mix(in srgb, #1D1069 62%, #FFFFFF);
+  --ui-accent: color-mix(in srgb, #7E57FD 10%, #FFFFFF);
+  --ui-accent-foreground: #1D1069;
+  --ui-destructive: #F86080;
+  --ui-border: color-mix(in srgb, #ACA6E1 35%, #FFFFFF);
+  --ui-input: color-mix(in srgb, #ACA6E1 45%, #FFFFFF);
+  --ui-ring: #7E57FD;
+  --ui-chart-1: #7E57FD;
+  --ui-chart-2: #221196;
+  --ui-chart-3: #ACA6E1;
+}
+.ui { font-family: var(--f-ar); color: var(--ui-foreground); }
+/* app.css styles table, th, td, input, label and headings without a layer, so it would beat these layered
+   utilities. Inside the shadcn pieces those rules step aside; a small preflight below takes their place. */
+:is(.ui, [data-slot]) :is(table, thead, tbody, tr, th, td, input, label, h1, h2, h3, button, select),
+:is(table, thead, tbody, tr, th, td, input, label, button, select)[data-slot] { all: revert-layer; }
+/* app.css also has more specific table rules (row hover, last row border) */
+.ui tbody tr[data-slot]:hover, .ui tbody tr[data-slot]:last-child td[data-slot] { all: revert-layer; }
+
+@layer base {
+  :is(.ui, [data-slot]), :is(.ui, [data-slot]) *, :is(.ui, [data-slot]) ::before, :is(.ui, [data-slot]) ::after {
+    box-sizing: border-box; border: 0 solid var(--ui-border);
+  }
+  :is(.ui, [data-slot]) :is(button, input, select), :is(button, input, select)[data-slot] {
+    font: inherit; color: inherit; background: transparent; margin: 0; padding: 0;
+  }
+  :is(.ui, [data-slot]) button, button[data-slot] { cursor: pointer; }
+  :is(.ui, [data-slot]) table, table[data-slot] { border-collapse: collapse; text-indent: 0; }
+  :is(.ui, [data-slot]) :is(h1, h2, h3, p) { margin: 0; font: inherit; }
+}
+
+@theme inline {
+  --radius-sm: calc(var(--ui-radius) - 6px);
+  --radius-md: calc(var(--ui-radius) - 4px);
+  --radius-lg: var(--ui-radius);
+  --radius-xl: calc(var(--ui-radius) + 6px);
+  --color-background: var(--ui-background);
+  --color-foreground: var(--ui-foreground);
+  --color-card: var(--ui-card);
+  --color-card-foreground: var(--ui-card-foreground);
+  --color-popover: var(--ui-popover);
+  --color-popover-foreground: var(--ui-popover-foreground);
+  --color-primary: var(--ui-primary);
+  --color-primary-foreground: var(--ui-primary-foreground);
+  --color-secondary: var(--ui-secondary);
+  --color-secondary-foreground: var(--ui-secondary-foreground);
+  --color-muted: var(--ui-muted);
+  --color-muted-foreground: var(--ui-muted-foreground);
+  --color-accent: var(--ui-accent);
+  --color-accent-foreground: var(--ui-accent-foreground);
+  --color-destructive: var(--ui-destructive);
+  --color-border: var(--ui-border);
+  --color-input: var(--ui-input);
+  --color-ring: var(--ui-ring);
+  --color-chart-1: var(--ui-chart-1);
+  --color-chart-2: var(--ui-chart-2);
+  --color-chart-3: var(--ui-chart-3);
+}

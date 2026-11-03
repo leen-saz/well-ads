@@ -1,5 +1,6 @@
 // الرحلات: التحقق من الخطوات، والإرسال لكل قناة. التشغيل نفسه في src/modules/journeys/workflow.ts (Cloudflare Workflows).
 // واتساب مدفوع من Meta لكل محادثة (الاستثناء المسموح، مع تنويه بالتسعيرة). الإيميل من Gmail بحساب الشركة (OAuth).
+import { check, notice, type Rule } from '../compliance/compliance';
 
 export const CHANNELS = {
   wait: { name: 'انتظر' },
@@ -57,7 +58,10 @@ export function cleanContact(c: unknown): Contact | null {
 // {{name}} in messages
 const fill = (s: string, c: Contact) => s.replace(/\{\{\s*name\s*\}\}/g, c.name || '');
 
-export const notices = (steps: Step[]) => [...new Set(steps.flatMap(s => (s.type === 'whatsapp' ? [CHANNELS.whatsapp.notice] : [])))];
+// Channel notes, plus precise compliance notes on every email and push text (a notice, not a block)
+export const notices = (steps: Step[], extra: Rule[] = []) => [...new Set(steps.flatMap((s, i) =>
+  s.type === 'whatsapp' ? [CHANNELS.whatsapp.notice]
+    : s.type === 'email' || s.type === 'push' ? check(`${s.type === 'email' ? s.subject : s.title}\n${s.body}`, extra).map(h => `الخطوة ${i + 1}: ${notice(h)}`) : []))];
 
 type Tokens = Record<string, string | undefined>;
 export type Sent = { ok: boolean; error?: string };
@@ -95,4 +99,24 @@ export async function send(step: Step, c: Contact, t: Tokens, f: typeof fetch = 
   }
   if (step.type === 'push') return { ok: false, error: 'الإشعارات قريباً' };
   return { ok: true };
+}
+
+// "اكتب لي": an email or push text written from the idea (and the company's knowledge), checked before it is shown
+export const LIMITS = { email: { head: 200, body: 3000 }, push: { head: 100, body: 300 } } as const;
+export function writePrompt(type: 'email' | 'push', idea: string, journey: string): string {
+  const l = LIMITS[type];
+  return `اكتب ${type === 'email' ? 'إيميل' : 'إشعار'} بالسعودي الواضح، مخاطبة المذكر، لعميل شركة رعاية صحية منزلية في الرياض، ضمن رحلة: ${journey || 'متابعة عميل'}.
+الفكرة: ${idea || 'متابعة بعد ما سجّل اهتمامه'}
+القواعد: قصير وودود، دعوة واضحة للحجز، بدون وعد بشفاء أو نتيجة، بدون "الأفضل"، بدون تجارب مرضى. تقدر تستخدم {{name}} لاسم العميل.
+العنوان بحد ${l.head} حرف، والنص بحد ${l.body} حرف.
+رد JSON فقط: {"head":"...","body":"..."}`;
+}
+export function cleanWritten(raw: string, type: 'email' | 'push'): { head: string; body: string } | null {
+  const m = String(raw || '').match(/\{[\s\S]*\}/);
+  if (!m) return null;
+  try {
+    const j = JSON.parse(m[0]) as { head?: unknown; body?: unknown };
+    const l = LIMITS[type], head = String(j.head || '').trim().slice(0, l.head), body = String(j.body || '').trim().slice(0, l.body);
+    return head && body ? { head, body } : null;
+  } catch { return null; }
 }
