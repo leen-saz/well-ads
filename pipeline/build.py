@@ -87,8 +87,8 @@ hashes = " ".join(f"'sha256-{base64.b64encode(hashlib.sha256(s.encode()).digest(
 csp = "; ".join([
     "default-src 'none'",
     f"script-src 'self' {hashes}",
-    "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
-    "font-src 'self' https://fonts.gstatic.com",
+    "style-src 'self' 'unsafe-inline'",
+    "font-src 'self'",
     "img-src 'self' data:",
     "media-src https: blob: data:",
     "frame-src https://www.tiktok.com https://www.instagram.com https://www.facebook.com",

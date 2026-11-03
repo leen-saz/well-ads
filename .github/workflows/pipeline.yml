@@ -46,6 +46,10 @@ jobs:
       # Phase 4.1: the same pages the live site serves (build.py), so staging shows identical numbers
       - name: Build the dashboards (build.py)
         working-directory: pipeline
+        # build.py reads the CRM leads (read-only) for the sale stage and the closings; without these it skips them
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
         run: |
           set -euo pipefail
           pip install --disable-pip-version-check -q "Pillow==11.3.0"

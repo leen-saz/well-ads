@@ -223,8 +223,10 @@ def main():
     json.dump(out, open(a.out, "w", encoding="utf-8"), ensure_ascii=False, separators=(",", ":"))
     if a.covers:
         print(f"أغلفة: {len(covers)} جديدة | {sum(1 for v in ads.values() if v.get('thumb'))} من {len(ads)} إعلان لها صورة")
-    print(f"tiktok: {len(ads)} إعلان ({sum(v['live'] for v in ads.values())} نشط) | {len(rows)} صف | "
-          f"صرف {sum(r[2] for r in rows):.2f} | ليدز {sum(r[5] for r in rows):.0f} | {rows[0][1] if rows else '-'} → {rows[-1][1] if rows else '-'}")
+    # Public Actions log (also the last line tiktok/mcp.py repeats): spend and leads only with PIPELINE_DEBUG=1
+    figures = f" | صرف {sum(r[2] for r in rows):.2f} | ليدز {sum(r[5] for r in rows):.0f}" if os.environ.get("PIPELINE_DEBUG") == "1" else ""
+    print(f"tiktok: {len(ads)} إعلان ({sum(v['live'] for v in ads.values())} نشط) | {len(rows)} صف{figures} | "
+          f"{rows[0][1] if rows else '-'} → {rows[-1][1] if rows else '-'}")
 
 
 if __name__ == "__main__":

@@ -134,3 +134,43 @@ describe('brand guide → knowledge', () => {
     expect((await brandguide.POST(req('/api/knowledge/brandguide', await cookieFor(ed), { method: 'POST', body: JSON.stringify({ id: 8 }) }), { ...E, FILES, AI: { run, toMarkdown } } as A.AuthEnv)).status).toBe(404);
   });
 });
+
+describe('brand files: guards', () => {
+  it('reads a guide once even when two requests arrive together', async () => {
+    const ed = member({ knowledge: 'edit' });
+    const FILES = bucket();
+    FILES.store.set(`brand/${CO}/g.pdf`, new Uint8Array([37, 80, 68, 70]).buffer);
+    const toMarkdown = vi.fn(async () => ({ format: 'markdown', data: 'دليل Well: نبرتنا ودودة. لا نستخدم كلمة الأفضل. ألواننا #1D1069.' }));
+    const run = vi.fn(async () => ({ response: '[{"kind":"voice","title":"النبرة","body":"ودودة"}]' }));
+    // The other request holds the lock: the conditional update matches no row
+    const calls = stub(ed, (url, init) => (url.includes('/brand_assets') && init.method === 'PATCH' ? [] : url.includes('/brand_assets') ? [{ id: 7, r2_key: `brand/${CO}/g.pdf` }] : []));
+    const r = await brandguide.POST(req('/api/knowledge/brandguide', await cookieFor(ed), { method: 'POST', body: JSON.stringify({ id: 7 }) }), { ...E, FILES, AI: { run, toMarkdown } } as A.AuthEnv);
+    expect(r.status).toBe(409);
+    expect(calls.find(c => c.method === 'PATCH')?.url).toContain('or=(value.is.null,and(value.eq.reading,updated_at.lt.');
+    expect(run).not.toHaveBeenCalled();
+  });
+  it('releases the lock when the reading fails', async () => {
+    const ed = member({ knowledge: 'edit' });
+    const FILES = bucket();
+    FILES.store.set(`brand/${CO}/g.pdf`, new Uint8Array([37, 80, 68, 70]).buffer);
+    const toMarkdown = vi.fn(async () => ({ format: 'markdown', data: ' ' }));
+    const calls = stub(ed, url => (url.includes('/brand_assets') ? [{ id: 7, r2_key: `brand/${CO}/g.pdf` }] : []));
+    const r = await brandguide.POST(req('/api/knowledge/brandguide', await cookieFor(ed), { method: 'POST', body: JSON.stringify({ id: 7 }) }), { ...E, FILES, AI: { run: vi.fn(), toMarkdown } } as A.AuthEnv);
+    expect(r.status).toBe(422);
+    expect(calls.filter(c => c.method === 'PATCH').map(c => c.body?.value)).toEqual(['reading', null]);
+  });
+  it('a rename without a name is refused, and colour codes only go on the colours entry', async () => {
+    const ed = member({ knowledge: 'edit' });
+    const calls = stub(ed, () => [{ id: 5, kind: 'colors', active: false }]);
+    expect((await brand.PATCH(req('/api/knowledge/brand', await cookieFor(ed), { method: 'PATCH', body: JSON.stringify({ id: 5 }) }), E)).status).toBe(400);
+    expect((await brand.PATCH(req('/api/knowledge/brand', await cookieFor(ed), { method: 'PATCH', body: JSON.stringify({ id: 5, title: '  ' }) }), E)).status).toBe(400);
+    expect(calls.some(c => c.method === 'PATCH')).toBe(false);
+    expect((await brand.PATCH(req('/api/knowledge/brand', await cookieFor(ed), { method: 'PATCH', body: JSON.stringify({ id: 5, value: '#1D1069' }) }), E)).status).toBe(200);
+    expect(calls.find(c => c.method === 'PATCH')?.url).toContain('kind=eq.colors');
+    // colour codes sent for a file that is not the colours entry: no row matches, and that is a clear 404, not an empty 200
+    stub(ed, () => []);
+    const miss = await brand.PATCH(req('/api/knowledge/brand', await cookieFor(ed), { method: 'PATCH', body: JSON.stringify({ id: 9, value: '#1D1069' }) }), E);
+    expect(miss.status).toBe(404);
+    expect(((await miss.json()) as { error?: string }).error).toBeTruthy();
+  });
+});
