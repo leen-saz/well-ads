@@ -39,7 +39,8 @@ def check(data, now):
         if d >= since and sp and a and a.get("dept") in (None, "", "brand"):
             spent[a.get("campaign") or "?"] = spent.get(a.get("campaign") or "?", 0) + sp
     for camp, sp in sorted(spent.items(), key=lambda x: -x[1])[:10]:
-        notes.append(f"حملة بدون قسم واضح من اسمها: {camp} (صرف {sp:.0f} ريال آخر 7 أيام)")
+        # The notes go to the public Actions log and step summary: the spend only with PIPELINE_DEBUG=1
+        notes.append(f"حملة بدون قسم واضح من اسمها: {camp}" + (f" (صرف {sp:.0f} ريال آخر 7 أيام)" if os.environ.get("PIPELINE_DEBUG") == "1" else " (صرفت آخر 7 أيام)"))
     return problems, notes
 
 

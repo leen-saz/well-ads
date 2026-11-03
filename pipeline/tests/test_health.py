@@ -27,6 +27,17 @@ class Health(unittest.TestCase):
         self.assertEqual(len(n), 1)
         self.assertIn("META_X", n[0])
 
+    def test_campaign_spend_stays_out_of_the_public_log(self):
+        # The notes go to the public Actions log and step summary: no amount unless PIPELINE_DEBUG=1
+        d = {"platforms": {}, "ads": {"m1": {"dept": "brand", "campaign": "META_X"}}, "rows": [["m1", "2026-10-27", 1234.0, 1, 1, 0, 0]]}
+        os.environ.pop("PIPELINE_DEBUG", None)
+        self.assertNotIn("1234", health.check(d, NOW)[1][0])
+        os.environ["PIPELINE_DEBUG"] = "1"
+        try:
+            self.assertIn("1234", health.check(d, NOW)[1][0])
+        finally:
+            del os.environ["PIPELINE_DEBUG"]
+
 
 if __name__ == "__main__":
     unittest.main()
