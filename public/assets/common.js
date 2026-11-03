@@ -131,6 +131,8 @@ export async function shell({ active, title, badge = '', tools = '' }) {
   $('#burger').onclick = () => app.classList.add('open');
   $('.scrim', app).onclick = () => app.classList.remove('open');
   warmAnalytics(app);
+  // Every live tab ends with its lessons card (learning loop, docs/learning-loops.md)
+  if ((me.modules || []).some(m => m.key === active && m.status === 'live' && m.ok && !m.locked)) import('./lessons.js').then(m => m.lessonsCard(active)).catch(() => {});
   return me;
 }
 

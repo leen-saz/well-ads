@@ -19,7 +19,7 @@ const EN = {
   'المنصات والحملات':'Platforms and campaigns',
   'طريقة الحساب':'How it is calculated',
   'شخصيات الجمهور':'Audience personas',
-  'من تفاصيل المشاهدين لكل إعلان في الفترة والفلاتر المختارة (ميتا وسناب وتيك توك). العمر والجنس يجون من المنصة كبُعدين منفصلين، فالعمر داخل كل جنس تقريبي.':'From each ad\'s audience detail in the chosen period and filters (Meta, Snap and TikTok). Platforms report age and gender separately, so the age within each gender is approximate.',
+  'من تفاصيل المشاهدين لكل إعلان في الفترة والفلاتر المختارة (ميتا وسناب وتيك توك). العمر داخل كل جنس من ميتا بس (ترجعهم مع بعض)، والمنصات الثانية ما تقسمه. المنطقة والجهاز والوقت لكل المشاهدين. النتايج = الليدز والمحادثات.':'From each ad\'s audience detail in the chosen period and filters (Meta, Snap and TikTok). Age within each gender comes from Meta only (it reports them together); other platforms do not split it. Region, device and time are for everyone. Results = leads and chats.',
   'فلاتر أقل':'Fewer filters',
   'رحلة العميل':'Customer journey',
   'العائد على الصرف':'Return on spend',

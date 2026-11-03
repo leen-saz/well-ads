@@ -179,7 +179,7 @@ export const learning = {
     const { cfg } = await requireUser(request, e, 'control');
     const since = new Date(Date.now() - 7 * 864e5).toISOString();
     const [l, a, o] = await Promise.all([
-      sb(cfg, '/rest/v1/lessons?select=platform,kind,lesson,evidence,confidence,block,created_at&active=eq.true&order=block.desc,confidence.desc&limit=100', { admin: true }),
+      sb(cfg, '/rest/v1/lessons?select=platform,kind,lesson,evidence,confidence,block,created_at&active=eq.true&module=eq.ads&order=block.desc,confidence.desc&limit=100', { admin: true }),
       sb(cfg, `/rest/v1/platform_activity?select=platform,at,actor,event,object_type,object_name,detail&at=gte.${since}&order=at.desc&limit=200`, { admin: true }),
       sb(cfg, '/rest/v1/outcomes?select=suggestion_id,day,metrics,vs_expect,at&order=at.desc&limit=100', { admin: true }),
     ]);

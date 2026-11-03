@@ -33,7 +33,7 @@ def main():
     try:
         rows = db.req("/rest/v1/suggestions?select=*&status=eq.open&critic=is.null&limit=500") or []
         try:
-            lessons = db.req("/rest/v1/lessons?select=platform,kind,lesson,block&active=eq.true&limit=500") or []
+            lessons = db.req("/rest/v1/lessons?select=platform,kind,lesson,block&active=eq.true&module=eq.ads&limit=500") or []
         except Exception:
             lessons = []   # جدول الدروس ما انسوى بعد
         for s in rows:

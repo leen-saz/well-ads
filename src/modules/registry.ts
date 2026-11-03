@@ -10,9 +10,10 @@ import { meta as complianceMeta } from './compliance/module';
 import { meta as listeningMeta } from './listening/module';
 import { meta as designMeta } from './design/module';
 import { meta as voiceMeta } from './voice/module';
+import { meta as copyMeta } from './copy/module';
 import { meta as knowledgeMeta } from './knowledge/module';
 import { meta as overviewMeta } from './overview/module';
 
-export const MODULES: ModuleMeta[] = [maestroMeta, socialMeta, journeysMeta, contentMeta, debuggerMeta, complianceMeta, listeningMeta, designMeta, voiceMeta, knowledgeMeta, overviewMeta];
+export const MODULES: ModuleMeta[] = [maestroMeta, socialMeta, journeysMeta, contentMeta, copyMeta, debuggerMeta, complianceMeta, listeningMeta, designMeta, voiceMeta, knowledgeMeta, overviewMeta];
 export const LIVE = MODULES.filter(m => m.status === 'live').map(m => m.key);
 export const isModule = (k: string): boolean => MODULES.some(m => m.key === k);

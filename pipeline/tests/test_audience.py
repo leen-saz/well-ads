@@ -26,7 +26,16 @@ class MetaTests(unittest.TestCase):
         self.assertEqual(got["age"][0], ["35-44", 300, 3, 15.0, 0.0])          # الأكثر ظهور أول، والصرف بالريال
         self.assertEqual(got["gender"], [["female", 400, 7, 22.5, 1.0]])        # العمر والجنس من نفس الطلب
         self.assertEqual(got["hour"], [[21, 50, 1, 3.75, 0.0]])
+        self.assertEqual(got["agegender"][0], ["female|35-44", 300, 3, 15.0, 0.0])   # العمر داخل الجنس، مو تقدير
         self.assertEqual(got["lvl"], "ad")
+
+
+    def test_results_are_leads_plus_conversations(self):
+        conv = [{"action_type": "onsite_conversion.messaging_conversation_started_7d", "value": "4"}, {"action_type": "lead", "value": "1"}]
+        rows = {"age,gender": [{"ad_id": "1", "age": "25-34", "gender": "male", "impressions": "100", "inline_link_clicks": "4", "spend": "2", "actions": conv}],
+                "region": [], "impression_device": [], "publisher_platform": [], "hourly_stats_aggregated_by_audience_time_zone": []}
+        got = audience.meta({"META_AD_ACCOUNT_ID": "act_1"}, lambda p, **q: rows[q["breakdowns"]], act, 3.75, NOW)["1"]
+        self.assertEqual(got["gender"][0][4], 5.0)
 
 
 class SnapTests(unittest.TestCase):

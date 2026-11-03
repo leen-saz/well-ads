@@ -9,36 +9,46 @@ function renderPersonas(c){
   const el=$('#perCards'); if(!el || !c) return;
   const ads=cardsList(c).map(x=>({k:x.k,a:x.a,spend:x.spend})).filter(x=>x.a.aud && x.a.aud.gender);
   if(!ads.length){ el.innerHTML=`<div class="empty">${ui('ما فيه تفاصيل مشاهدين للإعلانات في هالفترة.','No audience detail for the ads in this period.')}</div>`; $('#perSub').textContent=''; return; }
-  const G={};
-  const add=(o,key,r,w)=>{ const t=(o[key] ||= [0,0,0,null]); t[0]+=r[1]*w; t[1]+=r[2]*w; t[2]+=r[3]*w; if(r[4]!=null) t[3]=(t[3]||0)+r[4]*w; };
+  // Rows: [segment, impressions, clicks, spend, results or null]. Results = leads + chats (Meta), null where the platform does not split them.
+  const G={}, ALL={region:{},device:{},hour:{}};
+  const add=(o,key,r)=>{ const t=(o[key] ||= [0,0,0,null]); t[0]+=r[1]; t[1]+=r[2]; t[2]+=r[3]; if(r[4]!=null) t[3]=(t[3]||0)+r[4]; };
   for(const {k,a} of ads){
-    const g=a.aud.gender, gt=g.reduce((s,r)=>s+r[1],0); if(!gt) continue;
-    for(const gr of g){
+    const A=a.aud;
+    for(const gr of A.gender){
       const gk=String(gr[0]).toLowerCase(); if(gk!=='female'&&gk!=='male') continue;
-      const w=gr[1]/gt, P=(G[gk] ||= {tot:[0,0,0,null],age:{},region:{},device:{},hour:{},ads:[]});
-      add(P,'tot',[0,gr[1],gr[2],gr[3],gr[4]],1);
-      for(const dim of ['age','region','device','hour']) for(const r of (a.aud[dim]||[])) add(P[dim],r[0],r,dim==='age'?w:w);
+      const P=(G[gk] ||= {tot:[0,0,0,null],age:{},ads:[]});
+      add(P,'tot',gr);
       if(gr[1]>=200) P.ads.push({k,a,ctr:100*gr[2]/gr[1],impr:gr[1]});
     }
+    // Age inside each gender only where the platform reports them together (Meta). No estimate from the separate lists.
+    for(const r of (A.agegender||[])){ const [gk,age]=String(r[0]).split('|'); if(G[gk]) add(G[gk].age,age,r); }
+    // Region, device and hour are never split by gender: they describe everyone who saw the ads
+    for(const dim of ['region','device','hour']) for(const r of (A[dim]||[])) add(ALL[dim],r[0],r);
   }
-  const top=(o,n,by)=>Object.entries(o).filter(([,t])=>t[0]>0).sort((x,y)=>by(y[1])-by(x[1])).slice(0,n);
   const ctr=t=>t[0]?t[1]/t[0]:0;
+  const share=(o,by)=>{ const tot=Object.values(o).reduce((x,t)=>x+by(t),0); return Object.entries(o).filter(([,t])=>by(t)>0).sort((x,y)=>by(y[1])-by(x[1])).map(([v,t])=>[v,tot?100*by(t)/tot:0,t]); };
+  // An age group counts only with enough impressions (5% of the gender and 100): small groups made noisy winners
+  const ages=P=>{ const tot=P.tot[0]||1; const ok=Object.entries(P.age).filter(([,t])=>t[0]>=Math.max(100,tot*.05));
+    const rated=ok.filter(([,t])=>t[3]>0).sort((x,y)=>x[1][2]/x[1][3]-y[1][2]/y[1][3]);
+    return (rated.length?rated:ok.sort((x,y)=>ctr(y[1])-ctr(x[1]))).slice(0,2).map(([v])=>audLabel('age',v)); };
   const cards=['female','male'].filter(g=>G[g]&&G[g].tot[0]>0).map(g=>{
-    const P=G[g], T=P.tot, cpl=T[3]?T[2]/T[3]:null;
-    const ages=top(P.age,2,t=>t[3]!=null&&t[3]>0?t[3]/Math.max(t[2],1):ctr(t)).map(([v])=>audLabel('age',v));
-    const reg=top(P.region,1,t=>t[0]).map(([v])=>audLabel('region',v))[0];
-    const dev=top(P.device,1,t=>t[0]).map(([v])=>audLabel('device',v))[0];
-    const hrs=top(P.hour,3,t=>t[1]).map(([v])=>+v).sort((x,y)=>x-y).map(h=>`${h}:00`);
+    const P=G[g], T=P.tot, cpr=T[3]?T[2]/T[3]:null, ag=ages(P);
     const best=P.ads.sort((x,y)=>y.ctr-x.ctr).slice(0,3);
-    return {g,cpl,html:`<article class="per"><h3>${g==='female'?ui('سيدة','Woman'):ui('رجل','Man')} ${ages.length?ages.join(ui(' أو ',' or ')):''}</h3>
-      <p class="who">${[reg&&ui(`من ${reg}`,`in ${reg}`),dev&&ui(`على ${dev}`,`on ${dev}`),hrs.length&&ui(`يتفاعل الساعة ${hrs.join('، ')}`,`engages at ${hrs.join(', ')}`)].filter(Boolean).join(' · ')}</p>
-      <dl><dt>${ui('نسبة النقر','CTR')}</dt><dd>${pct(100*ctr(T))}</dd><dt>${ui('الصرف','Spend')}</dt><dd>${sar(T[2])} ${money()}</dd>
-      <dt>${ui('الليدز','Leads')}</dt><dd>${T[3]==null?ui('سناب ما يقسمها','not split by Snap'):qty(T[3])}</dd><dt>${ui('تكلفة الليد','CPL')}</dt><dd>${cpl==null?'—':sar(cpl)}</dd></dl>
-      ${best.length?`<div><div class="sub">${ui('أكثر كرييتف يعجبه','Creatives they like most')}</div><ol>${best.map(b=>`<li>${esc(b.a.name)} <span class="sub">${pct(b.ctr)}</span></li>`).join('')}</ol></div>`:''}
+    return {g,cpr,html:`<article class="per"><h3>${g==='female'?ui('سيدة','Woman'):ui('رجل','Man')}${ag.length?' '+ag.join(ui(' أو ',' or ')):''}</h3>
+      <dl><dt>${ui('من الظهور','Share of impressions')}</dt><dd>${pct(100*T[0]/((G.female?.tot[0]||0)+(G.male?.tot[0]||0)||1))}</dd>
+      <dt>${ui('نسبة النقر','CTR')}</dt><dd>${pct(100*ctr(T))}</dd><dt>${ui('الصرف','Spend')}</dt><dd>${sar(T[2])} ${money()}</dd>
+      <dt>${ui('النتايج (ليدز ومحادثات)','Results (leads and chats)')}</dt><dd>${T[3]==null?ui('المنصة ما تقسمها','not split by the platform'):qty(T[3])}</dd><dt>${ui('تكلفة النتيجة','Cost per result')}</dt><dd>${cpr==null?'—':sar(cpr)}</dd></dl>
+      ${best.length?`<div><div class="sub">${ui('أكثر كرييتف يشدّه','Creatives that pull them most')}</div><ol>${best.map(b=>`<li>${esc(b.a.name)} <span class="sub">${pct(b.ctr)}</span></li>`).join('')}</ol></div>`:''}
     </article>`};
   });
-  const win=cards.filter(x=>x.cpl!=null).sort((x,y)=>x.cpl-y.cpl)[0];
-  el.innerHTML=cards.map(x=>x===win&&cards.length>1?x.html.replace('<article class="per">',`<article class="per"><span class="best">${ui('الأرخص ليد','Cheapest lead')}</span>`):x.html).join('');
+  const win=cards.filter(x=>x.cpr!=null).sort((x,y)=>x.cpr-y.cpr)[0];
+  // Everyone: the top region and device with their share, and the hours with the most clicks
+  const reg=share(ALL.region,t=>t[0])[0], dev=share(ALL.device,t=>t[0]).slice(0,2), hrs=share(ALL.hour,t=>t[1]).slice(0,3).map(([h])=>+h).sort((x,y)=>x-y);
+  const all=[reg&&ui(`أغلب الظهور من ${audLabel('region',reg[0])} (${pct(reg[1])})`,`Most impressions from ${audLabel('region',reg[0])} (${pct(reg[1])})`),
+    dev.length&&ui(`الأجهزة: ${dev.map(([v,p])=>`${audLabel('device',v)} ${pct(p)}`).join('، ')}`,`Devices: ${dev.map(([v,p])=>`${audLabel('device',v)} ${pct(p)}`).join(', ')}`),
+    hrs.length&&ui(`أكثر نقر الساعة ${hrs.map(h=>h+':00').join('، ')}`,`Most clicks at ${hrs.map(h=>h+':00').join(', ')}`)].filter(Boolean);
+  el.innerHTML=(all.length?`<p class="who" style="grid-column:1/-1;margin:0">${ui('كل المشاهدين','Everyone')}: ${all.join(' · ')}. <span class="sub">${ui('المنصات ما تقسم المنطقة والجهاز والوقت حسب الجنس، والجهاز حسب الظهور مو حسب النقر.','Platforms do not split region, device and time by gender; devices are by impressions, not clicks.')}</span></p>`:'')
+    +cards.map(x=>x===win&&cards.length>1?x.html.replace('<article class="per">',`<article class="per"><span class="best">${ui('الأرخص نتيجة','Cheapest result')}</span>`):x.html).join('');
   $('#perSub').textContent=ui(`من ${fmt(ads.length)} إعلان فيها تفاصيل مشاهدين`,`From ${fmt(ads.length)} ads with audience detail`);
 }
 function audLabel(dim,v){
