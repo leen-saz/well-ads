@@ -1,6 +1,7 @@
 ---
 import { ClientRouter } from 'astro:transitions';
 import Overview from './Overview';
+import PerfTabs from './PerfTabs.astro';
 import '../../styles/ui.css';
 // نظرة عامة: أول تاب مبني على shadcn/ui (React). القائمة والعنوان من public/modules/overview/client.js مثل باقي التابات.
 ---
@@ -25,6 +26,7 @@ import '../../styles/ui.css';
   <div class="main">
     <header class="topbar" id="top"></header>
     <main class="content" id="content">
+      <PerfTabs current="overview" />
       <Overview client:only="react" />
     </main>
   </div>
