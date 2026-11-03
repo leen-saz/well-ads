@@ -14,7 +14,10 @@ export async function lessonsCard(module) {
   card.innerHTML = '<summary class="pad"><h2>وش تعلّمت</h2><span class="muted" id="learnedN"></span></summary><div class="pad" id="learnedBody"></div>';
   content.append(card);
   async function load() {
-    const r = await api(`/api/lessons/list?module=${encodeURIComponent(module)}`);
+    let r;
+    // A failed read says why inside the card, instead of an empty card
+    try { r = await api(`/api/lessons/list?module=${encodeURIComponent(module)}`); }
+    catch (err) { $('#learnedBody', card).innerHTML = `<p class="msg err" style="margin:0">${esc(err.message)}</p>`; return; }
     const n = r.lessons.filter(l => l.status !== 'approved').length;
     $('#learnedN', card).textContent = r.lessons.length ? `${r.lessons.length} درس${n ? ` · ${n} ينتظر` : ''}` : '';
     $('#learnedBody', card).innerHTML = r.lessons.length ? `<ul class="lessons">${r.lessons.map(l => `<li data-id="${l.id}">

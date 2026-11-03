@@ -110,3 +110,12 @@ describe('routes', () => {
     expect(j.drafts[0]!.checks.length).toBeGreaterThan(0);
   });
 });
+
+describe('review with the company rules', () => {
+  it('flags a word the company forbids in the knowledge tab', async () => {
+    const { companyRules } = await import('../compliance/compliance');
+    const p = { name: 'x', service: '', audience: '', offer: '', cta: '', voice: '', banned: [], competitors: [] };
+    const d = review({ hook: '', body: 'عرض خاص من منافسنا', cta: '' }, p as never, companyRules(['منافسنا']));
+    expect(d.compliance.some(h => h.rule.startsWith('company_'))).toBe(true);
+  });
+});

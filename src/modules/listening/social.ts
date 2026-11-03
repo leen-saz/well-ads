@@ -140,15 +140,18 @@ export function parseYouTube(j: unknown, watchId: number): Mention[] {
 }
 
 // Grok (optional, paid): the model answers with a JSON array of X posts it found
-export function parseX(content: string, watchId: number): Mention[] {
+// Posts Grok found, as JSON. Only links on the source's own site are kept (a made-up or outside link is dropped).
+function parseFound(content: string, watchId: number, source: 'x' | 'tiktok', site: RegExp): Mention[] {
   const m = String(content || '').match(/\[[\s\S]*\]/);
   if (!m) return [];
   try {
-    return (JSON.parse(m[0]) as Record<string, unknown>[]).slice(0, 20).filter(x => /^https:\/\/(x|twitter)\.com\//.test(String(x.url || ''))).map(x => ({
-      watch_id: watchId, source: 'x', url: String(x.url), title: clip(x.text, 220), snippet: '', author: clip(x.author, 80), published_at: iso(x.date),
+    return (JSON.parse(m[0]) as Record<string, unknown>[]).slice(0, 20).filter(x => site.test(String(x.url || ''))).map(x => ({
+      watch_id: watchId, source, url: String(x.url), title: clip(x.text, 220), snippet: '', author: clip(x.author, 80), published_at: iso(x.date),
     }));
   } catch { return []; }
 }
+export const parseX = (content: string, watchId: number) => parseFound(content, watchId, 'x', /^https:\/\/(x|twitter)\.com\//);
+export const parseTikTok = (content: string, watchId: number) => parseFound(content, watchId, 'tiktok', /^https:\/\/(www\.|vm\.|m\.)?tiktok\.com\//);
 
 // Sentiment: one AI call for up to 20 mentions; the model answers [{"i":0,"s":"negative","r":"سبب قصير"}]
 export function sentimentPrompt(list: { title: string; snippet: string }[], subjects: string[]): string {
@@ -182,7 +185,7 @@ export const due = (w: Watch, now = Date.now()) => !w.fetched_at || now - Date.p
 
 export function sources(e: { YOUTUBE_API_KEY?: string; XAI_API_KEY?: string; REDDIT_CLIENT_ID?: string; REDDIT_CLIENT_SECRET?: string; AI?: unknown }) {
   // Reddit refuses anonymous searches from servers (403): it needs a free "script" app's id and secret
-  return { news: true, reddit: !!(e.REDDIT_CLIENT_ID && e.REDDIT_CLIENT_SECRET), youtube: !!e.YOUTUBE_API_KEY, x: !!e.XAI_API_KEY, sentiment: !!e.AI };
+  return { news: true, reddit: !!(e.REDDIT_CLIENT_ID && e.REDDIT_CLIENT_SECRET), youtube: !!e.YOUTUBE_API_KEY, x: !!e.XAI_API_KEY, tiktok: !!e.XAI_API_KEY, sentiment: !!e.AI };
 }
 
 // PostgREST "relation does not exist": the migration has not been run yet

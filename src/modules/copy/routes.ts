@@ -1,8 +1,8 @@
 // /api/copy/*: the copywriter tab. Projects of the user's company (setup + competitors), each competitor's style
 // card counted on read, and writing with the free Workers AI (templates when it is not bound).
-import { sb, json, readJson, handle, requireUser, audit, type Cfg } from '../../lib/auth';
+import { sb, json, readJson, handle, requireUser, audit, missingSchema, notApplied, type Cfg } from '../../lib/auth';
 import { scoped } from '../../lib/tenant';
-import { knowledgeFor, withKnowledge } from '../knowledge/knowledge';
+import { loadKnowledge, systemPrompt, forbiddenRules, withKnowledge } from '../knowledge/knowledge';
 import { generate, pick, type LlmEnv } from '../../lib/llm';
 import { winners, type AdIn, type MetIn } from '../design/design';
 import { KINDS, cleanProject, styleCard, writePrompt, parseDrafts, fallbackDrafts, review, type Project } from './copy';
@@ -22,7 +22,7 @@ export const projects = {
   GET: handle(async (request, e) => {
     const { cfg, user } = await requireUser(request, e, 'copy');
     const r = await sb<Row[]>(cfg, scoped('/rest/v1/copy_projects?select=*&order=updated_at.desc&limit=50', user.co), { admin: true });
-    if (!r.ok) return json(500, { error: 'ما قدرت أقرأ المشاريع' });
+    if (!r.ok) return json(missingSchema(r) ? 503 : 500, { error: missingSchema(r) ? notApplied('migration 015_copy.sql') : 'ما قدرت أقرأ المشاريع' });
     return json(200, { projects: rows(r.data).map(withCards), kinds: KINDS });
   }),
   POST: handle(async (request, e) => {
@@ -30,7 +30,7 @@ export const projects = {
     const p = cleanProject(await readJson(request, 200_000));
     if ('error' in p) return json(400, { error: p.error });
     const r = await sb<Row[]>(cfg, '/rest/v1/copy_projects', { method: 'POST', admin: true, headers: { Prefer: 'return=representation' }, body: { ...p, company_id: user.co, created_by: user.email } });
-    if (!r.ok || !rows(r.data).length) return json(500, { error: 'ما انحفظ المشروع' });
+    if (!r.ok || !rows(r.data).length) return json(missingSchema(r) ? 503 : 500, { error: missingSchema(r) ? notApplied('migration 015_copy.sql') : 'ما انحفظ المشروع' });
     await audit(cfg, user, 'copy_project_created', { target: { id: rows(r.data)[0]!.id, name: p.name } });
     return json(200, { ok: true, project: withCards(rows(r.data)[0]!) });
   }),
@@ -43,7 +43,7 @@ export const projects = {
     const p = cleanProject(b, prev);
     if ('error' in p) return json(400, { error: p.error });
     const r = await sb<Row[]>(cfg, scoped(`/rest/v1/copy_projects?id=eq.${id}`, user.co), { method: 'PATCH', admin: true, headers: { Prefer: 'return=representation' }, body: { ...p, updated_at: new Date().toISOString() } });
-    if (!r.ok || !rows(r.data).length) return json(500, { error: 'ما انحفظ المشروع' });
+    if (!r.ok || !rows(r.data).length) return json(missingSchema(r) ? 503 : 500, { error: missingSchema(r) ? notApplied('migration 015_copy.sql') : 'ما انحفظ المشروع' });
     return json(200, { ok: true, project: withCards(rows(r.data)[0]!) });
   }),
 };
@@ -66,13 +66,15 @@ export const write = { POST: handle(async (request, e: AiEnv & Parameters<typeof
   ]);
   const hooks = winners(Array.isArray(ads.data) ? ads.data : [], Array.isArray(metrics.data) ? metrics.data : []).hooks;
   let drafts = fallbackDrafts(p, count), engine = 'templates';
+  // One read of the knowledge: what the writer is told, and the company's forbidden words for the compliance notes
+  const known = await loadKnowledge(cfg, user.co), extra = forbiddenRules(known);
   if (pick(e, 'copy')) {
     try {
-      const out = await generate(e, 'copy', { messages: withKnowledge([{ role: 'user', content: writePrompt(p, kind, count, cards, hooks) }], await knowledgeFor(cfg, user.co, 'copy')), max_tokens: 900 });
+      const out = await generate(e, 'copy', { messages: withKnowledge([{ role: 'user', content: writePrompt(p, kind, count, cards, hooks) }], systemPrompt(known, 'copy')), max_tokens: 900 });
       const got = parseDrafts(out.response, KINDS[kind]!.max);
       if (got.length) { drafts = got; engine = out.engine === 'workers' ? 'workers-ai' : out.engine; }
     } catch { /* templates stay */ }
   }
   await audit(cfg, user, 'copy_written', { target: { project: p.id, kind, count: drafts.length, engine, competitors: cards.length } });
-  return json(200, { drafts: drafts.map(d => review(d, p)), engine, used: { competitors: cards.map(c => c.name), hooks: hooks.slice(0, 5) } });
+  return json(200, { drafts: drafts.map(d => review(d, p, extra)), engine, used: { competitors: cards.map(c => c.name), hooks: hooks.slice(0, 5) } });
 }) };

@@ -1,11 +1,11 @@
-// /api/design/brief: brief + headline variants from our best ads. Reads ads and metrics; writes nothing.
+// /api/design/brief: brief + headline variants from our best ads, and a ChatGPT background when no photo is given. Writes nothing.
 import { sb, json, readJson, handle, requireUser, type Cfg } from '../../lib/auth';
 import { scoped } from '../../lib/tenant';
 import { type AiRun } from '../content/content';
-import { generate, pick, type LlmEnv } from '../../lib/llm';
+import { generate, openaiImage, pick, type LlmEnv } from '../../lib/llm';
 import { knowledgeFor, withKnowledge } from '../knowledge/knowledge';
 import { brandFor, serveFile } from '../knowledge/brand';
-import { SIZES, TYPES, VISION_MODEL, VISION_PROMPT, images, variantsFrom, prompt, stylePrompt, templates, winners, type AdIn, type MetIn } from './design';
+import { SIZES, TYPES, VISION_MODEL, VISION_PROMPT, backgroundPrompt, images, variantsFrom, prompt, stylePrompt, templates, winners, type AdIn, type MetIn } from './design';
 
 // Vision stays on Workers AI (free); the copy is written by OpenAI when OPENAI_API_KEY is set (src/lib/llm.ts)
 type AiEnv = Omit<LlmEnv, 'AI'> & { AI?: { run: AiRun & ((model: string, input: { image: number[]; prompt: string; max_tokens: number }) => Promise<unknown>) } };
@@ -59,6 +59,8 @@ export const brief = { POST: handle(async (request, e: AiEnv & Parameters<typeof
   if (pick(e, 'design') && (looks.product.length || looks.refs.length)) {
     try { style = (await generate(e, 'design', { messages: [{ role: 'user', content: stylePrompt(looks) }], max_tokens: 160 })).response.trim().slice(0, 400); } catch { /* notes are optional */ }
   }
+  // No product photo: ChatGPT draws the background (OpenAI Images, PAID per image), while the text is written
+  const drawing = !pics.some(p => p.kind === 'product') && e.OPENAI_API_KEY ? openaiImage(e, backgroundPrompt(input, brand.colors, style)) : Promise.resolve(null);
   if (pick(e, 'design')) {
     try {
       const out = await generate(e, 'design', { messages: withKnowledge([{ role: 'user', content: prompt(input, ref.hooks, looks) }], await knowledgeFor(cfg, user.co, 'design')), max_tokens: 700 });
@@ -67,5 +69,7 @@ export const brief = { POST: handle(async (request, e: AiEnv & Parameters<typeof
       if (got.length) { variants = got; engine = out.engine === 'workers' ? 'workers-ai' : out.engine; }
     } catch { /* templates stay */ }
   }
-  return json(200, { input, reference: ref, variants, engine, sizes: SIZES, style, images: { product: looks.product.length, refs: looks.refs.length, sent: pics.length } });
+  const image = await drawing;
+  return json(200, { input, reference: ref, variants, engine, sizes: SIZES, style, image, images: { product: looks.product.length, refs: looks.refs.length, sent: pics.length } });
 }) };
+

@@ -99,3 +99,13 @@ export function stylePrompt(looks: { product: string[]; refs: string[] }): strin
 المنتج: ${looks.product.join(' ') || 'ما فيه'}
 المراجع: ${looks.refs.join(' | ') || 'ما فيه'}`;
 }
+
+// The background the image model draws. The page puts the text on top, so the image itself has none.
+// Health-ad rules (MOH): no before/after, no bodies or faces showing a result, no medical claims in the picture.
+export function backgroundPrompt(input: { type: string; offer: string; audience: string; dept: string }, colors: string[], style: string): string {
+  return `Background photo for a ${input.type === 'story' ? 'vertical story' : 'social media'} ad of Well, a home healthcare company in Saudi Arabia.
+Subject: ${input.offer || 'home healthcare visit'}${input.dept ? ` (${input.dept})` : ''}. Audience: ${input.audience || 'Saudi families'}.
+Look: clean, calm, premium, natural light, Saudi home setting${colors.length ? `, colour palette ${colors.join(' ')}` : ''}.${style ? ` Style notes: ${style}` : ''}
+Keep the lower 40% of the frame simple and fairly dark, text goes there.
+No text, letters, numbers, logos or watermarks. No before/after, no bodies or faces showing a treatment result, no syringes in skin, modest dress.`;
+}

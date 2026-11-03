@@ -1,6 +1,6 @@
 // Social listening: source parsing, dedupe, sentiment parsing, watch cleaning, the cron/refresh flow and scoping.
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { adLibraryUrl, cleanWatch, dedupe, due, missingTable, normUrl, parseBing, parseNews, parseReddit, parseSentiment, parseX, parseYouTube, query, sentimentPrompt, sources, terms } from './social';
+import { adLibraryUrl, cleanWatch, dedupe, due, missingTable, normUrl, parseBing, parseNews, parseReddit, parseSentiment, parseTikTok, parseX, parseYouTube, query, sentimentPrompt, sources, terms } from './social';
 import { collect, store } from './fetcher';
 // The page's own maths (plain JS in public/)
 import { summarize, filterMentions } from '../../../public/modules/listening/social.js';
@@ -156,5 +156,14 @@ describe('page maths', () => {
   it('filters mentions', () => {
     expect(filterMentions(M, { sentiment: 'negative' })).toHaveLength(3);
     expect(filterMentions(M, { watch: 2 })).toHaveLength(1);
+  });
+});
+
+describe('parseTikTok', () => {
+  it('keeps tiktok.com links only', () => {
+    const raw = 'نتائج: [{"url":"https://www.tiktok.com/@well/video/1","text":"تجربة","author":"a","date":"2026-11-01"},{"url":"https://evil.example/x","text":"no"}]';
+    const out = parseTikTok(raw, 7);
+    expect(out).toHaveLength(1);
+    expect(out[0]).toMatchObject({ source: 'tiktok', watch_id: 7, url: 'https://www.tiktok.com/@well/video/1' });
   });
 });

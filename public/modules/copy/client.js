@@ -3,7 +3,7 @@ import { $, $$, api, say, esc, shell, busy } from '/assets/common.js';
 
 // Runs on every visit of this page (assets/router.js calls it after each ClientRouter navigation).
 export default async function mount() {
-  let LIST = [], CUR = null, KINDS = {};
+  let LIST = [], CUR = null;
   const FIELDS = ['name', 'service', 'audience', 'offer', 'cta', 'voice'];
   const PLAT = { facebook: 'فيسبوك', instagram: 'انستقرام', tiktok: 'تيك توك', x: 'X', snapchat: 'سناب', linkedin: 'لينكدإن', web: 'موقع' };
 
@@ -35,8 +35,7 @@ export default async function mount() {
 
   async function load(keep) {
     const r = await api('/api/copy/projects');
-    LIST = r.projects; KINDS = r.kinds;
-    if (!$('#kind').options.length) $('#kind').innerHTML = Object.entries(KINDS).map(([k, v]) => `<option value="${k}">${esc(v.ar)}</option>`).join('');
+    LIST = r.projects;
     CUR = LIST.find(p => p.id === keep) || (keep === undefined ? LIST[0] : null) || null;
     fill();
   }

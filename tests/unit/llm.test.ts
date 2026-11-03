@@ -1,7 +1,7 @@
 // Text models: each tab's provider, Workers AI when the key is missing or the provider fails, the Responses API body,
 // and live search that never falls back.
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { DEFAULTS, aiFor, body, generate, grokSearch, pick, textOf } from '../../src/lib/llm';
+import { DEFAULTS, aiFor, body, generate, grokSearch, openaiImage, pick, textOf } from '../../src/lib/llm';
 import { AI_MODEL } from '../../src/modules/content/content';
 import { cleanSuggestion, suggestPrompt } from '../../src/modules/social/social';
 
@@ -77,5 +77,20 @@ describe('social suggestion', () => {
     const long = cleanSuggestion('كلمة '.repeat(100), ['x']);
     expect(long.length).toBeLessThanOrEqual(280);
     expect(long.endsWith('كلمة')).toBe(true);
+  });
+});
+
+describe('openaiImage', () => {
+  it('asks the Images API once and returns a data URL', async () => {
+    const calls: { url: string; body: Record<string, unknown> }[] = [];
+    const f = (async (url: string, init: RequestInit) => { calls.push({ url, body: JSON.parse(String(init.body)) }); return new Response(JSON.stringify({ data: [{ b64_json: 'QUJD' }] })); }) as unknown as typeof fetch;
+    expect(await openaiImage({ OPENAI_API_KEY: 'k' }, 'bg', f)).toBe('data:image/jpeg;base64,QUJD');
+    expect(calls[0]!.url).toBe('https://api.openai.com/v1/images/generations');
+    expect(calls[0]!.body.model).toBe('gpt-image-2');
+  });
+  it('is off without a key and null on a failure', async () => {
+    expect(await openaiImage({}, 'bg')).toBeNull();
+    const f = (async () => new Response('no', { status: 500 })) as unknown as typeof fetch;
+    expect(await openaiImage({ OPENAI_API_KEY: 'k' }, 'bg', f)).toBeNull();
   });
 });

@@ -1,11 +1,11 @@
-// Fetches mentions for one watch from the news (Google, else Bing), plus Reddit, YouTube and Grok when their keys exist,
+// Fetches mentions for one watch from the news (Google, else Bing), plus Reddit, YouTube, and X and TikTok through Grok when their keys exist,
 // stores new ones (deduped by URL per company) and scores up to 20 unscored mentions (Grok when keyed, else Workers AI).
 // Every outside call is I/O; parsing is regex/JSON on small bodies, to stay inside the free 10 ms CPU.
 import { env as authEnv, sb, type AuthEnv, type Cfg } from '../../lib/auth';
 import { type AiRun } from '../content/content';
 import { generate, grokSearch, pick } from '../../lib/llm';
 import {
-  dedupe, due, parseBing, parseNews, parseReddit, parseSentiment, parseX, parseYouTube, query, sentimentPrompt,
+  dedupe, due, parseBing, parseNews, parseReddit, parseSentiment, parseTikTok, parseX, parseYouTube, query, sentimentPrompt,
   terms, type Mention, type Watch,
 } from './social';
 
@@ -66,6 +66,11 @@ export async function collect(w: Watch & { id: number }, e: ListenEnv, f: typeof
   if (e.XAI_API_KEY) jobs.push((async () => {
     const text = await grokSearch(e, [{ role: 'user', content: `ابحث في X (تويتر) عن آخر التغريدات اللي تذكر: ${q}. رد JSON فقط: [{"url":"https://x.com/...","text":"","author":"","date":"YYYY-MM-DD"}]` }], ['x'], 2000, f);
     if (text !== null) add('x', parseX(text, w.id)); else bySource.x = 'Grok ما رد';
+  })());
+  // TikTok has no open search API: Grok's web search over tiktok.com (same key, PAID per search). parseTikTok keeps tiktok.com links only.
+  if (e.XAI_API_KEY) jobs.push((async () => {
+    const text = await grokSearch(e, [{ role: 'user', content: `ابحث في tiktok.com عن آخر الفيديوهات اللي تذكر: ${q}. رد JSON فقط: [{"url":"https://www.tiktok.com/@.../video/...","text":"وصف الفيديو","author":"","date":"YYYY-MM-DD"}]` }], ['web'], 2000, f);
+    if (text !== null) add('tiktok', parseTikTok(text, w.id)); else bySource.tiktok = 'Grok ما رد';
   })());
   await Promise.all(jobs);
   return { found: dedupe(found), bySource };
