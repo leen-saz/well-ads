@@ -1,6 +1,6 @@
 // /api/maestro/*: the maestro tab. Agents, tasks and pending approvals of the user's company, from Paperclip.
 // Connecting a company to Paperclip is owner-only; creating tasks needs edit and deciding approvals needs approve on `maestro`.
-import { sb, json, readJson, handle, requireUser, audit, isOwner, atLeast, missingSchema, notApplied, type AuthEnv, type Cfg } from '../../lib/auth';
+import { sb, json, readJson, handle, requireUser, audit, isOwner, atLeast, notEnabled, missingSchema, notApplied, type AuthEnv, type Cfg } from '../../lib/auth';
 import { scoped } from '../../lib/tenant';
 import { generate, pick, type LlmEnv, type Msg } from '../../lib/llm';
 import { client, cleanTask, STATUS, withBrief, type PcEnv } from './paperclip';
@@ -16,12 +16,12 @@ async function companyOf(cfg: Cfg, co: string): Promise<Co | null> {
   const r = await sb<Co[]>(cfg, `/rest/v1/companies?id=eq.${co}&select=id,name,paperclip_company_id`, { admin: true });
   return r.ok && Array.isArray(r.data) ? r.data[0] || null : null;
 }
-const notSet = () => json(503, { error: 'المايسترو مو جاهز للحين، تواصل مع مسؤولة النظام', setup: true });
+const notSet = (user?: { role: string }) => json(503, { error: notEnabled(user, 'المايسترو', 'PAPERCLIP_URL و PAPERCLIP_TOKEN'), setup: true });
 
 export const state = { GET: handle(async (request, e: Env) => {
   const { cfg, user } = await requireUser(request, e, 'maestro');
   const pc = client(e);
-  if (!pc) return notSet();
+  if (!pc) return notSet(user);
   const c = await companyOf(cfg, user.co);
   if (!c?.paperclip_company_id) return json(200, { connected: false, owner: isOwner(user, cfg), statuses: STATUS });
   let agents: unknown[] = [], issues: unknown[] = [], approvals: unknown[] = [];
@@ -33,7 +33,7 @@ export const state = { GET: handle(async (request, e: Env) => {
 export const connect = { POST: handle(async (request, e: Env) => {
   const { cfg, user } = await requireUser(request, e, 'owner', { write: true });
   const pc = client(e);
-  if (!pc) return notSet();
+  if (!pc) return notSet(user);
   const c = await companyOf(cfg, user.co);
   if (!c) return json(404, { error: 'شركة غير معروفة' });
   if (c.paperclip_company_id) return json(200, { ok: true, id: c.paperclip_company_id });
@@ -51,7 +51,7 @@ export const connect = { POST: handle(async (request, e: Env) => {
 export const task = { POST: handle(async (request, e: Env) => {
   const { cfg, user } = await requireUser(request, e, 'maestro', { write: true });
   const pc = client(e);
-  if (!pc) return notSet();
+  if (!pc) return notSet(user);
   const t = cleanTask(await readJson(request));
   if (!t) return json(400, { error: 'اكتب عنوان المهمة' });
   const c = await companyOf(cfg, user.co);
@@ -65,7 +65,7 @@ export const task = { POST: handle(async (request, e: Env) => {
 export const approval = { POST: handle(async (request, e: Env) => {
   const { cfg, user } = await requireUser(request, e, 'maestro', { write: true, approve: true });
   const pc = client(e);
-  if (!pc) return notSet();
+  if (!pc) return notSet(user);
   const b = await readJson(request);
   const act = b.action === 'approve' ? 'approve' : b.action === 'reject' ? 'reject' : null;
   if (!act) return json(400, { error: 'طلب غير صحيح' });
@@ -198,7 +198,7 @@ export const videoedit = { POST: handle(async (request, e: VEnv) => {
   const b = await readJson(request);
   const change = String(b.change || '').trim().slice(0, 600);
   if (!change) return json(400, { error: 'اكتب وش تبي تغيّر' });
-  if (!pick(e, 'motion') || !e.OPENAI_API_KEY) return json(503, { error: 'التعديل يحتاج ChatGPT، ومفتاح OpenAI مو مضاف للحين' });
+  if (!pick(e, 'motion') || !e.OPENAI_API_KEY) return json(503, { error: notEnabled(user, 'تعديل الفيديو', 'OPENAI_API_KEY') });
   const p = await projectOf(cfg, user.co, b.id);
   if (!p) return json(404, { error: 'الفيديو مو موجود' });
   const all = await versionsOf(cfg, user.co, p.id);
@@ -208,7 +208,7 @@ export const videoedit = { POST: handle(async (request, e: VEnv) => {
   const current = cleanSpec(base.spec, seconds, ratio);
   if (!current) return json(409, { error: 'النسخة هذي ما تنقرى' });
   const made = await plan(e, cfg, user.co, editPrompt(current, change), seconds, ratio, (await brandFor(cfg, user.co)).colors);
-  if (!made || made.engine !== 'openai') return json(502, { error: 'ChatGPT ما رجّع نسخة صالحة، جرّب تكتب التعديل بشكل ثاني' });
+  if (!made || made.engine !== 'openai') return json(502, { error: 'المخرج ما رجّع نسخة صالحة، جرّب تكتب التعديل بشكل ثاني' });
   const next = (all[all.length - 1]?.version || 0) + 1;
   const v = await sb<Version[]>(cfg, '/rest/v1/motion_versions', { method: 'POST', admin: true, headers: { Prefer: 'return=representation' },
     body: { company_id: user.co, project_id: p.id, version: next, parent_version: base.version, change_request: change, spec: made.spec, engine: made.engine, model: made.model, created_by: user.email } });

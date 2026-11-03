@@ -30,6 +30,7 @@ import { ClientRouter } from 'astro:transitions';
 .so-link{margin:8px 0 0}.so-link summary{cursor:pointer;font-size:13px}
 .so-note{font-size:13px;margin:8px 0 0;padding:10px 12px;border-radius:12px;background:var(--tint)}
 .so-appr{margin-bottom:20px}.so-appr h2{margin:0 0 6px}
+.so-warn{color:var(--deep);font-weight:600;font-size:12px}
 </style>
 </head>
 <body data-page="social" data-module>
@@ -51,7 +52,7 @@ import { ClientRouter } from 'astro:transitions';
             <div class="so-up"><input type="file" id="file" accept="image/jpeg,image/png,image/webp,video/mp4,video/quicktime"><span class="muted" id="upMsg"></span></div>
             <div class="so-prev" id="prev" hidden></div>
             <details class="so-link"><summary class="muted">أو حط رابط</summary><input type="url" id="media" dir="ltr" placeholder="https://"></details>
-            <label for="at">وقت النشر</label><input type="datetime-local" id="at" required>
+            <label for="at">وقت النشر <span class="muted">(بتوقيت الرياض)</span></label><input type="datetime-local" id="at" required>
             <p class="so-note" id="who">كل منشور ينتظر اعتماد قبل ما ينشر.</p>
             <div class="bar" style="margin-top:20px"><button class="btn primary" type="submit">جدوِل</button></div>
             <div class="msg" id="msg" role="status"></div>

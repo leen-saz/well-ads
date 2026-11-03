@@ -1,4 +1,4 @@
-// فيديو الموشن (المايسترو): التصميم والصوت المعتمدين ← خطة مشاهد من ChatGPT ← معاينة، «تعديل»، سجل النسخ، والاعتماد.
+// فيديو الموشن (المايسترو): التصميم والصوت المعتمدين ← خطة مشاهد من المخرج (ChatGPT، والواجهة ما تسمي الموديل) ← معاينة، «تعديل»، سجل النسخ، والاعتماد.
 // الرسم في canvas على وقت الصوت (frame.js)، والتنزيل يسجّل نفس الرسم مع الصوت في المتصفح.
 import { $, api, say, esc, shell, busy, when, pageSignal } from '/assets/common.js';
 import { SIZE, frame, draw } from '/modules/motion/frame.js';
@@ -28,7 +28,7 @@ export default async function mount() {
       <button type="button" class="mv-pick" data-v="${v.version}"><b>v${v.version}</b>${v.version === 1 ? ' · الأصلية' : ` · من v${v.parent_version}`}
       ${P.approved_version === v.version ? '<span class="so-chip mv-ok">معتمدة</span>' : ''}</button>
       <p class="muted">${v.change_request ? `«${esc(v.change_request)}»` : 'أول نسخة من التصميم والصوت'}</p>
-      <p class="muted">${esc(v.created_by || '')} · ${when(v.created_at)} · ${v.engine === 'openai' ? 'ChatGPT' : v.engine === 'templates' ? 'قالب ثابت' : esc(v.engine)}</p></li>`).join('');
+      <p class="muted">${esc(v.created_by || '')} · ${when(v.created_at)} · ${v.engine === 'templates' ? 'قالب ثابت' : 'المخرج'}</p></li>`).join('');
     const approvedHere = P.approved_version === cur;
     $('#approve').hidden = !S.canApprove || approvedHere;
     $('#approve').textContent = `اعتمد v${cur} نسخة نهائية`;
@@ -82,7 +82,7 @@ export default async function mount() {
     busy(btn, true); say($('#nmsg'), 'نرفع الملفات…', true);
     try {
       const [dk, vk, secs] = await Promise.all([upload('design', d), upload('voice', v), seconds(v)]);
-      say($('#nmsg'), 'ChatGPT يكتب المشاهد…', true);
+      say($('#nmsg'), 'المخرج يكتب المشاهد…', true);
       const r = await api('/api/maestro/video', { method: 'POST', body: { title: $('#vtitle').value, headline: $('#headline').value, script: $('#script').value, ratio: $('#ratio').value,
         design_key: dk.key, design_mime: dk.mime, voice_key: vk.key, voice_mime: vk.mime, voice_seconds: secs } });
       location.href = `/maestro/video/?id=${r.id}`;
@@ -96,7 +96,7 @@ export default async function mount() {
     ev.preventDefault();
     const change = $('#change').value.trim(), btn = $('#editGo');
     if (!change) return say($('#emsg'), 'اكتب وش تبي تغيّر');
-    busy(btn, true); say($('#emsg'), 'ChatGPT يسوّي النسخة الجديدة…', true);
+    busy(btn, true); say($('#emsg'), 'المخرج يسوّي النسخة الجديدة…', true);
     try {
       const r = await api('/api/maestro/videoedit', { method: 'POST', body: { id: P.id, from: cur, change } });
       $('#change').value = ''; $('#editBox').hidden = true;

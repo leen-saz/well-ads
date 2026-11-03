@@ -1,5 +1,5 @@
 // التصميم: بريف من أفضل إعلاناتنا، نصوص مقترحة مفحوصة على قواعد الامتثال، ومعاينة لكل مقاس.
-// النص دايم طبقة فوق الصورة: الصورة ما تنرفع للسيرفر، والرسم كله في المتصفح، والتحميل PNG.
+// الصورة يصممها المصمم (OpenAI Images: منتجك في مشهد جديد، أو خلفية)، والنص دايم طبقة فوقها في المتصفح، والتحميل PNG.
 import { $, $$, api, say, esc, shell, busy, fmt } from '/assets/common.js';
 
 const PLAT = { meta: 'ميتا', snapchat: 'سناب شات', tiktok: 'تيك توك', google: 'جوجل' };
@@ -83,6 +83,8 @@ export function palette(imgs) {
   return { dark: d, accent: `rgb(${vivid.join(',')})`, swatches: cols.slice(0, 5) };
 }
 
+let keepState = null;
+
 export default async function mount() {
   let res = null, pick = 0, img = null, refs = [], pal = null, drawn = null;
   // The brand from المعرفة: colours, logo and font load once; the references uploaded here still win for colours
@@ -117,8 +119,8 @@ export default async function mount() {
     const v = res.variants[pick];
     $('#prev').innerHTML = sizes().map(k => `<figure class="dz-fig"><canvas data-size="${k}" aria-label="معاينة ${esc(res.sizes[k].label)}"></canvas>
       <figcaption><span>${esc(res.sizes[k].label)}</span><a class="btn sm secondary" data-dl="${k}" href="#" download="well-${k}.png">نزّل PNG</a></figcaption></figure>`).join('') || '<p class="muted">اختر مقاس واحد على الأقل.</p>';
-    // The uploaded photo wins; without one, the background ChatGPT drew for this brief
-    $$('#prev canvas').forEach(c => draw(c, res.sizes[c.dataset.size], v, img || drawn, usePal(), brand));
+    // What ChatGPT drew for this brief (the product in a new scene, or a background); the uploaded photo when it did not
+    $$('#prev canvas').forEach(c => draw(c, res.sizes[c.dataset.size], v, drawn || img, usePal(), brand));
   }
 
   function drawResult() {
@@ -130,7 +132,7 @@ export default async function mount() {
         <p class="muted" style="margin:8px 0 0">${r.medianWords ? `النص الناجح حوالي ${fmt(r.medianWords)} كلمة. ` : ''}${Object.entries(r.formats).map(([f, n]) => `${esc(f)}: ${fmt(n)}`).join(' · ')}</p>
         ${r.hooks.length ? `<div class="ls-topics" style="margin-top:8px">${r.hooks.map(h => `<span class="so-chip">${esc(h)}</span>`).join('')}</div>` : ''}`
         : '<p class="muted">ما فيه إعلانات ليدز بثلاث ليدز أو أكثر آخر 30 يوم، فالنصوص من القوالب.</p>'}`;
-    $('#vars').innerHTML = `<h2>النصوص المقترحة <span class="muted" style="font-size:13px">${{ openai: '· ChatGPT', xai: '· Grok', 'workers-ai': '· ذكاء اصطناعي' }[res.engine] || '· قوالب'}</span></h2>
+    $('#vars').innerHTML = `<h2>النصوص المقترحة <span class="muted" style="font-size:13px">${res.engine === 'templates' ? '· قوالب' : ''}</span></h2>
       <div class="dz-vars">${res.variants.map((v, i) => `<label class="card dz-var${i === pick ? ' on' : ''}"><input type="radio" name="var" value="${i}" ${i === pick ? 'checked' : ''}>
         <b>${esc(v.headline)}</b><span>${esc(v.sub)}</span><span class="so-chip">${esc(v.cta)}</span>
         ${v.flags.map(f => `<span class="dz-flag" title="${esc((f.source || []).map(s => `${s.name}، ${s.ref}`).join(' / '))}">${LEVEL[f.level] || ''}: ${esc(f.title)} «${esc(f.match)}»${f.fix ? `. ${esc(f.fix)}` : ''}</span>`).join('')}</label>`).join('')}</div>
@@ -139,14 +141,21 @@ export default async function mount() {
   }
 
   $('#f').addEventListener('submit', async e => {
-    e.preventDefault(); const btn = e.submitter; busy(btn, true); say($('#msg'), img ? 'يجهز البريف…' : 'يجهز البريف وChatGPT يصمم الخلفية… (حوالي دقيقة)', true);
+    e.preventDefault(); const btn = e.submitter;
+    // An empty subject designs from the brand and our best ads: said once, and a second press goes ahead
+    if (!$('#offer').value.trim() && !btn.dataset.ok) {
+      btn.dataset.ok = '1'; $('#offer').focus();
+      say($('#msg'), 'ما كتبت وش نعلن عنه: لو ضغطت «صمّم» مرة ثانية، المصمم يعتمد على معرفة العلامة وأفضل إعلاناتنا آخر 30 يوم.', true); return;
+    }
+    delete btn.dataset.ok; busy(btn, true); say($('#msg'), 'المصمم شغّال والتصميم بالطريق… (حوالي دقيقة)', true);
     try {
       res = await api('/api/design/brief', { method: 'POST', body: { type: $('#type').value, offer: $('#offer').value, audience: $('#aud').value, dept: $('#dept').value,
+        product: img ? small(img, 1024).toDataURL('image/jpeg', 0.9) : '',
         images: [...(img ? [{ kind: 'product', data: small(img).toDataURL('image/jpeg', 0.7) }] : []), ...refs.map(r => ({ kind: 'ref', data: small(r).toDataURL('image/jpeg', 0.7) }))] } });
       drawn = res.image ? await picture(res.image).catch(() => null) : null;
       pick = 0; drawResult(); await render();
-      const missed = !img && !drawn && res.engine === 'openai';
-      say($('#msg'), missed ? 'النصوص جاهزة، بس ChatGPT ما رجّع خلفية هالمرة. جرّب مرة ثانية أو ارفع صورة.' : 'جاهز. عدّل النص أو اختر خيار ثاني، والمعاينة تتحدث.', !missed);
+      const missed = !drawn && res.engine === 'openai';
+      say($('#msg'), missed ? (img ? 'النصوص جاهزة، بس المصمم ما رجّع صورة هالمرة، فالمعاينة على صورتك الأصلية.' : 'النصوص جاهزة، بس المصمم ما رجّع خلفية هالمرة. جرّب مرة ثانية أو ارفع صورة.') : 'جاهز. عدّل النص أو اختر خيار ثاني، والمعاينة تتحدث.', !missed);
     } catch (err) { say($('#msg'), err.message); }
     busy(btn, false);
   });
@@ -164,7 +173,10 @@ export default async function mount() {
     const files = [...$('#refs').files];
     if (files.length > 4) say($('#msg'), 'أخذت أول 4 صور مرجعية بس.', true);
     refs = (await Promise.all(files.slice(0, 4).map(f => load(f).catch(() => null)))).filter(Boolean);
-    pal = refs.length ? palette(refs) : null; thumbs(); render();
+    pal = refs.length ? palette(refs) : null;
+    // The reference colours only mean something once there are references
+    $('#useRefColors').disabled = !refs.length; $('#useRefColors').checked = !!refs.length; $('#refColorsNote').hidden = !!refs.length;
+    thumbs(); render();
   });
   $('#useRefColors').addEventListener('change', render);
   $('#vars').addEventListener('change', e => { if (e.target.name === 'var') { pick = +e.target.value; drawResult(); render(); } });
@@ -172,6 +184,23 @@ export default async function mount() {
   $$('input[name=size]').forEach(x => x.addEventListener('change', render));
   $('#prev').addEventListener('click', e => { const a = e.target.closest('[data-dl]'); if (!a) return; const c = $(`#prev canvas[data-size="${a.dataset.dl}"]`); a.href = c.toDataURL('image/png'); });
 
+  // The language switch reloads the page: the brief's results and pictures come back with it (a minute at most)
+  // One listener per page visit (the router runs mount() on every visit)
+  if (keepState) document.removeEventListener('well:before-lang', keepState);
+  keepState = () => {
+    if (!res) return;
+    const keep = { res, pick, drawn: drawn?.src || '', img: img ? small(img, 1024).toDataURL('image/jpeg', 0.9) : '' };
+    try { sessionStorage.setItem('well-design', JSON.stringify(keep)); } catch { try { sessionStorage.setItem('well-design', JSON.stringify({ ...keep, img: '' })); } catch {} }
+  };
+  document.addEventListener('well:before-lang', keepState);
   await shell({ active: 'design', title: 'التصميم' });
+  let kept = null;
+  try { kept = JSON.parse(sessionStorage.getItem('well-design') || 'null'); sessionStorage.removeItem('well-design'); } catch {}
+  if (kept?.res) {
+    res = kept.res; pick = kept.pick || 0;
+    drawn = kept.drawn ? await picture(kept.drawn).catch(() => null) : null;
+    img = kept.img ? await picture(kept.img).catch(() => null) : null;
+    thumbs(); drawResult(); await render();
+  }
   await loadBrand();
 }

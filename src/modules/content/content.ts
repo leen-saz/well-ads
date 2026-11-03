@@ -6,7 +6,8 @@ import type { Hit } from '../compliance/compliance';
 // كل بند يحتاج موافقة الماركتير قبل النشر (أو تلقائي مع تنبيه).
 
 export interface PageFacts { url: string; status: number; title: string; description: string; h1: string[]; words: number; schema: string[]; faq: boolean; lang: string; canonical: boolean }
-export interface Item { id: string; kind: 'fix' | 'page' | 'article' | 'faq'; title: string; why: string; priority: 1 | 2 | 3; status: 'proposed' | 'approved' | 'done' | 'rejected'; draft?: string; engine?: string; compliance?: Hit[] }
+// basis: search = built on a real Search Console query (query holds it); idea = the model's suggestion with no search data
+export interface Item { id: string; kind: 'fix' | 'page' | 'article' | 'faq'; title: string; why: string; priority: 1 | 2 | 3; basis?: 'search' | 'idea'; query?: string; status: 'proposed' | 'approved' | 'done' | 'rejected'; draft?: string; engine?: string; compliance?: Hit[] }
 export interface Gsc { query: string; clicks: number; impressions: number; position: number }
 
 export const AI_MODEL = '@cf/meta/llama-3.3-70b-instruct-fp8-fast';
@@ -85,11 +86,16 @@ ${pages.map(p => `- ${p.url} | ${p.title} | ${p.words} | ${p.schema.join(',') ||
 أعلى كلمات البحث من Search Console (كلمة | ظهور | نقرات | ترتيب):
 ${gsc.slice(0, 30).map(g => `- ${g.query} | ${g.impressions} | ${g.clicks} | ${g.position.toFixed(1)}`).join('\n') || '- غير مربوط'}
 ملاحظات القواعد الثابتة: ${rules.map(r => r.title).join('؛ ')}
-المطلوب: حدد البوزشن والنيش باختصار، وبعدين 8 بنود محتوى جديدة (مقالات، صفحات خدمات، أسئلة شائعة) بالسعودي، كل بند يستهدف بحث حقيقي في الرياض، بدون ادعاءات طبية (وزارة الصحة).
-رد JSON فقط بهالشكل: {"position":"...","niche":"...","items":[{"kind":"article|page|faq","title":"...","why":"...","priority":1}]}`;
+المطلوب: حدد البوزشن والنيش باختصار، وبعدين 8 بنود محتوى جديدة (مقالات، صفحات خدمات، أسئلة شائعة) بالسعودي لخدماتنا في الرياض، بدون ادعاءات طبية (وزارة الصحة).
+كل بند: إذا مبني على كلمة من Search Console فوق، اكتبها بنصها في "query". إذا هو فكرة بدون بيانات بحث خلّ "query" فاضي، ولا تقول في "why" إن عليه بحث أو طلب.
+راجع كل عنوان قبل ما ترجعه: منطقي ومتسق (الفئة العمرية، الخدمة، المكان)، ومن خدماتنا فعلاً. أي عنوان فيه تناقض لا ترجعه.
+رد JSON فقط بهالشكل: {"position":"...","niche":"...","items":[{"kind":"article|page|faq","title":"...","why":"...","priority":1,"query":""}]}`;
 }
 
-export function parsePlan(text: string): { position: string; niche: string; items: Item[] } | null {
+// An item counts as built on search only when its query is one Search Console really returned
+const norm = (q: string) => q.trim().replace(/\s+/g, ' ').toLowerCase();
+export function parsePlan(text: string, gsc: Gsc[] = []): { position: string; niche: string; items: Item[] } | null {
+  const known = new Set(gsc.map(g => norm(g.query)));
   const m = text.match(/\{[\s\S]*\}/);
   if (!m) return null;
   try {
@@ -99,7 +105,8 @@ export function parsePlan(text: string): { position: string; niche: string; item
       const kind = ['article', 'page', 'faq'].includes(String(o.kind)) ? (o.kind as Item['kind']) : 'article';
       const title = String(o.title || '').trim().slice(0, 200);
       const p = Number(o.priority);
-      return title ? [{ id: `a${i + 1}`, kind, title, why: String(o.why || '').trim().slice(0, 500), priority: (p === 1 || p === 2 || p === 3 ? p : 2), status: 'proposed' }] : [];
+      const q = norm(String(o.query || '')), basis = q && known.has(q) ? 'search' as const : 'idea' as const;
+      return title ? [{ id: `a${i + 1}`, kind, title, why: String(o.why || '').trim().slice(0, 500), priority: (p === 1 || p === 2 || p === 3 ? p : 2), status: 'proposed', basis, ...(basis === 'search' ? { query: q } : {}) }] : [];
     });
     return { position: String(j.position || '').slice(0, 1000), niche: String(j.niche || '').slice(0, 300), items };
   } catch { return null; }
@@ -110,7 +117,7 @@ export type AiRun = (model: string, input: { messages: { role: string; content: 
 const PLAN_SCHEMA = { type: 'json_schema', json_schema: { type: 'object', required: ['position', 'niche', 'items'], properties: {
   position: { type: 'string' }, niche: { type: 'string' },
   items: { type: 'array', items: { type: 'object', required: ['kind', 'title', 'why', 'priority'], properties: {
-    kind: { type: 'string', enum: ['article', 'page', 'faq'] }, title: { type: 'string' }, why: { type: 'string' }, priority: { type: 'integer' } } } } } } };
+    kind: { type: 'string', enum: ['article', 'page', 'faq'] }, title: { type: 'string' }, why: { type: 'string' }, priority: { type: 'integer' }, query: { type: 'string' } } } } } } };
 // Which model wrote it (src/lib/llm.ts says; plain Workers AI says nothing)
 export const engineOf = (out: unknown): string => String((out as { engine?: unknown })?.engine || 'workers-ai').replace(/^workers$/, 'workers-ai');
 // The model's answer: an object in JSON mode, or text with a JSON object inside
@@ -123,9 +130,9 @@ export async function plan(ai: AiRun | undefined, site: string, niche: string, c
   try {
     const messages = withKnowledge([{ role: 'user', content: prompt(site, niche, competitors, pages, gsc, rules) }], system);
     let out = await ai(AI_MODEL, { messages, max_tokens: 3000, response_format: PLAN_SCHEMA });
-    let parsed = parsePlan(answer(out));
+    let parsed = parsePlan(answer(out), gsc);
     // One more try without JSON mode before giving up
-    if (!parsed?.items.length) { out = await ai(AI_MODEL, { messages, max_tokens: 3000 }); parsed = parsePlan(answer(out)) || parsed; }
+    if (!parsed?.items.length) { out = await ai(AI_MODEL, { messages, max_tokens: 3000 }); parsed = parsePlan(answer(out), gsc) || parsed; }
     if (!parsed || !parsed.items.length) return { engine: 'rules', analysis: { pages: pages.length, ai: 'رد غير مفهوم' }, items: rules };
     return { engine: engineOf(out), analysis: { pages: pages.length, position: parsed.position, niche: parsed.niche }, items: [...rules, ...parsed.items] };
   } catch { return { engine: 'rules', analysis: { pages: pages.length, ai: 'ما اشتغل' }, items: rules }; }

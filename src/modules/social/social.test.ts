@@ -131,3 +131,13 @@ describe('PATCH /api/social/posts approve', () => {
     expect((await approve('leen@x.co', 'owner', [])).status).toBe(200);
   });
 });
+
+describe('readiness before scheduling', () => {
+  it('says which live platform has no connected account', async () => {
+    const { readiness } = await import('./social');
+    expect(readiness('instagram', { META_PAGE_ACCESS_TOKEN: 't', META_PAGE_ID: '1' })).toContain('انستقرام مو مربوط');
+    expect(readiness('instagram', { META_PAGE_ACCESS_TOKEN: 't', IG_USER_ID: '2' })).toBe('');
+    expect(readiness('facebook', {})).toContain('فيسبوك مو مربوطة');
+    expect(readiness('tiktok', {})).toContain('قريباً');
+  });
+});

@@ -89,7 +89,8 @@ async function listening() {
       <details><summary>اعرض الـ SQL</summary><pre id="sql">${esc(d.sql)}</pre></details>
       <div class="bar" style="margin-top:8px"><button class="btn secondary" type="button" id="copySql">انسخ الـ SQL</button></div></section>` : '';
     const s = d.sources || {};
-    const chip = (on, label, need) => `<span class="${on ? '' : 'off'}" title="${on ? 'شغّال' : esc(need)}">${on ? '✓' : '○'} ${esc(label)}${on ? '' : ` · ${esc(need)}`}</span>`;
+    // Off sources say «يحتاج تفعيل»; the key name stays in the tooltip for whoever sets it up
+    const chip = (on, label, need) => `<span class="${on ? '' : 'off'}" title="${on ? 'شغّال' : esc(need)}">${on ? '✓' : '○'} ${esc(label)}${on || !need ? '' : ' · يحتاج تفعيل من الإدارة'}</span>`;
     $('#src').innerHTML = chip(s.news, 'الأخبار (قوقل، وإذا رفض فـ Bing)', '') + chip(s.reddit, 'ريديت', 'يحتاج REDDIT_CLIENT_ID و REDDIT_CLIENT_SECRET') + chip(s.youtube, 'يوتيوب', 'يحتاج YOUTUBE_API_KEY')
       + chip(s.x, 'X عن طريق Grok (مدفوع)', 'يحتاج XAI_API_KEY') + chip(s.tiktok, 'تيك توك عن طريق Grok (مدفوع)', 'يحتاج XAI_API_KEY') + chip(s.sentiment, 'تحليل الشعور', 'يحتاج Workers AI');
     $('#refresh').disabled = !!d.missing; $('#wf button[type=submit]').disabled = !!d.missing;

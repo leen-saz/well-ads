@@ -46,8 +46,8 @@ import { ClientRouter } from 'astro:transitions';
     <header class="topbar" id="top"></header>
     <main class="content" id="content">
       <div id="setup"></div>
-      <p class="so-note" style="margin-bottom:12px">OpenAI قفل توليد الفيديو (Sora) من الـ API في 24 سبتمبر 2026، فالفيديو هنا موشن جرافيك: تصميمك المعتمد يتحرك على صوتك المعتمد، وChatGPT يكتب المشاهد ويعدّلها.</p>
-      <p class="so-note" id="ready" hidden style="margin-bottom:12px">مفتاح OpenAI مو مضاف: أول نسخة تطلع من قالب ثابت، والتعديل ما يشتغل لين ينضاف.</p>
+      <p class="so-note" style="margin-bottom:12px">الفيديو هنا موشن جرافيك: تصميمك المعتمد يتحرك على صوتك المعتمد، والمخرج يكتب المشاهد ويعدّلها على طلبك. ما فيه لقطات مصوّرة جديدة.</p>
+      <p class="so-note" id="ready" hidden style="margin-bottom:12px">المخرج مو مفعّل للحين: أول نسخة تطلع من قالب ثابت، والتعديل ما يشتغل لين يتفعّل.</p>
       <div class="msg" id="msg" role="status" style="margin:0 0 12px"></div>
       <div class="mv-grid">
         <div>
@@ -60,7 +60,7 @@ import { ClientRouter } from 'astro:transitions';
             <label for="script">نص التعليق الصوتي</label><textarea id="script" rows="4" maxlength="2000" placeholder="الصق نفس النص اللي انقرا في الصوت، عشان المشاهد تمشي معه"></textarea>
             <div class="mv-row"><div><label for="ratio">المقاس</label><select id="ratio"><option value="9:16">9:16 ستوري وريلز</option><option value="1:1">1:1 مربع</option><option value="16:9">16:9 عرضي</option></select></div></div>
             <button class="btn primary" id="make" type="submit">جهّز الفيديو</button>
-            <span class="mv-paid">مدفوع: ChatGPT (OpenAI) يكتب المشاهد، وكل نسخة طلب واحد بتكلفة بسيطة.</span>
+            <span class="mv-paid">مدفوع: المخرج (ذكاء اصطناعي) يكتب المشاهد، وكل نسخة طلب واحد بتكلفة بسيطة.</span>
             <div class="msg" id="nmsg" role="status"></div>
           </form>
           <div class="mv-list" id="list"></div>
@@ -78,7 +78,7 @@ import { ClientRouter } from 'astro:transitions';
               <label for="change">وش تبي تغيّر؟</label>
               <textarea id="change" rows="3" maxlength="600" placeholder="مثال: خل العنوان يطلع أكبر، وغيّر الزر لـ «اطلب زيارة»، وخل النص يجي من فوق"></textarea>
               <div class="bar" style="margin-top:8px"><button class="btn primary" type="submit" id="editGo">سوّ النسخة الجديدة</button><button class="btn ghost" type="button" id="editCancel">إلغاء</button></div>
-              <span class="mv-paid">مدفوع: كل تعديل طلب واحد لـ ChatGPT. النسخة الحالية تبقى في السجل.</span>
+              <span class="mv-paid">مدفوع: كل تعديل طلب واحد للمخرج. النسخة الحالية تبقى في السجل.</span>
               <div class="msg" id="emsg" role="status"></div>
             </div></form>
             <h3 style="margin:8px 0 0;font-size:15px">سجل النسخ</h3>

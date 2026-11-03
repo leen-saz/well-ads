@@ -35,7 +35,7 @@ export const analyze = { POST: handle(async (request, e: AiEnv) => {
   // Nothing to propose: say so instead of saving an empty plan
   if (!p.items.length) return json(422, { error: p.analysis && 'ai' in p.analysis ? 'التحليل ما طلع بنود هالمرة، جرّب مرة ثانية بعد دقيقة' : 'الموقع ما فيه ملاحظات واضحة هالمرة. جرّب تكتب النيش والمنافسين عشان يطلع لك أفكار محتوى' });
   const r = await sb<Row[]>(cfg, '/rest/v1/content_plans', { method: 'POST', admin: true, headers: { Prefer: 'return=representation' },
-    body: { company_id: user.co, site, niche, competitors, analysis: { ...p.analysis, gsc: gsc.slice(0, 20), pages }, items: p.items, engine: p.engine, created_by: user.email } });
+    body: { company_id: user.co, site, niche, competitors, analysis: { ...p.analysis, gsc: gsc.slice(0, 20), crawled: pages }, items: p.items, engine: p.engine, created_by: user.email } });
   if (!r.ok) return json(500, { error: 'ما انحفظ البلان' });
   await audit(cfg, user, 'content_plan', { target: { site, items: p.items.length, engine: p.engine } });
   return json(200, { ok: true, plan: rows(r.data)[0] });
