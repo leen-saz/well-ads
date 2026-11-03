@@ -97,6 +97,12 @@ import { ClientRouter } from 'astro:transitions';
 .lx-form .row2{display:grid;grid-template-columns:1fr 1fr;gap:8px}
 .lx-sql pre{white-space:pre-wrap;font-size:12px;max-height:220px;overflow:auto;background:var(--tint);padding:10px;border-radius:12px;direction:ltr;text-align:left}
 .lx-empty{padding:18px;text-align:center}
+.lx-brand{margin:0 0 16px;border-inline-start:4px solid var(--accent)}
+.lx-sug{display:flex;flex-wrap:wrap;gap:6px;align-items:center}
+.lx-sug button.so-chip{border:0;cursor:pointer;font:inherit;min-height:32px}
+.lx-keys{margin:0 0 16px}
+.lx-keys ul{margin:0;padding-inline-start:20px;display:grid;gap:4px;font-size:14px}
+.lx-keys code{direction:ltr;unicode-bidi:isolate}
 </style>
 </head>
 <body data-page="listening" data-module>
@@ -113,6 +119,8 @@ import { ClientRouter } from 'astro:transitions';
 
       <section id="paneListen" role="tabpanel" aria-labelledby="tabL">
         <div id="setup"></div>
+        <div id="brand"></div>
+        <div id="keys"></div>
         <div class="lx-head">
           <div class="lx-src" id="src" aria-label="المصادر"></div>
           <div class="bar">

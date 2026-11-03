@@ -192,3 +192,17 @@ describe('parseTikTok', () => {
     expect(out[0]).toMatchObject({ source: 'tiktok', watch_id: 7, url: 'https://www.tiktok.com/@well/video/1' });
   });
 });
+
+describe('our brand and missing keys (page)', () => {
+  it('suggests Well terms that are not watched yet and adds them in one request', async () => {
+    const { brandSuggestions, brandAdd, missingKeys, WELL_TERMS } = await import('../../../public/modules/listening/social.js');
+    const comp = { id: 1, kind: 'competitor', name: 'ايفر كير', keywords: [] };
+    expect(brandSuggestions([comp])).toEqual(WELL_TERMS);
+    expect(brandAdd([comp], WELL_TERMS)).toEqual({ kind: 'brand', name: 'ويل يونيون', keywords: ['تطبيق ويل', 'wellunion', 'wellcare'], links: {} });
+    const brand = { id: 2, kind: 'brand', name: 'ويل يونيون', keywords: ['WellUnion'], links: { x: '@well' } };
+    expect(brandSuggestions([comp, brand])).toEqual(['تطبيق ويل', 'wellcare']);
+    expect(brandAdd([comp, brand], ['wellcare'])).toEqual({ id: 2, kind: 'brand', name: 'ويل يونيون', keywords: ['WellUnion', 'wellcare'], links: { x: '@well' } });
+    expect(brandAdd([comp, brand], ['wellunion'])).toBeNull();
+    expect(missingKeys({ news: true, youtube: true }).map(k => k.src)).toEqual(['x', 'reddit']);
+  });
+});
