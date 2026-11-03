@@ -7,4 +7,6 @@
 - يشتغل على Paperclip
 - فيديو الموشن انتقل للتصميم (`/design/video/`، نوع «موشن جرافيك»). المدير ينسّق الإيجنتس: مهام، موافقات، أدوار وميزانيات. لما تكون الشركة مربوطة، الفيديو الجديد يفتح مهمة هنا.
 
+- المحادثة: كل رسالة تصحّي إيجنت الـ CEO في Paperclip (مدفوع على Grok)، فالحد 10 رسائل بالدقيقة لكل مستخدم (من `audit_log`). اللي ينكتب في Paperclip فيه اسم المستخدم بس، بدون إيميله.
+
 **الملفات:** module.ts، routes.ts، paperclip.ts (عميل Paperclip)، Page.astro، `public/modules/maestro/client.js`، maestro.test.ts
