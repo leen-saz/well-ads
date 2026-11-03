@@ -6,6 +6,7 @@ import { gate } from './lib/gate';
 import type { AuthEnv } from './lib/auth';
 import { withSecurityHeaders } from './lib/headers';
 import { serveSite } from './lib/site';
+import { versionAssets } from './lib/assets';
 import { dispatchRefresh, type CronEnv } from './lib/cron';
 import { runListening, type ListenEnv } from './modules/listening/fetcher';
 import { runSocial } from './modules/social/cron';
@@ -24,6 +25,11 @@ const app = new Hono<{ Bindings: Bindings }>();
 app.use(async (c, next) => {
   await next();
   c.res = withSecurityHeaders(c.res);
+});
+// Pages load our scripts and styles from their versioned, immutable copies
+app.use(async (c, next) => {
+  await next();
+  c.res = versionAssets(c.res);
 });
 app.use(async (c, next) => {
   if (REWRITTEN.has(c.req.raw)) return next();

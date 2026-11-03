@@ -1,6 +1,7 @@
 // Phase 4.1: the dashboards as the pipeline builds them (pipeline/build.py), served from R2 behind the gateway.
 // Same pages and numbers as the live site; later pieces replace them with Astro pages one by one.
 import { mediaPath } from '../modules/social/media';
+import { ASSET_V } from './assets';
 
 // Pages the pipeline uploads under site/ (see .github/workflows/pipeline.yml)
 export function siteKey(pathname: string): string | null {
@@ -106,10 +107,12 @@ async function servePage(request: Request, bucket: R2Bucket, key: string): Promi
   // The page and its policy are read together, not one after the other
   const [page, csp] = await Promise.all([kept(bucket, key), html ? kept(bucket, 'site/csp.txt') : Promise.resolve(null)]);
   if (!page) return new Response('غير موجود', { status: 404, headers: { 'content-type': 'text/plain; charset=utf-8' } });
-  const headers = new Headers({ 'content-type': TYPES[ext] ?? 'application/octet-stream', etag: page.etag, 'cache-control': 'private, no-cache' });
+  // The HTML points at this deploy's versioned scripts (src/lib/assets.ts), so a new deploy is a new page for the browser
+  const etag = html && ASSET_V ? page.etag.replace(/"$/, `-${ASSET_V}"`) : page.etag;
+  const headers = new Headers({ 'content-type': TYPES[ext] ?? 'application/octet-stream', etag, 'cache-control': 'private, no-cache' });
   // build.py hashes the page's inline scripts into this policy (same CSP the live site sends)
   if (csp) headers.set('content-security-policy', framable(new TextDecoder().decode(csp.bytes).trim()));
-  if (etagIn(request.headers.get('if-none-match'), page.etag)) return new Response(null, { status: 304, headers });
+  if (etagIn(request.headers.get('if-none-match'), etag)) return new Response(null, { status: 304, headers });
   const res = new Response(request.method === 'HEAD' ? null : page.bytes, { status: 200, headers });
   if (!html || typeof HTMLRewriter === 'undefined') return res;
   return new HTMLRewriter().on('meta[http-equiv="Content-Security-Policy"]', {
