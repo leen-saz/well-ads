@@ -8,7 +8,8 @@ import * as compliance from './compliance/routes';
 import * as listening from './listening/routes';
 import * as design from './design/routes';
 import * as voice from './voice/routes';
+import * as copy from './copy/routes';
 import * as knowledge from './knowledge/routes';
 import * as overview from './overview/routes';
 
-export const ROUTES = { maestro, social, journeys, content, debugger: debuggerRoutes, compliance, listening, design, voice, knowledge, overview };
+export const ROUTES = { maestro, social, journeys, content, debugger: debuggerRoutes, compliance, listening, design, voice, copy, knowledge, overview };

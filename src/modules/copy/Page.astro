@@ -1,0 +1,101 @@
+---
+import { ClientRouter } from 'astro:transitions';
+// الكوبي رايتر: مشروع لكل خدمة، منافسين ببطاقة نمط، ونصوص سعودية مفحوصة (docs/learning-loops.md، C1).
+---
+<!doctype html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="robots" content="noindex,nofollow">
+<meta name="referrer" content="no-referrer">
+<meta name="theme-color" content="#F6F0E3">
+<title>الكوبي رايتر · Well</title>
+<link rel="preload" href="/assets/fonts/thmanyahsans-Regular.woff2" as="font" type="font/woff2" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@900&display=swap">
+<link rel="stylesheet" href="/assets/app.css">
+<ClientRouter />
+<style is:global>
+.cw-grid{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1.1fr);gap:16px;align-items:start}
+@media (max-width:1100px){.cw-grid{grid-template-columns:1fr}}
+.cw-grid h2{margin:0 0 6px}
+.cw-two{display:grid;grid-template-columns:1fr 1fr;gap:0 12px}
+@media (max-width:640px){.cw-two{grid-template-columns:1fr}}
+.cw-comp{display:grid;gap:10px;margin-top:6px}
+.cw-c{border:1px solid var(--line);border-radius:var(--r-sm);padding:12px 14px;display:grid;gap:8px}
+.cw-c header{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+.cw-c header b{font-size:15px}
+.cw-c header a{font-size:13px;color:var(--muted);direction:ltr;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:240px}
+.cw-c header .btn{margin-inline-start:auto}
+.cw-card{display:grid;grid-template-columns:repeat(auto-fit,minmax(110px,1fr));gap:6px}
+.cw-card div{background:var(--tint);border-radius:10px;padding:8px 10px;display:grid;gap:2px}
+.cw-card b{font:600 16px var(--f-num)}
+.cw-card span{font-size:12px;color:var(--muted)}
+.cw-tags{display:flex;flex-wrap:wrap;gap:6px;font-size:13px}
+.cw-tags span{padding:2px 10px;border-radius:999px;background:var(--tint-2)}
+.cw-note{font-size:13px;color:var(--muted);margin:0}
+.cw-out{display:grid;gap:12px;margin-top:14px}
+.cw-d{padding:14px 16px;display:grid;gap:8px}
+.cw-d .t{white-space:pre-wrap;margin:0;font-size:15px;line-height:1.8}
+.cw-d .t b{display:block}
+.cw-d .meta{display:flex;gap:8px;flex-wrap:wrap;align-items:center;font-size:13px}
+.cw-score{font:600 13px var(--f-num);padding:2px 10px;border-radius:999px;background:var(--tint-2)}
+.cw-flag{font-size:13px;padding:8px 12px;border-radius:12px;background:var(--tint)}
+.cw-flag.bad{background:color-mix(in srgb,var(--pulse) 12%,transparent)}
+</style>
+</head>
+<body data-page="copy" data-module>
+<div class="app" id="app">
+  <aside class="side" id="side" aria-label="القائمة" transition:persist="side"></aside>
+  <div class="scrim"></div>
+  <div class="main">
+    <header class="topbar" id="top"></header>
+    <main class="content" id="content">
+      <p class="muted" style="margin:0 0 14px">جهّز المشروع مرة، وأضف منافسينك بنصوصهم، والكاتب ياخذ نمطهم بالملّي بدون ما ينسخ، ويكتب بلهجة سعودية. كل نسخة تمر على فاحص اللهجة والامتثال.</p>
+      <div class="cw-grid">
+        <section class="card pad">
+          <div class="bar" style="justify-content:space-between"><h2>المشروع</h2>
+            <label class="sr" for="pick" style="flex:1;max-width:280px"><select id="pick" aria-label="المشروع"></select></label></div>
+          <form id="pf" novalidate>
+            <label for="name">اسم المشروع</label><input type="text" id="name" maxlength="80" required placeholder="مثلاً: المحاليل الوريدية في البيت">
+            <div class="cw-two">
+              <div><label for="service">الخدمة أو المنتج</label><input type="text" id="service" maxlength="200"></div>
+              <div><label for="audience">الجمهور</label><input type="text" id="audience" maxlength="200" placeholder="الرياض، نساء 25-45"></div>
+              <div><label for="offer">العرض</label><input type="text" id="offer" maxlength="200"></div>
+              <div><label for="cta">الدعوة للخطوة</label><input type="text" id="cta" maxlength="80" placeholder="احجز موعدك"></div>
+            </div>
+            <label for="voice">صوت العلامة <span class="muted">(اختياري)</span></label><textarea id="voice" rows="2" maxlength="400" placeholder="قريب ومهني، بدون مبالغة"></textarea>
+            <label for="banned">كلمات ممنوعة <span class="muted">(افصلها بفاصلة)</span></label><input type="text" id="banned" placeholder="رخيص، مجاني">
+            <div class="bar" style="margin-top:14px"><button class="btn primary" type="submit" id="save">احفظ المشروع</button></div>
+            <div class="msg" id="pmsg" role="status"></div>
+          </form>
+          <h2 style="margin-top:22px">المنافسين</h2>
+          <p class="cw-note">اسم أو رابط حساب عام، وألصق نصوص من إعلاناتهم أو منشوراتهم (كل نص في سطر فاضي بعده). كل ما زادت النصوص صار النمط أدق.</p>
+          <form id="cf" novalidate class="cw-two" style="margin-top:6px">
+            <div><label for="cname">الاسم</label><input type="text" id="cname" maxlength="80"></div>
+            <div><label for="curl">الرابط <span class="muted">(اختياري)</span></label><input type="url" id="curl" dir="ltr" placeholder="https://instagram.com/…"></div>
+            <div style="grid-column:1/-1"><label for="csamples">نصوصهم</label><textarea id="csamples" rows="4" dir="auto"></textarea></div>
+            <div class="bar" style="grid-column:1/-1;margin-top:10px"><button class="btn secondary" type="submit">أضف المنافس</button><span class="msg" id="cmsg" role="status"></span></div>
+          </form>
+          <div class="cw-comp" id="comps"></div>
+        </section>
+        <section class="card pad">
+          <h2>اكتب</h2>
+          <form id="wf" novalidate>
+            <div class="cw-two">
+              <div><label for="kind">النوع</label><select id="kind"></select></div>
+              <div><label for="count">كم نسخة</label><select id="count"><option>3</option><option>4</option><option>5</option><option>1</option><option>2</option></select></div>
+            </div>
+            <label>خذ النمط من</label><div class="checks" id="usec"><span class="muted">أضف منافس بنصوصه أول.</span></div>
+            <div class="bar" style="margin-top:14px"><button class="btn primary" type="submit" id="go">اكتب النسخ</button><span class="muted" id="engine"></span></div>
+            <div class="msg" id="wmsg" role="status"></div>
+          </form>
+          <div class="cw-out" id="out"></div>
+        </section>
+      </div>
+    </main>
+  </div>
+</div>
+<script is:inline type="module" src="/assets/router.js"></script>
+</body>
+</html>
