@@ -1,8 +1,8 @@
 // /api/social/*: the post calendar of the user's company. Reads need the `social` dashboard, writes are same-origin.
 // Publishing itself runs from the Worker cron (src/modules/social/cron.ts), never from the browser.
 import { sb, json, readJson, handle, requireUser, audit, isOwner, type Cfg } from '../../lib/auth';
-import { scoped } from '../../lib/tenant';
-import { SOCIAL, validate, canApprove, cleanApprovers, suggestPrompt, cleanSuggestion, type SocialPlatform } from './social';
+import { scoped, WELL_COMPANY } from '../../lib/tenant';
+import { SOCIAL, readiness, validate, canApprove, cleanApprovers, suggestPrompt, cleanSuggestion, type SocialPlatform } from './social';
 import { check } from '../compliance/compliance';
 import { knowledgeFor, rulesFor, withKnowledge } from '../knowledge/knowledge';
 import { generate, pick, type LlmEnv } from '../../lib/llm';
@@ -18,6 +18,15 @@ async function approversOf(cfg: Cfg, company: string): Promise<string[]> {
 const ONLY = (names: string[]) => names.length ? `الاعتماد لـ ${names.join('، ')} بس` : 'الاعتماد للمالك بس، أو للمعتمد اللي يحدده';
 const day = (s: string | null, fallback: number) => { const t = Date.parse(s || ''); return new Date(Number.isFinite(t) ? t : fallback).toISOString(); };
 
+// The connected accounts, as the publisher sees them (src/modules/social/cron.ts): Well's vault today
+async function tokensFor(cfg: Cfg, co: string): Promise<Record<string, string>> {
+  if (co !== WELL_COMPANY) return {};
+  const v = await sb<{ name: string; value: string }[]>(cfg, '/rest/v1/rpc/connector_env', { method: 'POST', admin: true, body: {} });
+  return Object.fromEntries((v.ok && Array.isArray(v.data) ? v.data : []).map(x => [x.name, x.value]));
+}
+// Per platform: '' when it can go out, else why not (no token values leave the server)
+const readyOf = (t: Record<string, string>) => Object.fromEntries((Object.keys(SOCIAL) as SocialPlatform[]).map(p => [p, readiness(p, t)]));
+
 export const posts = {
   GET: handle(async (request, e) => {
     const { cfg, user } = await requireUser(request, e, 'social');
@@ -27,12 +36,15 @@ export const posts = {
     if (!r.ok) return json(500, { error: 'ما قدرت أقرأ المنشورات' });
     // Each post carries its compliance notice, so an auto post shows it until it goes out
     const extra = await rulesFor(cfg, user.co);
-    return json(200, { posts: rows(r.data).map(p => ({ ...p, compliance: check(String(p.body || ''), extra) })), platforms: SOCIAL });
+    return json(200, { posts: rows(r.data).map(p => ({ ...p, compliance: check(String(p.body || ''), extra) })), platforms: SOCIAL, ready: readyOf(await tokensFor(cfg, user.co)) });
   }),
   POST: handle(async (request, e) => {
     const { cfg, user } = await requireUser(request, e, 'social', { write: true });
     const v = validate(await readJson(request), Date.now(), await rulesFor(cfg, user.co));
     if (!v.draft) return json(400, { error: v.error, notices: v.notices });
+    // A platform whose account is not connected would fail at its time: said now, while it can still be fixed
+    const ready = readyOf(await tokensFor(cfg, user.co));
+    for (const pl of v.draft.platforms) if (ready[pl] && SOCIAL[pl].live) v.notices.push(`${SOCIAL[pl].name}: ${ready[pl]}`);
     const r = await sb<Row[]>(cfg, '/rest/v1/social_posts', { method: 'POST', admin: true, headers: { Prefer: 'return=representation' },
       body: { ...v.draft, company_id: user.co, status: 'scheduled', created_by: user.email } });
     if (!r.ok) return json(500, { error: 'ما انحفظ المنشور' });
