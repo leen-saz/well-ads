@@ -2,6 +2,7 @@
 import { ClientRouter } from 'astro:transitions';
 import Overview from './Overview';
 import PerfTabs from './PerfTabs.astro';
+import { OverviewSkeleton } from './Skeletons';
 import '../../styles/ui.css';
 // ملخص الأداء: أول تاب مبني على shadcn/ui (React). القائمة والعنوان من public/modules/overview/client.js مثل باقي التابات.
 ---
@@ -15,7 +16,7 @@ import '../../styles/ui.css';
 <meta name="theme-color" content="#F6F0E3">
 <title>ملخص الأداء · Well</title>
 <link rel="preload" href="/assets/fonts/thmanyahsans-Regular.woff2" as="font" type="font/woff2" crossorigin>
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@900&display=swap">
+<link rel="preload" href="/assets/fonts/playfair-display-900.woff2" as="font" type="font/woff2" crossorigin>
 <link rel="stylesheet" href="/assets/app.css">
 <ClientRouter />
 </head>
@@ -27,7 +28,7 @@ import '../../styles/ui.css';
     <header class="topbar" id="top"></header>
     <main class="content" id="content">
       <PerfTabs current="overview" />
-      <Overview client:only="react" />
+      <Overview client:only="react"><OverviewSkeleton slot="fallback" /></Overview>
     </main>
   </div>
 </div>

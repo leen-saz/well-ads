@@ -7,11 +7,31 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { addDays, lastDay } from './numbers';
 import { useDash } from './useDash';
 import { SectionCards } from './SectionCards';
-import { TrendChart } from './TrendChart';
-import { AdsTable } from './AdsTable';
+import { OverviewSkeleton } from './Skeletons';
 import { DeptsCard, HeatCard, PaceCard, ShareCard, WinsCard } from './AnalyticsCards';
 import { OutcomeCards } from './OutcomeCards';
 import { longDay } from './format';
+
+// The chart (Recharts) and the ads table (TanStack Table, menus, the sheet) are separate files: the numbers above them
+// draw first. The chart starts loading at once; the table only when it is about to scroll into view.
+const TrendChart = React.lazy(() => import('./TrendChart').then(m => ({ default: m.TrendChart })));
+const AdsTable = React.lazy(() => import('./AdsTable').then(m => ({ default: m.AdsTable })));
+
+// Renders its children once the placeholder comes within a screen of the viewport
+function WhenNear({ minHeight, children }: { minHeight: number; children: React.ReactNode }) {
+  const ref = React.useRef<HTMLDivElement>(null);
+  const [near, setNear] = React.useState(false);
+  React.useEffect(() => {
+    const el = ref.current;
+    if (!el || near) return;
+    if (typeof IntersectionObserver === 'undefined') { setNear(true); return; }
+    const io = new IntersectionObserver(es => { if (es.some(e => e.isIntersecting)) setNear(true); }, { rootMargin: '100% 0px' });
+    io.observe(el);
+    return () => io.disconnect();
+  }, [near]);
+  const box = <Skeleton className="rounded-xl" style={{ minHeight }} />;
+  return near ? <React.Suspense fallback={box}>{children}</React.Suspense> : <div ref={ref}>{box}</div>;
+}
 
 const RANGES = [['7', '7 أيام'], ['30', '30 يوم'], ['90', '90 يوم']] as const;
 type Range = (typeof RANGES)[number][0];
@@ -21,14 +41,7 @@ export default function Overview() {
   const [range, setRange] = React.useState<Range>('30');
 
   if (error) return <p className="ui text-destructive">{error}</p>;
-  if (!data) {
-    return (
-      <div className="ui grid gap-4" aria-busy="true">
-        <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">{[0, 1, 2, 3].map(i => <Skeleton key={i} className="h-32 rounded-xl" />)}</div>
-        <Skeleton className="h-72 rounded-xl" />
-      </div>
-    );
-  }
+  if (!data) return <OverviewSkeleton />;
   const to = lastDay(data);
   if (!to) return <p className="ui text-muted-foreground">ما فيه أرقام للحين.</p>;
   const from = addDays(to, -(Number(range) - 1));
@@ -45,7 +58,7 @@ export default function Overview() {
       </div>
       <SectionCards data={data} from={from} to={to} />
       <OutcomeCards data={data} from={from} to={to} />
-      <TrendChart data={data} from={from} to={to} />
+      <React.Suspense fallback={<Skeleton className="h-[640px] rounded-xl" />}><TrendChart data={data} from={from} to={to} /></React.Suspense>
       <div className="grid gap-4 lg:grid-cols-2">
         <ShareCard data={data} from={from} to={to} />
         <PaceCard data={data} from={from} to={to} />
@@ -57,7 +70,7 @@ export default function Overview() {
       <div className="grid gap-4">
         <HeatCard data={data} from={from} to={to} />
       </div>
-      <AdsTable data={data} from={from} to={to} />
+      <WhenNear minHeight={1040}><AdsTable data={data} from={from} to={to} /></WhenNear>
     </div>
     </Direction.Provider>
   );

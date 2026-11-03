@@ -23,15 +23,15 @@ export default defineConfig({
       directives: [
         "default-src 'self'",
         "img-src 'self' data:",
-        "font-src 'self' https://fonts.gstatic.com",
+        "font-src 'self'",
         "connect-src 'self'",
         "object-src 'none'",
         "base-uri 'none'",
         "form-action 'self'",
         "frame-ancestors 'self'",
       ],
-      // Same as the live site: style attributes are used across the UI, and the brand font comes from Google Fonts.
-      styleDirective: { resources: ["'self'", "'unsafe-inline'", 'https://fonts.googleapis.com'] },
+      // Style attributes are used across the UI. All fonts are served from /assets/fonts (no Google Fonts).
+      styleDirective: { resources: ["'self'", "'unsafe-inline'"] },
     },
   },
 });

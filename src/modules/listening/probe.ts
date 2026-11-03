@@ -6,7 +6,8 @@ import { handle, json, requireUser } from '../../lib/auth';
 import { collect, get, type ListenEnv } from './fetcher';
 import { parseBing, parseGdelt, parseNews, type Watch } from './social';
 
-export const SAMPLE: Watch & { id: number } = { id: 0, kind: 'brand', name: 'ويل يونيون', keywords: ['ايفر كير', 'wellunion'] };
+// The brand watch «أضف الكلمات الأربع» creates, so the check shows what Well's own terms bring
+export const SAMPLE: Watch & { id: number } = { id: 0, kind: 'brand', name: 'ويل يونيون', keywords: ['تطبيق ويل', 'wellunion', 'wellcare'] };
 const CONTROL = 'الرياض';
 const BROWSER = { 'user-agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/130.0 Safari/537.36' };
 

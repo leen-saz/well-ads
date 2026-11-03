@@ -4,11 +4,18 @@
 // Docs: https://docs.paperclip.ing/reference/api/overview.md
 
 export interface PcEnv { PAPERCLIP_URL?: string; PAPERCLIP_TOKEN?: string }
-export interface Task { title: string; description: string; priority: 'low' | 'medium' | 'high' | 'urgent'; assigneeAgentId?: string }
+export interface Task { title: string; description: string; priority: 'low' | 'medium' | 'high' | 'urgent'; assigneeAgentId?: string; tab?: string; projectId?: string }
 type Json = Record<string, unknown>;
 
 export const STATUS: Record<string, string> = { backlog: 'بالانتظار', todo: 'جاهزة', in_progress: 'شغالة', in_review: 'للمراجعة', blocked: 'متوقفة', done: 'خلصت', cancelled: 'ملغية' };
 const ID = /^[A-Za-z0-9_-]{1,64}$/;
+
+// Each tab's agents work in one Paperclip project, «tab · <tab key>», made on first use (the older «Well · <key>» is still found).
+// The prefix is neutral: every tenant's Paperclip company sees it. A task for a tab lands there,
+// and the agent it is assigned to (or the CEO agent, who routes unassigned work) picks it up on its next heartbeat.
+export const CHAT = 'محادثة المدير';
+export const PROJECT = (tab: string) => `tab · ${tab}`;
+export const tabOf = (name: unknown): string | null => { const m = /^(?:tab|Well) · ([a-z]+)$/.exec(String(name || '')); return m ? m[1]! : null; };
 
 // List endpoints are documented without an example shape: accept a bare array or a wrapped one
 export const items = (d: unknown): Json[] => (Array.isArray(d) ? d : Array.isArray((d as Json)?.items) ? (d as Json).items : Array.isArray((d as Json)?.data) ? (d as Json).data : []) as Json[];
@@ -30,7 +37,39 @@ export function client(e: PcEnv, f: typeof fetch = fetch) {
     company: async (c: string) => (await call('GET', co(c))) as Json,
     agents: async (c: string) => items(await call('GET', `${co(c)}/agents`)),
     issues: async (c: string) => items(await call('GET', `${co(c)}/issues?limit=100`)),
-    createIssue: async (c: string, t: Task) => (await call('POST', `${co(c)}/issues`, { title: t.title, description: t.description, status: 'todo', priority: t.priority, ...(t.assigneeAgentId ? { assigneeAgentId: t.assigneeAgentId } : {}) })) as Json,
+    createIssue: async (c: string, t: Task) => (await call('POST', `${co(c)}/issues`, { title: t.title, description: t.description, status: 'todo', priority: t.priority, ...(t.assigneeAgentId ? { assigneeAgentId: t.assigneeAgentId } : {}), ...(t.projectId ? { projectId: t.projectId } : {}) })) as Json,
+    projects: async (c: string) => items(await call('GET', `${co(c)}/projects`)),
+    // The tab's project, made the first time a task is sent to that tab
+    projectFor: async (c: string, tab: string, label: string): Promise<string> => {
+      const found = items(await call('GET', `${co(c)}/projects`)).find(p => tabOf(p.name) === tab);
+      if (found?.id) return String(found.id);
+      const made = (await call('POST', `${co(c)}/projects`, { name: PROJECT(tab), description: `مهام تاب «${label}»` })) as Json;
+      if (!made?.id) throw new Error('no project');
+      return String(made.id);
+    },
+    // An agent's performance inputs. heartbeat-runs and costs?from= are in Paperclip's code but not its docs: a source
+    // that fails comes back null and the card shows what it has.
+    agentInputs: async (c: string, agentId: string, from: string) => {
+      if (!ID.test(agentId)) throw new Error('bad agent');
+      const q = (p: string) => call('GET', p).catch(() => null);
+      const [costs, runs, done] = await Promise.all([q(`${co(c)}/costs/by-agent?from=${encodeURIComponent(from)}`), q(`${co(c)}/heartbeat-runs?agentId=${agentId}&limit=100`), q(`${co(c)}/issues?assigneeAgentId=${agentId}&status=done&limit=100`)]);
+      return { cost: costs === null ? null : items(costs).find(r => r.agentId === agentId) || {}, runs: runs === null ? null : items(runs), done: done === null ? null : items(done) };
+    },
+    // The chat with «المدير»: one standing issue assigned to the CEO agent; a message is a comment on it, which wakes the
+    // assignee, and the CEO replies with a comment on its next heartbeat. Found by its exact title in the company's issues.
+    chatIssue: async (c: string, make: boolean): Promise<Json | null> => {
+      const found = items(await call('GET', `${co(c)}/issues?q=${encodeURIComponent(CHAT)}&limit=50`)).find(i => i.title === CHAT);
+      if (found || !make) return found || null;
+      const ceo = items(await call('GET', `${co(c)}/agents`)).find(a => a.role === 'ceo');
+      if (!ceo?.id) throw new Error('no ceo');
+      return (await call('POST', `${co(c)}/issues`, { title: CHAT, description: 'محادثة المالك مع المدير من لوحة Well. رد على كل تعليق بتعليق قصير.', status: 'todo', priority: 'medium', assigneeAgentId: ceo.id })) as Json;
+    },
+    comments: async (issueId: string) => { if (!ID.test(issueId)) throw new Error('bad issue'); return items(await call('GET', `/issues/${issueId}/comments`)); },
+    // A closed chat issue is reopened with the message, so the CEO still wakes for it
+    say: async (issue: Json, body: string) => {
+      if (!ID.test(String(issue.id))) throw new Error('bad issue');
+      return call('PATCH', `/issues/${issue.id}`, { comment: body, ...(['done', 'cancelled'].includes(String(issue.status)) ? { status: 'todo' } : {}) });
+    },
     approvals: async (c: string) => items(await call('GET', `${co(c)}/approvals?status=pending`)),
     // only approvals that belong to this company: checked against its own pending list first
     decide: async (c: string, approvalId: string, act: 'approve' | 'reject') => {
@@ -45,8 +84,8 @@ export function cleanTask(b: Json): Task | null {
   const description = String(b.description || '').trim().slice(0, 10000);
   if (!title) return null;
   const priority = (['low', 'medium', 'high', 'urgent'] as const).find(p => p === b.priority) || 'medium';
-  const a = String(b.assigneeAgentId || '');
-  return { title, description, priority, ...(ID.test(a) ? { assigneeAgentId: a } : {}) };
+  const a = String(b.assigneeAgentId || ''), tab = String(b.tab || '');
+  return { title, description, priority, ...(ID.test(a) ? { assigneeAgentId: a } : {}), ...(/^[a-z]{1,32}$/.test(tab) ? { tab } : {}) };
 }
 
 // A task's description with the company's knowledge after it (capped: Paperclip keeps descriptions up to 10,000 here)
@@ -58,3 +97,28 @@ export const budget = (b: Json | null | undefined) => {
   const cap = Number(b?.budgetMonthlyCents) || 0, spent = Number(b?.spentMonthlyCents) || 0;
   return { cap, spent, pct: cap > 0 ? Math.min(100, Math.round((spent / cap) * 100)) : null };
 };
+
+// An agent's card for a period: tasks done, spend, run success rate, average task time, last error. Numbers only.
+const at = (x: Json, ...ks: string[]) => { for (const k of ks) { const t = Date.parse(String(x[k] ?? '')); if (t) return t; } return 0; };
+export function performance(inp: { cost: Json | null; runs: Json[] | null; done: Json[] | null }, since: number) {
+  const runs = inp.runs?.filter(r => at(r, 'startedAt', 'createdAt', 'started_at') >= since) ?? null;
+  const ended = runs?.filter(r => !['queued', 'scheduled_retry', 'running'].includes(String(r.status))) ?? [];
+  const ok = ended.filter(r => r.status === 'succeeded').length;
+  const done = inp.done?.filter(i => at(i, 'completedAt', 'completed_at', 'updatedAt') >= since) ?? null;
+  const spans = (done || []).map(i => at(i, 'completedAt', 'completed_at') - at(i, 'startedAt', 'started_at')).filter(ms => ms > 0);
+  const failed = ended.filter(r => r.status === 'failed' || r.status === 'timed_out').sort((a, b) => at(b, 'finishedAt', 'startedAt') - at(a, 'finishedAt', 'startedAt'))[0];
+  return {
+    done: done ? done.length : null,
+    spentCents: inp.cost ? Math.round(Number(inp.cost.costCents) || 0) : null,
+    runs: runs ? ended.length : null,
+    successRate: ended.length ? Math.round((ok / ended.length) * 100) : null,
+    avgTaskMinutes: spans.length ? Math.round(spans.reduce((a, b) => a + b, 0) / spans.length / 60000) : null,
+    lastRunAt: runs?.length ? new Date(Math.max(...runs.map(r => at(r, 'startedAt', 'createdAt')))).toISOString() : null,
+    lastError: failed ? String(failed.error || failed.status).slice(0, 200) : null,
+  };
+}
+
+// A comment → a chat line: who wrote it (the owner via the board, or an agent) and what. Oldest first, last 50.
+export const chatLines = (comments: Json[], names: Record<string, string>) => comments
+  .map(m => ({ agent: !!m.authorAgentId, name: m.authorAgentId ? names[String(m.authorAgentId)] || 'المدير' : 'أنت', body: String(m.body || '').slice(0, 4000), at: String(m.createdAt || '') }))
+  .sort((a, b) => Date.parse(a.at) - Date.parse(b.at)).slice(-50);

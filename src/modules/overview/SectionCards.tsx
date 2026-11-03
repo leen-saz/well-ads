@@ -1,7 +1,6 @@
 // كروت الأرقام: كل رقم مع نسبة تغيّره عن نفس المدة اللي قبلها، وخط صغير لمشيه خلال الفترة
+import * as React from 'react';
 import { TrendingDown, TrendingUp } from 'lucide-react';
-import { Area, AreaChart } from 'recharts';
-import { type ChartConfig, ChartContainer } from '@/components/ui/chart';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardAction, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { type Dash, canCompare, change, mover, platformName, previous, summarize } from './numbers';
@@ -10,17 +9,11 @@ import { pct, qty, sar } from './format';
 
 interface Props { data: Dash; from: string; to: string }
 
-const spark = { v: { label: '', color: 'var(--ui-chart-1)' } } satisfies ChartConfig;
-// The card's number for each day (week or month on long periods); a day with nothing to divide is a gap, not a zero
+// Recharts (the biggest library on the page) loads after the cards: until then the line's space is kept empty
+const SparkLine = React.lazy(() => import('./Spark'));
 function Spark({ points }: { points: (number | null)[] }) {
   if (points.filter(v => v != null).length < 2) return null;
-  return (
-    <ChartContainer config={spark} className="aspect-auto h-10 w-full" dir="ltr" aria-hidden="true">
-      <AreaChart data={points.map(v => ({ v }))} margin={{ top: 2, right: 0, bottom: 2, left: 0 }}>
-        <Area dataKey="v" type="monotone" stroke="var(--color-v)" fill="var(--color-v)" fillOpacity={0.15} strokeWidth={1.5} isAnimationActive={false} connectNulls={false} />
-      </AreaChart>
-    </ChartContainer>
-  );
+  return <React.Suspense fallback={<div className="h-10 w-full" aria-hidden="true" />}><SparkLine points={points} /></React.Suspense>;
 }
 const per = (a: number, b: number) => (b > 0 ? a / b : null);
 

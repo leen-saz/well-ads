@@ -115,7 +115,7 @@ export function depts(d: Dash, from: string, to: string): Dept[] {
 export type CrmBy = 'lead' | 'paid';
 export interface Outcome {
   spend: number; impr: number; clicks: number; leads: number; conv: number;
-  crm: boolean; crmLeads: number; booked: number; value: number; closings: number; paid: number;
+  crm: boolean; crmLinked: boolean; crmLeads: number; booked: number; value: number; closings: number; paid: number;
   cpm: number | null; cpc: number | null; ctr: number | null; cpl: number | null; clickToResult: number | null;
   closeRate: number | null; roas: number | null; mer: number | null; cac: number | null;
 }
@@ -144,11 +144,39 @@ export function outcome(d: Dash, from: string, to: string, by: CrmBy = 'lead'): 
     if (day && day >= from && day <= to) { closings++; paid += num(amount); }
   }
   return {
-    spend, impr, clicks, leads, conv, crm: !!crmData?.paid_all, crmLeads, booked, value, closings, paid,
+    spend, impr, clicks, leads, conv, crm: !!crmData?.paid_all, crmLinked: !!crmData, crmLeads, booked, value, closings, paid,
     cpm: impr ? (1000 * spend) / impr : null, cpc: ratio(spend, clicks), ctr: impr ? (100 * clicks) / impr : null, cpl: ratio(ls, ln),
     clickToResult: clicks ? (100 * (leads + conv)) / clicks : null, closeRate: crmLeads ? (100 * booked) / crmLeads : null,
     roas: spend && value ? value / spend : null, mer: ratio(paid, spend), cac: ratio(spend, closings),
   };
+}
+
+// The customer journey as the main dashboard draws it (pipeline/dash/05-render.js): four layers, each narrower than the
+// one above, the rate that carries people down between layers, the cost beside each. The sale layer always shows: with
+// no CRM block its numbers are null ("—") and noCrm says why. Values: [label, now, kind] where kind picks the format.
+export type Fmt = 'qty' | 'sar' | 'pct' | 'x';
+export type JStat = { label: string; key: keyof Outcome | null; now: number | null; fmt: Fmt; lowerIsBetter: boolean };
+export interface JStage { n: string; hint: string; width: number; colour: string; main: JStat; sub: JStat[]; rate?: JStat }
+export const FUNNEL_WIDTHS = [100, 84, 68, 52];
+export const FUNNEL_COLOURS = ['#7C8CFF', '#8B6CFF', '#7E57FD', '#5B36D6'];
+export const NO_CRM = 'مرحلة البيع فاضية لأن أرقام نظام العملاء ما وصلت لهالنسخة من اللوحة. أول ما توصل تطلع الإقفالات هنا.';
+
+export function journey(a: Outcome): { stages: JStage[]; noCrm: string | null } {
+  const st = (label: string, key: keyof Outcome, fmt: Fmt, lowerIsBetter = false, on = true): JStat =>
+    ({ label, key: on ? key : null, now: on ? (a[key] as number | null) : null, fmt, lowerIsBetter });
+  const linked = a.crmLinked;
+  const raw: Omit<JStage, 'width' | 'colour'>[] = [
+    { n: 'الوعي', hint: 'كم شخص شاف الإعلان', main: st('الظهور', 'impr', 'qty'), sub: [st('تكلفة الألف ظهور', 'cpm', 'sar', true)] },
+    { n: 'الاهتمام', hint: 'كم واحد ضغط', main: st('نقرات الرابط والسوايب', 'clicks', 'qty'), sub: [st('تكلفة النقرة', 'cpc', 'sar', true)], rate: st('نسبة النقر', 'ctr', 'pct') },
+    { n: 'التحويل', hint: 'كم واحد ترك بياناته أو راسلنا', main: st('الليدز', 'leads', 'qty'),
+      sub: [st('تكلفة الليد', 'cpl', 'sar', true), st('محادثات واتساب وماسنجر', 'conv', 'qty')], rate: st('من نقرة إلى ليد أو محادثة', 'clickToResult', 'pct') },
+    { n: 'البيع', hint: linked ? 'كم واحد دفع' : 'نظام العملاء مو موصول بهالأرقام',
+      // Same as the main dashboard: every paid closing in the CRM, or the ad-linked ones when that list is missing
+      main: st('إقفالات مدفوعة', a.crm ? 'closings' : 'booked', 'qty', false, linked),
+      sub: [st('إقفالات من الإعلانات', 'booked', 'qty', false, linked), st('العائد من الإعلانات', 'roas', 'x', false, linked)],
+      rate: st('من ليد إلى إقفالة', 'closeRate', 'pct', false, linked) },
+  ];
+  return { stages: raw.map((s, i) => ({ ...s, width: FUNNEL_WIDTHS[i]!, colour: FUNNEL_COLOURS[i]! })), noCrm: linked ? null : NO_CRM };
 }
 
 // ---- Wins of the period against the one before it (template.html renderWins). "New winning ads" stays out: the main

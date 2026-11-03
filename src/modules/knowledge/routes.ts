@@ -130,8 +130,15 @@ export const brand = {
       const colors = cleanColors(b.value);
       if (!colors.length) return json(400, { error: 'اكتب الألوان بصيغة hex مثل #1D1069' });
       patch = { value: colors.join(' '), ...(approver ? {} : { active: false }) };
-    } else patch = { title: String(b.title || '').trim().slice(0, 120), ...(approver ? {} : { active: false }) };
-    const r = await sb<Asset[]>(cfg, scoped(`/rest/v1/brand_assets?id=eq.${id}`, user.co), { method: 'PATCH', admin: true, headers: { Prefer: 'return=representation' },
+    } else {
+      // A rename needs a name: an empty or missing title is a bad request, not a wiped title (and a file switched off)
+      const title = typeof b.title === 'string' ? b.title.trim().slice(0, 120) : '';
+      if (!title) return json(400, { error: 'اكتب الاسم' });
+      patch = { title, ...(approver ? {} : { active: false }) };
+    }
+    // The colour codes belong to the colours entry only (a guide's value is its reading lock, see brandguide)
+    const only = 'value' in patch ? '&kind=eq.colors' : '';
+    const r = await sb<Asset[]>(cfg, scoped(`/rest/v1/brand_assets?id=eq.${id}${only}`, user.co), { method: 'PATCH', admin: true, headers: { Prefer: 'return=representation' },
       body: { ...patch, updated_by: user.email, updated_at: new Date().toISOString() } });
     const row = r.ok ? assets(r.data)[0] : undefined;
     if (!row) return json(r.ok ? 404 : 500, { error: r.ok ? 'غير موجود' : 'ما انحفظ' });
@@ -205,18 +212,28 @@ export const brandguide = { POST: handle(async (request, e: BrandEnv & LlmEnv & 
   const topic = `guide-${id}`;
   const done = await sb<Entry[]>(cfg, scoped(`/rest/v1/knowledge?topic=eq.${topic}&select=id&limit=1`, user.co), { admin: true });
   if (done.ok && rows(done.data).length) return json(409, { error: 'هالدليل انقرا قبل. بنوده في «كل المعرفة».' });
+  // Claimed on the guide's own row, in one conditional update (its value column is free: only colours use it), so two
+  // clicks or two managers never read it twice. Released when the reading fails; kept as 'read' when it is done.
+  // A 'reading' older than 10 minutes is a request that died midway, and may be claimed again.
+  const lock = (value: string | null, when = '') => sb<Asset[]>(cfg, scoped(`/rest/v1/brand_assets?id=eq.${id}&kind=eq.guide${when}`, user.co),
+    { method: 'PATCH', admin: true, headers: { Prefer: 'return=representation' }, body: { value, updated_at: new Date().toISOString() } });
+  const stale = new Date(Date.now() - 10 * 60_000).toISOString();
+  const claim = await lock('reading', `&or=(value.is.null,and(value.eq.reading,updated_at.lt.${stale}))`);
+  if (!claim.ok || !assets(claim.data).length) return json(409, { error: 'الدليل ينقرا الحين أو انقرا قبل. شوف بنوده في «كل المعرفة» بعد دقيقة.' });
+  const fail = async (status: number, error: string) => { await lock(null); return json(status, { error }); };
   const obj = await e.FILES.get(a.r2_key);
-  if (!obj) return json(404, { error: 'الملف مو موجود' });
+  if (!obj) return fail(404, 'الملف مو موجود');
   const t = await guideText(d => e.AI!.toMarkdown!(d), await obj.arrayBuffer());
-  if (!t.text) return json(422, { error: t.error });
+  if (!t.text) return fail(422, t.error || 'ما قدرت أقرا الـ PDF');
   let raw: string;
   try { raw = (await generate(e, 'content', { messages: [{ role: 'user', content: guidePrompt(t.text) }], max_tokens: 3000 })).response; }
-  catch { return json(503, { error: 'الذكاء الاصطناعي ما رد الحين، جرّب بعد دقيقة' }); }
+  catch { return fail(503, 'الذكاء الاصطناعي ما رد الحين، جرّب بعد دقيقة'); }
   const list = parseProposals(raw);
-  if (!list.length) return json(422, { error: 'ما طلعت بنود واضحة من الدليل، جرّب مرة ثانية' });
+  if (!list.length) return fail(422, 'ما طلعت بنود واضحة من الدليل، جرّب مرة ثانية');
   const r = await sb<Entry[]>(cfg, '/rest/v1/knowledge', { method: 'POST', admin: true, headers: { Prefer: 'return=representation' },
     body: list.map(x => ({ ...x, price: null, modules: [], company_id: user.co, active: false, source: 'brand_file', topic, question: 'من دليل العلامة', created_by: user.email, updated_by: user.email })) });
-  if (!r.ok) return json(500, { error: 'ما انحفظت البنود' });
+  if (!r.ok) return fail(500, 'ما انحفظت البنود');
+  await lock('read');
   await audit(cfg, user, 'knowledge_from_guide', { target: { guide: id, entries: list.length } });
   return json(200, { ok: true, added: rows(r.data).length });
 }) };
