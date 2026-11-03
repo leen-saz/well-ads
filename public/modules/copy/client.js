@@ -84,7 +84,7 @@ export default async function mount() {
     const b = e.submitter; busy(b, true); $('#out').innerHTML = ''; $('#engine').textContent = '';
     try {
       const r = await api('/api/copy/write', { method: 'POST', body: { project_id: CUR.id, kind: $('#kind').value, count: $('#count').value, competitors: $$('input[name="use"]:checked').map(x => x.value) } });
-      $('#engine').textContent = r.engine === 'workers-ai' ? `الذكاء الاصطناعي المجاني${r.used.competitors.length ? ` · نمط ${r.used.competitors.join('، ')}` : ''}` : 'قوالب ثابتة (الذكاء الاصطناعي مو متصل)';
+      $('#engine').textContent = r.engine === 'templates' ? 'قوالب ثابتة (الذكاء الاصطناعي مو متصل)' : `${{ openai: 'ChatGPT', xai: 'Grok' }[r.engine] || 'الذكاء الاصطناعي المجاني'}${r.used.competitors.length ? ` · نمط ${r.used.competitors.join('، ')}` : ''}`;
       $('#out').innerHTML = r.drafts.map((d, i) => `<article class="card cw-d">
           <p class="t">${d.hook ? `<b>${esc(d.hook)}</b>` : ''}${esc(d.body)}${d.cta ? `\n${esc(d.cta)}` : ''}</p>
           <div class="meta"><span class="cw-score">${d.score}/100</span><span class="muted">${d.dialect === 'saudi' ? 'سعودي' : d.dialect === 'msa' ? 'فصحى' : d.dialect === 'mixed' ? 'مخلوط' : 'محايد'}</span>

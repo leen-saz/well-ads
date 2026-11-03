@@ -2,11 +2,13 @@
 // card counted on read, and writing with the free Workers AI (templates when it is not bound).
 import { sb, json, readJson, handle, requireUser, audit, type Cfg } from '../../lib/auth';
 import { scoped } from '../../lib/tenant';
-import { AI_MODEL, type AiRun } from '../content/content';
+import { knowledgeFor, withKnowledge } from '../knowledge/knowledge';
+import { generate, pick, type LlmEnv } from '../../lib/llm';
 import { winners, type AdIn, type MetIn } from '../design/design';
 import { KINDS, cleanProject, styleCard, writePrompt, parseDrafts, fallbackDrafts, review, type Project } from './copy';
 
-type AiEnv = { AI?: { run: AiRun } };
+// The copywriter writes with OpenAI when OPENAI_API_KEY is set, else Workers AI (src/lib/llm.ts); it reads the knowledge too
+type AiEnv = LlmEnv;
 type Row = Project & { id: number; updated_at?: string };
 const rows = (d: unknown): Row[] => (Array.isArray(d) ? (d as Row[]) : []);
 const withCards = (p: Row) => ({ ...p, competitors: (p.competitors || []).map(c => ({ ...c, card: styleCard(c.samples || []) })) });
@@ -64,11 +66,11 @@ export const write = { POST: handle(async (request, e: AiEnv & Parameters<typeof
   ]);
   const hooks = winners(Array.isArray(ads.data) ? ads.data : [], Array.isArray(metrics.data) ? metrics.data : []).hooks;
   let drafts = fallbackDrafts(p, count), engine = 'templates';
-  if (e.AI) {
+  if (pick(e, 'copy')) {
     try {
-      const out = await e.AI.run(AI_MODEL, { messages: [{ role: 'user', content: writePrompt(p, kind, count, cards, hooks) }], max_tokens: 900 });
-      const got = parseDrafts(String((out as { response?: unknown })?.response ?? ''), KINDS[kind]!.max);
-      if (got.length) { drafts = got; engine = 'workers-ai'; }
+      const out = await generate(e, 'copy', { messages: withKnowledge([{ role: 'user', content: writePrompt(p, kind, count, cards, hooks) }], await knowledgeFor(cfg, user.co, 'copy')), max_tokens: 900 });
+      const got = parseDrafts(out.response, KINDS[kind]!.max);
+      if (got.length) { drafts = got; engine = out.engine === 'workers' ? 'workers-ai' : out.engine; }
     } catch { /* templates stay */ }
   }
   await audit(cfg, user, 'copy_written', { target: { project: p.id, kind, count: drafts.length, engine, competitors: cards.length } });
