@@ -2,6 +2,7 @@
 import { ClientRouter } from 'astro:transitions';
 import Creative from './Creative';
 import PerfTabs from './PerfTabs.astro';
+import { CreativeSkeleton } from './Skeletons';
 import '../../styles/ui.css';
 // المواد الإعلانية بالتفصيل: تاب تحت الأداء، بنفس بيانات ملخص الأداء وصلاحيتها. القائمة والعنوان من public/modules/overview/client.js.
 ---
@@ -27,7 +28,7 @@ import '../../styles/ui.css';
     <header class="topbar" id="top"></header>
     <main class="content" id="content">
       <PerfTabs current="creative" />
-      <Creative client:only="react" />
+      <Creative client:only="react"><CreativeSkeleton slot="fallback" /></Creative>
     </main>
   </div>
 </div>
