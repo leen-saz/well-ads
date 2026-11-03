@@ -1,7 +1,8 @@
 // /api/content/*: the content + SEO/AEO agent of the user's company. Analyze -> plan -> approve each item -> draft -> publish.
 import { sb, json, readJson, handle, requireUser, audit, atLeast, NO_APPROVE, type AuthEnv } from '../../lib/auth';
 import { scoped, WELL_COMPANY } from '../../lib/tenant';
-import { knowledgeFor, withKnowledge } from '../knowledge/knowledge';
+import { knowledgeFor, rulesFor, withKnowledge } from '../knowledge/knowledge';
+import { check } from '../compliance/compliance';
 import { AI_MODEL, PUBLISH, crawl, normalizeSite, plan, searchConsole, type AiRun, type Item } from './content';
 
 type Row = Record<string, unknown>;
@@ -59,6 +60,8 @@ export const item = { PATCH: handle(async (request, e: AiEnv) => {
       `اكتب ${it.kind === 'faq' ? 'أسئلة وأجوبة شائعة (8 أسئلة)' : it.kind === 'page' ? 'نص صفحة خدمة' : 'مقال'} بالعربي السعودي الواضح لموقع ${p.site} بعنوان: "${it.title}". السبب: ${it.why}.
 النبرة مثل: ${(p.competitors as string[]).join('، ') || 'ودودة ومهنية'}. بدون ادعاءات طبية مضمونة (وزارة الصحة). استخدم عناوين فرعية، واختم بدعوة للحجز. Markdown فقط.` }], await knowledgeFor(cfg, user.co, 'content')) });
     it.draft = String((out as { response?: unknown })?.response ?? '').slice(0, 20000);
+    // Precise compliance notes on the draft, shown under it (a notice, not a block)
+    it.compliance = check(it.draft, await rulesFor(cfg, user.co));
   } else it.status = act === 'approve' ? 'approved' : act === 'reject' ? 'rejected' : 'done';
   const r = await sb(cfg, scoped(`/rest/v1/content_plans?id=eq.${id}`, user.co), { method: 'PATCH', admin: true, body: { items } });
   if (!r.ok) return json(500, { error: 'ما انحفظ' });

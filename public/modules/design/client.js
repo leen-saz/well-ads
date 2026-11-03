@@ -101,7 +101,7 @@ export default async function mount() {
     $('#vars').innerHTML = `<h2>النصوص المقترحة <span class="muted" style="font-size:13px">${res.engine === 'workers-ai' ? '· ذكاء اصطناعي' : '· قوالب'}</span></h2>
       <div class="dz-vars">${res.variants.map((v, i) => `<label class="card dz-var${i === pick ? ' on' : ''}"><input type="radio" name="var" value="${i}" ${i === pick ? 'checked' : ''}>
         <b>${esc(v.headline)}</b><span>${esc(v.sub)}</span><span class="so-chip">${esc(v.cta)}</span>
-        ${v.flags.map(f => `<span class="dz-flag">${LEVEL[f.level] || ''}: ${esc(f.title)} «${esc(f.match)}»</span>`).join('')}</label>`).join('')}</div>
+        ${v.flags.map(f => `<span class="dz-flag" title="${esc((f.source || []).map(s => `${s.name}، ${s.ref}`).join(' / '))}">${LEVEL[f.level] || ''}: ${esc(f.title)} «${esc(f.match)}»${f.fix ? `. ${esc(f.fix)}` : ''}</span>`).join('')}</label>`).join('')}</div>
       <div class="dz-edit"><label for="eh">العنوان</label><input id="eh" type="text"><label for="es">السطر الثاني</label><input id="es" type="text"><label for="ec">الزر</label><input id="ec" type="text"></div>`;
     const v = res.variants[pick]; $('#eh').value = v.headline; $('#es').value = v.sub; $('#ec').value = v.cta;
   }

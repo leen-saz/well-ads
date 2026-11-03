@@ -1,5 +1,6 @@
 // الرحلات: التحقق من الخطوات، والإرسال لكل قناة. التشغيل نفسه في src/modules/journeys/workflow.ts (Cloudflare Workflows).
 // واتساب مدفوع من Meta لكل محادثة (الاستثناء المسموح، مع تنويه بالتسعيرة). الإيميل من Gmail بحساب الشركة (OAuth).
+import { check, notice, type Rule } from '../compliance/compliance';
 
 export const CHANNELS = {
   wait: { name: 'انتظر' },
@@ -57,7 +58,10 @@ export function cleanContact(c: unknown): Contact | null {
 // {{name}} in messages
 const fill = (s: string, c: Contact) => s.replace(/\{\{\s*name\s*\}\}/g, c.name || '');
 
-export const notices = (steps: Step[]) => [...new Set(steps.flatMap(s => (s.type === 'whatsapp' ? [CHANNELS.whatsapp.notice] : [])))];
+// Channel notes, plus precise compliance notes on every email and push text (a notice, not a block)
+export const notices = (steps: Step[], extra: Rule[] = []) => [...new Set(steps.flatMap((s, i) =>
+  s.type === 'whatsapp' ? [CHANNELS.whatsapp.notice]
+    : s.type === 'email' || s.type === 'push' ? check(`${s.type === 'email' ? s.subject : s.title}\n${s.body}`, extra).map(h => `الخطوة ${i + 1}: ${notice(h)}`) : []))];
 
 type Tokens = Record<string, string | undefined>;
 export type Sent = { ok: boolean; error?: string };

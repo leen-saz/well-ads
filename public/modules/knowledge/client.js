@@ -1,5 +1,6 @@
 // المعرفة: شات تدريب يسأل سؤال سؤال، وإضافة وتعديل وإيقاف ما يتعلمه الذكاء الاصطناعي عن الشركة، ومعاينة اللي يوصل لكل موديول.
 import { $, $$, api, say, esc, shell, busy, when } from '/assets/common.js';
+import { block } from '/assets/compliance-ui.js';
 
 const MOD = { content: 'المحتوى', design: 'التصميم', voice: 'الصوت', social: 'السوشال', maestro: 'المايسترو', journeys: 'الرحلات' };
 
@@ -57,7 +58,7 @@ export default async function mount() {
         + (Q ? `<p class="kn-q" dir="auto"><b>${esc(Q.q)}</b></p>` : `<p class="kn-q">${r.history.length ? 'المعرفة مكتملة الحين. أي شي يتغير، عدّله من «كل المعرفة».' : 'ما فيه أسئلة.'}</p>`);
       $('#tf').hidden = !Q || !r.canEdit;
       if (Q && r.canEdit) $('#ans').focus();
-    } catch (err) { $('#chat').innerHTML = ''; say($('#tmsg'), err.message); }
+    } catch (err) { $('#chat').innerHTML = `<p class="msg err">${esc(err.message)}</p>`; }
   }
   function tab(t) {
     $$('[data-tab]').forEach(x => x.setAttribute('aria-pressed', String(x.dataset.tab === t)));
@@ -69,7 +70,8 @@ export default async function mount() {
     e.preventDefault(); if (!Q) return; const btn = $('#send'); busy(btn, true);
     try {
       const r = await api('/api/knowledge/train', { method: 'POST', body: { topic: Q.topic, question: Q.q, kind: Q.kind, answer: $('#ans').value } });
-      $('#ans').value = ''; say($('#tmsg'), r.pending ? 'انحفظ، وينتظر اعتماد المدير.' : 'انحفظ.', true); await chat();
+      const said = $('#ans').value; $('#ans').value = ''; say($('#tmsg'), r.pending ? 'انحفظ، وينتظر اعتماد المدير.' : 'انحفظ.', true);
+      await chat(); $('#tcomp').innerHTML = block(said, r.compliance || []);
     } catch (err) { say($('#tmsg'), err.message); }
     busy(btn, false);
   });
@@ -92,6 +94,7 @@ export default async function mount() {
     try {
       const r = await api('/api/knowledge/entry', { method: b.id ? 'PATCH' : 'POST', body: { ...b, id: b.id ? +b.id : undefined } });
       say($('#msg'), r.pending || (r.entry && !r.entry.active) ? 'انحفظ، وينتظر اعتماد المدير.' : 'انحفظ، والذكاء الاصطناعي بيستخدمه من الحين.', true);
+      $('#comp').innerHTML = block(b.body, r.compliance || []);
       reset(); await load();
     } catch (err) { say($('#msg'), err.message); }
     busy(btn, false);

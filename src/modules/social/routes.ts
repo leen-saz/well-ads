@@ -3,6 +3,8 @@
 import { sb, json, readJson, handle, requireUser, audit, isOwner, type Cfg } from '../../lib/auth';
 import { scoped } from '../../lib/tenant';
 import { SOCIAL, validate, canApprove, cleanApprovers } from './social';
+import { check } from '../compliance/compliance';
+import { rulesFor } from '../knowledge/knowledge';
 import { MEDIA_TYPES, MEDIA_MAX, mediaKey } from './media';
 
 type Row = Record<string, unknown>;
@@ -21,11 +23,14 @@ export const posts = {
     const q = new URL(request.url).searchParams;
     const from = day(q.get('from'), Date.now() - 7 * 864e5), to = day(q.get('to'), Date.now() + 31 * 864e5);
     const r = await sb(cfg, scoped(`/rest/v1/social_posts?select=*&publish_at=gte.${from}&publish_at=lte.${to}&order=publish_at.asc&limit=500`, user.co), { admin: true });
-    return r.ok ? json(200, { posts: r.data, platforms: SOCIAL }) : json(500, { error: 'ما قدرت أقرأ المنشورات' });
+    if (!r.ok) return json(500, { error: 'ما قدرت أقرأ المنشورات' });
+    // Each post carries its compliance notice, so an auto post shows it until it goes out
+    const extra = await rulesFor(cfg, user.co);
+    return json(200, { posts: rows(r.data).map(p => ({ ...p, compliance: check(String(p.body || ''), extra) })), platforms: SOCIAL });
   }),
   POST: handle(async (request, e) => {
     const { cfg, user } = await requireUser(request, e, 'social', { write: true });
-    const v = validate(await readJson(request));
+    const v = validate(await readJson(request), Date.now(), await rulesFor(cfg, user.co));
     if (!v.draft) return json(400, { error: v.error, notices: v.notices });
     const r = await sb<Row[]>(cfg, '/rest/v1/social_posts', { method: 'POST', admin: true, headers: { Prefer: 'return=representation' },
       body: { ...v.draft, company_id: user.co, status: 'scheduled', created_by: user.email } });

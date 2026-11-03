@@ -1,7 +1,7 @@
 // /api/voice/*: brand-voice check and an optional AI rewrite. Nothing is stored; read-only.
 import { json, readJson, handle, requireUser } from '../../lib/auth';
 import { AI_MODEL, type AiRun } from '../content/content';
-import { knowledgeFor, withKnowledge } from '../knowledge/knowledge';
+import { knowledgeFor, rulesFor, withKnowledge } from '../knowledge/knowledge';
 import { ACCENTS, GUIDE, TONES, TTS_MODEL, TTS_VOICES, analyze, rewritePrompt, ttsBody, ttsInput } from './voice';
 
 type AiEnv = { AI?: { run: AiRun } };
@@ -13,10 +13,10 @@ export const guide = { GET: handle(async (request, e) => {
 }) };
 
 export const check = { POST: handle(async (request, e) => {
-  await requireUser(request, e, 'voice', { write: true });
+  const { cfg, user } = await requireUser(request, e, 'voice', { write: true });
   const text = String((await readJson(request)).text || '').trim();
   if (!text) return json(400, { error: 'اكتب النص أول' });
-  return json(200, analyze(text));
+  return json(200, analyze(text, await rulesFor(cfg, user.co)));
 }) };
 
 export const rewrite = { POST: handle(async (request, e: AiEnv & Parameters<typeof requireUser>[1]) => {
@@ -31,7 +31,7 @@ export const rewrite = { POST: handle(async (request, e: AiEnv & Parameters<type
   catch { return json(503, { error: 'الذكاء الاصطناعي ما رد الحين، جرّب بعد دقيقة' }); }
   const next = String((out as { response?: unknown })?.response ?? '').trim().replace(/^["«]|["»]$/g, '').slice(0, 2000);
   if (!next) return json(502, { error: 'ما رجع نص، جرّب مرة ثانية' });
-  return json(200, { text: next, analysis: analyze(next) });
+  return json(200, { text: next, analysis: analyze(next, await rulesFor(cfg, user.co)) });
 }) };
 
 // /api/voice/speak: Gemini TTS. The audio JSON is passed straight through (no parsing here: the free Workers
