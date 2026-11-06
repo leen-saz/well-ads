@@ -5,6 +5,7 @@ import { budget, chatLines, client, cleanTask, items, performance, STATUS, tabOf
 import { MODULES } from '../registry';
 import { knowledgeFor } from '../knowledge/knowledge';
 import { crmFor } from './health';
+import { dataHealth } from './datahealth';
 
 type Env = AuthEnv & PcEnv;
 type Co = { id: string; name: string; paperclip_company_id: string | null };
@@ -149,4 +150,10 @@ export const approval = { POST: handle(async (request, e: Env) => {
 export const crm = { GET: handle(async (request, e: AuthEnv) => {
   const { cfg, user } = await requireUser(request, e, 'owner');
   return json(200, await crmFor(cfg, user.co), { 'cache-control': 'no-store' });
+}) };
+
+// «صحة الداتا»: freshness, counts, join rates, duplicates, orphans and missing migrations. Owner only, read-only, aggregates only.
+export const health = { GET: handle(async (request, e: AuthEnv & { FILES?: R2Bucket }) => {
+  const { cfg, user } = await requireUser(request, e, 'owner');
+  return json(200, await dataHealth(cfg, user.co, e.FILES));
 }) };

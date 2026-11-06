@@ -32,9 +32,38 @@ export function crmCard(d) {
     ${p.count ? `<p class="muted">المربوطة بإعلان: ${fmt(p.linked_amount_sar)} ر.س. بدون إعلان: ${fmt(p.unlinked_amount_sar)} ر.س.</p>` : ''}</section>`;
 }
 
+const PLAT = { meta: 'Meta', snap: 'Snapchat', tiktok: 'TikTok', google: 'Google' };
+const TABLE = { ads: 'الإعلانات', ad_metrics: 'أرقام الإعلانات اليومية', crm_leads: 'ليدز الـ CRM', listen_watch: 'قوائم الرصد', listen_mentions: 'الإشارات', knowledge: 'المعرفة', brand_assets: 'الهوية والبصريات', copy_projects: 'مشاريع الكتابة', motion_projects: 'مشاريع الموشن', social_posts: 'منشورات السوشال', audit_log: 'سجل النشاط' };
+const DUP = { ads: 'إعلانات (نفس المنصة والاسم والحملة)', leads: 'ليدز (نفس العميل والمصدر ووقت الإنشاء)', mentions: 'إشارات (نفس المصدر والعنوان)', knowledge: 'بنود معرفة (نفس النوع والعنوان والنص)', library: 'عناصر الهوية (نفس النوع والعنوان)' };
+const ORPHAN = { ads: 'إعلانات', crm_leads: 'ليدز', audit_log: 'سجل نشاط', connections: 'ربط منصات' };
+const age = iso => { if (!iso) return ['—', 'bad']; const h = (Date.now() - Date.parse(iso)) / 36e5; return [when(iso), h > 48 ? 'bad' : '']; };
+const dayAge = d => { if (!d) return ['—', 'bad']; const h = (Date.now() - Date.parse(d + 'T00:00:00+03:00')) / 36e5; return [esc(d), h > 72 ? 'bad' : '']; };
+const cell = ([t, bad]) => (bad ? `<b style="color:#8A2A1B">${t}</b>` : t);
+
+export function healthCards(h) {
+  const f = h.freshness, J = h.joins;
+  const plat = table(['المنصة', 'إعلانات', 'آخر تحديث للإعلانات', 'آخر يوم أرقام', 'انتهاء الربط'], f.platforms.map(p => [esc(PLAT[p.platform] || p.platform), fmt(p.ads), cell(age(p.newest_ad_update)), cell(dayAge(p.newest_metric_day)), p.token_expires_at ? when(p.token_expires_at) : '—']));
+  const other = table(['المصدر', 'آخر مرة'], [
+    ['مزامنة الـ CRM (آخر تشغيل)', cell(age(f.crm?.last_run_at))], ['أحدث تحديث وصل من الـ CRM', cell(age(f.crm?.last_updated_at))],
+    ['جلب الرصد', cell(age(f.listening_last_fetch))], ['رفع ملف الأرقام (dash.json)', cell(age(f.dash_json_uploaded))]]);
+  const counts = table(['الجدول', 'الصفوف'], Object.entries(h.counts).map(([t, n]) => [esc(TABLE[t] || t), n == null ? '<span class="muted">ما انقرا</span>' : fmt(n)]));
+  const joins = J ? table(['الربط', 'العدد', 'النسبة'], [['ليدز CRM', fmt(J.leads), ''], ['مربوطة بإعلان', fmt(J.matched), J.matched_pct == null ? '—' : J.matched_pct + '%'], ['بدون إعلان', fmt(J.unmatched), ''],
+    ['كل الإقفالات', fmt(J.closings_all), ''], ['إقفالات مربوطة بإعلان', fmt(J.closings_with_ad), J.closings_pct == null ? '—' : J.closings_pct + '%'], ['منسوبة بالعميل لإعلان سابق', fmt(J.credited_via_customer), '']])
+    : '<p class="muted">ما فيه dash.json مرفوع للحين.</p>';
+  const dups = table(['المكرر', 'الصفوف الزايدة'], Object.entries(h.duplicates).map(([k, n]) => [esc(DUP[k] || k), cell([fmt(n), n > 0])]));
+  const orph = table(['الجدول', 'صفوف شركتها محذوفة'], Object.entries(h.orphans).map(([k, n]) => [esc(ORPHAN[k] || k), n == null ? '<span class="muted">ما انقرا</span>' : cell([fmt(n), n > 0])]));
+  const miss = h.migrations_missing.length
+    ? `<p class="dh-find bad">مايقريشنات ما انطبقت (بالترتيب): ${[...new Set(h.migrations_missing.map(m => m.migration))].map(m => `<code>${esc(m)}</code>`).join('، ')}</p>` + table(['المايقريشن', 'الجدول', 'ناقص'], h.migrations_missing.map(m => [esc(m.migration), esc(m.table), m.reason === 'table' ? 'الجدول كله' : esc(m.columns.join(', '))]))
+    : '<p class="dh-find ok">كل الجداول والأعمدة اللي يقراها الكود موجودة.</p>';
+  const sec = (t, body, note = '') => `<section class="card pad dh-sec"><h2>${t}</h2>${note ? `<p class="muted" style="margin:0 0 8px">${note}</p>` : ''}${body}</section>`;
+  return sec('حداثة المصادر', plat + other, 'آخر مرة وصلتنا بيانات كل منصة. الأحمر = أقدم من يومين.') + sec('الربط بين الليدز والإعلانات', joins, 'من آخر ملف أرقام انرفع.')
+    + sec('المكرر', dups) + sec('اليتيم', orph, 'صفوف تشير إلى شركة ما عاد لها وجود.') + sec('عدد الصفوف', counts) + sec('المايقريشنات', miss);
+}
+
 export default async function mount() {
   shell({ active: 'maestro', title: 'صحة الداتا' }).then(async () => {
-    try { $('#sections').innerHTML = crmCard(await api('/api/maestro/crm')); }
-    catch (err) { $('#sections').innerHTML = ''; say($('#msg'), err.message); }
+    const box = $('#sections');
+    try { box.innerHTML = crmCard(await api('/api/maestro/crm')); } catch (err) { box.innerHTML = ''; say($('#msg'), err.message); }
+    try { box.insertAdjacentHTML('beforeend', healthCards(await api('/api/maestro/health'))); } catch (err) { say($('#msg'), err.message); }
   }).catch(err => say($('#msg'), err.message));
 }

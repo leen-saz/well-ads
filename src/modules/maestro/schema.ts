@@ -1,0 +1,41 @@
+// What each migration adds, as far as the code reads it: the data-health page probes these with a read
+// (`select=<columns>&limit=0`) to say which migrations are not applied. Two migrations share the numbers
+// 011, 013 and 014: the file name is what Leen runs, not the number.
+export type Probe = { migration: string; table: string; columns: string[] };
+
+export const SCHEMA: Probe[] = [
+  { migration: '000_base.sql', table: 'ads', columns: ['ad_key', 'platform', 'name', 'campaign', 'live', 'doc', 'updated_at'] },
+  { migration: '000_base.sql', table: 'ad_metrics', columns: ['ad_key', 'day', 'spend', 'leads'] },
+  { migration: '000_base.sql', table: 'dashboard_state', columns: ['id', 'doc', 'updated_at'] },
+  { migration: '001_control.sql', table: 'profiles', columns: ['id', 'email', 'role', 'dashboards', 'active'] },
+  { migration: '001_control.sql', table: 'audit_log', columns: ['at', 'action'] },
+  { migration: '001_control.sql', table: 'suggestions', columns: ['id', 'status'] },
+  { migration: '001_control.sql', table: 'control_settings', columns: ['platform'] },
+  { migration: '002_departments.sql', table: 'profiles', columns: ['departments'] },
+  { migration: '003_phase_a.sql', table: 'suggestions', columns: ['before', 'after', 'risk', 'expect', 'digest', 'revision', 'critic'] },
+  { migration: '004_learning.sql', table: 'platform_activity', columns: ['platform', 'event_id', 'at'] },
+  { migration: '004_learning.sql', table: 'outcomes', columns: ['suggestion_id', 'day', 'metrics'] },
+  { migration: '004_learning.sql', table: 'lessons', columns: ['id'] },
+  { migration: '005_connectors.sql', table: 'connections', columns: ['platform', 'method', 'connected_at', 'expires_at'] },
+  { migration: '006_companies.sql', table: 'companies', columns: ['id', 'name'] },
+  { migration: '006_companies.sql', table: 'ads', columns: ['company_id'] },
+  { migration: '007_social.sql', table: 'social_posts', columns: ['id', 'company_id'] },
+  { migration: '008_journeys.sql', table: 'journeys', columns: ['id', 'company_id'] },
+  { migration: '008_journeys.sql', table: 'journey_runs', columns: ['id'] },
+  { migration: '009_content_agent.sql', table: 'content_plans', columns: ['id', 'company_id'] },
+  { migration: '010_maestro.sql', table: 'companies', columns: ['paperclip_company_id'] },
+  { migration: '011_crm_leads.sql', table: 'crm_leads', columns: ['lead_id', 'company_id', 'payment_status', 'amount_paid_sar', 'paid_at', 'updated_at'] },
+  { migration: '011_crm_leads.sql', table: 'crm_sync_state', columns: ['id', 'last_updated_at', 'last_run_at'] },
+  { migration: '011_modules.sql', table: 'companies', columns: ['disabled_modules'] },
+  { migration: '012_access_levels.sql', table: 'profiles', columns: ['access'] },
+  { migration: '013_listening.sql', table: 'listen_watch', columns: ['id', 'company_id', 'fetched_at'] },
+  { migration: '013_listening.sql', table: 'listen_mentions', columns: ['id', 'watch_id', 'url', 'sentiment'] },
+  { migration: '013_social_approver.sql', table: 'companies', columns: ['social_approvers'] },
+  { migration: '014_knowledge.sql', table: 'knowledge', columns: ['id', 'company_id', 'kind', 'active', 'source'] },
+  { migration: '014_lessons_by_tab.sql', table: 'lessons', columns: ['company_id', 'module', 'status'] },
+  { migration: '015_copy.sql', table: 'copy_projects', columns: ['id', 'company_id'] },
+  { migration: '016_brand_assets.sql', table: 'brand_assets', columns: ['id', 'company_id', 'kind', 'active'] },
+  { migration: '018_motion_videos.sql', table: 'motion_projects', columns: ['id', 'company_id', 'status'] },
+  { migration: '018_motion_videos.sql', table: 'motion_versions', columns: ['id', 'project_id', 'version'] },
+];
+// 017 only widens a CHECK constraint (knowledge.source accepts 'brand_file'): a read cannot see it, so it is not probed.
