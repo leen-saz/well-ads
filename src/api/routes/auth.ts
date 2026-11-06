@@ -1,7 +1,7 @@
 // /api/auth/*: login, logout, refresh, forgot, reset. Port of web/lib/routes/auth/*.js.
 import {
   env, sb, loadProfile, sessionFor, sign, verify, readCookie, setCookie, clearCookie, safePath, home, audit, html, json,
-  sameOrigin, readJson, handle, keyKind, SESSION, SESSION_HOURS, PASSWORD_MIN, type Profile,
+  sameOrigin, readJson, handle, keyKind, auditEmail, SESSION, SESSION_HOURS, PASSWORD_MIN, type Profile,
 } from '../../lib/auth';
 
 export const login = { POST: handle(async (request, e) => {
@@ -16,7 +16,7 @@ export const login = { POST: handle(async (request, e) => {
     // Diagnostics only: Supabase status and error code, never the email, password or keys.
     const d = (r.data && typeof r.data === 'object' ? r.data : {}) as Record<string, unknown>;
     console.warn('login_failed', JSON.stringify({ status: r.status, code: d.error_code ?? d.code ?? null, msg: String(d.msg ?? d.message ?? d.error_description ?? d.error ?? '').slice(0, 120) }));
-    await audit(cfg, { email }, 'login_failed');
+    await audit(cfg, { email: auditEmail(email) ?? undefined }, 'login_failed');
     return json(401, { error: 'الإيميل أو الباسوورد غلط' });
   }
   const uid = r.data.user.id;
@@ -79,7 +79,7 @@ export const forgot = { POST: handle(async (request, e) => {
       ? (await sb(cfg, `/auth/v1/invite?redirect_to=${encodeURIComponent(to)}`, { method: 'POST', admin: true, body: { email, data: { name: 'Leen' } } })).ok
       : false;
     if (!invited) await sb(cfg, `/auth/v1/recover?redirect_to=${encodeURIComponent(to)}`, { method: 'POST', body: { email } });
-    await audit(cfg, { email }, 'password_reset_requested');
+    await audit(cfg, { email: auditEmail(email) ?? undefined }, 'password_reset_requested');
   }
   return json(200, { ok: true });
 }) };

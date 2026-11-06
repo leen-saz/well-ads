@@ -203,3 +203,13 @@ describe('auth', () => {
     expect(out.headers.get('set-cookie')).toMatch(/Max-Age=0/i);
   });
 });
+
+describe('audit rows from visitors without a session', () => {
+  it('keep only an email-shaped, short value (a mistyped password never reaches audit_log)', async () => {
+    const { auditEmail } = await import('../../src/lib/auth');
+    expect(auditEmail(' A@B.co ')).toBe('a@b.co');
+    expect(auditEmail('my-password-1')).toBeNull();
+    expect(auditEmail('a'.repeat(300) + '@b.co')).toBeNull();
+    expect(auditEmail(undefined)).toBeNull();
+  });
+});

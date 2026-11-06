@@ -1,6 +1,8 @@
 # Manual Supabase backup (public tables + Auth users) before any move or big change. Ported from the old repo.
-# The output is a private artifact that deletes itself after 3 days. It holds emails: download it and keep it
-# yourself; it never goes into the repo.
+# The repo is PUBLIC and any signed-in GitHub account can download its Actions artifacts, so the dump (emails, ad
+# spend, leads) is encrypted before upload. Needs the environment secret BACKUP_PASSPHRASE; without it the job
+# stops before anything is written. Decrypt:  openssl enc -d -aes-256-cbc -pbkdf2 -in backup.enc | tar xz
+# The artifact deletes itself after 3 days. Download it and keep it yourself; it never goes into the repo.
 name: db-backup
 
 on:
@@ -22,11 +24,15 @@ jobs:
         env:
           SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
           SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+          BACKUP_PASSPHRASE: ${{ secrets.BACKUP_PASSPHRASE }}
         run: |
+          test -n "$BACKUP_PASSPHRASE" || { echo "BACKUP_PASSPHRASE is not set: refusing to write an unencrypted dump"; exit 1; }
           PYTHONPATH=pipeline python3 supabase/backup.py
           cp -r supabase/migrations backup/
+          tar czf - backup | openssl enc -aes-256-cbc -pbkdf2 -salt -pass env:BACKUP_PASSPHRASE -out backup.enc
+          rm -rf backup
       - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: well-db-backup-${{ github.run_id }}
-          path: backup/
+          path: backup.enc
           retention-days: 3

@@ -1,14 +1,18 @@
 """نسخة احتياطية من قاعدة Supabase بمفتاح السيرفر (بدون كلمة سر القاعدة): كل جداول public + مستخدمين Auth.
 
 يكتب ملف JSON لكل جدول في مجلد backup/ ، ويطلع عدد الصفوف. المخطط نفسه في supabase/*.sql.
-فيه بيانات شخصية (إيميلات): يُرفع كـ artifact خاص لمدة قصيرة بس، وما ينحفظ في الريبو أبداً.
+فيه بيانات شخصية (إيميلات) وأرقام أعمال، والريبو عام (وأي حساب GitHub ينزّل الـ artifacts): الـ workflow يشفّره قبل الرفع، وما ينحفظ في الريبو أبداً.
 """
 import json, os, sys, urllib.parse, urllib.request
 
 from modules.core.supa import Supa
 
+# Every table the app writes (supabase/migrations). connections holds names and status only: the keys live in the Vault.
 TABLES = ("profiles", "audit_log", "dashboard_state", "ads", "ad_metrics", "platform_activity",
-          "suggestions", "control_settings", "outcomes", "lessons")
+          "suggestions", "control_settings", "outcomes", "lessons",
+          "companies", "connections", "crm_leads", "crm_sync_state", "knowledge", "brand_assets", "social_posts",
+          "journeys", "journey_runs", "copy_projects", "content_plans", "listen_watch", "listen_mentions",
+          "motion_projects", "motion_versions")
 PAGE = 1000
 
 

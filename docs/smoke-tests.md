@@ -19,6 +19,9 @@ npm run build && npm run test:smoke      # locally, with Chrome installed: PW_CH
   `?id=` rides along, and the destination links (`/performance/`, `/system/`...) open the first tool the user may open.
 - In a browser: the sidebar draws an entry per permission and shows locked entries for the rest; the owner sees every live tab and
   the permissions page; the language switch flips `lang`/`dir` to English and back.
+- Failure behaviour (`failure.spec.ts`): for each tab's first load, a 500 with a message, a gateway HTML page and a dropped connection each show one
+  error state with a retry button (`failure`/`pageFailure` in `public/assets/common.js`), and retry recovers; a failed sidebar call shows a page banner;
+  a request that never answers ends with a timeout message. API side: `tests/unit/api-errors.test.ts` sweeps every route signed out and with upstreams down.
 
 ## What it does not cover
 - Real Supabase (RLS, migrations, the real `profiles` shape beyond what the fake returns): the migrations job covers schema only.

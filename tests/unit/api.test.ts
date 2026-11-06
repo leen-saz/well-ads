@@ -13,7 +13,7 @@ describe('api', () => {
   it('unknown /api route is a JSON 404', async () => {
     const res = await api.request('/api/nope');
     expect(res.status).toBe(404);
-    expect(await res.json()).toEqual({ ok: false, error: 'not_found' });
+    expect(await res.json()).toEqual({ ok: false, error: 'غير موجود' });
   });
 });
 
