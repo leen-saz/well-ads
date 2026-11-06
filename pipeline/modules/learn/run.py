@@ -55,6 +55,28 @@ def lessons(decisions, outcomes, activity):
     return out
 
 
+WELL = "00000000-0000-0000-0000-000000000001"   # دروس الإعلانات تخص Well (الإعلانات والـ pipeline لشركة وحدة)
+DECIDED = ("approved", "ignored", "exported")
+
+
+def refresh_lessons(db, new):
+    """يبدّل دروس الإعلانات الجديدة بدون ما يمسّ قرار الفريق.
+
+    الدرس اللي وافق عليه أو تجاهله شخص في اللوحة يبقى (قبل كان يتعطّل كل ساعة ويرجع «جديد»).
+    الجديد ينكتب أول، وبعدها تتعطّل الدروس القديمة غير المحسومة بالـ id، فلو فشلت الكتابة ما يضيع شي.
+    يرجّع الدروس اللي انكتبت فعلاً.
+    """
+    old = db.req(f"/rest/v1/lessons?select=id,platform,kind,lesson,status&active=eq.true&module=eq.ads&company_id=eq.{WELL}&limit=1000") or []
+    decided = {(o["platform"], o["kind"], o["lesson"]) for o in old if o.get("status") in DECIDED}
+    fresh = [l for l in new if (l["platform"], l["kind"], l["lesson"]) not in decided]
+    if fresh:
+        db.req("/rest/v1/lessons", "POST", fresh, "return=minimal")
+    stale = [str(o["id"]) for o in old if o.get("status") not in DECIDED]
+    if stale:
+        db.req("/rest/v1/lessons?id=in.(" + ",".join(stale) + ")", "PATCH", {"active": False}, "return=minimal")
+    return fresh
+
+
 def main():
     db = Supa.from_env()
     if not db:
@@ -68,9 +90,7 @@ def main():
         activity = db.req("/rest/v1/platform_activity?select=platform,event,actor&at=gte." + urllib.parse.quote(d7) + "&limit=5000") or []
         new = lessons(decisions, outcomes, activity)
         # دروس الإعلانات بس: بقية التابات لها دروسها في نفس الجدول (migration 014)
-        db.req("/rest/v1/lessons?active=eq.true&module=eq.ads", "PATCH", {"active": False}, "return=minimal")
-        if new:
-            db.req("/rest/v1/lessons", "POST", new, "return=minimal")
+        new = refresh_lessons(db, new)
         db.audit("learn_run", target={"lessons": len(new), "decisions": len(decisions), "moves": len(activity)})
         print(f"learn: {len(new)} درس من {len(decisions)} قرار و{len(activity)} حركة داخل المنصات")
     except Exception as ex:
