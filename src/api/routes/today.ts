@@ -3,6 +3,7 @@
 // /api/dash/data serves) through the overview tab's functions, so they match «ملخص الأداء» for the same 7 days.
 import { sb, json, handle, requireUser, can } from '../../lib/auth';
 import { dataCopy, dataKey } from '../../lib/dash';
+import { WELL_COMPANY } from '../../lib/tenant';
 import { list as connectorList } from './connectors';
 import { type Dash, addDays, lastDay, summarize, previous, canCompare, holes } from '../../modules/overview/numbers';
 
@@ -33,14 +34,14 @@ export const state = {
     }
 
     // Decisions waiting on the board: how many, and the first in the board's own order
-    if (can(user, 'control', cfg)) {
+    if (user.co === WELL_COMPANY && can(user, 'control', cfg)) {
       const r = await sb(cfg, '/rest/v1/suggestions?select=id,kind,platform,target_name,reason&status=eq.open&order=priority.desc,created_at.desc&limit=300', { admin: true });
       const open = r.ok ? rows(r.data) : [];
       out['decisions'] = { open: open.length, top: open[0] ?? null };
     }
 
     // The platforms the system needs (connectors CORE): which are connected and which are not
-    if (can(user, 'connectors', cfg)) {
+    if (user.co === WELL_COMPANY && can(user, 'connectors', cfg)) {
       const r = await connectorList.GET(request, e);
       if (r.ok) {
         const { platforms } = (await r.json()) as { platforms: Row[] };

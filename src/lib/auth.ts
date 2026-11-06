@@ -1,7 +1,7 @@
 // Port of well-ads-dashboard web/lib/auth.js. Same behavior; env comes from Worker bindings instead of process.env.
 // Email + password via Supabase Auth, session in an HMAC-signed cookie. Web Crypto only.
 
-import { companyOf } from './tenant';
+import { companyOf, WELL_COMPANY } from './tenant';
 import { MODULES, LIVE, isModule } from '../modules/registry';
 
 export const SESSION = '__Host-well_session';
@@ -16,6 +16,9 @@ export const PASSWORD_MIN = 10;
 export const LOCKED = 'هالموديول مقفل لشركتك';
 export const VIEW_ONLY = 'صلاحيتك هنا مشاهدة بس';
 export const NO_APPROVE = 'الموافقة تحتاج صلاحية موافقة';
+// Control (decisions, learning) and Connectors (ad-platform keys in the Vault) have no company column yet (ADR-0006):
+// they are Well's alone, so another company's users are refused instead of reading or overwriting Well's data.
+export const WELL_ONLY = 'هالقسم مو متاح لشركتك للحين';
 
 export type Dashboard = string;
 // Per dashboard/module: view < edit < approve. Owners have approve everywhere.
@@ -246,7 +249,7 @@ export async function readJson(request: Request, limit = 20000): Promise<Record<
 }
 
 // For the API: cookie + permissions re-read from the DB every time (the source of truth). Throws a Response on refusal.
-export async function requireUser(request: Request, e: AuthEnv, need: Need, { write = false, approve = false } = {}): Promise<{ cfg: Cfg; user: Session }> {
+export async function requireUser(request: Request, e: AuthEnv, need: Need, { write = false, approve = false, well = false } = {}): Promise<{ cfg: Cfg; user: Session }> {
   let cfg: Cfg;
   try { cfg = env(e); } catch { throw json(503, { error: 'الإعداد غير مكتمل' }); }
   if (write && !sameOrigin(request)) throw json(403, { error: 'طلب مرفوض' });
@@ -256,6 +259,7 @@ export async function requireUser(request: Request, e: AuthEnv, need: Need, { wr
   if (!profile || profile.active === false) throw json(401, { error: 'الحساب موقوف' }, { 'set-cookie': clearCookie() });
   const user = sessionFor(profile, cfg);
   if (locked(user, need)) throw json(403, { error: LOCKED });
+  if (well && user.co !== WELL_COMPANY) throw json(403, { error: WELL_ONLY });
   if (!can(user, need, cfg)) throw json(403, { error: 'ما عندك صلاحية' });
   // Writes need edit and approvals need approve on that dashboard (owner/any/media checks stay as they are)
   if (need in DASHBOARDS && approve && !atLeast(user, need, 'approve', cfg)) throw json(403, { error: NO_APPROVE });

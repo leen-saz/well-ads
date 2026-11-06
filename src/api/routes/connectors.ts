@@ -4,6 +4,7 @@ import {
   env, sb, json, html, readJson, handle, requireUser, audit, sign, verify, readCookie, loadProfile, sessionFor, can,
   type AuthEnv, type Cfg, type Session,
 } from '../../lib/auth';
+import { WELL_COMPANY } from '../../lib/tenant';
 import { TIKTOK_MCP_DAYS, pkce, registerClient, authorizeUrl as mcpAuthorizeUrl, exchangeCode } from '../../lib/mcp-oauth';
 import { PLATFORMS, OAUTH, byId, appCreds, authorizeUrl, exchange, oauth1, check, type Platform, type Values, type Exchanged, CORE } from '../../lib/connectors';
 
@@ -46,7 +47,7 @@ async function dropPlatform(cfg: Cfg, user: Session, p: Platform): Promise<void>
 // ---- list: platforms and their status. No secret value: names, status and account ids only.
 export const list = {
   GET: handle(async (request, e) => {
-    const { cfg } = await requireUser(request, e, 'connectors');
+    const { cfg } = await requireUser(request, e, 'connectors', { well: true });
     const r = await sb(cfg, '/rest/v1/connections?select=platform,method,names,shown,connected_by,connected_at,expires_at,checked', { admin: true });
     if (!r.ok) return json(500, { error: 'ما قدرت أقرأ حالة الربط. تأكد إن 005_connectors.sql انطبق على القاعدة' });
     const by = Object.fromEntries(rows(r.data).map(x => [String(x.platform), x]));
@@ -81,7 +82,7 @@ export const list = {
 const MAX = 20000; // a service account JSON is a few thousand characters
 export const save = {
   POST: handle(async (request, e) => {
-    const { cfg, user } = await requireUser(request, e, 'connectors', { write: true });
+    const { cfg, user } = await requireUser(request, e, 'connectors', { write: true, well: true });
     const body = await readJson(request, 100000);
     const p = byId(body.platform);
     if (!p || p.mcp) return json(400, { error: 'منصة غير معروفة' });
@@ -106,7 +107,7 @@ export const save = {
 // ---- disconnect: wipes the platform's values and status. The pipeline falls back to old GitHub secrets if any.
 export const disconnect = {
   POST: handle(async (request, e) => {
-    const { cfg, user } = await requireUser(request, e, 'connectors', { write: true });
+    const { cfg, user } = await requireUser(request, e, 'connectors', { write: true, well: true });
     const p = byId((await readJson(request)).platform);
     if (!p) return json(400, { error: 'منصة غير معروفة' });
     await dropPlatform(cfg, user, p);
@@ -133,7 +134,7 @@ async function startMcp(request: Request, cfg: Cfg, uid: string, platform: strin
 
 export const start = {
   GET: handle(async (request, e) => {
-    const { cfg, user } = await requireUser(request, e, 'connectors');
+    const { cfg, user } = await requireUser(request, e, 'connectors', { well: true });
     const p = byId(new URL(request.url).searchParams.get('platform'));
     const o = p ? OAUTH[p.id] : undefined;
     if (!p || !o) return html(400, 'المنصة ما تدعم زر الربط.');
@@ -181,7 +182,7 @@ export const callback = {
     if (q.get('error') || q.get('denied') || !(v1 ? q.get('oauth_verifier') : code)) return back(`/connectors/?err=denied&p=${encodeURIComponent(st.p)}`, true);
     const profile = await loadProfile(cfg, st.uid);
     const user = profile && profile.active !== false ? sessionFor(profile, cfg) : null;
-    if (!user || !p || !o || !can(user, 'connectors', cfg)) return back('/connectors/?err=access', true);
+    if (!user || user.co !== WELL_COMPANY || !p || !o || !can(user, 'connectors', cfg)) return back('/connectors/?err=access', true);
     if (o.mcpOAuth) {
       // TikTok MCP: the code + the PKCE verifier from the nonce cookie + the client id from the signed state
       try {
