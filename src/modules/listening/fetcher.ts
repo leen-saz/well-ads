@@ -4,6 +4,7 @@
 import { env as authEnv, sb, type AuthEnv, type Cfg } from '../../lib/auth';
 import { type AiRun } from '../content/content';
 import { generate, grokSearch, pick } from '../../lib/llm';
+import { usageCtx } from '../../lib/usage';
 import {
   dedupe, due, parseBing, parseNews, parseReddit, parseSentiment, parseTikTok, parseX, parseYouTube, query, sentimentPrompt,
   terms, type Mention, type Watch,
@@ -111,7 +112,7 @@ export async function store(cfg: Cfg, co: string, w: Watch & { id: number }, fou
     const list = todo.ok && Array.isArray(todo.data) ? todo.data : [];
     if (list.length) {
       try {
-        const out = await generate(e, 'listening', { messages: [{ role: 'user', content: sentimentPrompt(list, [w.name]) }], max_tokens: 900 });
+        const out = await generate(e, 'listening', { messages: [{ role: 'user', content: sentimentPrompt(list, [w.name]) }], max_tokens: 900 }, fetch, usageCtx(cfg, { co }));
         const got = parseSentiment(out.response, list.length);
         const rows = list.map((m, i) => got[i] ? { ...m, company_id: co, sentiment: got[i]!.s, reason: got[i]!.r } : null).filter(Boolean);
         if (rows.length) {

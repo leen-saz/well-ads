@@ -4,13 +4,14 @@ import { scoped, WELL_COMPANY } from '../../lib/tenant';
 import { knowledgeFor, rulesFor, withKnowledge } from '../knowledge/knowledge';
 import { check } from '../compliance/compliance';
 import { aiFor, type LlmEnv } from '../../lib/llm';
+import { usageCtx, type UsageCtx } from '../../lib/usage';
 import { AI_MODEL, PUBLISH, crawl, engineOf, normalizeSite, plan, searchConsole, type AiRun, type Item } from './content';
 
 type Row = Record<string, unknown>;
 type AiEnv = AuthEnv & LlmEnv;
 const rows = (d: unknown): Row[] => (Array.isArray(d) ? (d as Row[]) : []);
 // Content writes with OpenAI when OPENAI_API_KEY is set, else Workers AI (src/lib/llm.ts)
-const aiOf = (e: AiEnv): AiRun | undefined => aiFor(e, 'content');
+const aiOf = (e: AiEnv, ctx?: UsageCtx): AiRun | undefined => aiFor(e, 'content', ctx);
 
 export const plans = { GET: handle(async (request, e) => {
   const { cfg, user } = await requireUser(request, e, 'content');
@@ -31,7 +32,7 @@ export const analyze = { POST: handle(async (request, e: AiEnv) => {
   const v = user.co === WELL_COMPANY ? await sb<{ name: string; value: string }[]>(cfg, '/rest/v1/rpc/connector_env', { method: 'POST', admin: true, body: {} }) : null;
   const t = Object.fromEntries((v?.ok && Array.isArray(v.data) ? v.data : []).map(x => [x.name, x.value]));
   const gsc = await searchConsole(site, t).catch(() => []);
-  const p = await plan(aiOf(e), site, niche, competitors, pages, gsc, await knowledgeFor(cfg, user.co, 'content'));
+  const p = await plan(aiOf(e, usageCtx(cfg, user)), site, niche, competitors, pages, gsc, await knowledgeFor(cfg, user.co, 'content'));
   // Nothing to propose: say so instead of saving an empty plan
   if (!p.items.length) return json(422, { error: p.analysis && 'ai' in p.analysis ? 'التحليل ما طلع بنود هالمرة، جرّب مرة ثانية بعد دقيقة' : 'الموقع ما فيه ملاحظات واضحة هالمرة. جرّب تكتب مجال النشاط والمنافسين عشان يطلع لك أفكار محتوى' });
   const r = await sb<Row[]>(cfg, '/rest/v1/content_plans', { method: 'POST', admin: true, headers: { Prefer: 'return=representation' },
@@ -56,7 +57,7 @@ export const item = { PATCH: handle(async (request, e: AiEnv) => {
   if (!it) return json(404, { error: 'بند غير معروف' });
   if (act === 'draft') {
     if (it.status !== 'approved') return json(409, { error: 'وافق على البند أول' });
-    const ai = aiOf(e);
+    const ai = aiOf(e, usageCtx(cfg, user));
     if (!ai) return json(503, { error: 'الكتابة بالذكاء الاصطناعي غير مفعّلة في هالبيئة' });
     const out = await ai(AI_MODEL, { max_tokens: 2500, messages: withKnowledge([{ role: 'user', content:
       `اكتب ${it.kind === 'faq' ? 'أسئلة وأجوبة شائعة (8 أسئلة)' : it.kind === 'page' ? 'نص صفحة خدمة' : 'مقال'} بالعربي السعودي الواضح لموقع ${p.site} بعنوان: "${it.title}". السبب: ${it.why}.
