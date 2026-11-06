@@ -149,6 +149,27 @@ describe('route /api/copy/skill', () => {
     const r = await call({ project_id: 1, skill: 'email', inputs: { type: 'welcome', point: 'يحجز أول زيارة' } });
     expect(r.status).toBe(503);
   });
+  it('stream: true sends the text as events, then one result with every variant reviewed', async () => {
+    stub();
+    const enc = new TextEncoder();
+    const f0 = (globalThis.fetch as unknown as (u: string, i?: RequestInit) => Promise<Response>);
+    vi.stubGlobal('fetch', vi.fn(async (url: string, init: RequestInit = {}) => {
+      if (!url.includes('api.openai.com')) return f0(url, init);
+      const ev = (o: unknown) => `data: ${JSON.stringify(o)}\n\n`;
+      const half = answer.length >> 1;
+      return new Response(new ReadableStream({ start(c) {
+        c.enqueue(enc.encode(ev({ type: 'response.output_text.delta', delta: answer.slice(0, half) })));
+        c.enqueue(enc.encode(ev({ type: 'response.output_text.delta', delta: answer.slice(half) })));
+        c.enqueue(enc.encode(ev({ type: 'response.completed', response: { usage: { input_tokens: 1, output_tokens: 1 } } }))); c.close(); } }));
+    }));
+    const r = await call({ project_id: 1, skill: 'email', inputs: { type: 'welcome', point: 'يحجز أول زيارة' }, stream: true }, { ...E, OPENAI_API_KEY: 'k' });
+    expect(r.headers.get('content-type')).toContain('text/event-stream');
+    const events = (await r.text()).split('\n\n').filter(Boolean).map(x => JSON.parse(x.replace(/^data: /, '')) as { type: string; variants?: { compliance: { rule: string }[] }[] });
+    expect(events.map(x => x.type)).toEqual(['delta', 'delta', 'result']);
+    // only the final event carries variants: the deltas are raw draft text, so nothing reviewable or savable comes from them
+    expect(events.slice(0, 2).every(x => !('variants' in x))).toBe(true);
+    expect(events[2]!.variants![0]!.compliance.some(h => h.rule === 'superlative')).toBe(true);
+  });
   it('writes with the knowledge as system message and the picked style, and reviews every variant', async () => {
     stub();
     const r = await call({ project_id: 1, skill: 'email', inputs: { type: 'welcome', point: 'يحجز أول زيارة' }, count: 9, competitors: ['c1'] }, { ...E, OPENAI_API_KEY: 'k' });
