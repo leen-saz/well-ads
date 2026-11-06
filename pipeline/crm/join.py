@@ -6,7 +6,7 @@ data['crm'] = {
 }
 The dashboard sums them in its date range and filters, next to spend: closings, cost per closing, revenue, ROAS.
 """
-import os, sys
+import os, re, sys
 from datetime import datetime, timedelta, timezone
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
@@ -18,6 +18,9 @@ COLUMNS = "lead_id,customer_id,created_at,platform_created_at,source_platform,ad
 CAVEATS = ["الاقفالة = ليد دفع، وقيمتها = المبلغ المدفوع", "الدفع من ميسّر بس (تابي والكاش ما يطلعون للحين)",
            "اقفالة بدون إعلان (يدوي، واتساب عضوي…) تنحسب لآخر إعلان جاب نفس العميل خلال 90 يوم قبلها"]
 LOOKBACK_DAYS = 90
+# Sources that are not ads even when their name mentions a platform (whatsapp_organic, instagram_dm, manual entries…)
+ORGANIC = {"manual", "late_import", "cold_outreach", "referral", "walk_in", "phone", "website"}
+ORGANIC_WORDS = ("organic", "_dm", "outreach", "manual", "referral")
 
 
 def day_of(row):
@@ -31,9 +34,27 @@ def riyadh_day(ts):
     return datetime.fromisoformat(str(ts).replace("Z", "+00:00")).astimezone(RIYADH).strftime("%Y-%m-%d") if ts else ""
 
 
+FAMILY = (("m", re.compile(r"meta|facebook|instagram|^fb|^ig_|whatsapp_ad")), ("s", re.compile(r"snap")), ("t", re.compile(r"tiktok")), ("g", re.compile(r"google")))
+
+
+def family(source):
+    """The ad family prefix of a CRM source (m meta, s snap, t tiktok, g google), or None for organic / manual sources.
+    The known source names map exactly; any other name that says which platform it came from maps by that word."""
+    src = (source or "").strip().lower()
+    if src in PREFIX:
+        return PREFIX[src]
+    if not src or src in ORGANIC or any(w in src for w in ORGANIC_WORDS):
+        return None
+    for prefix, rx in FAMILY:
+        if rx.search(src):
+            return prefix
+    return None
+
+
 def index(ads):
-    """ad id → dashboard key, per family prefix; TikTok also by ad name (ids damaged by the CRM import)."""
-    by_id, tt_names = {}, {}
+    """(ad id -> dashboard key, name -> key). Names: TikTok by plain name (ids damaged by the CRM import); every family
+    also by (prefix, name), only when the name belongs to one ad id, so two different ads never share a closing."""
+    by_id, tt_names, names = {}, {}, {}
     for key, ad in (ads or {}).items():
         if not key:
             continue
@@ -42,23 +63,38 @@ def index(ads):
             by_id[base] = key
         else:
             by_id.setdefault(base, key)
-        if key[0] == "t" and isinstance(ad, dict) and ad.get("name"):
-            tt_names.setdefault(ad["name"].strip(), key)
+        if isinstance(ad, dict) and ad.get("name"):
+            nm = ad["name"].strip()
+            if key[0] == "t":
+                tt_names.setdefault(nm, key)
+            names.setdefault((key[0], nm), {}).setdefault(base, key)
+    # one dict for names: TikTok by plain name (as before), every family by (prefix, name) when the name is one ad id's
+    tt_names.update({k: next(iter(v.values())) for k, v in names.items() if len(v) == 1})
     return by_id, tt_names
 
 
-def match(row, by_id, tt_names):
-    prefix = PREFIX.get(row.get("source_platform") or "")
+def match_how(row, by_id, tt_names):
+    """(key, how): how is 'id' or 'name' when matched, else why not: 'source' (not an ad source), 'no_id', 'broken_id',
+    'not_in_ads' (an id that is not among the ads we pulled)."""
+    prefix = family(row.get("source_platform"))
     if not prefix:
-        return None
+        return None, "source"
     ad_id = str(row.get("ad_id") or "").strip()
-    if ad_id and row.get("ad_id_quality") != "broken_by_import":
+    broken = row.get("ad_id_quality") == "broken_by_import"
+    if ad_id and not broken:
         key = by_id.get(prefix + ad_id)
         if key:
-            return key
-    if prefix == "t" and row.get("ad_name"):
-        return tt_names.get(str(row["ad_name"]).strip())
-    return None
+            return key, "id"
+    name = str(row.get("ad_name") or "").strip()
+    if name:
+        key = tt_names.get(name) if prefix == "t" else tt_names.get((prefix, name))
+        if key:
+            return key, "name"
+    return None, ("broken_id" if ad_id and broken else "not_in_ads" if ad_id else "no_id")
+
+
+def match(row, by_id, tt_names):
+    return match_how(row, by_id, tt_names)[0]
 
 
 def stats(leads, matched_ids):
@@ -113,13 +149,17 @@ def by_customer(r, ad_leads):
 def attach(data, leads):
     by_id, tt_names = index(data.get("ads"))
     out, unmatched, matched_ids, ad_leads, later = [], 0, set(), {}, []
+    why = {k: 0 for k in ('id', 'name', 'via_customer', 'source', 'no_id', 'broken_id', 'not_in_ads')}
+    sources = {}
     for r in leads:
-        key = match(r, by_id, tt_names)
+        key, how = match_how(r, by_id, tt_names)
         if not key:
             unmatched += 1
             if is_paid(r):
-                later.append(r)
+                later.append((r, how))
             continue
+        if is_paid(r):
+            why[how] += 1
         matched_ids.add(r.get("lead_id"))
         # A closing is a payment (Leen): payment_status paid with an amount; its value is the amount paid
         amount = float(r.get("amount_paid_sar") or 0)
@@ -130,10 +170,15 @@ def attach(data, leads):
             ad_leads.setdefault(r["customer_id"], []).append(row)
     # Paid leads with no ad of their own: credit the customer's last ad lead (the lead stays counted once)
     via_customer = 0
-    for r in later:
+    for r, how in later:
         row = by_customer(r, ad_leads)
         if not row:
+            why[how] += 1
+            if how == "source":
+                src = re.sub(r"[^a-z0-9_]", "", str(r.get("source_platform") or "").lower())[:40] or "none"
+                sources[src] = sources.get(src, 0) + 1
             continue
+        why["via_customer"] += 1
         via_customer += 1
         amount, paid_day = float(r.get("amount_paid_sar") or 0), riyadh_day(r.get("paid_at"))
         if row[3]:  # that ad lead already paid once: a second payment is its own closing
@@ -142,6 +187,7 @@ def attach(data, leads):
             row[2], row[3], row[4] = paid_day, 1, amount
     data["crm"] = {"rows": out, "paid_all": paid_all(leads), "unmatched": unmatched, "total": len(leads), "stats": stats(leads, matched_ids),
                    "via_customer": via_customer,
+                   "attribution": {"paid": sum(why.values()), "why": why, "unmatched_sources": dict(sorted(sources.items()))},
                    "synced": datetime.now(RIYADH).isoformat(timespec="minutes"), "caveats": CAVEATS}
     return data["crm"]
 
