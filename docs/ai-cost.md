@@ -14,6 +14,8 @@ Recording is best effort: it runs after the answer (`waitUntil` through `withWai
 Not recorded yet: the Debugger's Claude calls (own SDK, `src/modules/debugger/explain.ts`), Grok live search (`grokSearch`, per-search fees), and images (`openaiImage`). Callers without a user, such as cron jobs, are recorded with a null user (Listening passes its company).
 
 ## Prices
+**The prices in the table are unverified.** Nobody has matched them with a real invoice yet, so every cost on the screen is an estimate until Leen runs the invoice check (Maestro → «طابق الصرف مع الفاتورة») against a real invoice and the difference is within 5%. Until then, do not treat the totals or the caps as accurate.
+
 `src/lib/prices.ts`: USD per million tokens, each row with its source and the date it was last looked at. They are **estimates until the owner has matched a real invoice** (`verified: false`). A model with no row is recorded with `priced=false` and cost 0, and shows as «بدون سعر» instead of looking free. Workers AI is recorded as 0 (free inside Cloudflare's daily allowance).
 
 ## Monthly cap per tab
@@ -22,7 +24,7 @@ Not recorded yet: the Debugger's Claude calls (own SDK, `src/modules/debugger/ex
 - At 100% that tab's calls go to Workers AI (`ai_budget_capped` in the audit log). If Workers AI is not bound the call stops with `cap_reached` instead of spending more.
 - The motion plan is billed to the Design tab.
 
-**Cache:** the caps and the month's spend are read once a minute per company and isolate (`ai_spend` and `ai_budgets`), not once per model call. This isolate's own calls are added to the count between reads. A cap can therefore be passed by about a minute of calls, and another isolate learns about it within a minute.
+**Cache:** the caps and the month's spend are read once a minute per company **in each Worker isolate**, not once per model call (`ai_spend` and `ai_budgets`). Each isolate adds its own calls to its count between reads, but isolates do not share it. So a cap can be passed by up to a minute of calls, and more when several isolates are serving at once; the next read then moves the tab to Workers AI.
 
 ## Checking against an invoice (the PRD gate: within 5%)
 Maestro → «طابق الصرف مع الفاتورة»: pick the invoice (the two paid providers), the month, and type the invoice total in USD. The route sums what was recorded for that provider and month (Riyadh time) and shows the difference in percent; ±5% passes. The figures appear only on screen and in the response, and the audit log keeps only provider, month and the percentage.
