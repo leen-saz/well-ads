@@ -96,18 +96,12 @@ describe('routes', () => {
     expect(calls.find(c => c.url.includes('copy_projects'))!.url).toContain(`company_id=eq.${WELL_COMPANY}`);
   });
 
-  it('view cannot save; writing without the AI binding still returns checked drafts', async () => {
+  it('view cannot save, and the unused write route is gone', async () => {
     const viewer = member({ copy: 'view' });
     stub(viewer, () => []);
     expect((await ROUTES.copy.projects.POST(req('/api/copy/projects', await cookieFor(viewer), 'POST', { name: 'x' }), E)).status).toBe(403);
-    const editor = member({ copy: 'edit' });
-    stub(editor, url => url.includes('copy_projects') ? [{ id: 1, ...P() }] : []);
-    const w = await ROUTES.copy.write.POST(req('/api/copy/write', await cookieFor(editor), 'POST', { project_id: 1, kind: 'caption', count: 2 }), E);
-    expect(w.status).toBe(200);
-    const j = await w.json() as { engine: string; drafts: { score: number; checks: unknown[] }[] };
-    expect(j.engine).toBe('templates');
-    expect(j.drafts.length).toBe(2);
-    expect(j.drafts[0]!.checks.length).toBeGreaterThan(0);
+    // /api/copy/write was removed (nothing called it); writing goes through /api/copy/skill
+    expect(ROUTES.copy).not.toHaveProperty('write');
   });
 });
 
