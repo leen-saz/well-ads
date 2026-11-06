@@ -1,7 +1,8 @@
 // /api/design/brief: brief + headline variants from our best ads, and a ChatGPT background when no photo is given. Writes nothing.
 // /api/design/videos|videofile|video|videoedit|videoapprove: the «موشن جرافيك» type (motion projects and their versions).
-import { sb, json, readJson, handle, requireUser, type Cfg } from '../../lib/auth';
+import { json, readJson, handle, requireUser } from '../../lib/auth';
 import { scoped } from '../../lib/tenant';
+import { readAll } from '../../lib/paging';
 import { type AiRun } from '../content/content';
 import { generate, openaiImage, pick, type LlmEnv } from '../../lib/llm';
 import { usageCtx } from '../../lib/usage';
@@ -11,17 +12,6 @@ import { SIZES, TYPES, VISION_MODEL, VISION_PROMPT, backgroundPrompt, images, pr
 
 // Vision stays on Workers AI (free); the copy is written by OpenAI when OPENAI_API_KEY is set (src/lib/llm.ts)
 type AiEnv = Omit<LlmEnv, 'AI'> & { AI?: { run: AiRun & ((model: string, input: { image: number[]; prompt: string; max_tokens: number }) => Promise<unknown>) } };
-
-async function pages<T>(cfg: Cfg, path: string, max = 8): Promise<T[]> {
-  const out: T[] = [];
-  for (let i = 0; i < max; i++) {
-    const r = await sb<T[]>(cfg, path, { admin: true, headers: { 'Range-Unit': 'items', Range: `${i * 1000}-${i * 1000 + 999}` } });
-    if (!r.ok || !Array.isArray(r.data)) break;
-    out.push(...r.data);
-    if (r.data.length < 1000) break;
-  }
-  return out;
-}
 
 // The company's active brand (المعرفة ← الهوية والبصريات) comes with the options, so the page uses it without uploads
 export const options = { GET: handle(async (request, e) => {
@@ -42,10 +32,10 @@ export const brief = { POST: handle(async (request, e: AiEnv & Parameters<typeof
   const input = { type: String(b.type || 'ad'), offer: String(b.offer || '').slice(0, 200), audience: String(b.audience || '').slice(0, 200), dept: String(b.dept || '').slice(0, 60) };
   const since = new Date(Date.now() - 30 * 864e5).toISOString().slice(0, 10);
   const [ads, metrics] = await Promise.all([
-    pages<AdIn>(cfg, scoped('/rest/v1/ads?select=ad_key,platform,name,format,goal,text:doc->>text&goal=eq.lead', user.co), 3),
-    pages<MetIn>(cfg, `/rest/v1/ad_metrics?select=ad_key,spend,leads,clicks,impressions&day=gte.${since}`),
+    readAll<AdIn>(cfg, scoped('/rest/v1/ads?select=ad_key,platform,name,format,goal,text:doc->>text&goal=eq.lead', user.co), 'ad_key.asc', 3),
+    readAll<MetIn>(cfg, `/rest/v1/ad_metrics?select=ad_key,spend,leads,clicks,impressions&day=gte.${since}`, 'ad_key.asc,day.asc', 8),
   ]);
-  const ref = winners(ads, metrics);
+  const ref = winners(ads.rows, metrics.rows);
   let variants = templates(input.offer, input.audience), engine = 'templates', style = '';
   // Product photo and references: described by Workers AI vision, then used by the copy model. Not stored anywhere.
   const pics = images(b.images), looks = { product: [] as string[], refs: [] as string[] };

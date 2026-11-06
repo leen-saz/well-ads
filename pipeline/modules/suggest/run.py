@@ -8,6 +8,7 @@ from collections import defaultdict
 from datetime import date, datetime, timedelta, timezone
 
 from modules.core import rules, load_data, enabled
+from modules.core.clock import riyadh_today
 from modules.core.supa import Supa
 from modules.targets import run as targets
 
@@ -30,7 +31,7 @@ def plan(s):
     sp, ld = ev.get("spend") or 0, ev.get("leads") or 0
     risk = []
     if ev.get("first_day"):
-        d = rules.days_running(ev["first_day"], date.today())
+        d = rules.days_running(ev["first_day"], riyadh_today())
         if d is not None and d < 7:
             risk.append("مرحلة تعلّم")
     if k in ("pause", "pause_campaign"):

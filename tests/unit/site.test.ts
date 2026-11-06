@@ -7,10 +7,13 @@ describe('siteKey', () => {
     expect(siteKey('/c/')).toBe('site/c/index.html');
     expect(siteKey('/dept/iv/')).toBe('site/dept/iv/index.html');
     expect(siteKey('/control/ads.json')).toBe('site/control/ads.json');
+    expect(siteKey('/dash.json')).toBe('site/dash.json');
+    expect(siteKey('/dash-aud.json')).toBe('site/dash-aud.json');
+    expect(siteKey('/dash-organic.json')).toBe('site/dash-organic.json');
     expect(siteKey('/thumbs/0123456789abcdef0123.jpg')).toBe('thumbs/0123456789abcdef0123.jpg');
   });
   it('refuses anything else, including traversal', () => {
-    for (const p of ['/login/', '/thumbs/../site/csp.txt', '/thumbs/x.jpg', '/dept/../c/', '/site/index.html', '/api/health'])
+    for (const p of ['/login/', '/dash-x.json', '/thumbs/../site/csp.txt', '/thumbs/x.jpg', '/dept/../c/', '/site/index.html', '/api/health'])
       expect(siteKey(p)).toBeNull();
   });
 });

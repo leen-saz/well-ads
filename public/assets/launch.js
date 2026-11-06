@@ -1,6 +1,6 @@
 // فورم إطلاق حملة جديدة: تختار المنصة وتطلع خيارات إعلاناتها هي. الخانة الاختيارية اللي تنترك فاضية تطلع «ناقص» في طلب القرار.
 // الإرسال يسوي طلب "حملة جديدة" في لوحة القرارات، يمر على المراجع، ويحتاج موافقة لين. ما يطلق شي على المنصة بنفسه.
-import { $, $$, esc, api, icon, shell, toast, busy, say } from './common.js';
+import { $, $$, esc, api, icon, shell, toast, busy, say, failure } from './common.js';
 import { block } from './compliance-ui.js';
 
 // Runs on every visit of this page (assets/router.js calls it after each ClientRouter navigation).
@@ -156,5 +156,5 @@ export default async function mount() {
 
   shell({ active: 'control', title: 'حملة جديدة', badge: '<span class="chip line">تحتاج موافقة لين</span>' })
     .then(draw)
-    .catch(err => { $('#content').innerHTML = `<div class="card empty">${icon('alert')}<div>${esc(err.message)}</div></div>`; });
+    .catch(err => failure($('#content'), err, () => location.reload()));
 }

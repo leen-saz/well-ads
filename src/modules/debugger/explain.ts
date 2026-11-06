@@ -5,7 +5,7 @@ import Anthropic from '@anthropic-ai/sdk';
 import type { Finding } from './debugger';
 
 export interface ClaudeEnv { ANTHROPIC_API_KEY?: string; ANTHROPIC_MODEL?: string }
-export const CLAUDE_MODEL = 'claude-opus-5-5';
+export const CLAUDE_MODEL = 'claude-sonnet-5-5'; // Leen: Sonnet (half the price of Opus); ANTHROPIC_MODEL overrides
 type Platforms = Record<string, { spend7: number; leads7: number; lastDay: string | null; crm7: number }>;
 
 const SYSTEM = `أنت خبير تتبع إعلانات (Meta و Snapchat و TikTok و Google) وربطها بالـ CRM، لشركة رعاية صحية في الرياض.
