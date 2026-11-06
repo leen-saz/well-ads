@@ -1,0 +1,128 @@
+// رحلة العميل كشريط واحد أفقي ينساب من اليمين لليسار: ارتفاعه عند كل مرحلة من حجمها، ويضيق بين المرحلتين حسب قوة الخطوة.
+// يتحرك بنعومة لما تتغير الفترة أو المنصة (إلا إذا الجهاز طالب حركة أقل). حمّله متأخر: d3-shape و motion هنا بس.
+import * as React from 'react';
+import { area, curveMonotoneX } from 'd3-shape';
+import { animateValue } from 'motion';
+import { FUNNEL_COLOURS, type JStage, type JStat } from './analytics';
+import { type Step, type Verdict, linkX, points, shape, stageX } from './funnel';
+import { change } from './numbers';
+import { show } from './format';
+
+const W = 960, H = 300, MID = 138, MAX_H = 190, MIN_H = 28;
+const LEVEL = { bad: 'text-destructive', watch: 'text-amber-700 dark:text-amber-400', ok: 'text-primary' } as const;
+
+const band = area<{ x: number; h: number }>().x(p => p.x).y0(p => MID - p.h / 2).y1(p => MID + p.h / 2).curve(curveMonotoneX);
+const reduced = () => typeof matchMedia !== 'undefined' && matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+// The change against the same length before; shown only when the comparison is valid (was is null otherwise)
+function Delta({ now, was, lowerIsBetter }: { now: number | null; was: number | null; lowerIsBetter: boolean }) {
+  const d = change(now, was);
+  if (d == null) return null;
+  const good = lowerIsBetter ? d < 0 : d > 0;
+  return <span dir="ltr" className={`text-xs tabular-nums ${good ? 'text-primary' : 'text-destructive'}`}>{d > 0 ? '+' : ''}{d.toFixed(1)}%</span>;
+}
+
+type Active = { kind: 'stage' | 'link'; i: number } | null;
+interface Props { stages: JStage[]; steps: Step[]; verdict: Verdict; was: (x: JStat) => number | null }
+
+export default function FunnelChart({ stages, steps, verdict, was }: Props) {
+  const linkStep = (i: number) => steps.find(s => s.link === i && s.key !== 'cpl')!;
+  const target = shape(stages.map(s => s.main.now), [0, 1, 2].map(i => linkStep(i).score), MAX_H, MIN_H);
+  const key = [...target.heights, ...target.waists].map(v => v.toFixed(1)).join(',');
+  const path = React.useRef<SVGPathElement>(null);
+  const from = React.useRef(shape([null, null, null, null], [1, 1, 1], MIN_H * 0.4, MIN_H * 0.4));
+
+  // Morph from the shape on screen to the new one (and grow in on first load)
+  React.useEffect(() => {
+    const a = from.current, b = target;
+    const draw = (t: number) => {
+      const mix = (x: number[], y: number[]) => x.map((v, i) => v + (y[i]! - v) * t);
+      const now = { heights: mix(a.heights, b.heights), waists: mix(a.waists, b.waists) };
+      from.current = now;
+      path.current?.setAttribute('d', band(points(now, W)) ?? '');
+    };
+    if (reduced()) { draw(1); return; }
+    const anim = animateValue({ keyframes: [0, 1], duration: 700, ease: [0.22, 1, 0.36, 1], onUpdate: draw });
+    return () => anim.stop();
+  }, [key]); // the shape key holds every number the target uses
+
+  const [active, setActive] = React.useState<Active>(null);
+  const bottleneckLink = verdict.step && verdict.level !== 'ok' && verdict.step !== 'cpl' ? steps.find(s => s.key === verdict.step)?.link ?? null : null;
+  const cplWeak = verdict.step === 'cpl' && verdict.level !== 'ok';
+  const saleMissing = stages[3]!.main.now == null;
+  const on = (x: Active) => ({
+    onMouseEnter: () => setActive(x), onMouseLeave: () => setActive(null), onFocus: () => setActive(x), onBlur: () => setActive(null),
+    onClick: () => setActive(x),
+  });
+
+  return (
+    <div className="grid min-w-0 gap-3">
+      {/* Wide on phones: the funnel scrolls inside its own box, the page doesn't */}
+      <div className="-mx-2 overflow-x-auto px-2" tabIndex={-1}>
+        <svg viewBox={`0 0 ${W} ${H}`} className="block w-full min-w-[600px]" role="group" aria-label="رحلة العميل: الظهور، النقرات، الليدز، الإقفالات">
+          <defs>
+            <linearGradient id="funnel-fill" x1="0" x2="1" y1="0" y2="0">
+              {[3, 2, 1, 0].map(i => <stop key={i} offset={stageX(i, 4, W) / W} stopColor={i === 3 && saleMissing ? '#C9C2E8' : FUNNEL_COLOURS[i]} />)}
+            </linearGradient>
+          </defs>
+          <path ref={path} fill="url(#funnel-fill)" />
+          {stages.map((s, i) => {
+            const x = stageX(i, 4, W), hot = active?.kind === 'stage' && active.i === i, cost = s.sub.find(c => c.fmt === 'sar') ?? s.sub[0]!;
+            // White on the band only where the band is tall enough to hold the text; else dark on the card
+            const onBand = s.main.now != null && target.heights[i]! >= 52, halo = onBand ? { paintOrder: 'stroke' as const, stroke: 'rgb(0 0 0 / .18)', strokeWidth: 3 } : undefined;
+            return (
+              <g key={s.n} role="button" tabIndex={0} aria-label={`${s.n}: ${s.main.label} ${show[s.main.fmt](s.main.now)}`} className="cursor-pointer outline-none [&:focus-visible>rect]:stroke-ring" {...on({ kind: 'stage', i })}>
+                <rect x={x - 80} y={18} width={160} height={H - 26} rx={12} fill={hot ? 'currentColor' : 'transparent'} fillOpacity={hot ? 0.05 : 0} stroke="transparent" strokeWidth={2} />
+                <text x={x} y={30} textAnchor="middle" className="fill-foreground text-[15px] font-semibold">{i + 1}. {s.n}</text>
+                <text x={x} y={MID - 4} textAnchor="middle" className={`${onBand ? 'fill-white' : 'fill-foreground'} text-[22px] font-semibold tabular-nums`} style={halo}>{show[s.main.fmt](s.main.now)}</text>
+                <text x={x} y={MID + 18} textAnchor="middle" className={`${onBand ? 'fill-white/90' : 'fill-muted-foreground'} text-[12px]`} style={halo}>{s.main.label}</text>
+                <text x={x} y={H - 34} textAnchor="middle" className="fill-muted-foreground text-[12px]">{cost.label}</text>
+                <text x={x} y={H - 14} textAnchor="middle" className={`text-[14px] font-semibold tabular-nums ${i === 2 && cplWeak ? 'fill-destructive' : 'fill-foreground'}`}>{show[cost.fmt](cost.now)}</text>
+              </g>
+            );
+          })}
+          {[0, 1, 2].map(i => {
+            const x = linkX(i, 4, W), st = linkStep(i), weak = bottleneckLink === i, rate = stages[i + 1]!.rate!;
+            return (
+              <g key={i} role="button" tabIndex={0} aria-label={`${rate.label}: ${show[rate.fmt](rate.now)}${weak ? '، عنق الزجاجة' : ''}`} className="cursor-pointer outline-none [&:focus-visible>rect:first-child]:stroke-ring" {...on({ kind: 'link', i })}>
+                <rect x={x - 40} y={MID - 60} width={80} height={120} fill="transparent" stroke="transparent" strokeWidth={2} rx={10} />
+                {weak && <text x={x} y={MID - 34} textAnchor="middle" className="fill-destructive text-[12px] font-semibold">عنق الزجاجة</text>}
+                <rect x={x - 38} y={MID - 13} width={76} height={26} rx={13} className={weak ? 'fill-background stroke-destructive' : 'fill-background stroke-border'} strokeWidth={weak ? 2 : 1} />
+                <text x={x} y={MID + 5} textAnchor="middle" className={`text-[13px] font-semibold tabular-nums ${weak ? 'fill-destructive' : st.level === 'watch' ? 'fill-amber-700' : 'fill-foreground'}`}>{show[rate.fmt](rate.now)}</text>
+              </g>
+            );
+          })}
+        </svg>
+      </div>
+      <Detail stages={stages} steps={steps} active={active} was={was} linkStep={linkStep} />
+    </div>
+  );
+}
+
+// What the hovered or focused stage or link holds; by default, the bottleneck
+function Detail({ stages, steps, active, was, linkStep }: { stages: JStage[]; steps: Step[]; active: Active; was: Props['was']; linkStep: (i: number) => Step }) {
+  if (!active) return <p className="text-sm text-muted-foreground">مرّر على أي مرحلة أو وصلة (أو اضغط عليها) عشان تشوف أرقامها.</p>;
+  if (active.kind === 'link') {
+    const rate = stages[active.i + 1]!.rate!, st = linkStep(active.i);
+    return (
+      <div aria-live="polite" className="grid gap-1 rounded-lg border p-3 text-sm">
+        <div className="flex flex-wrap items-baseline gap-2"><b>{stages[active.i]!.n} ← {stages[active.i + 1]!.n}</b>
+          <span className="tabular-nums">{rate.label}: <b>{show[rate.fmt](rate.now)}</b></span><Delta now={rate.now} was={was(rate)} lowerIsBetter={false} /></div>
+        <p className={LEVEL[st.level]}>التحليل: {st.line}</p>
+      </div>
+    );
+  }
+  const s = stages[active.i]!, own = steps.filter(x => (active.i === 2 && x.key === 'cpl') || (active.i > 0 && x.link === active.i - 1 && x.key !== 'cpl'));
+  return (
+    <div aria-live="polite" className="grid gap-1 rounded-lg border p-3 text-sm">
+      <div className="flex flex-wrap items-baseline gap-2"><b>{active.i + 1}. {s.n}</b><span className="text-muted-foreground">{s.hint}</span></div>
+      <div className="flex flex-wrap gap-x-5 gap-y-1">
+        {[s.main, ...s.sub, ...(s.rate ? [s.rate] : [])].map(x => (
+          <span key={x.label} className="tabular-nums">{x.label}: <b>{show[x.fmt](x.now)}</b> <Delta now={x.now} was={was(x)} lowerIsBetter={x.lowerIsBetter} /></span>
+        ))}
+      </div>
+      {own.map(x => <p key={x.key} className={LEVEL[x.level]}>التحليل: {x.line}</p>)}
+    </div>
+  );
+}
+
