@@ -7,6 +7,7 @@ import * as connectors from './routes/connectors';
 import * as control from './routes/control';
 import * as dash from './routes/dash';
 import * as lessons from './routes/lessons';
+import { root as libraryRoot, item as libraryItem, star as libraryStar, approve as libraryApprove } from './routes/library';
 import * as today from './routes/today';
 import * as vitals from './routes/vitals';
 import { ROUTES } from '../modules/routes';
@@ -31,6 +32,9 @@ api.all('/connectors/:action', group(connectors));
 api.all('/control/:action', group(control));
 api.all('/dash/:action', group(dash));
 api.all('/lessons/:action', group(lessons));
+// The shared library: GET/POST /api/library, then one route per action on an item
+api.on(['GET', 'POST'], '/library', c => (libraryRoot[c.req.method as 'GET' | 'POST'] as Handler)(c.req.raw, c.env));
+api.all('/library/:action', group({ item: libraryItem, star: libraryStar, approve: libraryApprove }));
 api.all('/today/:action', group(today));
 api.all('/vitals/:action', group(vitals));
 // One route group per live module (src/modules/routes.ts)
