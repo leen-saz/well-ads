@@ -165,6 +165,7 @@ function pendingLines(kinds){
 }
 function renderAccounts(){
   const root=$('#acctPage'); if(!root) return;
+  if(EXTRA_WAIT){ root.innerHTML=extraLoading(); return; }
   const list=orgSources();
   const hasFollowers=list.some(s=>s.page.followers!=null);
   const followers=list.reduce((n,s)=>n+(s.page.followers!=null?Number(s.page.followers):0),0);
@@ -186,6 +187,7 @@ function renderAccounts(){
 }
 function renderPosts(){
   const cards=$('#ocards'); if(!cards) return;
+  if(EXTRA_WAIT){ cards.innerHTML=extraLoading(); return; }
   const all=organicPosts(), list=organicList(), needs=organicNeeds();
   const bits=[ui(`${fmt(list.length)} منشور`,`${fmt(list.length)} posts`)];
   if(S.dept && depName(S.dept)) bits.push(depName(S.dept));

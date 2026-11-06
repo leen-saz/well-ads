@@ -422,9 +422,24 @@ function ttExcludedAd(a){
   return /spring\s*rose/i.test(blob) || blob.includes('زهرة الربيع') || /zr_nd96/i.test(blob) || /sr\s*\|\s*ios14/i.test(blob);
 }
 const ORG_FB_HIDDEN = new Set(['Well Home Care','Well Women Health']);
-if(D.organic && Array.isArray(D.organic.facebook)){
-  D.organic.facebook = D.organic.facebook.filter(p=>p && !ORG_FB_HIDDEN.has(p.name));
+function hideOrgFb(){
+  if(D.organic && Array.isArray(D.organic.facebook)) D.organic.facebook = D.organic.facebook.filter(p=>p && !ORG_FB_HIDDEN.has(p.name));
 }
+hideOrgFb();
+// /dash.json leaves out the audience detail (a.aud) and the organic posts (pipeline/dash_split.py): they load after the
+// first view and the page draws again. Until then their sections say they are loading. Inline data has everything.
+let EXTRA_WAIT = Array.isArray(D.extra) && D.extra.length > 0;
+function loadExtra(then){
+  if(!EXTRA_WAIT) return;
+  const get = u => fetch(u, { credentials: 'same-origin' }).then(r => r.ok ? r.json() : null).catch(() => null);
+  Promise.all([get('/dash-aud.json'), get('/dash-organic.json')]).then(([aud, org]) => {
+    for(const [k, v] of Object.entries(aud || {})) if(D.ads && D.ads[k]) D.ads[k].aud = v;
+    if(org) { D.organic = org; hideOrgFb(); }
+    EXTRA_WAIT = false;
+    then();
+  });
+}
+const extraLoading = () => `<div class="empty">${ui('يحمّل…','Loading…')}</div>`;
 (function dropExcludedTikTok(){
   const gone = new Set();
   for(const [k,a] of Object.entries(D.ads||{})) if(ttExcludedAd(a)) gone.add(k);

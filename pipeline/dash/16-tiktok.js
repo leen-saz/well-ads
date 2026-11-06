@@ -113,3 +113,5 @@ document.addEventListener('keydown',e=>{
 });
 syncLangUrl();
 buildFilters(); render(); renderMeta(); loadTikTok(false);
+// The audience detail and organic posts after the first view (01-base.js)
+loadExtra(render);

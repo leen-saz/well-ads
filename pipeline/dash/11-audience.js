@@ -7,6 +7,7 @@ const AUD_REGION=[[/riyadh/i,'الرياض'],[/makkah|mecca/i,'مكة المكر
 // ---- شخصيات الجمهور: من تفاصيل المشاهدين (aud) للإعلانات اللي في الفترة والفلاتر
 function renderPersonas(c){
   const el=$('#perCards'); if(!el || !c) return;
+  if(EXTRA_WAIT){ el.innerHTML=extraLoading(); $('#perSub').textContent=''; return; }
   const ads=cardsList(c).map(x=>({k:x.k,a:x.a,spend:x.spend})).filter(x=>x.a.aud && x.a.aud.gender);
   if(!ads.length){ el.innerHTML=`<div class="empty">${ui('ما فيه تفاصيل مشاهدين للإعلانات في هالفترة.','No audience detail for the ads in this period.')}</div>`; $('#perSub').textContent=''; return; }
   // Rows: [segment, impressions, clicks, spend, results or null]. Results = leads + chats (Meta), null where the platform does not split them.
