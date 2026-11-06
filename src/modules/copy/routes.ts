@@ -3,7 +3,7 @@
 import { sb, json, readJson, handle, requireUser, audit, missingSchema, notApplied, type Cfg } from '../../lib/auth';
 import { scoped } from '../../lib/tenant';
 import { loadKnowledge, systemPrompt, forbiddenRules, withKnowledge } from '../knowledge/knowledge';
-import { generate, pick, type LlmEnv } from '../../lib/llm';
+import { generate, pick, stream, sseResponse, type LlmEnv } from '../../lib/llm';
 import { winners, type AdIn, type MetIn } from '../design/design';
 import { KINDS, DEFAULT_KIND, fitDraft, cleanProject, styleCard, writePrompt, parseDrafts, fallbackDrafts, review, type Project } from './copy';
 import { SKILL, partsOf, cleanInputs, missing, skillPrompt, parseVariants, reviewVariant } from './skills';
@@ -101,14 +101,28 @@ export const skill = { POST: handle(async (request, e: AiEnv & Parameters<typeof
   const count = Math.min(k.count[1], Math.max(1, parseInt(String(b.count), 10) || k.count[0]));
   const parts = partsOf(k, inputs);
   const [{ cards, hooks }, known] = await Promise.all([references(cfg, user.co, p, b.competitors), loadKnowledge(cfg, user.co)]);
+  const extra = forbiddenRules(known);
+  const used = { competitors: cards.map(c => c.name), hooks: hooks.slice(0, 5), knowledge: known.length > 0 };
+  const input = { messages: withKnowledge([{ role: 'user', content: skillPrompt(k, inputs, p, count, cards, hooks) }], systemPrompt(known, 'copy')), max_tokens: k.tokens };
+  // stream: the text as it is written (SSE), then one `result` event with the reviewed variants, so the check runs on the whole text
+  if (b.stream === true) {
+    return sseResponse((async function* () {
+      for await (const ev of stream(e, 'copy', input, fetch, request.signal)) {
+        if (ev.type !== 'done') { yield ev; continue; }
+        const got = parseVariants(ev.response, parts, count), eng = ev.engine === 'workers' ? 'workers-ai' : ev.engine;
+        if (!got.length) { yield { type: 'error', message: 'unreadable' }; return; }
+        await audit(cfg, user, 'copy_skill_written', { target: { project: p.id, skill: k.key, count: got.length, engine: eng, competitors: cards.length, streamed: true } });
+        yield { type: 'result', variants: got.map(v => reviewVariant(v, parts, p, extra)), parts, engine: eng, used };
+      }
+    })());
+  }
   let variants: ReturnType<typeof parseVariants> = [], engine = '';
   try {
-    const out = await generate(e, 'copy', { messages: withKnowledge([{ role: 'user', content: skillPrompt(k, inputs, p, count, cards, hooks) }], systemPrompt(known, 'copy')), max_tokens: k.tokens });
+    const out = await generate(e, 'copy', input);
     variants = parseVariants(out.response, parts, count);
     engine = out.engine === 'workers' ? 'workers-ai' : out.engine;
   } catch { /* said below */ }
   if (!variants.length) return json(502, { error: 'ما طلع جواب أقدر أقراه، جرّب مرة ثانية' });
   await audit(cfg, user, 'copy_skill_written', { target: { project: p.id, skill: k.key, count: variants.length, engine, competitors: cards.length } });
-  const extra = forbiddenRules(known);
-  return json(200, { variants: variants.map(v => reviewVariant(v, parts, p, extra)), parts, engine, used: { competitors: cards.map(c => c.name), hooks: hooks.slice(0, 5), knowledge: known.length > 0 } });
+  return json(200, { variants: variants.map(v => reviewVariant(v, parts, p, extra)), parts, engine, used });
 }) };

@@ -20,6 +20,44 @@ export async function api(path, { method = 'GET', body } = {}) {
   return data;
 }
 
+// Streaming POST (the shared live-text component). The route answers JSON (a question or an error) or text/event-stream:
+// `delta` text, `reset` (the writer changed, drop what you showed), then `result` with the final payload. `onText(text)` gets the whole text so far.
+// Abort `signal` to stop. Returns the JSON, or the `result` event; a stopped run returns null.
+export async function apiStream(path, body, { onText = () => {}, signal } = {}) {
+  const res = await fetch(path, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(body), credentials: 'same-origin', signal });
+  if (!(res.headers.get('content-type') || '').includes('text/event-stream')) {
+    let data = {};
+    try { data = await res.json(); } catch {}
+    if (res.status === 401) { location.href = '/login/?next=' + encodeURIComponent(location.pathname + location.search); throw new Error(data.error || 'سجّل الدخول'); }
+    if (!res.ok) throw new Error(data.error || 'صار خطأ');
+    return data;
+  }
+  const reader = res.body.getReader(), dec = new TextDecoder();
+  let buf = '', text = '', result = null, failed = false;
+  const take = block => {
+    const line = block.split('\n').find(l => l.startsWith('data:'));
+    if (!line) return;
+    let ev; try { ev = JSON.parse(line.slice(5)); } catch { return; }
+    if (ev.type === 'delta') { text += ev.text; onText(text); }
+    else if (ev.type === 'reset') { text = ''; onText(text); }
+    else if (ev.type === 'result') result = ev;
+    else if (ev.type === 'error') failed = true;
+  };
+  try {
+    for (;;) {
+      const { done, value } = await reader.read();
+      if (value) buf += dec.decode(value, { stream: !done }).replace(/\r\n/g, '\n');
+      for (let at = buf.indexOf('\n\n'); at >= 0; at = buf.indexOf('\n\n')) { take(buf.slice(0, at)); buf = buf.slice(at + 2); }
+      if (done) break;
+    }
+  } catch (err) { if (signal?.aborted) return null; throw err; }
+  if (signal?.aborted) return null;
+  if (failed || !result) throw new Error('ما طلع جواب أقدر أقراه، جرّب مرة ثانية');
+  return result;
+}
+// The readable part of a JSON answer still being written: its string values, one per line, keys left out
+export const liveText = raw => [...String(raw).matchAll(/"((?:[^"\\]|\\.)*)"(\s*:)?/g)].filter(m => !m[2]).map(m => { try { return JSON.parse('"' + m[1] + '"'); } catch { return m[1]; } }).join('\n');
+
 // Lucide (خط 1.75)
 const P = {
   plug: '<path d="M12 22v-5"/><path d="M9 8V2"/><path d="M15 8V2"/><path d="M18 8v5a4 4 0 0 1-4 4h-4a4 4 0 0 1-4-4V8Z"/>',

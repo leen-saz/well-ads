@@ -59,6 +59,7 @@ const skills = JSON.stringify(catalog()).replace(/</g, '\\u003c');
 .cw-miss{outline:2px solid var(--pulse);outline-offset:1px}
 .cw-d .t{white-space:pre-wrap;margin:0;font-size:15px;line-height:1.8}
 .cw-d .t ol{margin:0;padding-inline-start:22px;white-space:normal}
+.cw-live{white-space:pre-wrap;margin:14px 0 0;padding:12px 14px;border-radius:12px;background:var(--tint);font-size:15px;line-height:1.8}
 .cw-why{font-size:13px;color:var(--muted);margin:0}
 .cw-checks{margin-top:12px;font-size:13px}
 .cw-checks ul{margin:6px 0 0;padding-inline-start:18px}
@@ -110,10 +111,11 @@ const skills = JSON.stringify(catalog()).replace(/</g, '\\u003c');
             <div class="cw-two"><div><label for="count">كم نسخة</label><select id="count"></select></div></div>
             <label>خذ النمط من</label><div class="checks" id="usec"><span class="muted">أضف منافس بنصوصه أول.</span></div>
             <div class="cw-ask" id="ask" role="status" hidden></div>
-            <div class="bar" style="margin-top:14px"><button class="btn primary" type="submit" id="go">اكتب النسخ</button><span class="muted" id="engine"></span></div>
+            <div class="bar" style="margin-top:14px"><button class="btn primary" type="submit" id="go">اكتب النسخ</button><button class="btn secondary" type="button" id="stop" hidden>وقّف</button><span class="muted" id="engine"></span></div>
             <div class="msg" id="wmsg" role="status"></div>
             <details class="cw-checks"><summary>قبل ما تنشر، تأكد</summary><ul id="skChecks"></ul></details>
           </form>
+          <p class="cw-live" id="live" role="status" aria-live="off" hidden></p>
           <div class="cw-out" id="out"></div>
         </section>
       </div>
