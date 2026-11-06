@@ -20,7 +20,7 @@ const fail = (r: { status: number; data: unknown; ok: boolean }, say: string) =>
 const safe = (s: string | null, n: number) => (s || '').replace(/[^\p{L}\p{N} _-]/gu, '').slice(0, n);
 
 async function stars(cfg: Cfg, co: string, uid: string): Promise<Set<number>> {
-  const r = await sb<{ item_id: number }[]>(cfg, scoped(`/rest/v1/library_favorites?select=item_id&user_id=eq.${encodeURIComponent(uid)}&limit=2000`, co), { admin: true });
+  const r = await sb<{ item_id: number }[]>(cfg, scoped(`/rest/v1/library_favorites?select=item_id&user_id=eq.${encodeURIComponent(uid)}&limit=1000`, co), { admin: true });
   return new Set(Array.isArray(r.data) ? r.data.map(x => Number(x.item_id)) : []);
 }
 // One item of this company, if the user may open its tab
@@ -31,7 +31,7 @@ async function one(cfg: Cfg, u: Session, id: number): Promise<Item | null> {
   return it && readable(u, cfg).includes(it.module) ? it : null;
 }
 
-export const root = {
+export const list = {
   GET: handle(async (request, e) => {
     const { cfg, user } = await requireUser(request, e, 'any');
     const allowed = readable(user, cfg), q = new URL(request.url).searchParams;

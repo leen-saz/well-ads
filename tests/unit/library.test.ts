@@ -4,7 +4,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import * as A from '../../src/lib/auth';
 import { need } from '../../src/lib/gate';
 import { clean, cleanEdit, KINDS } from '../../src/lib/library';
-import { root, item, star, approve } from '../../src/api/routes/library';
+import { list as root, item, star, approve } from '../../src/api/routes/library';
 
 const CO_A = '11111111-1111-1111-1111-111111111111', CO_B = '22222222-2222-2222-2222-222222222222';
 const E: A.AuthEnv = { SUPABASE_URL: 'https://sb.example', SUPABASE_SERVICE_ROLE_KEY: 's', SESSION_SECRET: 'x'.repeat(40), OWNER_EMAIL: 'boss@example.com' };

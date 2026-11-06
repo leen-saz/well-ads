@@ -1,7 +1,7 @@
 // الهوية والبصريات: ملفات العلامة لكل شركة (الشعار، الألوان، الخطوط، دليل العلامة، صور مرجعية).
 // الملفات في R2 تحت brand/<company>/<random>.<ext> وما تنفتح إلا من السيرفر بعد التحقق من الشركة والصلاحية.
 // التصميم يقرا الفعّال منها في كل مرة (brandFor)، فالمستخدم ما يرفعها كل مرة.
-import { sb, type Cfg } from '../../lib/auth';
+import { sb, json, type Cfg } from '../../lib/auth';
 import { scoped } from '../../lib/tenant';
 
 export type BrandKind = 'logo' | 'colors' | 'font' | 'guide' | 'reference';
@@ -52,9 +52,9 @@ export function cleanColors(input: unknown): string[] {
 export async function serveFile(cfg: Cfg, co: string, id: number, files: R2Bucket | undefined, activeOnly: boolean): Promise<Response> {
   const r = await sb<Asset[]>(cfg, scoped(`/rest/v1/brand_assets?id=eq.${id}&select=id,kind,r2_key,mime,title,active${activeOnly ? '&active=is.true' : ''}`, co), { admin: true });
   const a = r.ok && Array.isArray(r.data) ? r.data[0] : undefined;
-  if (!a?.r2_key || !files || !a.r2_key.startsWith(`brand/${co}/`)) return new Response('not found', { status: 404 });
+  if (!a?.r2_key || !files || !a.r2_key.startsWith(`brand/${co}/`)) return json(404, { error: 'الملف غير موجود' });
   const obj = await files.get(a.r2_key);
-  if (!obj) return new Response('not found', { status: 404 });
+  if (!obj) return json(404, { error: 'الملف غير موجود' });
   return new Response(obj.body, { headers: {
     'content-type': a.mime || 'application/octet-stream', 'cache-control': 'private, max-age=3600',
     'content-security-policy': "default-src 'none'; style-src 'unsafe-inline'; sandbox", 'x-content-type-options': 'nosniff',

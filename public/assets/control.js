@@ -1,6 +1,6 @@
 // لوحة القرارات: صندوق قرارات مرتب حسب الأثر بالريال، مع لوحة تفاصيل وقرارات جماعية واختصارات.
 // المرحلة الحالية: القرار ينحفظ في السجل بس، وما ينرسل شي للمنصات.
-import { $, $$, esc, api, icon, when, day, fmt, sar, shell, toast, busy, t, pageSignal, LANG } from './common.js';
+import { $, $$, esc, api, icon, when, day, fmt, sar, shell, toast, busy, t, pageSignal, LANG, failure } from './common.js';
 import { hitsHTML } from './compliance-ui.js';
 
 // Runs on every visit of this page (assets/router.js calls it after each ClientRouter navigation).
@@ -425,5 +425,5 @@ export default async function mount() {
   }
   shell({ active: 'control', title: 'لوحة القرارات' })
     .then(() => { bind(); load(); })
-    .catch(err => { $('#content').innerHTML = `<div class="card empty">${icon('alert')}<div>${esc(err.message)}</div></div>`; });
+    .catch(err => failure($('#content'), err, () => location.reload()));
 }

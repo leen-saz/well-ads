@@ -7,11 +7,12 @@ import sys
 from datetime import date, datetime, timezone
 
 from modules.core import rules, enabled
+from modules.core.clock import riyadh_today
 from modules.core.supa import Supa
 
 
 def review(s, today=None, lessons=()):
-    issues = rules.check(s, today or date.today())
+    issues = rules.check(s, today or riyadh_today())
     if s.get("digest") is None:
         issues.append("الاقتراح بدون بصمة")
     if rules.needs_leen(s):

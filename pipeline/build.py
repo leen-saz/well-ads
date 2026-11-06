@@ -115,7 +115,11 @@ os.makedirs(os.path.join(public, "organic"), exist_ok=True)
 # The main dashboard loads its data from /dash.json (cacheable, revalidated); the page itself stays small.
 # The standalone well-ads-dashboard.html above keeps the data inline.
 open(os.path.join(public, "index.html"), "w", encoding="utf-8").write(wrap(tpl.replace("/*__DATA__*/", "")))
-open(os.path.join(public, "dash.json"), "w", encoding="utf-8").write(blob)
+# The audience detail and organic posts are not in the first view: their own files, loaded after it (dash_split.py)
+from dash_split import split
+_main, _aud, _organic = split(data)
+for _name, _part in (("dash.json", _main), ("dash-aud.json", _aud), ("dash-organic.json", _organic)):
+    open(os.path.join(public, _name), "w", encoding="utf-8").write(json.dumps(_part, ensure_ascii=False, separators=(",", ":")))
 open(os.path.join(public, "organic", "index.html"), "w", encoding="utf-8").write(
     '<!doctype html><html lang="ar" dir="rtl"><head><meta charset="utf-8">'
     '<meta http-equiv="refresh" content="0;url=/?mode=organic">'

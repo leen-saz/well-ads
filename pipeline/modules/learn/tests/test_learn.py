@@ -23,3 +23,46 @@ class Learn(unittest.TestCase):
         a = [{"platform": "meta", "event": "update_ad_set_budget", "actor": "Mayada"}] * 4
         out = lessons([], [], a)
         self.assertEqual(out[0]["kind"], "manual:update_ad_set_budget"); self.assertIn("Mayada (4)", out[0]["lesson"])
+
+
+class FakeDb:
+    def __init__(self, old, fail_post=False):
+        self.old, self.calls, self.fail_post = old, [], fail_post
+
+    def req(self, path, method="GET", body=None, prefer=None):
+        self.calls.append((method, path, body))
+        if method == "GET":
+            return self.old
+        if method == "POST" and self.fail_post:
+            raise RuntimeError("down")
+
+
+class Refresh(unittest.TestCase):
+    NEW = [{"platform": "meta", "kind": "pause", "lesson": "A"}, {"platform": "snap", "kind": "budget_up", "lesson": "B"}]
+
+    def test_decided_lessons_stay_and_are_not_written_again(self):
+        from modules.learn.run import refresh_lessons
+        old = [{"id": 1, "platform": "meta", "kind": "pause", "lesson": "A", "status": "approved"},
+               {"id": 2, "platform": "snap", "kind": "x", "lesson": "old", "status": "new"},
+               {"id": 3, "platform": "snap", "kind": "y", "lesson": "old2", "status": "reviewed"}]
+        db = FakeDb(old)
+        wrote = refresh_lessons(db, self.NEW)
+        self.assertEqual([l["lesson"] for l in wrote], ["B"])
+        patch = [c for c in db.calls if c[0] == "PATCH"]
+        self.assertEqual(len(patch), 1)
+        self.assertIn("id=in.(2,3)", patch[0][1])          # only undecided ones, never the approved id 1
+        self.assertNotIn("module=eq.ads&active", patch[0][1])
+        self.assertTrue(db.calls[1][0] == "POST" and db.calls[2][0] == "PATCH")   # new first, then deactivate
+
+    def test_a_failed_write_deactivates_nothing(self):
+        from modules.learn.run import refresh_lessons
+        db = FakeDb([{"id": 2, "platform": "p", "kind": "k", "lesson": "old", "status": "new"}], fail_post=True)
+        with self.assertRaises(RuntimeError):
+            refresh_lessons(db, self.NEW)
+        self.assertFalse([c for c in db.calls if c[0] == "PATCH"])
+
+    def test_reads_only_wells_ads_lessons(self):
+        from modules.learn.run import refresh_lessons, WELL
+        db = FakeDb([])
+        refresh_lessons(db, [])
+        self.assertIn(f"company_id=eq.{WELL}", db.calls[0][1])

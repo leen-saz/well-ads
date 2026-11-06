@@ -1,6 +1,6 @@
 // المدير: تبويبات (لوحة، الوارد، المهام، الإيجنتس، المحادثة) بالرابط، قائمة أو لوحة، فلاتر، بحث، ومهمة جديدة في نافذة.
 // اختصارات: C مهمة جديدة، / بحث، 1-5 التبويبات.
-import { $, $$, api, say, esc, fmt, shell, busy, pageSignal } from '/assets/common.js';
+import { $, $$, api, say, esc, fmt, shell, busy, pageSignal, failure, pageFailure } from '/assets/common.js';
 
 // Runs on every visit of this page (assets/router.js calls it after each ClientRouter navigation).
 export default async function mount() {
@@ -123,7 +123,7 @@ export default async function mount() {
 
   async function load() {
     try { S = await api('/api/maestro/state'); }
-    catch (err) { $('#setup').innerHTML = `<section class="card pad" style="max-width:640px"><h2>المدير</h2><p class="muted">${esc(err.message)}</p><p class="so-note">الإعداد مرة وحدة من مسؤولة النظام.</p></section>`; return; }
+    catch (err) { failure($('#setup'), err, load); return; }
     if (!S.connected) {
       $('#setup').innerHTML = `<section class="card pad" style="max-width:640px"><h2>اربط شركتك بالمدير</h2><p class="muted">يجهز لشركتك مساحة فيها إيجنتس، ومهام، وميزانية، وموافقات.</p>
         ${S.owner ? '<button class="btn primary" id="connect">اربط</button>' : '<p class="muted">الربط من المالكة.</p>'}<div class="msg" id="cmsg" role="status"></div></section>`;
@@ -178,7 +178,7 @@ export default async function mount() {
       const k = [[n(p.done), 'مهام خلصت'], [p.spentCents == null ? '—' : usd(p.spentCents), 'الصرف'], [n(p.successRate, '%'), `نجاح التشغيلات (${n(p.runs)})`], [n(p.avgTaskMinutes, ' د'), 'متوسط وقت المهمة']];
       $('#perfBody').innerHTML = `<div class="mx-kpis">${k.map(([v, t]) => `<div class="card mx-kpi"><b>${esc(v)}</b><span>${t}</span></div>`).join('')}</div>
         ${spend(a)}<p class="muted">آخر تشغيل: ${p.lastRunAt ? esc(new Date(p.lastRunAt).toLocaleString('ar-SA-u-nu-latn')) : '—'}</p>${p.lastError ? `<p class="so-note">آخر خطأ: ${esc(p.lastError)}</p>` : ''}`;
-    } catch (err) { $('#perfBody').innerHTML = `<p class="muted">${esc(err.message)}</p>`; }
+    } catch (err) { failure($('#perfBody'), err, perf); }
   }
   $('#view').addEventListener('click', e => { const b = e.target.closest('[data-perf]'); if (!b) return; perfAgent = b.closest('[data-agent]').dataset.agent; $('#pdlg').showModal(); perf(); });
   $('#perfDays').addEventListener('click', e => { const b = e.target.closest('[data-days]'); if (b) { perfDays = Number(b.dataset.days); perf(); } });
@@ -240,5 +240,5 @@ export default async function mount() {
     busy(b, false);
   });
 
-  shell({ active: 'maestro', title: 'المدير' }).then(() => { mountSpend(); return load(); }).catch(err => say($('#msg'), err.message));
+  shell({ active: 'maestro', title: 'المدير', tools: '' }).then(me => { if (me.role === 'owner') $('#healthLink')?.removeAttribute('hidden'); mountSpend(); return load(); }).catch(pageFailure);
 }
