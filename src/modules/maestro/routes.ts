@@ -4,6 +4,7 @@ import { sb, json, readJson, handle, requireUser, audit, isOwner, atLeast, notEn
 import { budget, chatLines, client, cleanTask, items, performance, STATUS, tabOf, withBrief, type PcEnv } from './paperclip';
 import { MODULES } from '../registry';
 import { knowledgeFor } from '../knowledge/knowledge';
+import { crmFor } from './health';
 
 type Env = AuthEnv & PcEnv;
 type Co = { id: string; name: string; paperclip_company_id: string | null };
@@ -142,4 +143,10 @@ export const approval = { POST: handle(async (request, e: Env) => {
   try { await pc.decide(c.paperclip_company_id, String(b.id || ''), act); } catch (err) { return json(404, { error: (err as Error).message }); }
   await audit(cfg, user, `maestro_${act}`, { target: { approval: b.id } });
   return json(200, { ok: true });
+}) };
+
+// The owner's CRM diagnostic: counts, sums and dates only (health.ts), never a name, phone or lead id.
+export const crm = { GET: handle(async (request, e: AuthEnv) => {
+  const { cfg, user } = await requireUser(request, e, 'owner');
+  return json(200, await crmFor(cfg, user.co), { 'cache-control': 'no-store' });
 }) };
