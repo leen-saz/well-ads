@@ -3,6 +3,7 @@
 import { sb, json, readJson, handle, requireUser, audit, atLeast, notEnabled, missingSchema, notApplied, type Cfg } from '../../lib/auth';
 import { scoped } from '../../lib/tenant';
 import { generate, pick, type LlmEnv, type Msg } from '../../lib/llm';
+import { usageCtx } from '../../lib/usage';
 import { knowledgeFor, rulesFor, withKnowledge } from '../knowledge/knowledge';
 import { brandFor } from '../knowledge/brand';
 import { check } from '../compliance/compliance';
@@ -34,9 +35,9 @@ async function warnings(cfg: Cfg, co: string, spec: Spec) {
 }
 
 // One model call → a clean plan, or null (the caller decides what a failure means)
-async function plan(e: VEnv, cfg: Cfg, co: string, messages: Msg[], seconds: number, ratio: Spec['ratio'], colors: string[]) {
+async function plan(e: VEnv, cfg: Cfg, co: string, messages: Msg[], seconds: number, ratio: Spec['ratio'], colors: string[], uid?: string) {
   try {
-    const out = await generate(e, 'motion', { messages: withKnowledge(messages, await knowledgeFor(cfg, co, 'design')), max_tokens: 1500 });
+    const out = await generate(e, 'motion', { messages: withKnowledge(messages, await knowledgeFor(cfg, co, 'design')), max_tokens: 1500 }, fetch, usageCtx(cfg, { co, ...(uid ? { uid } : {}) }));
     const spec = cleanSpec(parseSpec(out.response), seconds, ratio, colors);
     return spec ? { spec, engine: out.engine, model: out.model } : null;
   } catch (err) { console.warn('motion_plan_failed', (err as Error).message); return null; }
@@ -97,7 +98,7 @@ export const video = { POST: handle(async (request, e: VEnv) => {
   const headline = String(b.headline || '').trim().slice(0, 140), script = String(b.script || '').trim().slice(0, 2000);
   if (!headline && !script) return json(400, { error: 'اكتب العنوان أو نص التعليق' });
   const colors = (await brandFor(cfg, user.co)).colors;
-  const made = pick(e, 'motion') ? await plan(e, cfg, user.co, specPrompt({ headline, script, seconds, ratio, colors }), seconds, ratio, colors) : null;
+  const made = pick(e, 'motion') ? await plan(e, cfg, user.co, specPrompt({ headline, script, seconds, ratio, colors }), seconds, ratio, colors, user.uid) : null;
   const v1 = made || { spec: templateSpec({ headline, script, seconds, ratio, colors }), engine: 'templates', model: null };
   if (!v1.spec) return json(502, { error: 'ما طلعت خطة للفيديو، جرّب مرة ثانية' });
   const ins = await sb<Project[]>(cfg, '/rest/v1/motion_projects', { method: 'POST', admin: true, headers: { Prefer: 'return=representation' }, body: {
@@ -129,7 +130,7 @@ export const videoedit = { POST: handle(async (request, e: VEnv) => {
   const seconds = clampSeconds(p.voice_seconds), ratio = ratioOf(p.ratio);
   const current = cleanSpec(base.spec, seconds, ratio);
   if (!current) return json(409, { error: 'النسخة هذي ما تنقرى' });
-  const made = await plan(e, cfg, user.co, editPrompt(current, change), seconds, ratio, (await brandFor(cfg, user.co)).colors);
+  const made = await plan(e, cfg, user.co, editPrompt(current, change), seconds, ratio, (await brandFor(cfg, user.co)).colors, user.uid);
   if (!made || made.engine !== 'openai') return json(502, { error: 'المصمم ما رجّع نسخة صالحة، جرّب تكتب التعديل بشكل ثاني' });
   const next = (all[all.length - 1]?.version || 0) + 1;
   const v = await sb<Version[]>(cfg, '/rest/v1/motion_versions', { method: 'POST', admin: true, headers: { Prefer: 'return=representation' },

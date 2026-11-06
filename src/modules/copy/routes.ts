@@ -4,6 +4,7 @@ import { sb, json, readJson, handle, requireUser, audit, missingSchema, notAppli
 import { scoped } from '../../lib/tenant';
 import { loadKnowledge, systemPrompt, forbiddenRules, withKnowledge } from '../knowledge/knowledge';
 import { generate, pick, stream, sseResponse, type LlmEnv } from '../../lib/llm';
+import { usageCtx } from '../../lib/usage';
 import { winners, type AdIn, type MetIn } from '../design/design';
 import { KINDS, DEFAULT_KIND, fitDraft, cleanProject, styleCard, writePrompt, parseDrafts, fallbackDrafts, review, type Project } from './copy';
 import { SKILL, partsOf, cleanInputs, missing, skillPrompt, parseVariants, reviewVariant } from './skills';
@@ -76,7 +77,7 @@ export const write = { POST: handle(async (request, e: AiEnv & Parameters<typeof
   const known = await loadKnowledge(cfg, user.co), extra = forbiddenRules(known);
   if (pick(e, 'copy')) {
     try {
-      const out = await generate(e, 'copy', { messages: withKnowledge([{ role: 'user', content: writePrompt(p, kind, count, cards, hooks) }], systemPrompt(known, 'copy')), max_tokens: 900 });
+      const out = await generate(e, 'copy', { messages: withKnowledge([{ role: 'user', content: writePrompt(p, kind, count, cards, hooks) }], systemPrompt(known, 'copy')), max_tokens: 900 }, fetch, usageCtx(cfg, user));
       const got = parseDrafts(out.response, KINDS[kind]!.max);
       if (got.length) { drafts = got.map(d => fitDraft(d, kind)); engine = out.engine === 'workers' ? 'workers-ai' : out.engine; }
     } catch { /* templates stay */ }
@@ -107,7 +108,7 @@ export const skill = { POST: handle(async (request, e: AiEnv & Parameters<typeof
   // stream: the text as it is written (SSE), then one `result` event with the reviewed variants, so the check runs on the whole text
   if (b.stream === true) {
     return sseResponse((async function* () {
-      for await (const ev of stream(e, 'copy', input, fetch, request.signal)) {
+      for await (const ev of stream(e, 'copy', input, fetch, request.signal, usageCtx(cfg, user))) {
         if (ev.type !== 'done') { yield ev; continue; }
         const got = parseVariants(ev.response, parts, count), eng = ev.engine === 'workers' ? 'workers-ai' : ev.engine;
         if (!got.length) { yield { type: 'error', message: 'unreadable' }; return; }
@@ -118,7 +119,7 @@ export const skill = { POST: handle(async (request, e: AiEnv & Parameters<typeof
   }
   let variants: ReturnType<typeof parseVariants> = [], engine = '';
   try {
-    const out = await generate(e, 'copy', input);
+    const out = await generate(e, 'copy', input, fetch, usageCtx(cfg, user));
     variants = parseVariants(out.response, parts, count);
     engine = out.engine === 'workers' ? 'workers-ai' : out.engine;
   } catch { /* said below */ }

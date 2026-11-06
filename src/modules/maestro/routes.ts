@@ -143,3 +143,6 @@ export const approval = { POST: handle(async (request, e: Env) => {
   await audit(cfg, user, `maestro_${act}`, { target: { approval: b.id } });
   return json(200, { ok: true });
 }) };
+
+// AI cost: spend per tab and month, the owner's caps, the invoice check (src/modules/maestro/usage.ts)
+export { usage, budgets, reconcile } from './usage';

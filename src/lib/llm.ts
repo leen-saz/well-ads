@@ -5,6 +5,7 @@
 // Keys are Worker secrets Leen adds herself: OPENAI_API_KEY, XAI_API_KEY (docs/secrets/worker.env.example).
 // Model ids from the providers' model pages (2026-11-03); change them with OPENAI_MODEL / XAI_MODEL, no code change.
 import { AI_MODEL, type AiRun } from '../modules/content/content';
+import { overCap, record, type UsageCtx } from './usage';
 
 export type Provider = 'openai' | 'xai' | 'workers';
 export interface LlmEnv { OPENAI_API_KEY?: string; OPENAI_MODEL?: string; OPENAI_IMAGE_MODEL?: string; XAI_API_KEY?: string; XAI_MODEL?: string; AI?: { run: AiRun } }
@@ -18,8 +19,9 @@ const URL_OF = { openai: 'https://api.openai.com/v1/responses', xai: 'https://ap
 const clean = (s: string | undefined) => (s || '').replace(/[^a-z0-9.\-_:]/gi, '').slice(0, 80);
 
 // The provider a tab would use now: its own if the key is there, else Workers AI if bound, else none
-export function pick(e: LlmEnv, module: string): { provider: Provider; model: string } | null {
-  const p = PROVIDER[module] || 'workers';
+// `spent`: the tab has used its monthly cap (src/lib/usage.ts), so it goes to Workers AI, or to none when that is not bound.
+export function pick(e: LlmEnv, module: string, spent = false): { provider: Provider; model: string } | null {
+  const p = spent ? 'workers' : PROVIDER[module] || 'workers';
   if (p === 'openai' && e.OPENAI_API_KEY) return { provider: 'openai', model: clean(e.OPENAI_MODEL) || DEFAULTS.openai };
   if (p === 'xai' && e.XAI_API_KEY) return { provider: 'xai', model: clean(e.XAI_MODEL) || DEFAULTS.xai };
   return e.AI ? { provider: 'workers', model: AI_MODEL } : null;
@@ -41,16 +43,23 @@ export function textOf(j: unknown): string {
   return (o.output || []).filter(x => x.type === 'message').flatMap(x => x.content || []).filter(c => c.type === 'output_text').map(c => c.text || '').join('');
 }
 
-export async function generate(e: LlmEnv, module: string, i: LlmInput, f: typeof fetch = fetch): Promise<LlmOut> {
-  const p = pick(e, module);
-  if (!p) throw new Error('no_model');
+// `ctx` (who is asking) turns on the cost record and the monthly cap; callers without one (cron, fetchers) are not tracked.
+export async function generate(e: LlmEnv, module: string, i: LlmInput, f: typeof fetch = fetch, ctx?: UsageCtx): Promise<LlmOut> {
+  const spent = ctx ? await overCap(ctx, module) : false;
+  const p = pick(e, module, spent);
+  if (!p) throw new Error(spent ? 'cap_reached' : 'no_model');
   if (p.provider !== 'workers') {
     const key = p.provider === 'openai' ? e.OPENAI_API_KEY : e.XAI_API_KEY;
     try {
       const r = await f(URL_OF[p.provider], { method: 'POST', headers: { authorization: `Bearer ${key}`, 'content-type': 'application/json' }, body: JSON.stringify(body(p.provider, p.model, i)) });
       if (r.ok) {
-        const text = textOf(await r.json()).trim();
-        if (text) return { response: text, engine: p.provider, model: p.model };
+        const j = await r.json(), text = textOf(j).trim();
+        if (text) {
+          const u = (j as { usage?: { input_tokens?: number; output_tokens?: number } })?.usage;
+          const usage = u ? { in: num(u.input_tokens), out: num(u.output_tokens) } : undefined;
+          record(ctx, module, { provider: p.provider, model: p.model, usage });
+          return { response: text, engine: p.provider, model: p.model };
+        }
         console.warn('llm_empty', p.provider);
       } else console.warn('llm_failed', p.provider, r.status);   // the status only: the body may echo the request
     } catch (err) { console.warn('llm_failed', p.provider, (err as Error).message); }
@@ -58,6 +67,8 @@ export async function generate(e: LlmEnv, module: string, i: LlmInput, f: typeof
   }
   const out = await e.AI!.run(AI_MODEL, { messages: i.messages, max_tokens: i.max_tokens, ...(i.response_format ? { response_format: i.response_format } : {}) });
   const r = (out as { response?: unknown })?.response;
+  const wu = (out as { usage?: { prompt_tokens?: number; completion_tokens?: number } })?.usage;
+  record(ctx, module, { provider: 'workers', model: AI_MODEL, usage: wu ? { in: num(wu.prompt_tokens), out: num(wu.completion_tokens) } : undefined });
   return { response: typeof r === 'string' ? r : r ? JSON.stringify(r) : '', engine: 'workers', model: AI_MODEL };
 }
 
@@ -100,9 +111,10 @@ export async function* sse(body: ReadableStream<Uint8Array>): AsyncGenerator<{ e
 
 const num = (x: unknown) => (typeof x === 'number' && isFinite(x) ? x : 0);
 
-export async function* stream(e: LlmEnv, module: string, i: LlmInput, f: typeof fetch = fetch, signal?: AbortSignal): AsyncGenerator<StreamEvent> {
-  const p = pick(e, module);
-  if (!p) { yield { type: 'error', message: 'no_model' }; return; }
+export async function* stream(e: LlmEnv, module: string, i: LlmInput, f: typeof fetch = fetch, signal?: AbortSignal, ctx?: UsageCtx): AsyncGenerator<StreamEvent> {
+  const spent = ctx ? await overCap(ctx, module) : false;
+  const p = pick(e, module, spent);
+  if (!p) { yield { type: 'error', message: spent ? 'cap_reached' : 'no_model' }; return; }
   let sent = false;
   if (p.provider !== 'workers') {
     const key = p.provider === 'openai' ? e.OPENAI_API_KEY : e.XAI_API_KEY;
@@ -120,6 +132,7 @@ export async function* stream(e: LlmEnv, module: string, i: LlmInput, f: typeof 
       }
       if (!finished) throw new Error('stream_cut');
       if (!text.trim()) throw new Error('empty');
+      record(ctx, module, { provider: p.provider, model: p.model, usage });
       yield { type: 'done', response: text.trim(), engine: p.provider, model: p.model, ...(usage ? { usage } : {}) };
       return;
     } catch (err) {
@@ -146,6 +159,7 @@ export async function* stream(e: LlmEnv, module: string, i: LlmInput, f: typeof 
       if (text) yield { type: 'delta', text };
     }
     if (!text.trim()) { yield { type: 'error', message: 'empty' }; return; }
+    record(ctx, module, { provider: 'workers', model: AI_MODEL, usage });
     yield { type: 'done', response: text.trim(), engine: 'workers', model: AI_MODEL, ...(usage ? { usage } : {}) };
   } catch (err) {
     if (signal?.aborted) return;
@@ -167,8 +181,8 @@ export function sseResponse(events: AsyncIterable<unknown>): Response {
 }
 
 // Same shape as Workers AI's run(), for code written against it. The model argument is ignored: the tab decides.
-export const aiFor = (e: LlmEnv, module: string): AiRun | undefined =>
-  pick(e, module) ? (...a) => generate(e, module, a[1]) : undefined;
+export const aiFor = (e: LlmEnv, module: string, ctx?: UsageCtx): AiRun | undefined =>
+  pick(e, module) ? (...a) => generate(e, module, a[1], fetch, ctx) : undefined;
 
 // Grok with live search (Listening). PAID: tokens, plus $5 per 1,000 web searches and X billed per post fetched (xAI pricing).
 // Never falls back: a model without search would make the posts up.
