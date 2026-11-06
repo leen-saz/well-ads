@@ -1,9 +1,8 @@
 // Migration numbers: sequential, and no new duplicates (011, 013 and 014 were written in parallel and are grandfathered;
 // docs/migrations.md explains why their order does not matter).
-import { readdirSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
 
-const files = readdirSync(new URL('../../supabase/migrations/', import.meta.url)).filter(f => f.endsWith('.sql')).sort();
+const files = Object.keys(import.meta.glob('../../supabase/migrations/*.sql', { query: '?raw' })).map(p => p.split('/').pop()!).sort();
 const GRANDFATHERED = new Set(['011', '013', '014']);
 
 describe('supabase/migrations', () => {
