@@ -71,6 +71,8 @@ def validate(data, min_ads=MIN_ADS, min_rows=MIN_ROWS):
     for key, kind in (("crm", dict), ("organic", dict), ("channels", dict), ("departments", dict), ("aud", dict), ("platforms", dict)):
         if key in data and data[key] is not None and not isinstance(data[key], kind):
             errs.append(f"'{key}' has the wrong type")
+    if "extra" in data and not (isinstance(data["extra"], list) and all(isinstance(x, str) for x in data["extra"])):
+        errs.append("'extra' must be a list of names")
     crm = data.get("crm")
     if isinstance(crm, dict) and crm:
         if not isinstance(crm.get("rows"), list) or not isinstance(crm.get("paid_all"), list):

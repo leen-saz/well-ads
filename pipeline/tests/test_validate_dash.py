@@ -48,6 +48,17 @@ class ValidateTests(unittest.TestCase):
         d = good(); d["ads"]["zzz"] = {}
         self.assertIn("some ads are malformed (key prefix or type)", v.validate(d))
 
+    def test_both_shapes_of_dash_json(self):
+        """Inline (aud on each ad, organic in the file) and split (no aud, no organic, extra lists what moved out)."""
+        inline = good(); inline["organic"] = {"facebook": []}
+        for ad in inline["ads"].values():
+            ad["aud"] = {"age": [1, 2]}
+        self.assertEqual(v.validate(inline), [])
+        split = good(); del split["organic"]; split["extra"] = ["aud", "organic"]
+        self.assertEqual(v.validate(split), [])
+        split["extra"] = "aud"
+        self.assertIn("'extra' must be a list of names", v.validate(split))
+
     def test_crm_block(self):
         d = good(); d["crm"]["rows"][0][4] = -5
         self.assertIn("some crm rows are malformed or have a negative amount", v.validate(d))
