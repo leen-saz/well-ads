@@ -53,9 +53,13 @@ export const list = {
     const by = Object.fromEntries(rows(r.data).map(x => [String(x.platform), x]));
     // Platforms the hourly pull already reads with keys kept in GitHub secrets: ads updated in the last 2 days
     const since = new Date(Date.now() - 2 * 864e5).toISOString();
-    const pulled = await sb(cfg, `/rest/v1/ads?select=platform&updated_at=gte.${since}&limit=5000`, { admin: true });
     const PULL: Record<string, string> = { meta: 'meta', google: 'google_ads', snap: 'snap', tiktok: 'tiktok' };
-    const live = new Set(rows(pulled.ok ? pulled.data : []).map(x => PULL[String(x.platform)]).filter(Boolean));
+    // One row per platform is enough (a single 5000-row read is cut at 1000 and could hold only one platform)
+    const seen = await Promise.all(Object.keys(PULL).map(async k => {
+      const r = await sb(cfg, `/rest/v1/ads?select=platform&platform=eq.${k}&updated_at=gte.${since}&limit=1`, { admin: true });
+      return r.ok && rows(r.data).length ? PULL[k] : undefined;
+    }));
+    const live = new Set(seen.filter(Boolean));
     const platforms = PLATFORMS.map(p => {
       const c = by[p.id] || null;
       const o = OAUTH[p.id];
