@@ -15,7 +15,7 @@
     "test:parity:update": "UPDATE_GOLDEN=1 playwright test --workers=1"
   },
   "dependencies": {
-    "@anthropic-ai/sdk": "1.2.0",
+    "@anthropic-ai/sdk": "1.4.0",
     "@astrojs/cloudflare": "^14.4.3",
     "@astrojs/react": "^7.1.2",
     "@tanstack/react-table": "^8.21.3",
