@@ -401,12 +401,20 @@ function pendingCopy(kind){
 }
 // The main dashboard keeps its data in /dash.json (cached by the browser, revalidated with an ETag, warmed by the
 // app's sidebar); department and creative pages still carry theirs inline.
+// /dash.json sends the rows column-wise (pipeline/dash_split.py): back to [key, day, spend, impr, clicks, leads, conv]
+function decodeRows(rc){
+  const {k, d, c} = rc, out = new Array(c[0].length);
+  for(let i=0;i<out.length;i++) out[i] = [k[c[0][i]], d[c[1][i]], c[2][i], c[3][i], c[4][i], c[5][i], c[6][i]];
+  return out;
+}
 const D = await (async () => {
   const t = document.getElementById('data').textContent.trim();
   if (t) return JSON.parse(t);
   const r = await fetch('/dash.json', { credentials: 'same-origin' });
   if (!r.ok) { document.getElementById('metaLine').textContent = 'ما قدرت أحمّل البيانات (' + r.status + '). حدّث الصفحة.'; throw new Error('dash.json ' + r.status); }
-  return r.json();
+  const d = await r.json();
+  if (d.rows_cols) { d.rows = decodeRows(d.rows_cols); delete d.rows_cols; }
+  return d;
 })();
 // Spring Rose0406 (شركة زهرة الربيع) حساب تيك توك منفصل: لا يُحسب في الصرف ولا التاريخ.
 const TT_EXCLUDED_ID = '6948010864247046146';
