@@ -1,5 +1,5 @@
 // إيجنت المحتوى و SEO/AEO: يحلل الموقع ويبني خطة، والماركتير يوافق على كل بند، ويكتب مسودة، وينشر (تصدير الحين).
-import { $, api, say, esc, shell, busy, LANG } from '/assets/common.js';
+import { $, api, say, esc, shell, busy, LANG, pageFailure } from '/assets/common.js';
 import { marked, hitsHTML } from '/assets/compliance-ui.js';
 
 const ENGINE = { openai: 'ChatGPT', xai: 'Grok', 'workers-ai': 'ذكاء اصطناعي مجاني' };
@@ -64,5 +64,5 @@ export default async function mount() {
     catch (err) { say($('#msg'), err.message); busy(b, false); }
   });
 
-  shell({ active: 'content', title: 'المحتوى و SEO' }).then(() => load()).catch(err => say($('#msg'), err.message));
+  shell({ active: 'content', title: 'المحتوى و SEO' }).then(() => load()).catch(pageFailure);
 }
