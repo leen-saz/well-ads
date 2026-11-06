@@ -5,6 +5,7 @@ import { scoped } from '../../lib/tenant';
 import { readAll } from '../../lib/paging';
 import { type AiRun } from '../content/content';
 import { generate, openaiImage, pick, type LlmEnv } from '../../lib/llm';
+import { usageCtx } from '../../lib/usage';
 import { knowledgeFor, withKnowledge } from '../knowledge/knowledge';
 import { brandFor, serveFile } from '../knowledge/brand';
 import { SIZES, TYPES, VISION_MODEL, VISION_PROMPT, backgroundPrompt, images, productPhoto, variantsFrom, prompt, stylePrompt, templates, winners, type AdIn, type MetIn } from './design';
@@ -48,7 +49,7 @@ export const brief = { POST: handle(async (request, e: AiEnv & Parameters<typeof
   if (!looks.refs.length) looks.refs.push(...brand.notes);
   if (brand.colors.length) looks.refs.push(`ألوان العلامة: ${brand.colors.join(' ')}`);
   if (pick(e, 'design') && (looks.product.length || looks.refs.length)) {
-    try { style = (await generate(e, 'design', { messages: [{ role: 'user', content: stylePrompt(looks) }], max_tokens: 160 })).response.trim().slice(0, 400); } catch { /* notes are optional */ }
+    try { style = (await generate(e, 'design', { messages: [{ role: 'user', content: stylePrompt(looks) }], max_tokens: 160 }, fetch, usageCtx(cfg, user))).response.trim().slice(0, 400); } catch { /* notes are optional */ }
   }
   // ChatGPT draws the picture (OpenAI Images, PAID per image) while the text is written: the product photo put in a
   // new scene when one is given, else a new background
@@ -56,7 +57,7 @@ export const brief = { POST: handle(async (request, e: AiEnv & Parameters<typeof
   const drawing = e.OPENAI_API_KEY ? openaiImage(e, backgroundPrompt(input, brand.colors, style, !!hd), fetch, hd ?? undefined) : Promise.resolve(null);
   if (pick(e, 'design')) {
     try {
-      const out = await generate(e, 'design', { messages: withKnowledge([{ role: 'user', content: prompt(input, ref.hooks, looks) }], await knowledgeFor(cfg, user.co, 'design')), max_tokens: 700 });
+      const out = await generate(e, 'design', { messages: withKnowledge([{ role: 'user', content: prompt(input, ref.hooks, looks) }], await knowledgeFor(cfg, user.co, 'design')), max_tokens: 700 }, fetch, usageCtx(cfg, user));
       // parseVariants keeps only well-formed variants (length-capped, compliance-flagged) and falls back to the templates
       const got = variantsFrom(out.response);
       if (got.length) { variants = got; engine = out.engine === 'workers' ? 'workers-ai' : out.engine; }

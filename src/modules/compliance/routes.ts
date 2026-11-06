@@ -5,6 +5,7 @@ import { scoped } from '../../lib/tenant';
 import { check as checkText, scan as scanAds, rewritePrompt, RULES, type AdText } from './compliance';
 import { knowledgeFor, rulesFor, withKnowledge } from '../knowledge/knowledge';
 import { generate, pick, type LlmEnv } from '../../lib/llm';
+import { usageCtx } from '../../lib/usage';
 
 type AiEnv = AuthEnv & LlmEnv;
 
@@ -36,7 +37,7 @@ export const rewrite = { POST: handle(async (request, e: AiEnv) => {
   if (!hits.length) return json(200, { text, hits: [], same: true });
   if (!pick(e, 'content')) return json(503, { error: 'إعادة الصياغة بالذكاء الاصطناعي غير مفعّلة في هالبيئة' });
   let out: unknown;
-  try { out = await generate(e, 'content', { messages: withKnowledge([{ role: 'user', content: rewritePrompt(text, hits) }], await knowledgeFor(cfg, user.co, 'content')), max_tokens: 700 }); }
+  try { out = await generate(e, 'content', { messages: withKnowledge([{ role: 'user', content: rewritePrompt(text, hits) }], await knowledgeFor(cfg, user.co, 'content')), max_tokens: 700 }, fetch, usageCtx(cfg, user, 'compliance')); }
   catch { return json(503, { error: 'الذكاء الاصطناعي ما رد الحين، جرّب بعد دقيقة' }); }
   const next = String((out as { response?: unknown })?.response ?? '').trim().replace(/^["«]|["»]$/g, '').slice(0, 3000);
   if (!next) return json(502, { error: 'ما رجع نص، جرّب مرة ثانية' });

@@ -137,8 +137,27 @@ export default async function mount() {
             ${r.parts.map(p => partHTML(p, v)).join('')}
             ${v.why ? `<p class="cw-why">${esc(v.why)}</p>` : ''}
             <div class="meta"><span class="cw-score">${v.score}/100</span><span class="muted">${DIALECT[v.dialect] || 'محايد'}</span>
-              <button class="btn sm secondary" type="button" data-copy="${i}" style="margin-inline-start:auto">انسخ</button></div>
+              <span style="margin-inline-start:auto;display:flex;gap:6px;align-items:center"><button class="btn sm ghost" type="button" data-star="${i}" aria-pressed="false" aria-label="حط في المكتبة بنجمة" title="نجمة: احفظ في المكتبة وحطه في المفضلة">☆</button>
+              <button class="btn sm secondary" type="button" data-save="${i}">احفظ في المكتبة</button>
+              <button class="btn sm secondary" type="button" data-copy="${i}">انسخ</button></span></div>
             ${flagHTML(v)}</article>`).join('');
+        // Save to the shared library (the server checks the text against the compliance rules and keeps the result); the star saves and favourites
+        const saved = {};
+        const keep = async (i, star, btn) => {
+          const v = r.variants[i], inp = Object.fromEntries($$('[data-in]').map(x => [x.dataset.in, x.value]));
+          busy(btn, true);
+          try {
+            if (saved[i]) saved[i] = { ...saved[i], starred: (await api('/api/library/star', { method: 'POST', body: { id: saved[i].id, on: star ? !saved[i].starred : saved[i].starred } })).starred };
+            else { const o = await api('/api/library', { method: 'POST', body: { module: 'copy', kind: 'text', title: [SK.ar, v.angle].filter(Boolean).join(' · ') + ' · ' + CUR.name, content: v.text, platform: inp.platform || '', service: CUR.service || '', star } }); saved[i] = { id: o.item.id, starred: o.item.starred }; }
+            const card = btn.closest('.cw-d'), st = $('[data-star]', card), sv = $('[data-save]', card);
+            st.textContent = saved[i].starred ? '★' : '☆'; st.setAttribute('aria-pressed', String(saved[i].starred));
+            sv.innerHTML = 'انحفظت ✓ <a href="/library/">افتح المكتبة</a>'; sv.disabled = true;
+          } catch (err) { say($('#wmsg'), err.message); }
+          busy(btn, false);
+          if (saved[i]) $('[data-save]', btn.closest('.cw-d')).disabled = true;
+        };
+        $$('[data-save]', $('#out')).forEach(x => x.onclick = () => keep(x.dataset.save, false, x));
+        $$('[data-star]', $('#out')).forEach(x => x.onclick = () => keep(x.dataset.star, true, x));
         $$('[data-copy]', $('#out')).forEach(x => x.onclick = async () => { try { await navigator.clipboard.writeText(r.variants[x.dataset.copy].text); x.textContent = 'انسخ ✓'; } catch { x.textContent = 'ما قدرت أنسخ'; } });
       }
     } catch (err) { say($('#wmsg'), err.message); }

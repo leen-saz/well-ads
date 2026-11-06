@@ -201,5 +201,44 @@ export default async function mount() {
     else if (/^[1-5]$/.test(e.key) && !$('#board').hidden) { view = VIEWS[Number(e.key) - 1]; filter = 'all'; draw(); if (view === 'chat') loadChat(); }
   }, { signal: pageSignal() });
 
-  shell({ active: 'maestro', title: 'المدير', tools: '' }).then(me => { if (me.role === 'owner') $('#healthLink')?.removeAttribute('hidden'); return load(); }).catch(pageFailure);
+  // ---- spend on the AI (owner only: the route answers 403 to anyone else and the section stays hidden)
+  async function mountSpend(month = '') {
+    let d;
+    try { d = await api('/api/maestro/usage' + (month ? `?month=${encodeURIComponent(month)}` : '')); }
+    catch (err) { if (/مشاهدة|صلاحية|مقفل/.test(err.message)) return; if (/الجدول ناقص/.test(err.message)) { $('#spend').hidden = false; $('#spendBody').innerHTML = `<p class="muted">${esc(err.message)}</p>`; } return; }
+    $('#spend').hidden = false;
+    const ms = d.months.map(m => `<option value="${esc(m.month)}"${m.month === d.month ? ' selected' : ''}>${esc(m.month)}</option>`).join('');
+    $('#spendMonth').innerHTML = ms; $('#recMonth').innerHTML = ms;
+    const hot = d.tabs.filter(t => t.level !== 'ok');
+    $('#spendAlert').innerHTML = hot.map(t => `<div class="so-note"><b>${esc(t.ar)}</b>: ${t.level === 'capped' ? 'وصل السقف الشهري، والتاب الحين يكتب بالمجاني' : `وصل ${t.alert_pct}% من سقفه الشهري`}</div>`).join('');
+    const FLAG = { alert: 'قريب من السقف', capped: 'وصل السقف' };
+    $('#spendBody').innerHTML = `<p class="sp-total">${fmt(d.total.sar, 2)} <small class="muted" style="font:500 14px var(--f-ar)">ريال، ${fmt(d.total.usd, 2)} دولار (سعر الصرف ${d.rate})</small></p>
+      <div class="sp-tab sp-hd"><span>التاب</span><span>الطلبات</span><span>الصرف (ر.س)</span><span>السقف الشهري (ر.س)</span><span></span></div>
+      ${d.tabs.map(t => `<form class="sp-tab" data-tab="${esc(t.tab)}" novalidate>
+        <b>${esc(t.ar)}${t.unpriced ? ` <span class="sp-flag" title="سعر غير معروف انحسب بصفر">${t.unpriced} بدون سعر</span>` : ''}</b>
+        <b class="n">${fmt(t.calls)}</b><b class="n">${fmt(t.sar, 2)}</b>
+        <span><input type="number" name="cap" min="0" step="1" inputmode="decimal" dir="ltr" placeholder="بدون سقف" aria-label="السقف الشهري لتاب ${esc(t.ar)}" value="${t.cap_sar ?? ''}"${d.current ? '' : ' disabled'}>${t.level !== 'ok' ? ` <span class="sp-flag${t.level === 'capped' ? ' bad' : ''}">${FLAG[t.level]}</span>` : ''}</span>
+        <button class="btn sm secondary" type="submit"${d.current ? '' : ' disabled'}>احفظ</button></form>`).join('')}`;
+  }
+  $('#spendMonth').addEventListener('change', e => mountSpend(e.target.value));
+  $('#spendBody').addEventListener('submit', async e => {
+    e.preventDefault();
+    const f = e.target.closest('[data-tab]'); if (!f) return;
+    const b = e.submitter; busy(b, true);
+    try { await api('/api/maestro/budgets', { method: 'POST', body: { tab: f.dataset.tab, cap_sar: f.elements.cap.value } }); say($('#spendMsg'), f.elements.cap.value ? 'انحفظ السقف' : 'شلت السقف، بدون حد', true); await mountSpend($('#spendMonth').value); }
+    catch (err) { say($('#spendMsg'), err.message); }
+    busy(b, false);
+  });
+  $('#recForm').addEventListener('submit', async e => {
+    e.preventDefault();
+    const b = e.submitter; busy(b, true); $('#recOut').innerHTML = '';
+    try {
+      const r = await api('/api/maestro/reconcile', { method: 'POST', body: { provider: $('#recProv').value, month: $('#recMonth').value, invoice_usd: $('#recUsd').value } });
+      $('#recOut').innerHTML = `<div class="sp-res">المسجّل عندنا: <b>${fmt(r.recorded_usd, 2)}$</b> · الفاتورة: <b>${fmt(r.invoice_usd, 2)}$</b> · الفرق: <b>${r.diff_pct > 0 ? '+' : ''}${fmt(r.diff_pct, 2)}%</b><br>
+        ${r.ok ? 'داخل الحد (5%)، التتبع مطابق للفاتورة' : 'خارج الحد (5%): ما نعتمد التتبع لين نعرف السبب'}<br><span class="muted">${r.notes.map(esc).join(' · ')}</span></div>`;
+    } catch (err) { say($('#spendMsg'), err.message); }
+    busy(b, false);
+  });
+
+  shell({ active: 'maestro', title: 'المدير', tools: '' }).then(me => { if (me.role === 'owner') $('#healthLink')?.removeAttribute('hidden'); mountSpend(); return load(); }).catch(pageFailure);
 }
