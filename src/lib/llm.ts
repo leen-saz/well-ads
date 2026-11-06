@@ -71,8 +71,10 @@ export type StreamEvent =
   | { type: 'error'; message: string };
 
 // Server-sent events out of a byte stream. A chunk can end anywhere, so the tail waits for the next one.
-export async function* sse(body: ReadableStream<Uint8Array>): AsyncGenerator<{ event: string; data: string }> {
+export async function* sse(body: ReadableStream<Uint8Array>, signal?: AbortSignal): AsyncGenerator<{ event: string; data: string }> {
   const reader = body.getReader(), dec = new TextDecoder();
+  // a stop ends a read that is waiting for the provider, whether or not the body itself honours the abort
+  signal?.addEventListener('abort', () => { reader.cancel().catch(() => {}); }, { once: true });
   let buf = '';
   const parse = (block: string) => {
     let event = '';
@@ -100,17 +102,27 @@ export async function* sse(body: ReadableStream<Uint8Array>): AsyncGenerator<{ e
 
 const num = (x: unknown) => (typeof x === 'number' && isFinite(x) ? x : 0);
 
+// Stops the upstream request whenever the consumer stops reading (the stop button, a closed tab, a break out of the loop):
+// the inner generator's own controller is aborted in `finally`, which cancels the provider's response body.
 export async function* stream(e: LlmEnv, module: string, i: LlmInput, f: typeof fetch = fetch, signal?: AbortSignal): AsyncGenerator<StreamEvent> {
+  if (signal?.aborted) return;
+  const ac = new AbortController(), stop = () => ac.abort();
+  signal?.addEventListener('abort', stop, { once: true });
+  try { yield* run(e, module, i, f, ac.signal); }
+  finally { signal?.removeEventListener('abort', stop); ac.abort(); }
+}
+
+async function* run(e: LlmEnv, module: string, i: LlmInput, f: typeof fetch, signal: AbortSignal): AsyncGenerator<StreamEvent> {
   const p = pick(e, module);
   if (!p) { yield { type: 'error', message: 'no_model' }; return; }
   let sent = false;
   if (p.provider !== 'workers') {
     const key = p.provider === 'openai' ? e.OPENAI_API_KEY : e.XAI_API_KEY;
     try {
-      const r = await f(URL_OF[p.provider], { method: 'POST', ...(signal ? { signal } : {}), headers: { authorization: `Bearer ${key}`, 'content-type': 'application/json' }, body: JSON.stringify({ ...body(p.provider, p.model, i), stream: true }) });
+      const r = await f(URL_OF[p.provider], { method: 'POST', signal, headers: { authorization: `Bearer ${key}`, 'content-type': 'application/json' }, body: JSON.stringify({ ...body(p.provider, p.model, i), stream: true }) });
       if (!r.ok || !r.body) throw new Error(`status ${r.status}`);
       let text = '', usage: { in: number; out: number } | undefined, finished = false;
-      for await (const m of sse(r.body)) {
+      for await (const m of sse(r.body, signal)) {
         if (m.data === '[DONE]') break;
         let j: { type?: string; delta?: unknown; response?: { usage?: { input_tokens?: number; output_tokens?: number } } };
         try { j = JSON.parse(m.data); } catch { continue; }
@@ -123,7 +135,7 @@ export async function* stream(e: LlmEnv, module: string, i: LlmInput, f: typeof 
       yield { type: 'done', response: text.trim(), engine: p.provider, model: p.model, ...(usage ? { usage } : {}) };
       return;
     } catch (err) {
-      if (signal?.aborted) return;
+      if (signal.aborted) return;
       console.warn('llm_stream_failed', p.provider, (err as Error).message);   // never the body: it may echo the request
     }
     if (!e.AI) { yield { type: 'error', message: 'llm_failed' }; return; }
@@ -133,7 +145,7 @@ export async function* stream(e: LlmEnv, module: string, i: LlmInput, f: typeof 
     const out = await e.AI!.run(AI_MODEL, { messages: i.messages, max_tokens: i.max_tokens, stream: true, ...(i.response_format ? { response_format: i.response_format } : {}) } as Parameters<AiRun>[1]);
     let text = '', usage: { in: number; out: number } | undefined;
     if (out instanceof ReadableStream) {
-      for await (const m of sse(out)) {
+      for await (const m of sse(out, signal)) {
         if (m.data === '[DONE]') break;
         let j: { response?: unknown; usage?: { prompt_tokens?: number; completion_tokens?: number } };
         try { j = JSON.parse(m.data); } catch { continue; }
@@ -148,7 +160,7 @@ export async function* stream(e: LlmEnv, module: string, i: LlmInput, f: typeof 
     if (!text.trim()) { yield { type: 'error', message: 'empty' }; return; }
     yield { type: 'done', response: text.trim(), engine: 'workers', model: AI_MODEL, ...(usage ? { usage } : {}) };
   } catch (err) {
-    if (signal?.aborted) return;
+    if (signal.aborted) return;
     console.warn('llm_stream_failed', 'workers', (err as Error).message);
     yield { type: 'error', message: 'llm_failed' };
   }
@@ -156,13 +168,15 @@ export async function* stream(e: LlmEnv, module: string, i: LlmInput, f: typeof 
 
 // The events as a text/event-stream body, for a route to return. Each event is one `data:` line of JSON.
 export function sseResponse(events: AsyncIterable<unknown>): Response {
-  const enc = new TextEncoder();
+  const enc = new TextEncoder(), it = events[Symbol.asyncIterator]();
+  const line = (ev: unknown) => enc.encode('data: ' + JSON.stringify(ev) + '\n\n');
   return new Response(new ReadableStream<Uint8Array>({
-    async start(c) {
-      try { for await (const ev of events) c.enqueue(enc.encode(`data: ${JSON.stringify(ev)}\n\n`)); }
-      catch (err) { console.warn('sse_failed', (err as Error).message); c.enqueue(enc.encode(`data: ${JSON.stringify({ type: 'error', message: 'llm_failed' })}\n\n`)); }
-      c.close();
+    // pulled as the client reads; a client that leaves cancels the stream, which stops the generator and so the provider call
+    async pull(c) {
+      try { const n = await it.next(); if (n.done) c.close(); else c.enqueue(line(n.value)); }
+      catch (err) { console.warn('sse_failed', (err as Error).message); c.enqueue(line({ type: 'error', message: 'llm_failed' })); c.close(); }
     },
+    async cancel() { await it.return?.(); },
   }), { headers: { 'content-type': 'text/event-stream; charset=utf-8', 'cache-control': 'no-store', 'x-accel-buffering': 'no' } });
 }
 
