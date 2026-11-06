@@ -57,3 +57,14 @@ Notes
 | `supabase: down` | wrong or missing `SUPABASE_*` secret, Supabase outage | check the secret; if it was the release, roll back |
 | `storage: down` | R2 binding/bucket changed | check `wrangler.jsonc` bucket names and the bucket's existence |
 | `ai: unset` | no Workers AI binding in this env | expected locally; production must have it |
+
+## Settings only the repository owner can change
+- **Branch protection / rulesets on `main`**: add the status check `smoke` (the job of `.github/workflows/smoke.yml`) next to `ci / gate`, so a PR cannot merge with a red smoke run.
+  The deploy workflow already needs it: `deploy` calls `smoke.yml` through `workflow_call` and `needs: [ci, smoke]`, no setting required.
+- **Environment `production`** (Settings → Environments): keep "Deployment branches: main only" and required reviewers; `rollback.yml` uses the same environment.
+- **Code security**: turn on Dependabot security alerts (currently disabled).
+
+## Test artifacts are public
+Failed smoke runs upload `test-results/` (the repo is public). The suite uses synthetic accounts (`*@example.test`), a fake Supabase and synthetic pages only;
+traces, screenshots and videos are switched off in `playwright.smoke.config.ts`, so the artifact holds only text error context of those synthetic pages.
+Never point the suite at staging or production, and never add real data to `tests/smoke/`.

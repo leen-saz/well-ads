@@ -29,7 +29,21 @@ async function storage(e: HealthEnv): Promise<Dep> {
   try { await within(e.FILES.list({ limit: 1 }), 3000); return 'up'; } catch { return 'down'; }
 }
 
-export async function health(e: HealthEnv, f: typeof fetch = fetch): Promise<Health> {
+// The endpoint is public: the result is kept 10 s per isolate so anonymous callers cannot make every request hit Supabase and R2.
+// Nothing per-user is in it. `now` and `cache` are injectable for tests.
+export const HEALTH_TTL_MS = 10_000;
+let kept: { at: number; version: string; h: Health } | null = null;
+export const clearHealthCache = () => { kept = null; };
+
+export async function health(e: HealthEnv, f: typeof fetch = fetch, now = Date.now()): Promise<Health> {
+  const version = e.BUILD_VERSION || 'dev';
+  if (kept && kept.version === version && now - kept.at >= 0 && now - kept.at < HEALTH_TTL_MS) return kept.h;
+  const h = await check(e, f);
+  kept = { at: now, version, h };
+  return h;
+}
+
+async function check(e: HealthEnv, f: typeof fetch): Promise<Health> {
   const [sb, st] = await Promise.all([supabase(e, f), storage(e)]);
   // The AI binding only exists or not; calling it would cost money
   const checks = { supabase: sb, storage: st, ai: (e.AI ? 'up' : 'unset') as Dep };

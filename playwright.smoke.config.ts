@@ -15,6 +15,8 @@ export default defineConfig({
   reporter: process.env['CI'] ? 'github' : 'list',
   use: {
     baseURL: `http://localhost:${WORKER}`,
+    // test-results/ is uploaded as a public artifact on failure: no traces, screenshots or videos, only the text error context (synthetic pages)
+    trace: 'off', screenshot: 'off', video: 'off',
     locale: 'ar',
     timezoneId: 'Asia/Riyadh',
     ...(process.env['PW_CHANNEL'] ? { channel: process.env['PW_CHANNEL'] } : {}),
