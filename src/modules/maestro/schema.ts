@@ -37,5 +37,9 @@ export const SCHEMA: Probe[] = [
   { migration: '016_brand_assets.sql', table: 'brand_assets', columns: ['id', 'company_id', 'kind', 'active'] },
   { migration: '018_motion_videos.sql', table: 'motion_projects', columns: ['id', 'company_id', 'status'] },
   { migration: '018_motion_videos.sql', table: 'motion_versions', columns: ['id', 'project_id', 'version'] },
+  { migration: '019_ai_usage.sql', table: 'ai_usage', columns: ['id', 'company_id', 'module', 'cost_usd', 'estimated'] },
+  { migration: '019_ai_usage.sql', table: 'ai_budgets', columns: ['company_id', 'module', 'monthly_cap_usd'] },
+  { migration: '020_library.sql', table: 'library_items', columns: ['id', 'company_id', 'module', 'review_status', 'approved_by'] },
+  { migration: '020_library.sql', table: 'library_favorites', columns: ['item_id', 'user_id', 'company_id'] },
 ];
 // 017 only widens a CHECK constraint (knowledge.source accepts 'brand_file'): a read cannot see it, so it is not probed.
