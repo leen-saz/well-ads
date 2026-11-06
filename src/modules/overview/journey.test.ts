@@ -38,7 +38,9 @@ describe('overview: customer journey', () => {
     const a = journey(outcome(withAll, '2026-10-15', '2026-10-21'));
     expect(a.noCrm).toBeNull();
     expect(a.stages[3]!.main).toMatchObject({ key: 'closings', now: 2 });
-    expect(a.stages[3]!.sub[0]).toMatchObject({ key: 'booked', now: 1 });
+    // One CRM lead for hundreds of fixture leads: the ad-linked figures are «غير مربوط», not 1 or 0
+    expect(a.stages[3]!.sub[0]).toMatchObject({ key: null, now: null, missing: 'غير مربوط' });
+    expect(a.stages[3]!.rate).toMatchObject({ now: null, missing: 'غير مربوط' });
     const rowsOnly = { ...FX, crm: { rows: [[k, '2026-10-16', '2026-10-17', true, 900]] } } as unknown as Dash;
     expect(journey(outcome(rowsOnly, '2026-10-15', '2026-10-21')).stages[3]!.main).toMatchObject({ key: 'booked', now: 1 });
   });
