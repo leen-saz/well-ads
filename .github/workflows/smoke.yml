@@ -13,7 +13,7 @@ permissions:
 
 concurrency:
   group: smoke-${{ github.workflow }}-${{ github.ref }}
-  cancel-in-progress: true
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 jobs:
   smoke:
@@ -34,7 +34,7 @@ jobs:
       - run: npm run test:smoke
       - name: Keep the failure details
         if: failure()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: smoke-results
           path: test-results/

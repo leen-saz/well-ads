@@ -6,7 +6,8 @@ describe('api', () => {
   it('GET /api/health is ok', async () => {
     const res = await api.request('/api/health');
     expect(res.status).toBe(200);
-    expect(await res.json()).toEqual({ ok: true });
+    // No bindings in the test: the version defaults to dev and nothing is configured
+    expect(await res.json()).toEqual({ ok: false, version: 'dev', env: 'local', checks: { supabase: 'unset', storage: 'unset', ai: 'unset' } });
   });
 
   it('unknown /api route is a JSON 404', async () => {

@@ -44,8 +44,12 @@ jobs:
       db-engine: postgres
       migrations-dir: supabase/migrations
 
+  # The end-to-end smoke tests (tests/smoke) run on this exact commit before anything is deployed
+  smoke:
+    uses: ./.github/workflows/smoke.yml
+
   deploy:
-    needs: ci
+    needs: [ci, smoke]
     if: github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
     timeout-minutes: 15
@@ -92,7 +96,8 @@ jobs:
         env:
           CLOUDFLARE_ENV: ${{ env.TARGET }}
         run: |
-          npx wrangler deploy
+          # BUILD_VERSION = the commit; /api/health reports it so the check below knows this deploy is the one answering
+          npx wrangler deploy --var BUILD_VERSION:"$GITHUB_SHA" --message "deploy ${GITHUB_SHA::7}"
           if [ "$TARGET" = staging ]; then
             url="https://well-ads-staging.${{ steps.sub.outputs.sub }}.workers.dev"
           else
@@ -107,12 +112,29 @@ jobs:
           fi
           echo "::notice title=deployed::$url"
           echo "url=$url" >> "$GITHUB_OUTPUT"
-      - name: Smoke test
+      - name: Health check of the deployed version
         env:
           URL: ${{ steps.deploy.outputs.url }}
         run: |
-          for i in 1 2 3 4 5 6 7 8 9 10; do
-            body="$(curl -fsS "$URL/api/health" || true)"; [ "$body" = '{"ok":true}' ] && break; sleep 5
+          # Up to ~2 minutes: a new version takes a moment to reach every edge. Must answer 200 with THIS commit's version.
+          code=0; body=""
+          for i in $(seq 1 24); do
+            code="$(curl -sS -o /tmp/health.json -w '%{http_code}' "$URL/api/health" || echo 000)"
+            body="$(cat /tmp/health.json 2>/dev/null || true)"
+            [ "$code" = 200 ] && [ "$(jq -r '.version // empty' <<<"$body" 2>/dev/null)" = "$GITHUB_SHA" ] && break
+            sleep 5
           done
-          [ "$body" = '{"ok":true}' ] || { echo "::error title=smoke::health check failed at $URL: $body"; exit 1; }
-          curl -fsSI "$URL/robots.txt" | grep -i "^x-robots-tag: noindex"
+          echo "health ($code): $(jq -c . <<<"$body" 2>/dev/null || echo "$body")"
+          if [ "$code" != 200 ] || [ "$(jq -r '.version // empty' <<<"$body" 2>/dev/null)" != "$GITHUB_SHA" ]; then
+            echo "::error title=health::$URL/api/health did not answer 200 with version $GITHUB_SHA (got $code). Roll back: docs/runbook.md"
+            exit 1
+          fi
+          # A dependency that does not answer means a wrong secret or binding: the site is up but broken
+          if [ "$(jq -r '.ok' <<<"$body")" != true ]; then
+            echo "::error title=health::a dependency is down: $(jq -c .checks <<<"$body"). Roll back: docs/runbook.md"
+            exit 1
+          fi
+      - name: Headers
+        env:
+          URL: ${{ steps.deploy.outputs.url }}
+        run: curl -fsSI "$URL/robots.txt" | grep -i "^x-robots-tag: noindex"

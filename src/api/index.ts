@@ -11,6 +11,7 @@ import { list as libraryRoot, item as libraryItem, star as libraryStar, approve 
 import * as today from './routes/today';
 import * as vitals from './routes/vitals';
 import { ROUTES } from '../modules/routes';
+import { health, type HealthEnv } from '../lib/health';
 
 type Group = Record<string, Partial<Record<string, Handler>>>;
 const notFound = () => json(404, { error: 'غير موجود' });
@@ -24,7 +25,8 @@ const group = (routes: Group) => (c: { req: { raw: Request; method: string; para
 
 export const api = new Hono<{ Bindings: AuthEnv }>().basePath('/api');
 
-api.get('/health', c => c.json({ ok: true }));
+// Always 200 when the Worker answers: `ok` and `checks` say what is down. Never cached.
+api.get('/health', async c => c.json(await health((c.env ?? {}) as unknown as HealthEnv), 200, { 'cache-control': 'no-store' }));
 // Every route group: the core ones, then one per live module (src/modules/routes.ts). Exported for the error-behaviour test.
 export const GROUPS: Record<string, Group> = { auth, admin, account, connectors, control, dash, lessons, today, vitals, library: { list: libraryRoot, item: libraryItem, star: libraryStar, approve: libraryApprove }, ...ROUTES };
 for (const [key, routes] of Object.entries(GROUPS)) api.all(`/${key}/:action`, group(routes));
