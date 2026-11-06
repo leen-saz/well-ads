@@ -434,20 +434,31 @@ function hideOrgFb(){
   if(D.organic && Array.isArray(D.organic.facebook)) D.organic.facebook = D.organic.facebook.filter(p=>p && !ORG_FB_HIDDEN.has(p.name));
 }
 hideOrgFb();
+// ---- extra parts (tests/unit/dash-extra.test.ts runs this block)
 // /dash.json leaves out the audience detail (a.aud) and the organic posts (pipeline/dash_split.py): they load after the
-// first view and the page draws again. Until then their sections say they are loading. Inline data has everything.
-let EXTRA_WAIT = Array.isArray(D.extra) && D.extra.length > 0;
+// first view and the page draws again. Each part is 'ok' (inline data, or loaded), 'wait' or 'fail' (404, an HTML page,
+// broken JSON): its sections say it is loading, or that it could not load. Inline data has everything.
+const EXTRA = Object.fromEntries(['aud', 'organic'].map(p => [p, Array.isArray(D.extra) && D.extra.includes(p) ? 'wait' : 'ok']));
 function loadExtra(then){
-  if(!EXTRA_WAIT) return;
-  const get = u => fetch(u, { credentials: 'same-origin' }).then(r => r.ok ? r.json() : null).catch(() => null);
-  Promise.all([get('/dash-aud.json'), get('/dash-organic.json')]).then(([aud, org]) => {
-    for(const [k, v] of Object.entries(aud || {})) if(D.ads && D.ads[k]) D.ads[k].aud = v;
-    if(org) { D.organic = org; hideOrgFb(); }
-    EXTRA_WAIT = false;
+  if(EXTRA.aud !== 'wait' && EXTRA.organic !== 'wait') return Promise.resolve();
+  const get = u => fetch(u, { credentials: 'same-origin' }).then(r => r.ok ? r.json() : null).catch(() => null)
+    .then(v => v && typeof v === 'object' && !Array.isArray(v) ? v : null);
+  return Promise.all([EXTRA.aud === 'wait' ? get('/dash-aud.json') : null, EXTRA.organic === 'wait' ? get('/dash-organic.json') : null]).then(([aud, org]) => {
+    if(EXTRA.aud === 'wait'){
+      if(aud){ for(const [k, v] of Object.entries(aud)) if(D.ads && D.ads[k]) D.ads[k].aud = v; EXTRA.aud = 'ok'; }
+      else EXTRA.aud = 'fail';
+    }
+    if(EXTRA.organic === 'wait'){
+      if(org){ D.organic = org; hideOrgFb(); EXTRA.organic = 'ok'; }
+      else EXTRA.organic = 'fail';
+    }
     then();
   });
 }
-const extraLoading = () => `<div class="empty">${ui('يحمّل…','Loading…')}</div>`;
+// What a section shows while its part loads or after it failed; '' once the part is there
+const extraNote = p => EXTRA[p] === 'wait' ? `<div class="empty">${ui('يحمّل…','Loading…')}</div>`
+  : EXTRA[p] === 'fail' ? `<div class="empty">${ui('ما قدرت أحمّل هالجزء. حدّث الصفحة.','Could not load this part. Refresh the page.')}</div>` : '';
+// ---- end extra parts
 (function dropExcludedTikTok(){
   const gone = new Set();
   for(const [k,a] of Object.entries(D.ads||{})) if(ttExcludedAd(a)) gone.add(k);
