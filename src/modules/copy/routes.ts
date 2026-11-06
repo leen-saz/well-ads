@@ -2,6 +2,7 @@
 // card counted on read, and writing with the free Workers AI (templates when it is not bound).
 import { sb, json, readJson, handle, requireUser, audit, missingSchema, notApplied, type Cfg } from '../../lib/auth';
 import { scoped } from '../../lib/tenant';
+import { readAll } from '../../lib/paging';
 import { loadKnowledge, systemPrompt, forbiddenRules, withKnowledge } from '../knowledge/knowledge';
 import { generate, pick, type LlmEnv } from '../../lib/llm';
 import { winners, type AdIn, type MetIn } from '../design/design';
@@ -26,11 +27,11 @@ async function references(cfg: Cfg, co: string, p: Row, picked: unknown) {
   const cards = (p.competitors || []).filter(c => use.has(c.id)).flatMap(c => { const card = styleCard(c.samples || []); return card ? [{ name: c.name, card }] : []; });
   const since = new Date(Date.now() - 30 * 864e5).toISOString().slice(0, 10);
   const [ads, metrics] = await Promise.all([
-    sb<AdIn[]>(cfg, scoped('/rest/v1/ads?select=ad_key,platform,name,format,goal,text:doc->>text&goal=eq.lead&limit=3000', co), { admin: true }),
+    readAll<AdIn>(cfg, scoped('/rest/v1/ads?select=ad_key,platform,name,format,goal,text:doc->>text&goal=eq.lead', co), 'ad_key.asc', 5),
     // ad_metrics has no company column: rows only count through this company's ads (winners joins on ad_key)
-    sb<MetIn[]>(cfg, `/rest/v1/ad_metrics?select=ad_key,spend,leads,clicks,impressions&day=gte.${since}&limit=20000`, { admin: true }),
+    readAll<MetIn>(cfg, `/rest/v1/ad_metrics?select=ad_key,spend,leads,clicks,impressions&day=gte.${since}`, 'ad_key.asc,day.asc', 20),
   ]);
-  return { cards, hooks: winners(Array.isArray(ads.data) ? ads.data : [], Array.isArray(metrics.data) ? metrics.data : []).hooks };
+  return { cards, hooks: winners(ads.rows, metrics.rows).hooks };
 }
 
 export const projects = {
