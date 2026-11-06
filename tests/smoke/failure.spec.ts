@@ -30,9 +30,11 @@ for (const t of TABS) {
       let failing = true;
       await page.route(t.api, r => (failing ? m.fail(r) : r.continue()));
       await page.goto(t.page);
-      if (t.open) await page.locator(t.open).click();
       const alert = page.locator('[role="alert"]', { has: page.locator('[data-retry]') }).first();
-      await expect(alert).toBeVisible();
+      // The tab buttons are in the server-rendered page before the module script binds them: a click that lands first is lost
+      // and the error stays in a hidden panel. Click again until the error is on screen (clicking an open tab changes nothing).
+      if (t.open) await expect(async () => { await page.locator(t.open!).click(); await expect(alert).toBeVisible({ timeout: 1500 }); }).toPass({ timeout: 20_000 });
+      else await expect(alert).toBeVisible();
       await expect(alert).toContainText(m.text);
       failing = false;
       await alert.locator('[data-retry]').click();
