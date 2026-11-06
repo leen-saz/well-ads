@@ -122,11 +122,12 @@ export interface Outcome {
 type CrmData = { rows?: unknown[][]; paid_all?: unknown[][] };
 const ratio = (a: number, b: number): number | null => (b ? a / b : null);
 
-export function outcome(d: Dash, from: string, to: string, by: CrmBy = 'lead'): Outcome {
+// plat: one platform only (the funnel's filter). The CRM's paid_all has no ad, so then closings and paid are the ad-linked ones.
+export function outcome(d: Dash, from: string, to: string, by: CrmBy = 'lead', plat?: string): Outcome {
   let spend = 0, impr = 0, clicks = 0, leads = 0, conv = 0, ls = 0, ln = 0;
   for (const r of d.rows ?? []) {
     const day = String(r[1]);
-    if (day < from || day > to || !d.ads?.[String(r[0])]) continue;
+    if (day < from || day > to || !d.ads?.[String(r[0])] || (plat && d.ads[String(r[0])]!.platform !== plat)) continue;
     const s = num(r[2]), l = num(r[5]);
     spend += s; impr += num(r[3]); clicks += num(r[4]); leads += l; conv += num(r[6]);
     if (d.ads[String(r[0])]!.goal === 'lead') { ls += s; ln += l; }
@@ -134,17 +135,18 @@ export function outcome(d: Dash, from: string, to: string, by: CrmBy = 'lead'): 
   const crmData = (d as { crm?: CrmData }).crm;
   let crmLeads = 0, booked = 0, value = 0, closings = 0, paid = 0;
   for (const [k, leadDay, paidDay, isPaid, amount] of (crmData?.rows ?? []) as [string, string, string, unknown, number][]) {
-    if (!d.ads?.[k]) continue;
+    if (!d.ads?.[k] || (plat && d.ads[k]!.platform !== plat)) continue;
     if (leadDay >= from && leadDay <= to) crmLeads++;
     const day = by === 'paid' ? paidDay : leadDay;
     if (isPaid && day && day >= from && day <= to) { booked++; value += num(amount); }
   }
-  for (const [leadDay, paidDay, amount] of (crmData?.paid_all ?? []) as [string, string, number][]) {
+  for (const [leadDay, paidDay, amount] of (plat ? [] : crmData?.paid_all ?? []) as [string, string, number][]) {
     const day = by === 'paid' ? paidDay : leadDay;
     if (day && day >= from && day <= to) { closings++; paid += num(amount); }
   }
+  if (plat) { closings = booked; paid = value; }
   return {
-    spend, impr, clicks, leads, conv, crm: !!crmData?.paid_all, crmLinked: !!crmData, crmLeads, booked, value, closings, paid,
+    spend, impr, clicks, leads, conv, crm: !plat && !!crmData?.paid_all, crmLinked: !!crmData, crmLeads, booked, value, closings, paid,
     cpm: impr ? (1000 * spend) / impr : null, cpc: ratio(spend, clicks), ctr: impr ? (100 * clicks) / impr : null, cpl: ratio(ls, ln),
     clickToResult: clicks ? (100 * (leads + conv)) / clicks : null, closeRate: crmLeads ? (100 * booked) / crmLeads : null,
     roas: spend && value ? value / spend : null, mer: ratio(paid, spend), cac: ratio(spend, closings),
@@ -173,7 +175,7 @@ export function journey(a: Outcome): { stages: JStage[]; noCrm: string | null } 
     { n: 'البيع', hint: linked ? 'كم واحد دفع' : 'نظام العملاء مو موصول بهالأرقام',
       // Same as the main dashboard: every paid closing in the CRM, or the ad-linked ones when that list is missing
       main: st('إقفالات مدفوعة', a.crm ? 'closings' : 'booked', 'qty', false, linked),
-      sub: [st('إقفالات من الإعلانات', 'booked', 'qty', false, linked), st('العائد من الإعلانات', 'roas', 'x', false, linked)],
+      sub: [st('إقفالات من الإعلانات', 'booked', 'qty', false, linked), st('العائد من الإعلانات', 'roas', 'x', false, linked), st('تكلفة العميل', 'cac', 'sar', true, linked)],
       rate: st('من ليد إلى إقفالة', 'closeRate', 'pct', false, linked) },
   ];
   return { stages: raw.map((s, i) => ({ ...s, width: FUNNEL_WIDTHS[i]!, colour: FUNNEL_COLOURS[i]! })), noCrm: linked ? null : NO_CRM };

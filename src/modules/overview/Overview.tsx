@@ -49,7 +49,8 @@ export default function Overview() {
   return (
     // Radix menus, selects and the sheet open in their own layer: tell them the page is Arabic
     <Direction.Provider dir="rtl">
-    <div className="ui grid gap-4">
+    {/* min-w-0: a wide table or chart scrolls inside its card instead of widening the page on a phone */}
+    <div className="ui grid gap-4 [&>*]:min-w-0 [&>.grid>*]:min-w-0">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <p className="text-sm text-muted-foreground">من {longDay(from)} إلى {longDay(to)}، مقارنة بنفس المدة اللي قبلها</p>
         <ToggleGroup type="single" variant="outline" value={range} onValueChange={v => v && setRange(v as Range)} aria-label="الفترة">
