@@ -268,6 +268,9 @@ export type Handler = (request: Request, e: AuthEnv) => Response | Promise<Respo
 export const handle = (fn: Handler): Handler => async (request, e) => {
   try { return await fn(request, e); } catch (err) {
     if (err instanceof Response) return err;
+    // A body that is not JSON, or too large, is the caller's mistake: say so, not "server error"
+    if (err instanceof SyntaxError) return json(400, { error: 'الطلب مو مكتوب صح' });
+    if (err instanceof Error && err.message === 'too large') return json(413, { error: 'الطلب كبير' });
     console.error(err);
     return json(500, { error: 'صار خطأ، جرّب مرة ثانية' });
   }
