@@ -195,6 +195,10 @@ jobs:
             pipeline/cache_ads.json
           key: ads-data-${{ github.run_id }}
 
+      # The built dash.json must be sane before anything is uploaded (required keys, types, plausible size, no negative
+      # spend, days inside the range). On failure the run stops with a message that carries no figures.
+      - name: Validate dash.json before upload
+        run: python pipeline/validate_dash.py pipeline/web/public/dash.json pipeline/web/public/data
       - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
         with:
           node-version: "24"
