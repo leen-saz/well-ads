@@ -29,6 +29,8 @@ export function need(pathname: string, search: string): Need | null {
   if (PUBLIC.some(r => r.test(pathname))) return null;
   if (HUB.test(pathname) || ALIAS[pathname.replace(/\/$/, '')] || /^\/(api\/)?today(\/|$)/.test(pathname)) return 'any';
   if (/^\/(api\/)?admin(\/|$)/.test(pathname)) return 'owner';
+  // Data health (a sub-page of the Manager): the owner only
+  if (/^\/(api\/)?maestro\/(health|crm)(\/|$)/.test(pathname)) return 'owner';
   if (/^\/(api\/)?control(\/|$)/.test(pathname)) return 'control';
   if (/^\/(api\/)?connectors(\/|$)/.test(pathname)) return 'connectors';
   // Dashboard data: the route picks the user's copy (analytics, creative or their department)

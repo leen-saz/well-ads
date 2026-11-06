@@ -1,0 +1,45 @@
+---
+import { ClientRouter } from 'astro:transitions';
+// صحة الداتا: صفحة للمالكة بس، تحت «المدير». قراءة فقط، أرقام مجمّعة بدون أسماء أو جوالات أو أرقام ليدز.
+---
+<!doctype html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="robots" content="noindex,nofollow">
+<meta name="referrer" content="no-referrer">
+<meta name="theme-color" content="#F6F0E3">
+<title>صحة الداتا · Well</title>
+<link rel="preload" href="/assets/fonts/thmanyahsans-Regular.woff2" as="font" type="font/woff2" crossorigin>
+<link rel="preload" href="/assets/fonts/playfair-display-900.woff2" as="font" type="font/woff2" crossorigin>
+<link rel="stylesheet" href="/assets/app.css">
+<ClientRouter />
+<style is:global>
+.dh-kpis{display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:12px;margin:12px 0}
+.dh-kpi{padding:14px 16px}.dh-kpi b{display:block;font:700 26px var(--f-num)}.dh-kpi span{color:var(--muted);font-size:13px}
+.dh-sec{margin:0 0 16px}.dh-sec h2{margin:0 0 4px}
+.dh-find{margin:10px 0 0;padding:10px 12px;border-radius:12px;background:var(--tint);font-size:14px}
+.dh-find.bad{background:#FBEAE7;color:#8A2A1B}
+.dh-find.ok{background:#E6F4EC;color:#1E6B45}
+.dh-tbl{width:100%;border-collapse:collapse;font-size:14px}
+.dh-tbl th,.dh-tbl td{padding:6px 8px;text-align:start;border-bottom:1px solid var(--line)}
+.dh-tbl td.n,.dh-tbl th.n{text-align:end;font-family:var(--f-num)}
+</style>
+</head>
+<body data-page="health" data-module>
+<div class="app" id="app">
+  <aside class="side" id="side" aria-label="القائمة" transition:persist="side"></aside>
+  <div class="scrim"></div>
+  <div class="main">
+    <header class="topbar" id="top"></header>
+    <main class="content" id="content">
+      <p class="muted" style="margin:0 0 12px"><a href="/maestro/">← المدير</a> · قراءة فقط. أرقام مجمّعة، بدون أسماء أو جوالات أو أرقام ليدز.</p>
+      <div id="sections"><p class="muted">جاري التحميل…</p></div>
+      <div class="msg" id="msg" role="status"></div>
+    </main>
+  </div>
+</div>
+<script is:inline type="module" src="/assets/router.js"></script>
+</body>
+</html>

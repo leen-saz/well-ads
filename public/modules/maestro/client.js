@@ -201,5 +201,5 @@ export default async function mount() {
     else if (/^[1-5]$/.test(e.key) && !$('#board').hidden) { view = VIEWS[Number(e.key) - 1]; filter = 'all'; draw(); if (view === 'chat') loadChat(); }
   }, { signal: pageSignal() });
 
-  shell({ active: 'maestro', title: 'المدير' }).then(load).catch(err => say($('#msg'), err.message));
+  shell({ active: 'maestro', title: 'المدير', tools: '' }).then(me => { if (me.role === 'owner') $('#healthLink')?.removeAttribute('hidden'); return load(); }).catch(err => say($('#msg'), err.message));
 }
