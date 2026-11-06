@@ -53,35 +53,55 @@ function world(p: A.Profile, missing: string[] = []) {
     return new Response(JSON.stringify(rows[table] || []));
   }));
 }
-const call = async (p: A.Profile) => {
+const call = async (p: A.Profile, part = 'sources') => {
   const cookie = `${A.SESSION}=${encodeURIComponent(await A.sign(A.sessionFor(p, cfg), cfg.secret))}`;
   const files = { get: async () => ({ uploaded: new Date('2026-11-05T03:00:00Z'), text: async () => JSON.stringify({ crm: { total: 2, unmatched: 1, rows: [['m1', 'd', 'd', 1, 5]], paid_all: [[], []] } }) }) } as unknown as R2Bucket;
-  return ROUTES.maestro.health.GET!(new Request('https://well.example/api/maestro/health', { headers: { cookie } }), { ...E, FILES: files } as A.AuthEnv);
+  return ROUTES.maestro.health.GET!(new Request(`https://well.example/api/maestro/health?part=${part}`, { headers: { cookie } }), { ...E, FILES: files } as A.AuthEnv);
 };
 afterEach(() => { vi.unstubAllGlobals(); });
 
 describe('/api/maestro/health', () => {
-  it('is owner only', async () => {
+  it('is owner only, and refuses an unknown part', async () => {
     world(MEMBER);
     expect((await call(MEMBER)).status).toBe(403);
+    world(OWNER);
+    expect((await call(OWNER, 'everything')).status).toBe(400);
   });
   it('returns counts, dates and duplicates, and no ad names, customer ids or knowledge text', async () => {
     world(OWNER);
-    const r = await call(OWNER);
-    expect(r.status).toBe(200);
-    const text = await r.text();
-    for (const s of ['Secret', 'secret', 'C-SECRET']) expect(text).not.toContain(s);
-    const h = JSON.parse(text);
-    expect(h.duplicates).toMatchObject({ ads: 1, knowledge: 1, leads: 1 });
+    const texts: string[] = [];
+    const got: Record<string, unknown> = {};
+    for (const part of ['sources', 'content', 'counts', 'schema']) {
+      const r = await call(OWNER, part);
+      expect(r.status).toBe(200);
+      const text = await r.text(); texts.push(text);
+      Object.assign(got, JSON.parse(text));
+    }
+    for (const s of ['Secret', 'secret', 'C-SECRET']) expect(texts.join()).not.toContain(s);
+    const h = got as { joins: object; freshness: { dash_json_uploaded: string }; counts: { ads: number }; orphans: object; migrations_missing: unknown[] };
     expect(h.joins).toMatchObject({ leads: 2, matched: 1, closings_all: 2, closings_with_ad: 1 });
     expect(h.freshness.dash_json_uploaded).toBe('2026-11-05T03:00:00.000Z');
     expect(h.counts.ads).toBe(7);
     expect(h.orphans).toEqual({ ads: 7, crm_leads: 7, audit_log: 7, connections: 7 });
     expect(h.migrations_missing).toEqual([]);
   });
+  it('splits the duplicate checks across parts', async () => {
+    world(OWNER);
+    expect(((await (await call(OWNER, 'sources')).json()) as { duplicates: object }).duplicates).toEqual({ ads: 1 });
+    expect(((await (await call(OWNER, 'content')).json()) as { duplicates: object }).duplicates).toMatchObject({ knowledge: 1, leads: 1 });
+  });
+  it('keeps every part under 40 subrequests', async () => {
+    world(OWNER);
+    for (const part of ['sources', 'content', 'counts', 'schema']) {
+      await call(OWNER, part);
+      const calls = (fetch as unknown as { mock: { calls: unknown[][] } }).mock.calls.length;
+      expect(calls, part).toBeLessThanOrEqual(40);
+      world(OWNER);
+    }
+  });
   it('lists the migrations that are not applied, by file name', async () => {
     world(OWNER, ['crm_leads', 'copy_projects']);
-    const h = await (await call(OWNER)).json() as { migrations_missing: { migration: string; reason: string }[] };
+    const h = await (await call(OWNER, 'schema')).json() as { migrations_missing: { migration: string; reason: string }[] };
     expect([...new Set(h.migrations_missing.map(m => m.migration))]).toEqual(['011_crm_leads.sql', '015_copy.sql']);
     expect(h.migrations_missing.every(m => m.reason === 'table')).toBe(true);
   });

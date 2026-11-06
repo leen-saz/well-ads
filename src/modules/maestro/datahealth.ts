@@ -70,49 +70,61 @@ export async function migrationsMissing(cfg: Cfg): Promise<{ migration: string; 
   return out;
 }
 
-export async function dataHealth(cfg: Cfg, company: string, files?: R2Bucket) {
-  const [ads, conns, leads, mentions, knowledge, assets, companies, sync, watches] = await Promise.all([
-    readAll<AdRow>(cfg, scoped('/rest/v1/ads?select=ad_key,platform,name,campaign,updated_at&order=ad_key.asc', company), 20),
+// One request to the Worker may make at most 50 subrequests on Cloudflare's free plan (1000 on Paid). The page asks for
+// the parts one after another and each part stays under 40 calls, so the page works on either plan.
+export const PARTS = ['sources', 'content', 'counts', 'schema'] as const;
+export type Part = (typeof PARTS)[number];
+
+async function sources(cfg: Cfg, company: string, files?: R2Bucket) {                      // <= 8 + 1 + 1 + 1 + 15 = 26 calls
+  const [ads, conns, sync, watches] = await Promise.all([
+    readAll<AdRow>(cfg, scoped('/rest/v1/ads?select=ad_key,platform,name,campaign,updated_at&order=ad_key.asc', company), 8),
     readAll<ConnRow>(cfg, scoped('/rest/v1/connections?select=platform,expires_at', company), 1),
-    readAll<{ customer_id: string | null; source_platform: string | null; created_at: string }>(cfg, scoped('/rest/v1/crm_leads?select=customer_id,source_platform,created_at&order=lead_id.asc', company), 40),
-    readAll<{ source: string; title: string }>(cfg, scoped('/rest/v1/listen_mentions?select=source,title&order=id.asc', company), 20),
-    readAll<{ kind: string; title: string; body: string }>(cfg, scoped('/rest/v1/knowledge?select=kind,title,body&order=id.asc', company), 10),
-    readAll<{ kind: string; title: string }>(cfg, scoped('/rest/v1/brand_assets?select=kind,title&order=id.asc', company), 5),
-    readAll<{ id: string }>(cfg, '/rest/v1/companies?select=id', 1),
     sb<{ last_updated_at: string | null; last_run_at: string | null; rows_last_run: number | null }[]>(cfg, '/rest/v1/crm_sync_state?id=eq.1&select=last_updated_at,last_run_at,rows_last_run', { admin: true }),
     readAll<{ fetched_at: string | null }>(cfg, scoped('/rest/v1/listen_watch?select=fetched_at', company), 1),
   ]);
   // The last days of metrics are enough to say when each platform last delivered a day
   const since = new Date(Date.now() - 10 * 864e5).toISOString().slice(0, 10);
-  const metrics = await readAll<MetricRow>(cfg, `/rest/v1/ad_metrics?select=ad_key,day&day=gte.${since}&order=ad_key.asc,day.asc`, 40);
-  // ad_metrics has no company column; every other table is this company's rows
-  const counts = Object.fromEntries(await Promise.all(TABLES.map(async t => [t, await count(cfg, t === 'ad_metrics' ? '/rest/v1/ad_metrics?select=ad_key' : scoped(`/rest/v1/${t}?select=*`, company))])));
-
-  const ids = companies.rows.map(c => c.id);
-  const orphans: Record<string, number | null> = {};
-  if (ids.length) for (const t of NO_FK) orphans[t] = await count(cfg, `/rest/v1/${t}?select=*&company_id=not.in.(${ids.join(',')})`);
-
+  const metrics = await readAll<MetricRow>(cfg, `/rest/v1/ad_metrics?select=ad_key,day&day=gte.${since}&order=ad_key.asc,day.asc`, 15);
   let dash: { crm?: unknown } | null = null, dashUploaded: string | null = null;
   const obj = files ? await files.get('site/dash.json') : null;
   if (obj) { dashUploaded = obj.uploaded.toISOString(); try { dash = JSON.parse(await obj.text()); } catch { dash = null; } }
-
   const state = sync.ok && Array.isArray(sync.data) ? sync.data[0] || null : null;
-  const watchNewest = watches.rows.reduce<string | null>((a, w) => newest(a, w.fetched_at), null);
   return {
-    checked_at: new Date().toISOString(),
     freshness: { platforms: freshness(ads.rows, metrics.rows, conns.rows),
       crm: state ? { last_run_at: state.last_run_at, last_updated_at: state.last_updated_at, rows_last_run: state.rows_last_run } : null,
-      listening_last_fetch: watchNewest, dash_json_uploaded: dashUploaded },
-    counts,
+      listening_last_fetch: watches.rows.reduce<string | null>((a, w) => newest(a, w.fetched_at), null), dash_json_uploaded: dashUploaded },
     joins: dash ? joinRates(dash.crm) : null,
-    duplicates: {
-      ads: surplus(ads.rows, a => (a.name ? key(a.platform, a.name, a.campaign) : null)),
-      leads: surplus(leads.rows, l => (l.customer_id ? key(l.customer_id, l.source_platform, l.created_at) : null)),
-      mentions: surplus(mentions.rows, m => (m.title ? key(m.source, m.title) : null)),
-      knowledge: surplus(knowledge.rows, k => key(k.kind, k.title, k.body)),
-      library: surplus(assets.rows, a => (a.title ? key(a.kind, a.title) : null)),
-    },
-    orphans,
-    migrations_missing: await migrationsMissing(cfg),
+    duplicates: { ads: surplus(ads.rows, a => (a.name ? key(a.platform, a.name, a.campaign) : null)) },
   };
+}
+
+async function content(cfg: Cfg, company: string) {                                           // <= 25 + 4 + 3 + 2 = 34 calls
+  const [leads, mentions, knowledge, assets] = await Promise.all([
+    readAll<{ customer_id: string | null; source_platform: string | null; created_at: string }>(cfg, scoped('/rest/v1/crm_leads?select=customer_id,source_platform,created_at&order=lead_id.asc', company), 25),
+    readAll<{ source: string; title: string }>(cfg, scoped('/rest/v1/listen_mentions?select=source,title&order=id.asc', company), 4),
+    readAll<{ kind: string; title: string; body: string }>(cfg, scoped('/rest/v1/knowledge?select=kind,title,body&order=id.asc', company), 3),
+    readAll<{ kind: string; title: string }>(cfg, scoped('/rest/v1/brand_assets?select=kind,title&order=id.asc', company), 2),
+  ]);
+  return { duplicates: {
+    leads: surplus(leads.rows, l => (l.customer_id ? key(l.customer_id, l.source_platform, l.created_at) : null)),
+    mentions: surplus(mentions.rows, m => (m.title ? key(m.source, m.title) : null)),
+    knowledge: surplus(knowledge.rows, k => key(k.kind, k.title, k.body)),
+    library: surplus(assets.rows, a => (a.title ? key(a.kind, a.title) : null)),
+  } };
+}
+
+async function counts(cfg: Cfg, company: string) {                                            // 11 + 1 + 4 = 16 calls
+  // ad_metrics has no company column; every other table is this company's rows
+  const c = Object.fromEntries(await Promise.all(TABLES.map(async t => [t, await count(cfg, t === 'ad_metrics' ? '/rest/v1/ad_metrics?select=ad_key' : scoped(`/rest/v1/${t}?select=*`, company))])));
+  const ids = (await readAll<{ id: string }>(cfg, '/rest/v1/companies?select=id', 1)).rows.map(x => x.id);
+  const orphans: Record<string, number | null> = {};
+  if (ids.length) for (const t of NO_FK) orphans[t] = await count(cfg, `/rest/v1/${t}?select=*&company_id=not.in.(${ids.join(',')})`);
+  return { counts: c, orphans };
+}
+
+// One part of the page. Each returns only counts, dates and names; the page merges them.
+export async function dataHealth(cfg: Cfg, company: string, part: Part, files?: R2Bucket) {
+  const body = part === 'sources' ? await sources(cfg, company, files) : part === 'content' ? await content(cfg, company)
+    : part === 'counts' ? await counts(cfg, company) : { migrations_missing: await migrationsMissing(cfg) };
+  return { part, checked_at: new Date().toISOString(), ...body };
 }

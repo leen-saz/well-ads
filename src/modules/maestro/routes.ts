@@ -5,7 +5,7 @@ import { budget, chatLines, client, cleanTask, items, performance, STATUS, tabOf
 import { MODULES } from '../registry';
 import { knowledgeFor } from '../knowledge/knowledge';
 import { crmFor } from './health';
-import { dataHealth } from './datahealth';
+import { dataHealth, PARTS, type Part } from './datahealth';
 
 type Env = AuthEnv & PcEnv;
 type Co = { id: string; name: string; paperclip_company_id: string | null };
@@ -152,8 +152,11 @@ export const crm = { GET: handle(async (request, e: AuthEnv) => {
   return json(200, await crmFor(cfg, user.co), { 'cache-control': 'no-store' });
 }) };
 
-// «صحة الداتا»: freshness, counts, join rates, duplicates, orphans and missing migrations. Owner only, read-only, aggregates only.
+// «صحة الداتا»: freshness, counts, join rates, duplicates, orphans and missing migrations, one ?part= at a time
+// (sources | content | counts | schema) so each request stays under Cloudflare's 50-subrequest free-plan limit. Owner only, read-only.
 export const health = { GET: handle(async (request, e: AuthEnv & { FILES?: R2Bucket }) => {
   const { cfg, user } = await requireUser(request, e, 'owner');
-  return json(200, await dataHealth(cfg, user.co, e.FILES));
+  const part = new URL(request.url).searchParams.get('part') || '';
+  if (!(PARTS as readonly string[]).includes(part)) return json(400, { error: 'طلب غير صحيح' });
+  return json(200, await dataHealth(cfg, user.co, part as Part, e.FILES));
 }) };

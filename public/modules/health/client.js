@@ -64,6 +64,13 @@ export default async function mount() {
   shell({ active: 'maestro', title: 'صحة الداتا' }).then(async () => {
     const box = $('#sections');
     try { box.innerHTML = crmCard(await api('/api/maestro/crm')); } catch (err) { box.innerHTML = ''; say($('#msg'), err.message); }
-    try { box.insertAdjacentHTML('beforeend', healthCards(await api('/api/maestro/health'))); } catch (err) { say($('#msg'), err.message); }
+    // One request per part: each stays under the platform's per-request call limit
+    const h = { duplicates: {}, counts: {}, orphans: {}, migrations_missing: [], freshness: { platforms: [] }, joins: null };
+    const holder = document.createElement('div');
+    box.append(holder);
+    for (const part of ['sources', 'content', 'counts', 'schema']) {
+      try { const r = await api('/api/maestro/health?part=' + part); Object.assign(h, r, { duplicates: { ...h.duplicates, ...(r.duplicates || {}) } }); holder.innerHTML = healthCards(h); }
+      catch (err) { say($('#msg'), err.message); }
+    }
   }).catch(err => say($('#msg'), err.message));
 }
