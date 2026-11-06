@@ -64,9 +64,9 @@ export const videofile = {
     const q = new URL(request.url).searchParams, kind = q.get('kind');
     const p = await projectOf(cfg, user.co, q.get('p'));
     const key = kind === 'design' ? p?.design_key : kind === 'voice' ? p?.voice_key : null;
-    if (!p || !ownKey(user.co, key) || !e.FILES) return new Response('not found', { status: 404 });
+    if (!p || !ownKey(user.co, key) || !e.FILES) return json(404, { error: 'الملف غير موجود' });
     const obj = await e.FILES.get(key);
-    if (!obj) return new Response('not found', { status: 404 });
+    if (!obj) return json(404, { error: 'الملف غير موجود' });
     return new Response(obj.body, { headers: { 'content-type': kind === 'design' ? p.design_mime : p.voice_mime, 'cache-control': 'private, max-age=3600',
       'content-security-policy': "default-src 'none'; sandbox", 'x-content-type-options': 'nosniff' } });
   }),

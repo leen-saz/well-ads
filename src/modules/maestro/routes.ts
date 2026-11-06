@@ -142,7 +142,7 @@ export const approval = { POST: handle(async (request, e: Env) => {
   if (!act) return json(400, { error: 'طلب غير صحيح' });
   const c = await companyOf(cfg, user.co);
   if (!c?.paperclip_company_id) return json(409, { error: 'اربط الشركة بالمدير أول' });
-  try { await pc.decide(c.paperclip_company_id, String(b.id || ''), act); } catch (err) { return json(404, { error: (err as Error).message }); }
+  try { await pc.decide(c.paperclip_company_id, String(b.id || ''), act); } catch (err) { console.warn('maestro_decide_failed', (err as Error).message); return json(404, { error: 'ما قدرت أسجّل القرار. يمكن انحسم من قبل، حدّث الصفحة' }); }
   await audit(cfg, user, `maestro_${act}`, { target: { approval: b.id } });
   return json(200, { ok: true });
 }) };

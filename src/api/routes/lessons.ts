@@ -10,23 +10,23 @@ const KEY = /^[a-z]+$/;
 
 export const list = {
   GET: handle(async (request, e) => {
+    const { cfg, user } = await requireUser(request, e, 'any');
     const module = new URL(request.url).searchParams.get('module') || '';
     const need = KEY.test(module) ? needOf(module) : null;
     if (!need) return json(400, { error: 'تاب غير معروف' });
-    const { cfg, user } = await requireUser(request, e, 'any');
     if (!can(user, need, cfg)) return json(403, { error: 'ما عندك صلاحية' });
     const r = await sb<Row[]>(cfg, scoped(`/rest/v1/lessons?select=id,kind,lesson,evidence,confidence,source,status,decided_by,decided_at,created_at&module=eq.${module}&active=eq.true&status=in.(new,reviewed,approved)&order=created_at.desc&limit=50`, user.co), { admin: true });
     if (!r.ok) return json(missingSchema(r) ? 503 : 500, { error: missingSchema(r) ? notApplied('migration 014_lessons_by_tab.sql') : 'ما قدرت أقرأ الدروس' });
     return json(200, { lessons: r.data, canDecide: atLeast(user, need, 'approve', cfg) });
   }),
   PATCH: handle(async (request, e) => {
+    const { cfg, user } = await requireUser(request, e, 'any', { write: true });
     const body = await readJson(request);
     const module = String(body.module || '');
     const need = KEY.test(module) ? needOf(module) : null;
     const id = parseInt(String(body.id), 10);
     const status = decision(body.action);
     if (!need || !id || !status) return json(400, { error: 'طلب غير صحيح' });
-    const { cfg, user } = await requireUser(request, e, 'any', { write: true });
     if (!can(user, need, cfg)) return json(403, { error: 'ما عندك صلاحية' });
     if (!atLeast(user, need, 'approve', cfg)) return json(403, { error: NO_APPROVE });
     const r = await sb<Row[]>(cfg, scoped(`/rest/v1/lessons?id=eq.${id}&module=eq.${module}&status=in.(new,reviewed)`, user.co),

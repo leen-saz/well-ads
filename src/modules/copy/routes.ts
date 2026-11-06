@@ -2,10 +2,11 @@
 // card counted on read, and writing with the free Workers AI (templates when it is not bound).
 import { sb, json, readJson, handle, requireUser, audit, missingSchema, notApplied, type Cfg } from '../../lib/auth';
 import { scoped } from '../../lib/tenant';
+import { readAll } from '../../lib/paging';
 import { loadKnowledge, systemPrompt, forbiddenRules, withKnowledge } from '../knowledge/knowledge';
 import { generate, pick, stream, sseResponse, type LlmEnv } from '../../lib/llm';
 import { winners, type AdIn, type MetIn } from '../design/design';
-import { KINDS, DEFAULT_KIND, fitDraft, cleanProject, styleCard, writePrompt, parseDrafts, fallbackDrafts, review, type Project } from './copy';
+import { KINDS, cleanProject, styleCard, type Project } from './copy';
 import { SKILL, partsOf, cleanInputs, missing, skillPrompt, parseVariants, reviewVariant } from './skills';
 
 // The copywriter writes with OpenAI when OPENAI_API_KEY is set, else Workers AI (src/lib/llm.ts); it reads the knowledge too
@@ -26,11 +27,11 @@ async function references(cfg: Cfg, co: string, p: Row, picked: unknown) {
   const cards = (p.competitors || []).filter(c => use.has(c.id)).flatMap(c => { const card = styleCard(c.samples || []); return card ? [{ name: c.name, card }] : []; });
   const since = new Date(Date.now() - 30 * 864e5).toISOString().slice(0, 10);
   const [ads, metrics] = await Promise.all([
-    sb<AdIn[]>(cfg, scoped('/rest/v1/ads?select=ad_key,platform,name,format,goal,text:doc->>text&goal=eq.lead&limit=3000', co), { admin: true }),
+    readAll<AdIn>(cfg, scoped('/rest/v1/ads?select=ad_key,platform,name,format,goal,text:doc->>text&goal=eq.lead', co), 'ad_key.asc', 5),
     // ad_metrics has no company column: rows only count through this company's ads (winners joins on ad_key)
-    sb<MetIn[]>(cfg, `/rest/v1/ad_metrics?select=ad_key,spend,leads,clicks,impressions&day=gte.${since}&limit=20000`, { admin: true }),
+    readAll<MetIn>(cfg, `/rest/v1/ad_metrics?select=ad_key,spend,leads,clicks,impressions&day=gte.${since}`, 'ad_key.asc,day.asc', 20),
   ]);
-  return { cards, hooks: winners(Array.isArray(ads.data) ? ads.data : [], Array.isArray(metrics.data) ? metrics.data : []).hooks };
+  return { cards, hooks: winners(ads.rows, metrics.rows).hooks };
 }
 
 export const projects = {
@@ -62,28 +63,6 @@ export const projects = {
     return json(200, { ok: true, project: withCards(rows(r.data)[0]!) });
   }),
 };
-
-export const write = { POST: handle(async (request, e: AiEnv & Parameters<typeof requireUser>[1]) => {
-  const { cfg, user } = await requireUser(request, e, 'copy', { write: true });
-  const b = await readJson(request);
-  const p = await one(cfg, user.co, parseInt(String(b.project_id), 10) || 0);
-  if (!p) return json(404, { error: 'اختر مشروع' });
-  const kind = String(b.kind) in KINDS ? String(b.kind) : DEFAULT_KIND;
-  const count = Math.min(5, Math.max(1, parseInt(String(b.count), 10) || 3));
-  const { cards, hooks } = await references(cfg, user.co, p, b.competitors);
-  let drafts = fallbackDrafts(p, count, kind), engine = 'templates';
-  // One read of the knowledge: what the writer is told, and the company's forbidden words for the compliance notes
-  const known = await loadKnowledge(cfg, user.co), extra = forbiddenRules(known);
-  if (pick(e, 'copy')) {
-    try {
-      const out = await generate(e, 'copy', { messages: withKnowledge([{ role: 'user', content: writePrompt(p, kind, count, cards, hooks) }], systemPrompt(known, 'copy')), max_tokens: 900 });
-      const got = parseDrafts(out.response, KINDS[kind]!.max);
-      if (got.length) { drafts = got.map(d => fitDraft(d, kind)); engine = out.engine === 'workers' ? 'workers-ai' : out.engine; }
-    } catch { /* templates stay */ }
-  }
-  await audit(cfg, user, 'copy_written', { target: { project: p.id, kind, count: drafts.length, engine, competitors: cards.length } });
-  return json(200, { drafts: drafts.map(d => review(d, p, extra, kind)), engine, used: { competitors: cards.map(c => c.name), hooks: hooks.slice(0, 5) } });
-}) };
 
 // One request type (docs/copywriter-skills/): its inputs, the questions for what is missing, then the variants on its
 // steps, with the knowledge as the system message and every variant reviewed. No templates here: without a model it says so.

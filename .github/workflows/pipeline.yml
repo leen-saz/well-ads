@@ -56,6 +56,10 @@ jobs:
           python build.py
           jq -r '.headers[0].headers[] | select(.key == "Content-Security-Policy") | .value' web/vercel.json > web/csp.txt
           test -s web/csp.txt
+      # The built dash.json must be sane before anything is uploaded (required keys, types, plausible size, no negative
+      # spend, days inside the range). On failure the run stops with a message that carries no figures.
+      - name: Validate dash.json before upload
+        run: python pipeline/validate_dash.py pipeline/web/public/dash.json pipeline/web/public/data
       - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
         with:
           node-version: "24"
@@ -84,6 +88,9 @@ jobs:
           put() { npx wrangler r2 object put "$BUCKET/site/$1" --file "$2" --content-type "$3" --remote >/dev/null; }
           put csp.txt csp.txt "text/plain; charset=utf-8"
           put control/ads.json public/control/ads.json "application/json"
+          # The parts dash.json leaves out go up first, so a new dash.json never points at missing files
+          put dash-aud.json public/dash-aud.json "application/json"
+          put dash-organic.json public/dash-organic.json "application/json"
           put dash.json public/dash.json "application/json"
           for f in public/c/index.html public/dept/*/index.html public/index.html; do
             put "${f#public/}" "$f" "text/html; charset=utf-8"

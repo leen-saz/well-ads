@@ -1,5 +1,5 @@
 // صحة الداتا (للمالكة): بطاقات قراءة فقط. كل بطاقة تجيب أرقامها من /api/maestro/<اسمها>.
-import { $, api, say, esc, fmt, shell } from '/assets/common.js';
+import { $, api, say, esc, fmt, shell, failure, pageFailure } from '/assets/common.js';
 
 const STATUS = { paid: 'مدفوع', unpaid: 'غير مدفوع', pending: 'معلّق', partial: 'مدفوع جزئي', refunded: 'مسترجع', '(empty)': 'فاضي', other: 'قيمة ثانية' };
 const FINDING = {
@@ -75,10 +75,10 @@ export function vitalsCard(d) {
 export default async function mount() {
   shell({ active: 'maestro', title: 'صحة الداتا' }).then(async () => {
     const box = $('#sections');
-    try { box.innerHTML = crmCard(await api('/api/maestro/crm')); } catch (err) { box.innerHTML = ''; say($('#msg'), err.message); }
+    try { box.innerHTML = crmCard(await api('/api/maestro/crm')); } catch (err) { failure(box, err, () => location.reload()); }
     const vbox = document.createElement('div');
     box.prepend(vbox);
-    const loadVitals = async () => { try { vbox.innerHTML = vitalsCard(await api('/api/maestro/vitals')); } catch (err) { vbox.innerHTML = `<p class="msg err">${esc(err.message)}</p>`; } };
+    const loadVitals = async () => { try { vbox.innerHTML = vitalsCard(await api('/api/maestro/vitals')); } catch (err) { failure(vbox, err, loadVitals); } };
     loadVitals();
     // One request per part: each stays under the platform's per-request call limit
     const h = { duplicates: {}, counts: {}, orphans: {}, migrations_missing: [], freshness: { platforms: [] }, joins: null };
@@ -88,5 +88,5 @@ export default async function mount() {
       try { const r = await api('/api/maestro/health?part=' + part); Object.assign(h, r, { duplicates: { ...h.duplicates, ...(r.duplicates || {}) } }); holder.innerHTML = healthCards(h); }
       catch (err) { say($('#msg'), err.message); }
     }
-  }).catch(err => say($('#msg'), err.message));
+  }).catch(pageFailure);
 }

@@ -1,5 +1,5 @@
 // التتبع: يقرأ تقرير صحة التتبع من /api/debugger/report ويعرض المشاكل مرتبة حسب الخطورة، ولكل وحدة حلها.
-import { $, api, say, esc, shell, busy, fmt, when } from '/assets/common.js';
+import { $, api, say, esc, shell, busy, fmt, when, failure } from '/assets/common.js';
 
 const LEVEL = { critical: 'خطير', warn: 'تنبيه', info: 'معلومة' };
 const PLAT = { meta: 'ميتا', snapchat: 'سناب شات', tiktok: 'تيك توك', google: 'جوجل' };
@@ -21,7 +21,7 @@ export default async function mount() {
           <h3>${esc(f.title)}</h3><p class="muted">${esc(f.detail)}</p><div class="dg-fix"><b>الحل:</b> ${esc(f.fix)}</div></article>`).join('')
         : '<div class="card dg-ok"><b>ما لقيت مشاكل في التتبع.</b><p class="muted" style="margin:6px 0 0">الأرقام توصل من كل المنصات والليدز مربوطة بإعلاناتها.</p></div>';
       say($('#msg'), `آخر فحص: ${when(r.checked_at)}`, true);
-    } catch (err) { $('#list').innerHTML = ''; say($('#msg'), err.message); }
+    } catch (err) { failure($('#list'), err, () => load()); }
     busy(btn, false);
   }
   await shell({ active: 'debugger', title: 'التتبع', tools: '<button class="btn sm secondary" type="button" id="again">افحص من جديد</button>' });
