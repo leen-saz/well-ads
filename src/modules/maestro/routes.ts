@@ -167,9 +167,9 @@ export const health = { GET: handle(async (request, e: AuthEnv & { FILES?: R2Buc
 export const vitals = { GET: handle(async (request, e: AuthEnv) => {
   const { cfg } = await requireUser(request, e, 'owner');
   const since = new Date(Date.now() - 24 * 3600e3).toISOString();
-  const r = await sb<VitalRow[]>(cfg, `/rest/v1/web_vitals?at=gte.${encodeURIComponent(since)}&select=path,lcp,inp,cls,ttfb,mobile&order=at.desc&limit=5000`, { admin: true });
+  const r = await sb<VitalRow[]>(cfg, `/rest/v1/web_vitals?at=gte.${encodeURIComponent(since)}&select=path,lcp,inp,cls,ttfb,mobile&order=at.desc&limit=1000`, { admin: true });
   if (missingSchema(r)) return json(200, { missing: notApplied('022_web_vitals.sql') }, { 'cache-control': 'no-store' });
   if (!r.ok || !Array.isArray(r.data)) return json(502, { error: 'ما قدرت أقرأ أرقام الأداء، جرّب بعد شوي' });
   await sb(cfg, `/rest/v1/web_vitals?at=lt.${encodeURIComponent(new Date(Date.now() - 7 * 864e5).toISOString())}`, { method: 'DELETE', admin: true, headers: { Prefer: 'return=minimal' } }).catch(() => {});
-  return json(200, { hours: 24, reports: r.data.length, capped: r.data.length >= 5000, targets: TARGETS, pages: summarize(r.data) }, { 'cache-control': 'no-store' });
+  return json(200, { hours: 24, reports: r.data.length, capped: r.data.length >= 1000, targets: TARGETS, pages: summarize(r.data) }, { 'cache-control': 'no-store' });
 }) };

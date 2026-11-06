@@ -69,7 +69,7 @@ export function vitalsCard(d) {
   const rows = d.pages.map(p => `<tr><td dir="ltr" style="text-align:start">${esc(p.path)}</td><td class="n">${fmt(p.n)}</td>${c(p.lcp, 'lcp', s)}${c(p.inp, 'inp', ms)}${c(p.cls, 'cls', cls)}${c(p.ttfb, 'ttfb', ms)}</tr>`).join('');
   return `<section class="card pad dh-sec"><h2>الأداء (آخر 24 ساعة)</h2><p class="muted" style="margin:0">من زيارات حقيقية، لكل صفحة: الرقم اللي يغطي 75% من الزيارات. الهدف: أكبر عنصر ≤ 2.5 ثانية، التفاعل ≤ 200 مللي، الاهتزاز ≤ 0.1. بدون أي بيانات شخصية.</p>
     ${d.pages.length ? `<table class="dh-tbl"><thead><tr><th>الصفحة</th><th class="n">زيارات</th><th class="n">أكبر عنصر (ث)</th><th class="n">التفاعل (مللي)</th><th class="n">الاهتزاز</th><th class="n">رد الخادم (مللي)</th></tr></thead><tbody>${rows}</tbody></table>
-    ${d.capped ? '<p class="muted">الأرقام من آخر 5000 تقرير.</p>' : ''}` : '<p class="muted">ما وصل أي تقرير آخر 24 ساعة.</p>'}</section>`;
+    ${d.capped ? '<p class="muted">الأرقام من آخر 1000 تقرير.</p>' : ''}` : '<p class="muted">ما وصل أي تقرير آخر 24 ساعة.</p>'}</section>`;
 }
 
 export default async function mount() {

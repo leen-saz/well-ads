@@ -39,7 +39,7 @@ describe('migrations: closed to anon and authenticated', () => {
 
   it('a table that holds a company\'s rows says which company', () => {
     // Tables that are one global row set on purpose; everything else must carry company_id
-    const global = new Set(['ad_metrics', 'dashboard_state', 'suggestions', 'control_settings', 'platform_activity', 'outcomes', 'crm_sync_state', 'companies']);
+    const global = new Set(['ad_metrics', 'dashboard_state', 'suggestions', 'control_settings', 'platform_activity', 'outcomes', 'crm_sync_state', 'companies', 'web_vitals']);
     for (const t of tables.filter(x => !global.has(x))) {
       const body = all.match(new RegExp(`create table (?:if not exists )?(?:public\\.)?${t}\\s*\\(([\\s\\S]*?)\\n\\);`, 'i'))?.[1] || '';
       const added = new RegExp(`alter table (?:public\\.)?${t}\\s+add column if not exists company_id`, 'i').test(all);

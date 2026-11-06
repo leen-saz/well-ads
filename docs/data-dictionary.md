@@ -65,6 +65,7 @@ by code that is live on main; open «المدير ← صحة الداتا ← ا
 | `copy_projects` | 015 | copy | yes (FK) | id, name, service, audience, offer, cta, voice, banned, competitors … | Forever. |
 | `brand_assets` | 016 | knowledge (brand) | yes (FK) | id, kind, title, r2_key, mime, size, value, active … | Forever; files in R2 `brand/<company>/`. |
 | `motion_projects` | 018 | design (video) | yes (FK) | id, title, headline, script, ratio, design_key, voice_key, status, approved_version … | Draft projects expire after 30 days (PRD: uploaded design/voice files after 30 days); approved ones stay. |
+| `web_vitals` | 022 | vitals beacon (`/api/vitals/report`) → data-health «الأداء» card | no (global: page path and timings only, no user, no company) | id, at, path (ids collapsed to `:id`), lcp, inp, cls, ttfb, mobile | 7 days: rows older than that are deleted when the owner opens the card. |
 | `motion_versions` | 018 | design (video) | yes (FK) | id, project_id, version, parent_version, change_request, spec, engine, model | Never edited; goes with its project. |
 
 ## Indexes against the queries the code makes
