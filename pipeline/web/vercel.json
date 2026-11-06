@@ -32,7 +32,7 @@
       "headers": [
         {
           "key": "Content-Security-Policy",
-          "value": "default-src 'none'; script-src 'self' 'sha256-qPNSVc2ay3E+5WP1Qdt5U322+Yw3tswNZ9atj50C6hs='; style-src 'self' 'unsafe-inline'; font-src 'self'; img-src 'self' data:; media-src https: blob: data:; frame-src https://www.tiktok.com https://www.instagram.com https://www.facebook.com; connect-src 'self'; base-uri 'none'; form-action 'self'; frame-ancestors 'none'; object-src 'none'"
+          "value": "default-src 'none'; script-src 'self' 'sha256-oz/BzRopvZFeXe1DuXhYdyTNPYIJXNJwzYqRj8K1WLo='; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; img-src 'self' data:; media-src https: blob: data:; frame-src https://www.tiktok.com https://www.instagram.com https://www.facebook.com; connect-src 'self'; base-uri 'none'; form-action 'self'; frame-ancestors 'none'; object-src 'none'"
         },
         {
           "key": "Strict-Transport-Security",
