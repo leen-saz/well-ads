@@ -210,6 +210,10 @@ export async function loadProfile(cfg: Cfg, uid: string): Promise<Profile | null
   return plain.ok && Array.isArray(plain.data) ? plain.data[0] || null : null;
 }
 
+// What a visitor typed in the email box, for the audit log: only something shaped like an email and of sane length.
+// People type passwords there, and anyone without a session can write these rows, so nothing else is stored.
+export const auditEmail = (v: unknown): string | null => { const s = String(v ?? '').trim().toLowerCase(); return s.length <= 254 && /^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(s) ? s : null; };
+
 type Who = { uid?: string; id?: string | undefined; email?: string | undefined; co?: string } | null;
 export async function audit(cfg: Cfg, user: Who, action: string, fields: Record<string, unknown> = {}): Promise<void> {
   await sb(cfg, '/rest/v1/audit_log', {
