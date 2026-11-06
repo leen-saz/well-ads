@@ -45,6 +45,8 @@ export function need(pathname: string, search: string): Need | null {
   const mod = pathname.match(/^\/(?:api\/)?([a-z]+)(?:\/|$)/)?.[1];
   if (mod && LIVE.includes(mod)) return mod;
   if (/^\/(api\/)?account(\/|$)/.test(pathname)) return 'any';
+  // Web Vitals reports: every signed-in user sends them, not only those with analytics
+  if (/^\/api\/vitals\//.test(pathname)) return 'any';
   if (/^\/settings\/?$/.test(pathname)) return 'any';
   if (/^\/soon\/?$/.test(pathname)) return 'any';
   if (/^\/creative\/?$/.test(pathname)) return 'creative';
