@@ -38,6 +38,16 @@ class FullSave(unittest.TestCase):
         last_post = max(i for i, (m, u) in enumerate(calls) if m == "POST" and "ad_metrics" in u)
         self.assertLess(last_post, first_delete)
 
+    def test_empty_fetch_never_wipes_history(self):
+        calls = []
+
+        def transport(method, url, data, headers):
+            calls.append(method)
+            return [{"ad_key": "m10", "day": "2026-10-01"}] if method == "GET" else None
+        store.save_bundle({"ads": {}, "rows": [], "range": {}}, full=True, transport=transport)
+        self.assertNotIn("DELETE", calls)
+        self.assertNotIn("GET", calls)
+
 
 if __name__ == "__main__":
     unittest.main()

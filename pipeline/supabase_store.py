@@ -227,7 +227,7 @@ def save_bundle(data, recent_from=None, ok_prefixes=None, full=False, transport=
     rows = [metric_record(r) for r in (data.get("rows") or []) if r and r[0]]
     if full or not recent_from:
         _upsert("ad_metrics", rows, "ad_key,day", transport=transport)
-        if full:
+        if full and rows:   # an empty fetch must never wipe the history
             _delete_orphan_metrics(rows, transport=transport)
     else:
         prefixes = list(ok_prefixes or [])
