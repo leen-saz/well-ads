@@ -65,7 +65,7 @@ describe('recording', () => {
     const out = await settle(() => generate(withKey, 'copy', IN, undefined, ctx()));
     expect((out as { response: string }).response).toBe('نص تجريبي');
     const rows = insertedUsage();
-    expect(rows).toEqual([{ company_id: CO_A, user_id: 'u-1', module: 'copy', provider: 'openai', model: 'gpt-6.1-sol', tokens_in: 1000, tokens_out: 500, cost_usd: 0.0075, cost_sar: 0.028125, usd_sar: 3.75, priced: true }]);
+    expect(rows).toEqual([{ company_id: CO_A, user_id: 'u-1', module: 'copy', provider: 'openai', model: 'gpt-6.1-sol', tokens_in: 1000, tokens_out: 500, cost_usd: 0.0075, cost_sar: 0.028125, usd_sar: 3.75, priced: true, estimated: false }]);
     const all = JSON.stringify(calls.filter(c => !c.url.includes('api.openai.com')).map(c => c.body));
     expect(all).not.toContain('PROMPT-SECRET'); expect(all).not.toContain('نص تجريبي'); expect(all).not.toContain('@');
   });
@@ -83,6 +83,35 @@ describe('recording', () => {
     const f = (async () => new Response(new ReadableStream({ start(c) { c.enqueue(ev({ type: 'response.output_text.delta', delta: 'مرحبا' })); c.enqueue(ev({ type: 'response.completed', response: { usage: { input_tokens: 200, output_tokens: 100 } } })); c.close(); } }))) as unknown as typeof fetch;
     await settle(async () => { const got: StreamEvent[] = []; for await (const x of stream(withKey, 'copy', IN, f, undefined, ctx())) got.push(x); return got; });
     expect(insertedUsage()).toMatchObject([{ company_id: CO_A, module: 'copy', tokens_in: 200, tokens_out: 100 }]);
+  });
+  describe('a stream that is cut still costs what it wrote', () => {
+    const enc = new TextEncoder();
+    const ev = (o: unknown) => enc.encode(`data: ${JSON.stringify(o)}\n\n`);
+    const provider = (parts: unknown[], then: 'open' | 'fail' | 'close') => (async () => {
+      const q = [...parts];
+      return new Response(new ReadableStream<Uint8Array>({ pull(c) { const x = q.shift(); if (x !== undefined) c.enqueue(ev(x)); else if (then === 'fail') c.error(new Error('cut')); else if (then === 'close') c.close(); } }));
+    }) as unknown as typeof fetch;
+    const D = { type: 'response.output_text.delta', delta: 'abcdefghi' };   // 9 characters → 3 tokens
+    const drain = async (g: AsyncGenerator<StreamEvent>) => { for await (const x of g) void x; };
+
+    it('a connection cut after some text records an estimated row from what arrived', async () => {
+      await settle(() => drain(stream(withKey, 'copy', IN, provider([D], 'fail'), undefined, ctx())));
+      expect(insertedUsage()).toMatchObject([{ company_id: CO_A, module: 'copy', provider: 'openai', estimated: true, tokens_out: 3 }]);
+      expect((insertedUsage()[0]!.tokens_in as number)).toBeGreaterThan(0);
+    });
+    it('a reader that leaves after the first words (stop button, closed tab) records the same, once', async () => {
+      await settle(async () => { const g = stream(withKey, 'copy', IN, provider([D], 'open'), undefined, ctx()); await g.next(); await g.return(undefined); });
+      expect(insertedUsage()).toMatchObject([{ estimated: true, tokens_out: 3 }]);
+    });
+    it('real usage from the provider is used as is, and is not marked estimated', async () => {
+      await settle(() => drain(stream(withKey, 'copy', IN, provider([D, { type: 'response.completed', response: { usage: { input_tokens: 50, output_tokens: 20 } } }], 'close'), undefined, ctx())));
+      expect(insertedUsage()).toMatchObject([{ estimated: false, tokens_in: 50, tokens_out: 20 }]);
+    });
+    it('a request the provider refused costs nothing and records nothing for it', async () => {
+      const f = (async () => new Response('x', { status: 500 })) as unknown as typeof fetch;
+      await settle(() => drain(stream({ ...withKey, AI: workersAi() }, 'copy', IN, f, undefined, ctx())));
+      expect(insertedUsage().map(r => r.provider)).toEqual(['workers']);
+    });
   });
   it('never breaks the call: a failing insert or a thrown error is swallowed, and nothing is recorded without a context', async () => {
     vi.stubGlobal('fetch', vi.fn(async (url: string) => { if (url.includes('api.openai.com')) return new Response(JSON.stringify({ output_text: 'ok' })); throw new Error('db down'); }));

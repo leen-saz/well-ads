@@ -14,6 +14,7 @@ create table if not exists public.ai_usage (
   cost_sar numeric(12, 6) not null default 0 check (cost_sar >= 0),
   usd_sar numeric(8, 4) not null default 3.75,
   priced boolean not null default true,
+  estimated boolean not null default false,   -- التوكنز مقدّرة: انقطع البث قبل ما يرجع المزوّد الأرقام
   created_at timestamptz not null default now()
 );
 create index if not exists ai_usage_company_time_idx on public.ai_usage (company_id, created_at desc);

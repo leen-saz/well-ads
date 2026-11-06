@@ -68,7 +68,7 @@ export async function overCap(ctx: UsageCtx, module: string): Promise<boolean> {
   return !!c && c.usd > 0 && (s.spent.get(tabOf(module, ctx)) || 0) >= c.usd;
 }
 
-export interface Used { provider: Provider; model: string; usage?: { in: number; out: number } | undefined }
+export interface Used { provider: Provider; model: string; usage?: { in: number; out: number } | undefined; estimated?: boolean }
 
 export function record(ctx: UsageCtx | undefined, module: string, u: Used): void {
   if (!ctx) return;
@@ -76,7 +76,7 @@ export function record(ctx: UsageCtx | undefined, module: string, u: Used): void
   const c = cost(u.provider, u.model, tin, tout);
   const job = (async () => {
     const r = await sb(ctx.cfg, '/rest/v1/ai_usage', { method: 'POST', admin: true, headers: { Prefer: 'return=minimal' },
-      body: { company_id: ctx.co, user_id: ctx.uid ?? null, module: tab, provider: u.provider, model: u.model, tokens_in: tin, tokens_out: tout, cost_usd: c.usd, cost_sar: c.sar, usd_sar: USD_SAR, priced: c.priced } });
+      body: { company_id: ctx.co, user_id: ctx.uid ?? null, module: tab, provider: u.provider, model: u.model, tokens_in: tin, tokens_out: tout, cost_usd: c.usd, cost_sar: c.sar, usd_sar: USD_SAR, priced: c.priced, estimated: !!u.estimated } });
     if (!r.ok) return;
     // Keep this isolate's count current between the minute reads, and say once when a line is crossed
     const s = await snap(ctx), cap = s.caps.get(tab);
