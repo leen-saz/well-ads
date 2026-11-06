@@ -31,7 +31,7 @@ for (const t of TABS) {
       await page.route(t.api, r => (failing ? m.fail(r) : r.continue()));
       await page.goto(t.page);
       // The tab buttons get their handler once the page script has run: click again until the tab has opened
-      if (t.open) await expect(async () => { await page.locator(t.open!).click(); await expect(page.locator(t.open!)).toHaveAttribute('aria-pressed', 'true', { timeout: 500 }); }).toPass();
+      if (t.open) await expect(async () => { await page.locator(t.open!).click(); await expect.poll(() => page.locator(t.open!).evaluate(el => el.getAttribute('aria-pressed') === 'true' || el.getAttribute('aria-selected') === 'true'), { timeout: 500 }).toBe(true); }).toPass();
       const alert = page.locator('[role="alert"]', { has: page.locator('[data-retry]') }).first();
       await expect(alert).toBeVisible();
       await expect(alert).toContainText(m.text);
