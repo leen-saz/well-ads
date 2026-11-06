@@ -1,4 +1,4 @@
--- 019: no table is readable or writable with the public (anon) or a signed-in (authenticated) key.
+-- 021: no table is readable or writable with the public (anon) or a signed-in (authenticated) key.
 -- 000_base.sql gave `ads`, `ad_metrics` and `dashboard_state` a "select using (true)" policy for anon, so anyone holding the
 -- project's public key could read ad names, spend and metrics straight from Supabase. Nothing in the code uses that:
 -- the Worker and the pipeline use the service role only (it bypasses RLS), and the one call with a user's token goes to

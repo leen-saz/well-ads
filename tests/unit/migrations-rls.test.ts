@@ -26,7 +26,7 @@ describe('migrations: closed to anon and authenticated', () => {
   }
 
   it('no policy or grant opens a table to anon or authenticated that a later statement does not close', () => {
-    // 000_base opened three tables; 019 must drop those policies and revoke after the last grant
+    // 000_base opened three tables; 021 must drop those policies and revoke after the last grant
     const lastGrant = all.toLowerCase().lastIndexOf('grant select on public.');
     const lastRevokeAll = all.toLowerCase().lastIndexOf('revoke all on all tables in schema public from anon, authenticated');
     expect(lastRevokeAll).toBeGreaterThan(lastGrant);

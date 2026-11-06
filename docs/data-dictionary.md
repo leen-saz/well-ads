@@ -1,6 +1,6 @@
 # Data dictionary and schema audit
 
-Audited 2026-11-06 against `supabase/migrations/000`–`018` (+ the new `019`). Source of truth is the SQL; a unit test
+Audited 2026-11-06 against `supabase/migrations/000`–`018` (+ the new `021`). Source of truth is the SQL; a unit test
 (`tests/unit/migrations-rls.test.ts`) fails if a table is created without RLS, without being revoked from `anon` and
 `authenticated`, without `company_id` (unless listed as global on purpose), or without a row in this file.
 
@@ -12,9 +12,9 @@ closed to `anon` and `authenticated`: RLS on, no policy, and the grants revoked 
 
 | # | Finding | Fix |
 |---|---|---|
-| 1 | `ads`, `ad_metrics`, `dashboard_state` had `select using (true)` policies **for anon** plus `grant select` (000_base.sql). Anyone with the project's public key could read ad names, spend and metrics through Supabase directly. Nothing in the code needs it. | `019_lock_down_anon.sql` drops the policies and revokes. |
+| 1 | `ads`, `ad_metrics`, `dashboard_state` had `select using (true)` policies **for anon** plus `grant select` (000_base.sql). Anyone with the project's public key could read ad names, spend and metrics through Supabase directly. Nothing in the code needs it. | `021_lock_down_anon.sql` drops the policies and revokes. |
 | 2 | 12 tables never revoked the default grants (`profiles`, `audit_log`, `suggestions`, `control_settings`, `platform_activity`, `outcomes`, `lessons`, `journeys`, `journey_runs`, and the three above). RLS with no policy already denies them, so this is defence in depth. | Same migration: `revoke all on all tables/sequences in schema public` + default privileges for future tables. |
-| 3 | `crm_leads` is read by `company_id` + `created_at` (diagnostic, debugger) with no index covering both. | `crm_leads_company_created_idx` in 019. |
+| 3 | `crm_leads` is read by `company_id` + `created_at` (diagnostic, debugger) with no index covering both. | `crm_leads_company_created_idx` in 021. |
 | 4 | `supabase/backup.py` backs up 10 tables. Not covered: `crm_leads` (rebuildable from the CRM), `knowledge`, `brand_assets`, `copy_projects`, `motion_*`, `social_posts`, `journeys`, `content_plans`, `listen_*`, `companies`, `connections`. `knowledge`, `brand_assets`, `social_posts`, `journeys`, `copy_projects`, `motion_*` hold human-written work that cannot be rebuilt. | Not changed here. Add them to `TABLES` (separate PR). |
 | 5 | `suggestions`, `control_settings`, `outcomes`, `platform_activity`, `ad_metrics`, `dashboard_state`, `crm_sync_state` have no `company_id`. Control and the ads pipeline are Well-only today (see the tenant-wall review); a second company with ads would need `company_id` on these. | Listed as global on purpose in the test; revisit when a second company gets ads. |
 | 6 | `ads`, `crm_leads`, `audit_log`, `connections` carry `company_id` **without** a foreign key to `companies` (added later with `add column`, or pipeline-written), so they can hold a company that was deleted. | The data-health page counts these (`/maestro/health/`, «اليتيم»). |
@@ -28,7 +28,7 @@ Supabase has not applied, by probing every table and column the code reads (`src
 `000_base` → `001_control` → `002_departments` → `003_phase_a` → `004_learning` → `005_connectors` → `006_companies` →
 `007_social` → `008_journeys` → `009_content_agent` → `010_maestro` → `011_crm_leads` → `011_modules` → `012_access_levels` →
 `013_listening` → `013_social_approver` → `014_knowledge` → `014_lessons_by_tab` → `015_copy` → `016_brand_assets` →
-`017_knowledge_brand_source` → `018_motion_videos` → **`019_lock_down_anon`** (new).
+`017_knowledge_brand_source` → `018_motion_videos` → **`021_lock_down_anon`** (new; `019_ai_usage` and `020_library` from other PRs come before it).
 
 I cannot see Leen's Supabase, so which of these are already applied is not known from the repo. All of 000–018 are read
 by code that is live on main; open «المدير ← صحة الداتا ← المايقريشنات» to see the exact list that is missing.
@@ -37,7 +37,7 @@ by code that is live on main; open «المدير ← صحة الداتا ← ا
 
 ## Tables
 
-`company_id` = rows are per company. After 019 every table is: RLS on, no policy, revoked from anon/authenticated.
+`company_id` = rows are per company. After 021 every table is: RLS on, no policy, revoked from anon/authenticated.
 
 | Table | Migration | Owner | `company_id` | Columns | Retention |
 |---|---|---|---|---|---|
