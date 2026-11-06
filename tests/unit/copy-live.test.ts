@@ -14,6 +14,9 @@ describe('copywriter live box', () => {
   it('copies the text of the reviewed variant (from the result event), and nothing reads the live box back', () => {
     expect(client).toContain('writeText(r.variants[x.dataset.copy].text)');
     expect(client).not.toMatch(/writeText\([^)]*live/);
+    // what «احفظ في المكتبة» sends is the reviewed variant's text too
+    expect(client).toContain('const v = r.variants[i]');
+    expect(client).toMatch(/content: v\.text/);
     // the live box is only ever written to
     expect(client.replace(/live\.textContent = /g, '')).not.toContain('live.textContent');
   });

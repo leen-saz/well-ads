@@ -9,6 +9,7 @@ import { BRAND_KINDS, brandKey, checkFile, cleanColors, serveFile, type Asset } 
 import { VISION_MODEL, VISION_PROMPT } from '../design/design';
 import { guidePrompt, guideText, parseProposals, type ToMarkdown } from './guide';
 import { aiFor, generate, pick as pickModel, type LlmEnv } from '../../lib/llm';
+import { usageCtx } from '../../lib/usage';
 
 type AiEnv = AuthEnv & LlmEnv;
 const rows = (d: unknown): Entry[] => (Array.isArray(d) ? (d as Entry[]) : []);
@@ -84,7 +85,7 @@ export const train = {
     let next = nextQuestion(entries, skip);
     // The AI asks only for someone who can answer, and only after the fixed questions
     if (!next && atLeast(user, 'knowledge', 'edit', cfg)) {
-      next = await followUp(aiFor(e, 'content'), entries.filter(x => x.active), history.map(h => String(h.question || '')));
+      next = await followUp(aiFor(e, 'content', usageCtx(cfg, user, 'knowledge')), entries.filter(x => x.active), history.map(h => String(h.question || '')));
     }
     const covered = QUESTIONS.filter(q => entries.some(x => x.topic === q.topic)).length;
     return json(200, { history, next, covered, total: QUESTIONS.length, canEdit: atLeast(user, 'knowledge', 'edit', cfg) });
@@ -226,7 +227,7 @@ export const brandguide = { POST: handle(async (request, e: BrandEnv & LlmEnv & 
   const t = await guideText(d => e.AI!.toMarkdown!(d), await obj.arrayBuffer());
   if (!t.text) return fail(422, t.error || 'ما قدرت أقرا الـ PDF');
   let raw: string;
-  try { raw = (await generate(e, 'content', { messages: [{ role: 'user', content: guidePrompt(t.text) }], max_tokens: 3000 })).response; }
+  try { raw = (await generate(e, 'content', { messages: [{ role: 'user', content: guidePrompt(t.text) }], max_tokens: 3000 }, fetch, usageCtx(cfg, user, 'knowledge'))).response; }
   catch { return fail(503, 'الذكاء الاصطناعي ما رد الحين، جرّب بعد دقيقة'); }
   const list = parseProposals(raw);
   if (!list.length) return fail(422, 'ما طلعت بنود واضحة من الدليل، جرّب مرة ثانية');

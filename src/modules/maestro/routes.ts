@@ -147,6 +147,9 @@ export const approval = { POST: handle(async (request, e: Env) => {
   return json(200, { ok: true });
 }) };
 
+// AI cost: spend per tab and month, the owner's caps, the invoice check (src/modules/maestro/usage.ts)
+export { usage, budgets, reconcile } from './usage';
+
 // The owner's CRM diagnostic: counts, sums and dates only (health.ts), never a name, phone or lead id.
 export const crm = { GET: handle(async (request, e: AuthEnv) => {
   const { cfg, user } = await requireUser(request, e, 'owner');

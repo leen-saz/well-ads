@@ -6,6 +6,7 @@ import { SOCIAL, readiness, validate, canApprove, cleanApprovers, suggestPrompt,
 import { check } from '../compliance/compliance';
 import { knowledgeFor, rulesFor, withKnowledge } from '../knowledge/knowledge';
 import { generate, pick, type LlmEnv } from '../../lib/llm';
+import { usageCtx } from '../../lib/usage';
 import { MEDIA_TYPES, MEDIA_MAX, mediaKey } from './media';
 
 type Row = Record<string, unknown>;
@@ -132,7 +133,7 @@ export const suggest = { POST: handle(async (request, e: Parameters<typeof requi
   if (!platforms.length) return json(400, { error: 'اختر منصة وحدة على الأقل' });
   if (!pick(e, 'social')) return json(503, { error: 'الكتابة بالذكاء الاصطناعي غير مفعّلة في هالبيئة' });
   let out;
-  try { out = await generate(e, 'social', { messages: withKnowledge([{ role: 'user', content: suggestPrompt(brief, platforms) }], await knowledgeFor(cfg, user.co, 'social')), max_tokens: 600 }); }
+  try { out = await generate(e, 'social', { messages: withKnowledge([{ role: 'user', content: suggestPrompt(brief, platforms) }], await knowledgeFor(cfg, user.co, 'social')), max_tokens: 600 }, fetch, usageCtx(cfg, user)); }
   catch { return json(503, { error: 'الذكاء الاصطناعي ما رد الحين، جرّب بعد دقيقة' }); }
   const text = cleanSuggestion(out.response, platforms);
   if (text.length < 20) return json(502, { error: 'ما طلع نص واضح، جرّب مرة ثانية' });

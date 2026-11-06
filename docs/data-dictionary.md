@@ -65,6 +65,10 @@ by code that is live on main; open «المدير ← صحة الداتا ← ا
 | `copy_projects` | 015 | copy | yes (FK) | id, name, service, audience, offer, cta, voice, banned, competitors … | Forever. |
 | `brand_assets` | 016 | knowledge (brand) | yes (FK) | id, kind, title, r2_key, mime, size, value, active … | Forever; files in R2 `brand/<company>/`. |
 | `motion_projects` | 018 | design (video) | yes (FK) | id, title, headline, script, ratio, design_key, voice_key, status, approved_version … | Draft projects expire after 30 days (PRD: uploaded design/voice files after 30 days); approved ones stay. |
+| `ai_usage` | 019 | llm.ts (every model call) → maestro spend screen | yes (FK) | id, user_id, module (tab), provider, model, tokens_in, tokens_out, cost_usd, cost_sar, usd_sar, priced, estimated, created_at. No prompt, answer or email. | Keep 24 months, then archive; the owner's invoice check reads it. |
+| `ai_budgets` | 019 | maestro (owner only) | yes (FK) | company_id + module PK, monthly_cap_usd (null = no cap, no default), alert_at_pct, updated_by | One row per company and tab. |
+| `library_items` | 020 | shared library (copywriter and the other tabs) | yes (FK) | id, module, kind, title, content, platform, service, compliance_result, review_status, reviewed_by, approved_by, created_by, created_by_id | Forever; the owner edits and approves. Deleting is not offered yet. |
+| `library_favorites` | 020 | shared library | yes (FK) | item_id + user_id PK, created_at | Goes with its item (cascade). |
 | `web_vitals` | 022 | vitals beacon (`/api/vitals/report`) → data-health «الأداء» card | no (global: page path and timings only, no user, no company) | id, at, path (ids collapsed to `:id`), lcp, inp, cls, ttfb, mobile | 7 days: rows older than that are deleted when the owner opens the card. |
 | `motion_versions` | 018 | design (video) | yes (FK) | id, project_id, version, parent_version, change_request, spec, engine, model | Never edited; goes with its project. |
 

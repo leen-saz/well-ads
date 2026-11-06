@@ -37,6 +37,16 @@ import { ClientRouter } from 'astro:transitions';
 .mx-filters{display:flex;gap:6px;flex-wrap:wrap;margin:0 0 12px}
 .mx-filters button{height:30px;padding:0 12px;border-radius:999px;border:1px solid var(--line);background:var(--surface);color:var(--muted);font:500 13px var(--f-ar);cursor:pointer}
 .mx-filters button[aria-pressed="true"]{background:var(--text);color:var(--surface);border-color:var(--text)}
+.sp-tab{display:grid;grid-template-columns:minmax(90px,1.2fr) repeat(2,minmax(60px,.7fr)) minmax(150px,1.4fr) auto;gap:8px 12px;align-items:center;padding:10px 0;border-top:1px solid var(--line)}
+@media (max-width:760px){.sp-tab{grid-template-columns:1fr 1fr}}
+.sp-tab input{margin:0;height:36px;max-width:140px}
+.sp-tab b.n{font:600 15px var(--f-num)}
+.sp-hd{font-size:12px;color:var(--muted)}
+.sp-flag{font-size:12px;padding:2px 10px;border-radius:999px;background:var(--tint-2)}
+.sp-flag.bad{background:color-mix(in srgb,var(--pulse) 14%,transparent)}
+.sp-total{font:700 28px var(--f-num);margin:6px 0 0}
+.sp-rec{display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:10px 12px;margin-top:10px}
+.sp-res{margin-top:10px;padding:12px 14px;border-radius:12px;background:var(--tint);font-size:14px;line-height:1.9}
 .mx-kpis{display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:12px;margin:0 0 16px}
 .mx-kpi{padding:16px}.mx-kpi b{display:block;font:700 28px var(--f-num)}.mx-kpi span{color:var(--muted);font-size:13px}
 .mx-list{display:grid;gap:8px}
@@ -74,6 +84,23 @@ import { ClientRouter } from 'astro:transitions';
     <header class="topbar" id="top"></header>
     <main class="content" id="content">
       <p class="muted" style="margin:0 0 12px"><a id="healthLink" href="/maestro/health/" hidden>صحة الداتا ←</a></p>
+      <section class="card pad" id="spend" hidden aria-labelledby="spendH">
+        <div class="mx-bar" style="border:0;margin:0"><h2 id="spendH" style="margin:0">الصرف على الذكاء الاصطناعي</h2>
+          <label class="sr" for="spendMonth"><select id="spendMonth" aria-label="الشهر"></select></label></div>
+        <p class="so-note" id="spendNote">الأسعار تقديرية لين تطابقها مع فاتورة المزوّد (الفحص تحت). للمالكة بس.</p>
+        <div id="spendAlert" role="status"></div>
+        <div id="spendBody"></div>
+        <details style="margin-top:14px"><summary>طابق الصرف مع الفاتورة</summary>
+          <form id="recForm" novalidate class="sp-rec">
+            <div><label for="recProv">الفاتورة</label><select id="recProv"><option value="openai">مزوّد الكتابة والتصميم</option><option value="xai">مزوّد السوشال والرصد والمدير</option></select></div>
+            <div><label for="recMonth">الشهر</label><select id="recMonth"></select></div>
+            <div><label for="recUsd">مبلغ الفاتورة بالدولار</label><input type="number" id="recUsd" inputmode="decimal" min="0" step="0.01" dir="ltr"></div>
+            <div class="bar" style="align-self:end"><button class="btn secondary" type="submit">قارن</button></div>
+          </form>
+          <div id="recOut" role="status"></div>
+        </details>
+        <div class="msg" id="spendMsg" role="status"></div>
+      </section>
       <div id="setup"></div>
       <div id="board" hidden>
         <div class="mx-bar">
