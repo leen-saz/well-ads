@@ -36,15 +36,24 @@ export function freshness(ads: AdRow[], metrics: MetricRow[], conns: ConnRow[]):
   return [...by.values()];
 }
 
+// Why each paid closing did or did not reach an ad (pipeline/crm/join.py attach): counts per reason, source words cleaned
+const WHY = ['id', 'name', 'via_customer', 'source', 'no_id', 'broken_id', 'not_in_ads'];
+function cleanAttribution(a: { paid?: number; why?: Record<string, number>; unmatched_sources?: Record<string, number> } | undefined) {
+  if (!a || typeof a !== 'object') return null;
+  const why = Object.fromEntries(WHY.map(k => [k, Number(a.why?.[k]) || 0]));
+  const sources = Object.fromEntries(Object.entries(a.unmatched_sources ?? {}).filter(([k]) => /^[a-z0-9_]{1,40}$/.test(k)).map(([k, n]) => [k, Number(n) || 0]));
+  return { paid: Number(a.paid) || 0, why, unmatched_sources: sources };
+}
+
 // The crm block of dash.json: how many leads matched an ad. Counts only.
 export function joinRates(crm: unknown) {
-  const c = (crm && typeof crm === 'object' ? crm : {}) as { rows?: unknown[]; paid_all?: unknown[]; unmatched?: number; total?: number; via_customer?: number; synced?: string };
+  const c = (crm && typeof crm === 'object' ? crm : {}) as { rows?: unknown[]; paid_all?: unknown[]; unmatched?: number; total?: number; via_customer?: number; synced?: string; attribution?: { paid?: number; why?: Record<string, number>; unmatched_sources?: Record<string, number> } };
   const rows = Array.isArray(c.rows) ? c.rows : [], total = Number(c.total) || 0, unmatched = Number(c.unmatched) || 0;
   const closingsAd = rows.filter(r => Array.isArray(r) && r[3] === 1).length;
   const closingsAll = Array.isArray(c.paid_all) ? c.paid_all.length : 0;
   return { leads: total, matched: rows.length, unmatched, matched_pct: total ? Math.round((1000 * rows.length) / total) / 10 : null,
     closings_all: closingsAll, closings_with_ad: closingsAd, closings_pct: closingsAll ? Math.round((1000 * closingsAd) / closingsAll) / 10 : null,
-    credited_via_customer: Number(c.via_customer) || 0, synced: typeof c.synced === 'string' ? c.synced : null };
+    credited_via_customer: Number(c.via_customer) || 0, attribution: cleanAttribution(c.attribution), synced: typeof c.synced === 'string' ? c.synced : null };
 }
 
 // PostgREST count without the rows: Range 0-0 and Prefer count=exact, the total is after the slash in content-range
