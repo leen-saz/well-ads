@@ -5,7 +5,7 @@
 الواجهة الثابتة تُبنى من data.json بعد القراءة هنا، ولا يصل المفتاح للمتصفح.
 إذا غاب SUPABASE_URL أو SUPABASE_SERVICE_ROLE_KEY ترجع الدوال None ويتابع السحب على الملف المحلي.
 """
-import json, os, urllib.error, urllib.request
+import json, os, urllib.error, urllib.parse, urllib.request
 
 PAGE = 1000
 CHUNK_BYTES = 1_500_000
@@ -199,13 +199,22 @@ def _delete_window(prefix, start, end, transport=None):
     _request("DELETE", path, extra_headers={"Prefer": "return=minimal"}, transport=transport)
 
 
-def _delete_all_metrics(transport=None):
-    _request(
-        "DELETE",
-        "/rest/v1/ad_metrics?ad_key=not.is.null",
-        extra_headers={"Prefer": "return=minimal"},
-        transport=transport,
-    )
+def _delete_orphan_metrics(rows, transport=None):
+    """بعد ما انكتبت الصفوف الجديدة كلها: يمسح من القاعدة الصفوف اللي مو فيها (استبدال كامل بدون نافذة ضياع).
+
+    قبل كان يمسح كل شي أول ثم يكتب بدفعات، فلو فشلت دفعة تبقى القاعدة ناقصة والتشغيل الساعي ما يرجّع التاريخ.
+    """
+    keep = {(r["ad_key"], r["day"]) for r in rows}
+    old = _paginate("ad_metrics", "ad_key.asc,day.asc", transport=transport)
+    gone = {}
+    for r in old:
+        if (r["ad_key"], r["day"]) not in keep:
+            gone.setdefault(r["ad_key"], []).append(r["day"])
+    for key, days in gone.items():
+        for i in range(0, len(days), 100):
+            part = ",".join(days[i:i + 100])
+            _request("DELETE", f"/rest/v1/ad_metrics?ad_key=eq.{urllib.parse.quote(key, safe='')}&day=in.({part})",
+                     extra_headers={"Prefer": "return=minimal"}, transport=transport)
 
 
 def save_bundle(data, recent_from=None, ok_prefixes=None, full=False, transport=None):
@@ -217,9 +226,9 @@ def save_bundle(data, recent_from=None, ok_prefixes=None, full=False, transport=
     _upsert("ads", ads, "ad_key", transport=transport)
     rows = [metric_record(r) for r in (data.get("rows") or []) if r and r[0]]
     if full or not recent_from:
-        if full:
-            _delete_all_metrics(transport=transport)
         _upsert("ad_metrics", rows, "ad_key,day", transport=transport)
+        if full:
+            _delete_orphan_metrics(rows, transport=transport)
     else:
         prefixes = list(ok_prefixes or [])
         end = (data.get("range") or {}).get("today") or recent_from
