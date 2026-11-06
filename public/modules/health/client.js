@@ -60,10 +60,26 @@ export function healthCards(h) {
     + sec('المكرر', dups) + sec('اليتيم', orph, 'صفوف تشير إلى شركة ما عاد لها وجود.') + sec('عدد الصفوف', counts) + sec('المايقريشنات', miss);
 }
 
+// «الأداء»: Core Web Vitals of the last 24 hours per page (75th percentile). Green = inside Google's target.
+const TG = { lcp: 2500, inp: 200, cls: 0.1, ttfb: 800 };
+export function vitalsCard(d) {
+  if (d.missing) return `<section class="card pad dh-sec"><h2>الأداء (آخر 24 ساعة)</h2><p class="dh-find bad">${esc(d.missing)}</p></section>`;
+  const c = (v, key, fmtV) => v == null ? '<td class="n">—</td>' : `<td class="n"><b style="color:${v <= TG[key] ? '#1F6B3A' : '#8A2A1B'}">${fmtV(v)}</b></td>`;
+  const s = v => fmt(v / 1000, 2), ms = v => fmt(v, 0), cls = v => fmt(v, 3);
+  const rows = d.pages.map(p => `<tr><td dir="ltr" style="text-align:start">${esc(p.path)}</td><td class="n">${fmt(p.n)}</td>${c(p.lcp, 'lcp', s)}${c(p.inp, 'inp', ms)}${c(p.cls, 'cls', cls)}${c(p.ttfb, 'ttfb', ms)}</tr>`).join('');
+  return `<section class="card pad dh-sec"><h2>الأداء (آخر 24 ساعة)</h2><p class="muted" style="margin:0">من زيارات حقيقية، لكل صفحة: الرقم اللي يغطي 75% من الزيارات. الهدف: أكبر عنصر ≤ 2.5 ثانية، التفاعل ≤ 200 مللي، الاهتزاز ≤ 0.1. بدون أي بيانات شخصية.</p>
+    ${d.pages.length ? `<table class="dh-tbl"><thead><tr><th>الصفحة</th><th class="n">زيارات</th><th class="n">أكبر عنصر (ث)</th><th class="n">التفاعل (مللي)</th><th class="n">الاهتزاز</th><th class="n">رد الخادم (مللي)</th></tr></thead><tbody>${rows}</tbody></table>
+    ${d.capped ? '<p class="muted">الأرقام من آخر 5000 تقرير.</p>' : ''}` : '<p class="muted">ما وصل أي تقرير آخر 24 ساعة.</p>'}</section>`;
+}
+
 export default async function mount() {
   shell({ active: 'maestro', title: 'صحة الداتا' }).then(async () => {
     const box = $('#sections');
     try { box.innerHTML = crmCard(await api('/api/maestro/crm')); } catch (err) { box.innerHTML = ''; say($('#msg'), err.message); }
+    const vbox = document.createElement('div');
+    box.prepend(vbox);
+    const loadVitals = async () => { try { vbox.innerHTML = vitalsCard(await api('/api/maestro/vitals')); } catch (err) { vbox.innerHTML = `<p class="msg err">${esc(err.message)}</p>`; } };
+    loadVitals();
     // One request per part: each stays under the platform's per-request call limit
     const h = { duplicates: {}, counts: {}, orphans: {}, migrations_missing: [], freshness: { platforms: [] }, joins: null };
     const holder = document.createElement('div');
