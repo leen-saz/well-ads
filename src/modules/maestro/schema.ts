@@ -36,6 +36,7 @@ export const SCHEMA: Probe[] = [
   { migration: '015_copy.sql', table: 'copy_projects', columns: ['id', 'company_id'] },
   { migration: '016_brand_assets.sql', table: 'brand_assets', columns: ['id', 'company_id', 'kind', 'active'] },
   { migration: '018_motion_videos.sql', table: 'motion_projects', columns: ['id', 'company_id', 'status'] },
+  { migration: '022_web_vitals.sql', table: 'web_vitals', columns: ['id', 'at', 'path', 'lcp', 'inp', 'cls', 'ttfb', 'mobile'] },
   { migration: '018_motion_videos.sql', table: 'motion_versions', columns: ['id', 'project_id', 'version'] },
   { migration: '019_ai_usage.sql', table: 'ai_usage', columns: ['id', 'company_id', 'module', 'cost_usd', 'estimated'] },
   { migration: '019_ai_usage.sql', table: 'ai_budgets', columns: ['company_id', 'module', 'monthly_cap_usd'] },

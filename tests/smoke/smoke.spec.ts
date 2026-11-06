@@ -103,6 +103,12 @@ test.describe('each live tab, by permission', () => {
   test('the permissions page is the owner only', async ({ request }) => {
     const cookie = (await login(request, 'u-control')).header;
     expect((await request.get('/api/admin/users', { headers: { cookie } })).status()).toBe(403);
+    // The performance card of the data-health page is the owner's too
+    expect((await request.get('/api/maestro/vitals', { headers: { cookie } })).status()).toBe(403);
+    const owner = (await login(request, 'owner')).header;
+    const v = await request.get('/api/maestro/vitals', { headers: { cookie: owner } });
+    expect(v.status()).toBe(200);
+    expect(await v.json()).toMatchObject({ hours: 24, pages: [] });
   });
 });
 
