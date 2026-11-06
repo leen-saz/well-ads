@@ -1,5 +1,5 @@
 // السوشال: إنشاء منشور مجدول لأكثر من منصة، وتقويم الأسبوعين الجايين. النشر يصير من السيرفر في وقته.
-import { $, $$, api, say, esc, shell, busy, LANG } from '/assets/common.js';
+import { $, $$, api, say, esc, shell, busy, LANG, pageFailure } from '/assets/common.js';
 import { block } from '/assets/compliance-ui.js';
 import { t } from '/assets/i18n.js';
 
@@ -116,5 +116,5 @@ export default async function mount() {
     catch (err) { say($('#msg'), err.message); busy(b, false); }
   });
 
-  shell({ active: 'social', title: 'السوشال' }).then(loadApprovers).then(load).catch(err => say($('#msg'), err.message));
+  shell({ active: 'social', title: 'السوشال' }).then(loadApprovers).then(load).catch(pageFailure);
 }

@@ -6,18 +6,96 @@ export { LANG, t, langSwitch };
 // Pages switch with Astro's ClientRouter: listeners on document/window of one page are removed when it leaves
 let PAGE = new AbortController();
 document.addEventListener('astro:before-swap', () => { PAGE.abort(); PAGE = new AbortController(); });
+// Whatever a handler forgot to catch: the user is told, not left with a silent page
+let lastToast = 0;
+window.addEventListener('unhandledrejection', e => {
+  const r = e.reason;
+  if (r?.name === 'AbortError' || r?.status === 401 || Date.now() - lastToast < 3000) return;
+  lastToast = Date.now(); toast(r instanceof Error && r.status !== undefined ? r.message : 'صار خطأ، جرّب مرة ثانية', true);
+});
 export const pageSignal = () => PAGE.signal;
 export const $ = (s, el = document) => el.querySelector(s);
 export const $$ = (s, el = document) => [...el.querySelectorAll(s)];
 export const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 
-export async function api(path, { method = 'GET', body } = {}) {
-  const res = await fetch(path, { method, headers: body ? { 'content-type': 'application/json' } : {}, body: body ? JSON.stringify(body) : undefined, credentials: 'same-origin' });
-  let data = {};
-  try { data = await res.json(); } catch {}
-  if (res.status === 401 && !path.startsWith('/api/auth/')) { location.href = '/login/?next=' + encodeURIComponent(location.pathname + location.search); throw new Error(data.error || 'سجّل الدخول'); }
-  if (!res.ok) throw new Error(data.error || 'صار خطأ');
+// Every failure reaches the page as an Error with a message in Arabic: a dropped connection, a request that hangs
+// (stops after `timeout` ms, 90 s unless the caller says more), a reply that is not JSON (a gateway page), a 5xx.
+// err.status is the HTTP status (0 = no answer); err.retryable says trying again may help.
+export async function api(path, { method = 'GET', body, timeout = 90000 } = {}) {
+  let res;
+  try {
+    res = await fetch(path, { method, headers: body ? { 'content-type': 'application/json' } : {}, body: body ? JSON.stringify(body) : undefined, credentials: 'same-origin',
+      signal: AbortSignal.timeout(timeout) });
+  } catch (e) {
+    const timedOut = e?.name === 'TimeoutError';
+    throw Object.assign(new Error(timedOut ? 'الطلب أخذ وقت طويل. جرّب مرة ثانية' : 'ما قدرت أوصل للخادم. تأكد من الاتصال وجرّب مرة ثانية'), { status: 0, retryable: true });
+  }
+  let data = {}, json = true;
+  try { data = await res.json(); } catch { json = false; }
+  if (res.status === 401 && !path.startsWith('/api/auth/')) { location.href = '/login/?next=' + encodeURIComponent(location.pathname + location.search); throw Object.assign(new Error(data.error || 'سجّل الدخول'), { status: 401 }); }
+  if (!res.ok) {
+    // A gateway or platform page instead of our JSON: say that the service is unavailable, not a bare "error"
+    const fallback = !json && res.status >= 500 ? 'الخدمة مو متاحة الحين، جرّب بعد شوي' : 'صار خطأ';
+    throw Object.assign(new Error(typeof data.error === 'string' && data.error ? data.error : fallback), { status: res.status, retryable: res.status >= 500 || res.status === 429 || res.status === 408 });
+  }
   return data;
+}
+
+// Streaming POST (the shared live-text component). The route answers JSON (a question or an error) or text/event-stream:
+// `delta` text, `reset` (the writer changed, drop what you showed), then `result` with the final payload. `onText(text)` gets the whole text so far.
+// Abort `signal` to stop. Returns the JSON, or the `result` event; a stopped run returns null.
+export async function apiStream(path, body, { onText = () => {}, signal } = {}) {
+  let res;
+  try { res = await fetch(path, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(body), credentials: 'same-origin', signal }); }
+  catch (err) { if (signal?.aborted) return null; throw Object.assign(new Error('ما قدرت أوصل للخادم. تأكد من الاتصال وجرّب مرة ثانية'), { status: 0, retryable: true }); }
+  if (!(res.headers.get('content-type') || '').includes('text/event-stream')) {
+    let data = {};
+    try { data = await res.json(); } catch {}
+    if (res.status === 401) { location.href = '/login/?next=' + encodeURIComponent(location.pathname + location.search); throw new Error(data.error || 'سجّل الدخول'); }
+    if (!res.ok) throw new Error(data.error || 'صار خطأ');
+    return data;
+  }
+  const reader = res.body.getReader(), dec = new TextDecoder();
+  let buf = '', text = '', result = null, failed = false;
+  const take = block => {
+    const line = block.split('\n').find(l => l.startsWith('data:'));
+    if (!line) return;
+    let ev; try { ev = JSON.parse(line.slice(5)); } catch { return; }
+    if (ev.type === 'delta') { text += ev.text; onText(text); }
+    else if (ev.type === 'reset') { text = ''; onText(text); }
+    else if (ev.type === 'result') result = ev;
+    else if (ev.type === 'error') failed = true;
+  };
+  try {
+    for (;;) {
+      const { done, value } = await reader.read();
+      if (value) buf += dec.decode(value, { stream: !done }).replace(/\r\n/g, '\n');
+      for (let at = buf.indexOf('\n\n'); at >= 0; at = buf.indexOf('\n\n')) { take(buf.slice(0, at)); buf = buf.slice(at + 2); }
+      if (done) break;
+    }
+  } catch (err) { if (signal?.aborted) return null; throw err; }
+  if (signal?.aborted) return null;
+  if (failed || !result) throw new Error('ما طلع جواب أقدر أقراه، جرّب مرة ثانية');
+  return result;
+}
+// The readable part of a JSON answer still being written: its string values, one per line, keys left out
+export const liveText = raw => [...String(raw).matchAll(/"((?:[^"\\]|\\.)*)"(\s*:)?/g)].filter(m => !m[2]).map(m => { try { return JSON.parse('"' + m[1] + '"'); } catch { return m[1]; } }).join('\n');
+// One error state for a block that failed to load: the reason and a retry button, never a blank block or a spinner.
+// `retry` runs again the load that failed. Used by every tab's first load.
+export function failure(el, err, retry) {
+  if (!el) return;
+  el.innerHTML = `<div class="card empty failure" role="alert">${icon('alert')}<div>${esc(err?.message || 'صار خطأ')}</div>`
+    + (retry ? `<button class="btn secondary" type="button" data-retry style="margin-top:12px">${icon('refresh')}حاول مرة ثانية</button>` : '') + '</div>';
+  const b = $('[data-retry]', el);
+  if (b) b.onclick = () => { b.disabled = true; el.innerHTML = '<p class="muted">يحمّل…</p>'; Promise.resolve().then(retry).catch(e => failure(el, e, retry)); };
+}
+// The whole page could not start (the first request failed): a banner at the top of the content with a reload button
+export function pageFailure(err) {
+  const host = $('#content') || $('main') || document.body;
+  host.querySelector(':scope > .page-failure')?.remove();
+  const d = document.createElement('div'); d.className = 'page-failure';
+  host.prepend(d);
+  failure(d, err, () => location.reload());
 }
 
 // Lucide (خط 1.75)
@@ -66,9 +144,9 @@ export function say(el, text, ok = false) {
   el.className = 'msg ' + (text ? (ok ? 'ok' : 'err') : '');
   el.innerHTML = text ? (ok ? icon('check') : icon('alert')) + `<span>${esc(text)}</span>` : '';
 }
-export function toast(text) {
-  const t = document.createElement('div'); t.className = 'toast'; t.setAttribute('role', 'status');
-  t.innerHTML = icon('check') + `<span>${esc(text)}</span>`; document.body.appendChild(t);
+export function toast(text, bad = false) {
+  const t = document.createElement('div'); t.className = 'toast'; t.setAttribute('role', bad ? 'alert' : 'status');
+  t.innerHTML = icon(bad ? 'alert' : 'check') + `<span>${esc(text)}</span>`; document.body.appendChild(t);
   setTimeout(() => t.remove(), 2600);
 }
 export function busy(btn, on) { if (!btn) return; btn.classList.toggle('loading', on); btn.disabled = on; }
@@ -146,7 +224,7 @@ export async function shell({ active, title, badge = '', tools = '' }) {
   // The title bar needs nothing from the server: it goes up before the user is known
   $('#top', app).innerHTML = `<div class="t"><button class="btn icon ghost burger" id="burger" aria-label="القائمة" aria-controls="side" aria-expanded="false">${icon('menu')}</button><h1>${esc(title)}</h1>${badge}</div><div class="tools"><span id="tools">${tools}</span>${langSwitch()}</div>`;
   let me;
-  if (!ME?.v) me = await fetchMe();
+  if (!ME?.v) { try { me = await fetchMe(); } catch (err) { if (err.status !== 401) pageFailure(err); throw err; } }
   else {
     me = ME.v;
     if (Date.now() - ME.t > FRESH) fetchMe().then(v => { if (JSON.stringify(slim(v)) !== JSON.stringify(slim(me))) { drawSide(side, v, active); bindMe(); } }).catch(() => {});

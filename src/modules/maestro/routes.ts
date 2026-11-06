@@ -4,6 +4,8 @@ import { sb, json, readJson, handle, requireUser, audit, isOwner, atLeast, notEn
 import { budget, chatLines, client, cleanTask, items, performance, STATUS, tabOf, withBrief, type PcEnv } from './paperclip';
 import { MODULES } from '../registry';
 import { knowledgeFor } from '../knowledge/knowledge';
+import { crmFor } from './health';
+import { dataHealth, PARTS, type Part } from './datahealth';
 
 type Env = AuthEnv & PcEnv;
 type Co = { id: string; name: string; paperclip_company_id: string | null };
@@ -139,7 +141,22 @@ export const approval = { POST: handle(async (request, e: Env) => {
   if (!act) return json(400, { error: 'طلب غير صحيح' });
   const c = await companyOf(cfg, user.co);
   if (!c?.paperclip_company_id) return json(409, { error: 'اربط الشركة بالمدير أول' });
-  try { await pc.decide(c.paperclip_company_id, String(b.id || ''), act); } catch (err) { return json(404, { error: (err as Error).message }); }
+  try { await pc.decide(c.paperclip_company_id, String(b.id || ''), act); } catch (err) { console.warn('maestro_decide_failed', (err as Error).message); return json(404, { error: 'ما قدرت أسجّل القرار. يمكن انحسم من قبل، حدّث الصفحة' }); }
   await audit(cfg, user, `maestro_${act}`, { target: { approval: b.id } });
   return json(200, { ok: true });
+}) };
+
+// The owner's CRM diagnostic: counts, sums and dates only (health.ts), never a name, phone or lead id.
+export const crm = { GET: handle(async (request, e: AuthEnv) => {
+  const { cfg, user } = await requireUser(request, e, 'owner');
+  return json(200, await crmFor(cfg, user.co), { 'cache-control': 'no-store' });
+}) };
+
+// «صحة الداتا»: freshness, counts, join rates, duplicates, orphans and missing migrations, one ?part= at a time
+// (sources | content | counts | schema) so each request stays under Cloudflare's 50-subrequest free-plan limit. Owner only, read-only.
+export const health = { GET: handle(async (request, e: AuthEnv & { FILES?: R2Bucket }) => {
+  const { cfg, user } = await requireUser(request, e, 'owner');
+  const part = new URL(request.url).searchParams.get('part') || '';
+  if (!(PARTS as readonly string[]).includes(part)) return json(400, { error: 'طلب غير صحيح' });
+  return json(200, await dataHealth(cfg, user.co, part as Part, e.FILES));
 }) };

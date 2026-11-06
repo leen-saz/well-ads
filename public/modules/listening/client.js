@@ -1,6 +1,6 @@
 // الرصد: (1) وش ينقال عننا وعن المنافسين بالكلمات من مصادر عامة، مع الشعور، وحصة الظهور في الإشارات والتنبيهات.
 // (2) تبويب ثاني: تفاعل منشوراتنا العضوية والطلب من الـ CRM (يتحمّل أول ما ينفتح).
-import { $, $$, api, say, esc, shell, fmt, busy } from '/assets/common.js';
+import { $, $$, api, say, esc, shell, fmt, busy, failure } from '/assets/common.js';
 import { analyze, postsOf, demandAlerts } from '/modules/listening/analyze.js';
 import { summarize, filterMentions, brandSuggestions, brandAdd, missingKeys } from '/modules/listening/social.js';
 
@@ -58,7 +58,7 @@ async function organic() {
           ${d.sources.map(s => { const a = alerts.find(x => x.source === s.source); return `<tr${a ? ' class="ls-alert"' : ''}><td>${esc(SRC[s.source] || s.source)}</td><td class="n">${fmt(s.now)}</td><td class="n">${fmt(s.prev)}</td><td class="n">${s.prev ? pct((s.now - s.prev) / s.prev) : '—'}</td></tr>`; }).join('')}
           </tbody></table></div>${alerts.length ? `<p class="dg-fix" style="margin:10px 0 0"><b>انتبه:</b> ${alerts.map(a => `${esc(SRC[a.source] || a.source)} ${pct(a.change)}`).join('، ')}</p>` : ''}`
         : '<p class="muted">ما فيه ليدز آخر أسبوعين.</p>';
-    } catch (err) { $('#demand').innerHTML = `<p class="muted">${esc(err.message)}</p>`; }
+    } catch (err) { failure($('#demand'), err, demand); }
   }
 
   $('#addKw').addEventListener('submit', e => { e.preventDefault(); const v = $('#kwIn').value.trim(); if (v && !kw.includes(v)) { kw = [...kw, v].slice(0, 20); save(); draw(); } $('#kwIn').value = ''; });

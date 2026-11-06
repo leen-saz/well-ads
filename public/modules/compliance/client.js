@@ -1,6 +1,6 @@
 // الامتثال: يفحص نصوص إعلاناتنا ونص حر على قواعد الإعلان الصحي والكلمات الممنوعة في المعرفة، ويعرض العبارة بالضبط
 // والقاعدة ومصدرها والصياغة الأسلم، ويقترح إعادة صياغة. تنويه بس، ما يمنع النشر.
-import { $, $$, api, say, esc, shell, busy, fmt } from '/assets/common.js';
+import { $, $$, api, say, esc, shell, busy, fmt, failure } from '/assets/common.js';
 import { block, marked, hitsHTML } from '/assets/compliance-ui.js';
 
 const PLAT = { meta: 'ميتا', snapchat: 'سناب شات', tiktok: 'تيك توك', google: 'جوجل' };
@@ -18,7 +18,7 @@ export default async function mount() {
           <div class="cp-meta"><b>${esc(a.name || a.ad_key)}</b><span class="muted">${esc(PLAT[a.platform] || a.platform)}${a.live ? ' · نشط' : ''}</span></div>
           <p class="cp-q" dir="auto">${marked(a.text || '', a.hits)}</p>${hitsHTML(a.hits)}</article>`).join('')
         : '<div class="card dg-ok"><b>ما لقيت مخالفات في نصوص الإعلانات.</b></div>';
-    } catch (err) { $('#list').innerHTML = ''; say($('#msg'), err.message); }
+    } catch (err) { failure($('#list'), err, load); }
   }
   function showOne(text, hits) {
     $('#one').innerHTML = hits.length ? block(text, hits) + (hits.some(h => h.level !== 'info') ? '<div class="bar" style="margin-top:8px"><button class="btn" type="button" id="rw">اقترح صياغة أسلم</button></div>' : '')

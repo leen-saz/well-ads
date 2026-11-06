@@ -11,6 +11,8 @@ export function siteKey(pathname: string): string | null {
   if (d) return `site/dept/${d[1]}/index.html`;
   if (pathname === '/control/ads.json') return 'site/control/ads.json';
   if (pathname === '/dash.json') return 'site/dash.json';
+  // The parts dash.json leaves out (pipeline/dash_split.py), loaded after the first view
+  if (pathname === '/dash-aud.json' || pathname === '/dash-organic.json') return 'site' + pathname;
   const t = pathname.match(/^\/thumbs\/([a-f0-9]{20}\.(?:jpg|png|webp|gif))$/);
   if (t) return `thumbs/${t[1]}`;
   return null;

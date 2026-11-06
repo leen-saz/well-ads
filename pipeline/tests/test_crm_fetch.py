@@ -1,4 +1,4 @@
-import json, os, sys, unittest, urllib.parse
+import json, os, sys, unittest, urllib.error, urllib.parse
 from datetime import datetime, timezone
 from unittest import mock
 
@@ -83,6 +83,69 @@ class SyncTests(unittest.TestCase):
         fetch.sync("k", now=NOW, get=get, transport=Db([{"last_updated_at": "2026-10-31T09:00:00+00:00"}]))
         self.assertEqual(seen[0]["updated_since"], ["2026-10-31T09:00:00+00:00"])
         self.assertNotIn("created_from", seen[0])
+
+    def test_daily_full_pass_picks_up_a_payment_without_new_updated_at(self):
+        """The CRM records a payment but leaves updated_at alone: only the created-window pass can see it."""
+        crm = {"L-1": dict(row(1, "2026-10-20T10:00:00Z"), amount_paid_sar=0, payment_status="pending")}
+        seen = []
+
+        def get(url, key):
+            q = urllib.parse.parse_qs(urllib.parse.urlparse(url).query)
+            seen.append(q)
+            if "updated_since" in q:  # updated_at never moved, so the incremental pull returns nothing
+                return {"data": [], "page": {"next_cursor": None}}
+            return {"data": list(crm.values()), "page": {"next_cursor": None}}
+
+        state = [{"last_updated_at": "2026-10-31T09:00:00+00:00", "last_run_at": "2026-10-31T23:07:00+00:00"}]
+        crm["L-1"].update(amount_paid_sar=750, payment_status="paid")  # paid later, same updated_at
+        db = Db(state)
+        total, _ = fetch.sync("k", now=NOW, get=get, transport=db)
+        self.assertEqual(total, 1)
+        self.assertEqual(seen[0].get("updated_since"), ["2026-10-31T09:00:00+00:00"])
+        full = seen[1]
+        span = datetime.fromisoformat(full["created_to"][0]) - datetime.fromisoformat(full["created_from"][0])
+        self.assertEqual(span.days, 92)
+        self.assertEqual(full["limit"], ["500"])
+        leads = [w for w in db.writes if "crm_leads" in w[0]]
+        self.assertEqual(leads[0][1][0]["payment_status"], "paid")
+        self.assertEqual(leads[0][1][0]["amount_paid_sar"], 750)
+
+    def test_full_pass_runs_once_a_day_only(self):
+        seen = []
+
+        def get(url, key):
+            seen.append(urllib.parse.parse_qs(urllib.parse.urlparse(url).query))
+            return {"data": [], "page": {"next_cursor": None}}
+
+        state = [{"last_updated_at": "2026-11-01T09:00:00+00:00", "last_run_at": "2026-11-01T08:07:00+00:00"}]
+        fetch.sync("k", now=NOW, get=get, transport=Db(state))  # same UTC day: incremental only
+        self.assertEqual(len(seen), 1)
+        self.assertIn("updated_since", seen[0])
+
+    def test_full_pass_due(self):
+        self.assertTrue(fetch.full_pass_due(NOW, None))
+        self.assertTrue(fetch.full_pass_due(NOW, "garbage"))
+        self.assertTrue(fetch.full_pass_due(NOW, "2026-10-31T23:59:00Z"))
+        self.assertFalse(fetch.full_pass_due(NOW, "2026-11-01T00:01:00Z"))
+
+    def test_full_pass_retries_on_503_and_429(self):
+        calls = []
+
+        def flaky(req, timeout=60):
+            calls.append(1)
+            import io
+            if len(calls) == 1:
+                raise urllib.error.HTTPError("u", 429, "x", {"Retry-After": "0"}, io.BytesIO(b"{}"))
+            if len(calls) == 2:
+                raise urllib.error.HTTPError("u", 503, "x", {}, io.BytesIO(b"{}"))
+            r = mock.MagicMock()
+            r.__enter__.return_value.read.return_value = b'{"data": [], "page": {}}'
+            return r
+
+        with mock.patch("urllib.request.urlopen", flaky), mock.patch("time.sleep") as sl:
+            fetch.http_get(fetch.API + "?created_from=x", "k")
+        self.assertEqual(len(calls), 3)
+        self.assertEqual(sl.call_count, 2)
 
     def test_backfill_windows_never_exceed_92_days(self):
         ws = list(fetch.windows(NOW, days=200))

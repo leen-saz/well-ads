@@ -1,5 +1,5 @@
 // الكوبي رايتر: مشروع (إعداد + منافسين)، وبطاقة نمط لكل منافس من نصوصه، ونوع الطلب (المهارة) بمدخلاته، ونسخ مفحوصة.
-import { $, $$, api, say, esc, shell, busy } from '/assets/common.js';
+import { $, $$, api, apiStream, liveText, say, esc, shell, busy, pageFailure } from '/assets/common.js';
 
 // Runs on every visit of this page (assets/router.js calls it after each ClientRouter navigation).
 export default async function mount() {
@@ -118,8 +118,14 @@ export default async function mount() {
     $$('.cw-miss').forEach(x => x.classList.remove('cw-miss'));
     const inputs = Object.fromEntries($$('[data-in]').map(x => [x.dataset.in, x.value]));
     try {
-      const r = await api('/api/copy/skill', { method: 'POST', body: { project_id: CUR.id, skill: SK.key, inputs, count: $('#count').value, competitors: $$('input[name="use"]:checked').map(x => x.value) } });
-      if (r.ask) {
+      // the text shows as it is written, with a stop button; the reviewed cards replace it when the writing ends
+      const ac = new AbortController(), live = $('#live'), stop = $('#stop');
+      live.textContent = ''; live.hidden = false; $('#liveTag').hidden = false; stop.hidden = false; stop.onclick = () => ac.abort();
+      let r;
+      try { r = await apiStream('/api/copy/skill', { project_id: CUR.id, skill: SK.key, inputs, count: $('#count').value, competitors: $$('input[name="use"]:checked').map(x => x.value), stream: true }, { signal: ac.signal, onText: t => { live.textContent = liveText(t); } }); }
+      finally { live.hidden = true; $('#liveTag').hidden = true; stop.hidden = true; }
+      if (!r) say($('#wmsg'), 'وقّفت الكتابة');
+      else if (r.ask) {
         $('#ask').innerHTML = `قبل ما أكتب، أحتاج أعرف:<ul>${r.ask.map(a => `<li>${esc(a.ask)}</li>`).join('')}</ul>`;
         $('#ask').hidden = false;
         r.ask.forEach(a => $(`#in-${a.key}`)?.classList.add('cw-miss'));
@@ -139,5 +145,5 @@ export default async function mount() {
     busy(b, false);
   });
 
-  shell({ active: 'copy', title: 'الكوبي رايتر' }).then(() => load()).catch(err => say($('#pmsg'), err.message));
+  shell({ active: 'copy', title: 'الكوبي رايتر' }).then(() => load()).catch(pageFailure);
 }

@@ -1,5 +1,5 @@
 // الرحلات: بناء الخطوات، والحفظ، وتشغيل رحلة لعميل (جوال أو إيميل). الإرسال يصير من السيرفر خطوة خطوة.
-import { $, $$, api, say, esc, shell, busy } from '/assets/common.js';
+import { $, $$, api, say, esc, shell, busy, pageFailure } from '/assets/common.js';
 import { block } from '/assets/compliance-ui.js';
 
 // Runs on every visit of this page (assets/router.js calls it after each ClientRouter navigation).
@@ -97,5 +97,5 @@ export default async function mount() {
     busy(btn, false);
   });
 
-  shell({ active: 'journeys', title: 'الرحلات والرسائل' }).then(() => { edit(null); return load(); }).catch(err => say($('#msg'), err.message));
+  shell({ active: 'journeys', title: 'الرحلات والرسائل' }).then(() => { edit(null); return load(); }).catch(pageFailure);
 }

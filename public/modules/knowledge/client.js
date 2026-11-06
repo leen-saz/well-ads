@@ -1,5 +1,5 @@
 // المعرفة: شات تدريب يسأل سؤال سؤال، وإضافة وتعديل وإيقاف ما يتعلمه الذكاء الاصطناعي عن الشركة، ومعاينة اللي يوصل لكل موديول.
-import { $, $$, api, say, esc, shell, busy, when } from '/assets/common.js';
+import { $, $$, api, say, esc, shell, busy, when, failure } from '/assets/common.js';
 import { block } from '/assets/compliance-ui.js';
 
 const MOD = { content: 'المحتوى', design: 'التصميم', copy: 'الكوبي رايتر', voice: 'الصوت', social: 'السوشال', maestro: 'المدير', journeys: 'الرحلات' };
@@ -43,7 +43,7 @@ export default async function mount() {
 
   async function load() {
     try { S = await api('/api/knowledge/list'); draw(); }
-    catch (err) { $('#list').innerHTML = ''; say($('#msg'), err.message); }
+    catch (err) { failure($('#list'), err, load); }
   }
 
   // Training chat: the agent asks, the trainer answers; each answer becomes an entry (editable under "كل المعرفة")
@@ -58,7 +58,7 @@ export default async function mount() {
         + (Q ? `<p class="kn-q" dir="auto"><b>${esc(Q.q)}</b></p>` : `<p class="kn-q">${r.history.length ? 'المعرفة مكتملة الحين. أي شي يتغير، عدّله من «كل المعرفة».' : 'ما فيه أسئلة.'}</p>`);
       $('#tf').hidden = !Q || !r.canEdit;
       if (Q && r.canEdit) $('#ans').focus();
-    } catch (err) { $('#chat').innerHTML = `<p class="msg err">${esc(err.message)}</p>`; }
+    } catch (err) { failure($('#chat'), err, chat); }
   }
   function tab(t) {
     $$('[data-tab]').forEach(x => x.setAttribute('aria-pressed', String(x.dataset.tab === t)));
@@ -107,7 +107,7 @@ export default async function mount() {
       if (!$('#bkind').options.length) { $('#bkind').innerHTML = Object.entries(B.kinds).map(([k, v]) => `<option value="${k}">${esc(v.ar)}</option>`).join(''); bhint(); }
       $('#bf').hidden = $('#cf').hidden = !B.canEdit;
       brandDraw();
-    } catch (err) { $('#blist').innerHTML = `<p class="msg err">${esc(err.message)}</p>`; }
+    } catch (err) { failure($('#blist'), err, brandLoad); }
   }
   // Images are downscaled in the browser first (logos keep PNG transparency); fonts, PDFs and SVG go as they are
   async function prepared(file, kind) {

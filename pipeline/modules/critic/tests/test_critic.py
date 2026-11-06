@@ -33,3 +33,20 @@ class Critic(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class RiyadhDay(unittest.TestCase):
+    def test_today_is_riyadh_not_utc(self):
+        from datetime import datetime, timezone
+        from modules.core.clock import riyadh_today
+        # 21:07 UTC on the 27th is 00:07 on the 28th in Riyadh
+        self.assertEqual(riyadh_today(datetime(2026, 10, 27, 21, 7, tzinfo=timezone.utc)), date(2026, 10, 28))
+        self.assertEqual(riyadh_today(datetime(2026, 10, 27, 20, 59, tzinfo=timezone.utc)), date(2026, 10, 27))
+
+    def test_critic_default_day_follows_riyadh(self):
+        from unittest import mock
+        s = {"kind": "pause", "digest": "x", "evidence": {"first_day": "2026-10-25"}}   # 3 days on the 28th (Riyadh), 2 on the 27th
+        with mock.patch("modules.critic.run.riyadh_today", return_value=date(2026, 10, 28)):
+            self.assertTrue(review(s)["ok"])
+        with mock.patch("modules.critic.run.riyadh_today", return_value=date(2026, 10, 27)):
+            self.assertFalse(review(s)["ok"])

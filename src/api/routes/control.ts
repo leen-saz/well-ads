@@ -43,7 +43,7 @@ async function revert(cfg: Cfg, user: Session, body: Row): Promise<Response> {
 
 export const suggestions = {
   GET: handle(async (request, e) => {
-    const { cfg } = await requireUser(request, e, 'control');
+    const { cfg } = await requireUser(request, e, 'control', { well: true });
     const p = new URL(request.url).searchParams.get('platform') || '';
     const filter = PLATFORMS.includes(p) ? `&platform=eq.${p}` : '';
     const open = await sb(cfg, `/rest/v1/suggestions?select=*&status=eq.open${filter}&order=priority.desc,created_at.desc&limit=300`, { admin: true });
@@ -53,7 +53,7 @@ export const suggestions = {
   }),
   POST: handle(async (request, e) => {
     // Deciding suggestions is an approval: it needs the approve level on the decisions board
-    const { cfg, user } = await requireUser(request, e, 'control', { write: true, approve: true });
+    const { cfg, user } = await requireUser(request, e, 'control', { write: true, approve: true, well: true });
     const body = await readJson(request);
     if (body.decision === 'revert') return revert(cfg, user, body);
     const status = DECISIONS[String(body.decision)];
@@ -93,13 +93,13 @@ export const suggestions = {
 // ---- settings: manual / auto per platform. Only Leen changes the mode.
 export const settings = {
   GET: handle(async (request, e) => {
-    const { cfg, user } = await requireUser(request, e, 'control');
+    const { cfg, user } = await requireUser(request, e, 'control', { well: true });
     const r = await sb(cfg, '/rest/v1/control_settings?select=*', { admin: true });
     const by = Object.fromEntries((r.ok ? rows(r.data) : []).map(x => [String(x.platform), x]));
     return json(200, { owner: isOwner(user, cfg), settings: PLATFORMS.map(p => by[p] || { platform: p, mode: 'manual', guardrails: {} }) });
   }),
   POST: handle(async (request, e) => {
-    const { cfg, user } = await requireUser(request, e, 'owner', { write: true });
+    const { cfg, user } = await requireUser(request, e, 'owner', { write: true, well: true });
     const body = await readJson(request);
     const platform = String(body.platform || ''), mode = String(body.mode || '');
     if (!PLATFORMS.includes(platform) || !['manual', 'auto'].includes(mode)) return json(400, { error: 'قيمة غير صحيحة' });
@@ -117,7 +117,7 @@ export const settings = {
 // ---- history: actions on one ad (details panel). No login emails or user details beyond the decider.
 export const history = {
   GET: handle(async (request, e) => {
-    const { cfg } = await requireUser(request, e, 'control');
+    const { cfg } = await requireUser(request, e, 'control', { well: true });
     const t = new URL(request.url).searchParams.get('target') || '';
     if (!/^[\w.:|-]{1,120}$/.test(t)) return json(400, { error: 'هدف غير معروف' });
     const r = await sb(cfg, `/rest/v1/audit_log?select=at,email,action,note&action=like.suggestion_*&target->>target_id=eq.${encodeURIComponent(t)}&order=at.desc&limit=30`, { admin: true });
@@ -152,12 +152,12 @@ async function setCanary(cfg: Cfg, user: Session, list: unknown[]): Promise<Resp
 
 export const kill = {
   GET: handle(async (request, e) => {
-    const { cfg } = await requireUser(request, e, 'control');
+    const { cfg } = await requireUser(request, e, 'control', { well: true });
     const c = await current(cfg);
     return json(200, { kill: c.kill, canary: c.canary, by: c.by, at: c.at });
   }),
   POST: handle(async (request, e) => {
-    const { cfg, user } = await requireUser(request, e, 'control', { write: true });
+    const { cfg, user } = await requireUser(request, e, 'control', { write: true, well: true });
     const body = await readJson(request);
     if (Array.isArray(body.canary)) return setCanary(cfg, user, body.canary);
     const on = !!body.on;
@@ -176,7 +176,7 @@ export const kill = {
 // ---- learning tab: active lessons, media buyer moves inside the platforms (7 days), decision outcomes
 export const learning = {
   GET: handle(async (request, e) => {
-    const { cfg } = await requireUser(request, e, 'control');
+    const { cfg } = await requireUser(request, e, 'control', { well: true });
     const since = new Date(Date.now() - 7 * 864e5).toISOString();
     const [l, a, o] = await Promise.all([
       sb(cfg, '/rest/v1/lessons?select=platform,kind,lesson,evidence,confidence,block,created_at&active=eq.true&module=eq.ads&order=block.desc,confidence.desc&limit=100', { admin: true }),
@@ -193,7 +193,7 @@ const copyOf = (f: Row) => [f.primary, f.headline, f.wa_message, f.headlines, f.
 // Live check while the form is filled in (the form's users need control, not the compliance tab)
 export const compliance = {
   POST: handle(async (request, e) => {
-    const { cfg, user } = await requireUser(request, e, 'control');
+    const { cfg, user } = await requireUser(request, e, 'control', { well: true });
     const text = String((await readJson(request)).text || '').slice(0, 20000);
     return json(200, { hits: text.trim() ? comply(text, await rulesFor(cfg, user.co)) : [] });
   }),
@@ -215,7 +215,7 @@ const clean = (v: unknown): unknown =>
 
 export const campaigns = {
   POST: handle(async (request, e) => {
-    const { cfg, user } = await requireUser(request, e, 'control', { write: true });
+    const { cfg, user } = await requireUser(request, e, 'control', { write: true, well: true });
     const body = await readJson(request, 40000);
     const platform = String(body.platform || '');
     if (!PLATFORMS.includes(platform)) return json(400, { error: 'منصة غير معروفة' });

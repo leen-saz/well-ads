@@ -24,16 +24,14 @@ const group = (routes: Group) => (c: { req: { raw: Request; method: string; para
 export const api = new Hono<{ Bindings: AuthEnv }>().basePath('/api');
 
 api.get('/health', c => c.json({ ok: true }));
-api.all('/auth/:action', group(auth));
-api.all('/admin/:action', group(admin));
-api.all('/account/:action', group(account));
-api.all('/connectors/:action', group(connectors));
-api.all('/control/:action', group(control));
-api.all('/dash/:action', group(dash));
-api.all('/lessons/:action', group(lessons));
-api.all('/today/:action', group(today));
-api.all('/vitals/:action', group(vitals));
-// One route group per live module (src/modules/routes.ts)
-for (const [key, routes] of Object.entries(ROUTES)) api.all(`/${key}/:action`, group(routes));
+// Every route group: the core ones, then one per live module (src/modules/routes.ts). Exported for the error-behaviour test.
+export const GROUPS: Record<string, Group> = { auth, admin, account, connectors, control, dash, lessons, today, vitals, ...ROUTES };
+for (const [key, routes] of Object.entries(GROUPS)) api.all(`/${key}/:action`, group(routes));
 
-api.notFound(() => json(404, { ok: false, error: 'not_found' }));
+api.notFound(() => json(404, { ok: false, error: 'غير موجود' }));
+// Anything that escapes a handler: JSON in Arabic, never a stack trace or the upstream's message
+api.onError(err => {
+  if (err instanceof Response) return err;
+  console.error('api_unhandled', err instanceof Error ? err.message : String(err));
+  return json(500, { ok: false, error: 'صار خطأ، جرّب مرة ثانية' });
+});

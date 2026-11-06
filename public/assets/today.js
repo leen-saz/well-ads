@@ -1,5 +1,5 @@
 // اليوم: صفحة البداية. كل جزء يطلع بس إذا المستخدم يقدر يفتح الصفحة اللي جاي منها (السيرفر يقرر في /api/today/state).
-import { $, api, esc, icon, shell, say, when, day, fmt, sar, LANG } from './common.js';
+import { $, api, esc, icon, shell, say, when, day, fmt, sar, LANG, failure } from './common.js';
 import { sections } from './sidebar.js';
 
 const READY = new Set(['ok', 'mcp', 'pull']);
@@ -19,7 +19,7 @@ export default async function mount() {
     : '<p class="muted">ما عندك أدوات مفتوحة للحين. اطلب الصلاحية من مالكة اللوحة.</p>';
 
   let st;
-  try { st = await api('/api/today/state'); } catch (err) { say($('#msg'), err.message); $('#next').hidden = true; $('#perf').textContent = '—'; return; }
+  try { st = await api('/api/today/state'); } catch (err) { say($('#msg'), err.message); $('#next').hidden = true; failure($('#perf'), err, () => location.reload()); return; }
   const ready = [], miss = [];
 
   // البيانات
