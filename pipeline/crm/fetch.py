@@ -3,6 +3,8 @@
 
 First run: backfill from the first day of the ads history (the oldest day in `ad_metrics`) by created_at. Every run after: rows changed since the largest
 `updated_at` stored (`crm_sync_state`), following cursors, upserted by `lead_id`.
+Once a day (the first run of each UTC day) it also re-pulls every lead created in the last 92 days, ignoring `updated_at`:
+a payment recorded in the CRM without a new `updated_at` would otherwise never reach us.
 The key (CRM_API_KEY) is never printed. Docs: the Marketing API v1 document from the CRM owner.
 """
 import json, os, sys, time, urllib.error, urllib.parse, urllib.request
@@ -14,6 +16,7 @@ import supabase_store  # noqa: E402
 API = "https://mgmgyezmrmhxmvtegupb.supabase.co/functions/v1/marketing-leads"
 LIMIT = 500
 BACKFILL_DAYS = 90
+FULL_PASS_DAYS = 92  # the API allows at most 92 days per created_from/created_to window
 COLUMNS = (
     "lead_id customer_id created_at platform_created_at updated_at source_platform attribution_tier "
     "campaign_id campaign_name adset_id adset_name ad_id ad_id_quality ad_name form_id status crm_stage "
@@ -75,6 +78,19 @@ def windows(now, days=BACKFILL_DAYS, step=92, start=None):
         start = end
 
 
+def full_pass_due(now, last_run_at):
+    """True on the first run of each UTC day (the previous run was on an earlier day, or never)."""
+    if not last_run_at:
+        return True
+    try:
+        prev = datetime.fromisoformat(str(last_run_at).replace("Z", "+00:00"))
+    except ValueError:
+        return True
+    if prev.tzinfo is None:
+        prev = prev.replace(tzinfo=timezone.utc)
+    return prev.astimezone(timezone.utc).date() < now.astimezone(timezone.utc).date()
+
+
 def sync(key, now=None, get=http_get, transport=None):
     now = now or datetime.now(timezone.utc)
     state = supabase_store._request("GET", "/rest/v1/crm_sync_state?id=eq.1&select=*", transport=transport) or []
@@ -83,6 +99,8 @@ def sync(key, now=None, get=http_get, transport=None):
         # The API accepts at most 92 days back; a longer gap falls back to a backfill window
         since = datetime.fromisoformat(str(last).replace("Z", "+00:00"))
         filters = [{"updated_since": since.isoformat()}] if now - since < timedelta(days=91) else list(windows(now, start=since))
+        if full_pass_due(now, state[0].get("last_run_at")):
+            filters += list(windows(now, days=FULL_PASS_DAYS, step=FULL_PASS_DAYS))
     else:
         filters = list(windows(now, start=ads_start(transport)))
     total, newest = 0, last
