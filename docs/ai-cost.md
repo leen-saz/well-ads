@@ -7,6 +7,8 @@ Every model call through `generate()`, `stream()` or `aiFor()` in `src/lib/llm.t
 
 Never recorded: the prompt, the answer, an email. Nothing logs a cost or a total (the repo is public); the figures exist only in the database and in the owner-only screen.
 
+A stream that is cut, or whose reader leaves (stop button, closed tab), is still recorded, in a `finally`: the provider bills what it wrote. When no usage event arrived the tokens are estimated from the characters received (`estimated = true`).
+
 Recording is best effort: it runs after the answer (`waitUntil` through `withWaiter`, set in `src/app.ts`) and swallows every error, so it can never slow or break a model call.
 
 Not recorded yet: the Debugger's Claude calls (own SDK, `src/modules/debugger/explain.ts`), Grok live search (`grokSearch`, per-search fees), and images (`openaiImage`). Callers without a user, such as cron jobs, are recorded with a null user (Listening passes its company).

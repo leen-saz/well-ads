@@ -166,6 +166,8 @@ describe('route /api/copy/skill', () => {
     expect(r.headers.get('content-type')).toContain('text/event-stream');
     const events = (await r.text()).split('\n\n').filter(Boolean).map(x => JSON.parse(x.replace(/^data: /, '')) as { type: string; variants?: { compliance: { rule: string }[] }[] });
     expect(events.map(x => x.type)).toEqual(['delta', 'delta', 'result']);
+    // only the final event carries variants: the deltas are raw draft text, so nothing reviewable or savable comes from them
+    expect(events.slice(0, 2).every(x => !('variants' in x))).toBe(true);
     expect(events[2]!.variants![0]!.compliance.some(h => h.rule === 'superlative')).toBe(true);
   });
   it('writes with the knowledge as system message and the picked style, and reviews every variant', async () => {

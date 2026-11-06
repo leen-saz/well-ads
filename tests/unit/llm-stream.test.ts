@@ -112,3 +112,49 @@ describe('sseResponse', () => {
     expect(txt).not.toContain('boom');
   });
 });
+
+describe('leaving mid-stream', () => {
+  const never = () => new ReadableStream<Uint8Array>({ start(c) { c.enqueue(enc.encode(delta('أول'))); } });   // stays open: the provider is still writing
+  it('a consumer that stops reading aborts the upstream request and cancels its body', async () => {
+    let seen: AbortSignal | undefined; let cancelled = false;
+    const f = (async (_u: string, init?: RequestInit) => { seen = init?.signal as AbortSignal; return new Response(new ReadableStream<Uint8Array>({ start(c) { c.enqueue(enc.encode(delta('أول'))); }, cancel() { cancelled = true; } })); }) as unknown as typeof fetch;
+    const g = stream({ OPENAI_API_KEY: 'k' }, 'copy', IN, f);
+    expect((await g.next()).value).toMatchObject({ type: 'delta', text: 'أول' });
+    await g.return(undefined);
+    expect(seen?.aborted).toBe(true);
+    expect(cancelled).toBe(true);
+  });
+  it('a client that disconnects from the SSE response stops the generator, and so the provider call', async () => {
+    let seen: AbortSignal | undefined;
+    const f = (async (_u: string, init?: RequestInit) => { seen = init?.signal as AbortSignal; return new Response(never()); }) as unknown as typeof fetch;
+    const res = sseResponse(stream({ OPENAI_API_KEY: 'k' }, 'copy', IN, f));
+    const r = res.body!.getReader();
+    expect(new TextDecoder().decode((await r.read()).value)).toContain('"type":"delta"');
+    await r.cancel();
+    expect(seen?.aborted).toBe(true);
+  });
+  it('the caller\'s own signal (the stop button) reaches the provider request too', async () => {
+    const ac = new AbortController(); let seen: AbortSignal | undefined;
+    const f = (async (_u: string, init?: RequestInit) => { seen = init?.signal as AbortSignal; return new Response(never()); }) as unknown as typeof fetch;
+    const g = stream({ OPENAI_API_KEY: 'k' }, 'copy', IN, f, ac.signal);
+    await g.next(); ac.abort();
+    expect(seen?.aborted).toBe(true);
+    expect((await g.next()).done).toBe(true);
+  });
+});
+
+describe('time to first delta (fake provider only: a real figure needs keys)', () => {
+  it('the first delta arrives while the provider is still writing, not after it finishes', async () => {
+    const slow = new ReadableStream<Uint8Array>({
+      async start(c) { c.enqueue(enc.encode(delta('أول'))); await new Promise(r => setTimeout(r, 250)); c.enqueue(enc.encode(delta('آخر') + completed())); c.close(); },
+    });
+    const t0 = performance.now();
+    const g = stream({ OPENAI_API_KEY: 'k' }, 'copy', IN, (async () => new Response(slow)) as unknown as typeof fetch);
+    const first = await g.next(), tFirst = performance.now() - t0;
+    expect(first.value).toMatchObject({ type: 'delta', text: 'أول' });
+    expect(tFirst).toBeLessThan(150);   // the provider needs 250 ms for the rest
+    const rest: StreamEvent[] = []; for await (const x of g) rest.push(x);
+    expect(rest.at(-1)).toMatchObject({ type: 'done', response: 'أولآخر' });
+    expect(performance.now() - t0).toBeGreaterThanOrEqual(240);
+  });
+});
