@@ -31,7 +31,8 @@ test.describe('health and sign-in', () => {
   test('/api/health answers without a login', async ({ request }) => {
     const r = await request.get('/api/health');
     expect(r.status()).toBe(200);
-    expect((await r.json()).ok).toBe(true);
+    const h = await r.json();
+    expect(h).toEqual({ ok: true, version: 'smoke-build', env: 'local', checks: { supabase: 'up', storage: 'up', ai: 'unset' } });
   });
   test('signed out: pages go to the login page, the API answers 401 JSON', async ({ request }) => {
     const p = await request.get('/overview/', { maxRedirects: 0 });

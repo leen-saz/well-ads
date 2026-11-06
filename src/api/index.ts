@@ -10,6 +10,7 @@ import * as lessons from './routes/lessons';
 import * as today from './routes/today';
 import * as vitals from './routes/vitals';
 import { ROUTES } from '../modules/routes';
+import { health, type HealthEnv } from '../lib/health';
 
 type Group = Record<string, Partial<Record<string, Handler>>>;
 const notFound = () => json(404, { error: 'غير موجود' });
@@ -23,7 +24,8 @@ const group = (routes: Group) => (c: { req: { raw: Request; method: string; para
 
 export const api = new Hono<{ Bindings: AuthEnv }>().basePath('/api');
 
-api.get('/health', c => c.json({ ok: true }));
+// Always 200 when the Worker answers: `ok` and `checks` say what is down. Never cached.
+api.get('/health', async c => c.json(await health((c.env ?? {}) as unknown as HealthEnv), 200, { 'cache-control': 'no-store' }));
 api.all('/auth/:action', group(auth));
 api.all('/admin/:action', group(admin));
 api.all('/account/:action', group(account));

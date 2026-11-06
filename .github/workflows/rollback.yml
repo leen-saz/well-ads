@@ -1,0 +1,51 @@
+name: rollback
+
+# Production only, manual: puts the previous Worker version (or the one you name) back live in about a minute.
+# Same protected `production` environment as the deploy. Steps: docs/runbook.md.
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: "Version id to roll back to (empty = the previous one). List: npx wrangler deployments list --env production"
+        type: string
+        required: false
+        default: ""
+      reason:
+        description: "Why (kept in the deployment history)"
+        type: string
+        required: true
+
+permissions:
+  contents: read
+
+concurrency:
+  group: deploy-production
+  cancel-in-progress: false
+
+jobs:
+  rollback:
+    if: github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    environment:
+      name: production
+    env:
+      CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+      CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+      VERSION: ${{ inputs.version }}
+      REASON: ${{ inputs.reason }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: "24"
+          cache: npm
+      - run: npm ci
+      - name: Versions before
+        run: npx wrangler deployments list --env production | tail -30
+      - name: Roll back
+        run: |
+          [[ "$VERSION" =~ ^[0-9a-f-]{0,36}$ ]] || { echo "::error::version must be a version id"; exit 1; }
+          npx wrangler rollback ${VERSION:+"$VERSION"} --env production --message "rollback: $REASON" --yes
+      - name: Versions after
+        run: npx wrangler deployments list --env production | tail -12
