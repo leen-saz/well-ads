@@ -16,11 +16,14 @@ const { EN, PAT } = LANG === 'en'
   ? await import('./i18n-en.js').then(m => ({ EN: m.EN, PAT: m.pat(t) }))
   : { EN: {}, PAT: [] };
 
+// Arabic-Indic digits (٠-٩ ٫ ٪ ٬) become the digits an English page uses
+const latin = x => x.replace(/[٠-٩]/g, d => '٠١٢٣٤٥٦٧٨٩'.indexOf(d)).replace(/٫/g, '.').replace(/٪/g, '%').replace(/٬/g, ',');
 export function t(s) {
   if (LANG !== 'en' || s == null) return s;
-  const str = String(s), k = str.trim();
+  let str = String(s), k = str.trim();
   if (!k) return str;
   if (EN[k]) return str.replace(k, EN[k]);
+  if (/[٠-٩٫٪٬]/.test(k)) { const n = latin(k); str = str.replace(k, n); k = n; if (EN[k]) return str.replace(k, EN[k]); }
   for (const [re, to] of PAT) if (re.test(k)) return str.replace(k, k.replace(re, to));
   return str;
 }

@@ -135,6 +135,8 @@ const RULES = [
 @media (max-width:640px){
   .lp-top nav{display:none}
   .lp-top .btn{margin-inline-start:auto}
+  .lp-top #lang{margin-inline-start:auto}
+  .lp-top #lang + .btn{margin-inline-start:0}
   .lp-sec{padding:72px 0}
   .lp-group.wide dl{grid-template-columns:1fr}
   .lp-rules{grid-template-columns:1fr}
@@ -154,6 +156,7 @@ const RULES = [
       <a href="#agents">الإيجنتس</a>
       <a href="#safety">الأمان</a>
     </nav>
+    <span id="lang"></span>
     <a class="btn sm primary" href="/login/">دخول</a>
   </div>
 </header>
@@ -264,5 +267,6 @@ const RULES = [
   </div>
 </footer>
 
+<script is:inline type="module" src="/assets/welcome.js"></script>
 </body>
 </html>

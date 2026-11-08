@@ -1,9 +1,9 @@
 // "وش تعلّمت": the lessons card at the bottom of every live tab (docs/learning-loops.md, L1).
 // Reads /api/lessons/list?module=<tab>; whoever has the tab's approve level approves or ignores each lesson.
-import { $, api, esc, say, busy } from './common.js';
+import { $, api, esc, say, busy, LANG } from './common.js';
 
 const ST = { new: 'جديد', reviewed: 'راجعه المدير', approved: 'معتمد' };
-const when = s => new Intl.DateTimeFormat('ar-SA-u-nu-latn', { day: 'numeric', month: 'short', timeZone: 'Asia/Riyadh' }).format(new Date(s));
+const when = s => new Intl.DateTimeFormat(LANG === 'en' ? 'en-GB' : 'ar-SA-u-nu-latn', { day: 'numeric', month: 'short', timeZone: 'Asia/Riyadh' }).format(new Date(s));
 const pct = n => Number.isFinite(Number(n)) && Number(n) > 0 ? `${Math.round(Number(n) * 100)}%` : '';
 
 export async function lessonsCard(module) {

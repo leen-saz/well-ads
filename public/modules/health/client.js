@@ -1,5 +1,5 @@
 // صحة الداتا (للمالكة): بطاقات قراءة فقط. كل بطاقة تجيب أرقامها من /api/maestro/<اسمها>.
-import { $, api, say, esc, fmt, shell, failure, pageFailure } from '/assets/common.js';
+import { $, api, say, esc, fmt, shell, failure, pageFailure, when } from '/assets/common.js';
 
 const STATUS = { paid: 'مدفوع', unpaid: 'غير مدفوع', pending: 'معلّق', partial: 'مدفوع جزئي', refunded: 'مسترجع', '(empty)': 'فاضي', other: 'قيمة ثانية' };
 const FINDING = {
@@ -12,7 +12,6 @@ const FINDING = {
   paid_stale: 'آخر دفع مسجّل قبل أكثر من 14 يوم. يمكن الدفع ما يتسجّل في الـ CRM أو ما يوصلنا.',
   sync_stale: 'آخر تحديث وصلنا من الـ CRM قبل أكثر من 3 أيام. المزامنة متوقفة أو ما فيه تغييرات.',
 };
-const when = iso => iso ? new Date(iso).toLocaleString('ar-SA-u-nu-latn', { timeZone: 'Asia/Riyadh', dateStyle: 'medium', timeStyle: 'short' }) : '—';
 const kpi = (n, t) => `<div class="card dh-kpi"><b>${n}</b><span>${t}</span></div>`;
 const table = (head, rows) => `<table class="dh-tbl"><thead><tr>${head.map((h, i) => `<th class="${i ? 'n' : ''}">${h}</th>`).join('')}</tr></thead><tbody>${rows.map(r => `<tr>${r.map((c, i) => `<td class="${i ? 'n' : ''}">${c}</td>`).join('')}</tr>`).join('')}</tbody></table>`;
 

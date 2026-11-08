@@ -22,6 +22,12 @@ npm run build && npm run test:smoke      # locally, with Chrome installed: PW_CH
 - Failure behaviour (`failure.spec.ts`): for each tab's first load, a 500 with a message, a gateway HTML page and a dropped connection each show one
   error state with a retry button (`failure`/`pageFailure` in `public/assets/common.js`), and retry recovers; a failed sidebar call shows a page banner;
   a request that never answers ends with a timeout message. API side: `tests/unit/api-errors.test.ts` sweeps every route signed out and with upstreams down.
+- Language (`lang.spec.ts`): every page (the owner on all of them, and the sign-in, reset and welcome pages signed out) is opened with
+  `?lang=en`, every tab and segment button is clicked, and **no Arabic may be left** in a text node (hidden panes too), a placeholder, an
+  aria-label, a tooltip or the title. The only allow-list is at the top of the spec (the «عربي» button, an English help text that quotes
+  Arabic example words); put user data in `data-user-text` to skip it. A new Arabic string without an English line in
+  `public/assets/i18n-en.js` fails this test and prints the string. It sees what the fake data draws: empty states, labels, counters, help text.
+  A string that only appears with real rows (a number inside a sentence) still needs a pattern in `pat()`: add the page's state to the spec when you add one.
 
 ## What it does not cover
 - Real Supabase (RLS, migrations, the real `profiles` shape beyond what the fake returns): the migrations job covers schema only.
