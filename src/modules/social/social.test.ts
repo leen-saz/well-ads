@@ -138,6 +138,8 @@ describe('readiness before scheduling', () => {
     expect(readiness('instagram', { META_PAGE_ACCESS_TOKEN: 't', META_PAGE_ID: '1' })).toContain('انستقرام مو مربوط');
     expect(readiness('instagram', { META_PAGE_ACCESS_TOKEN: 't', IG_USER_ID: '2' })).toBe('');
     expect(readiness('facebook', {})).toContain('فيسبوك مو مربوطة');
-    expect(readiness('tiktok', {})).toContain('قريباً');
+    expect(readiness('snapchat', {})).toContain('قريباً');
+    // TikTok, X and LinkedIn go through the extra engine: not available until it is set up and the account is connected there
+    expect(readiness('tiktok', {})).toContain('غير متاح الحين');
   });
 });

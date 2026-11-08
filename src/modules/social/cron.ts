@@ -8,6 +8,7 @@
 import { env, sb, type AuthEnv, type Cfg } from '../../lib/auth';
 import { WELL_COMPANY } from '../../lib/tenant';
 import { due, publishPost, stale, type Draft, type Results } from './social';
+import { withEngineSecrets } from './postiz';
 
 type Row = Draft & { id: number; company_id: string; status: string; claimed_at?: string | null; results?: Results | null; approved_at?: string | null; approved_by?: string | null; company?: { social_approvers?: string[] | null } | null };
 
@@ -29,7 +30,7 @@ export async function runSocial(e: AuthEnv, now = Date.now(), f: typeof fetch = 
   const stuck = await sb<Row[]>(cfg, `/rest/v1/social_posts?${sel}&status=eq.publishing&publish_at=lte.${iso}&order=publish_at.asc&limit=20`, { admin: true });
   // Platform tokens: the vault holds Well's today; per-company vault names come with ADR-0006's next step
   const vault = await sb<{ name: string; value: string }[]>(cfg, '/rest/v1/rpc/connector_env', { method: 'POST', admin: true, body: {} });
-  const wellTokens = Object.fromEntries((vault.ok && Array.isArray(vault.data) ? vault.data : []).map(x => [x.name, x.value]));
+  const wellTokens = withEngineSecrets(Object.fromEntries((vault.ok && Array.isArray(vault.data) ? vault.data : []).map(x => [x.name, x.value])), e);
   let done = 0;
   for (const p of list.data.filter(x => due(x, x.company?.social_approvers || [], now))) {
     const claim = await sb<Row[]>(cfg, `/rest/v1/social_posts?id=eq.${p.id}&status=eq.scheduled`, { method: 'PATCH', admin: true, headers: { Prefer: 'return=representation' }, body: { status: 'publishing', claimed_at: iso } });
@@ -41,6 +42,8 @@ export async function runSocial(e: AuthEnv, now = Date.now(), f: typeof fetch = 
     const old = p.claimed_at ? `claimed_at=eq.${encodeURIComponent(p.claimed_at)}` : 'claimed_at=is.null';
     const claim = await sb<Row[]>(cfg, `/rest/v1/social_posts?id=eq.${p.id}&status=eq.publishing&${old}`, { method: 'PATCH', admin: true, headers: { Prefer: 'return=representation' }, body: { claimed_at: iso } });
     if (!claim.ok || !Array.isArray(claim.data) || !claim.data.length) continue;
+    // Whatever path got a post here, it was approved when it was claimed; a row without an approval is never sent to any engine
+    if (!p.approved_at) { console.error('social: a post in publishing without an approval was not sent', p.id); continue; }
     console.error('social: recovering a post stuck in publishing', p.id);
     await work(cfg, p, wellTokens, f, now);
     done++;

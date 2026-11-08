@@ -4,19 +4,22 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 import { WELL_COMPANY } from '../../lib/tenant';
 import { graphMock } from './graph-mock';
 import { META_PENDING } from '../../lib/connectors';
+import { postizMock } from './postiz-mock';
+import { _clearStatusCache } from './postiz';
 
 const SECRET = 's'.repeat(32);
 const ENV = { SUPABASE_URL: 'https://db.test', SUPABASE_SERVICE_ROLE_KEY: 'sb_secret_x', SESSION_SECRET: SECRET, OWNER_EMAIL: 'leen@x.co' };
 afterEach(() => { vi.unstubAllGlobals(); });
 
 type Json = Record<string, any>; // eslint-disable-line @typescript-eslint/no-explicit-any
-type Db = { post?: Record<string, unknown>; approvers?: string[]; vault?: { name: string; value: string }[]; connection?: Record<string, unknown> | null; graph?: typeof fetch };
+type Db = { pz?: ReturnType<typeof postizMock>; post?: Record<string, unknown>; approvers?: string[]; vault?: { name: string; value: string }[]; connection?: Record<string, unknown> | null; graph?: typeof fetch };
 async function call(method: string, path: string, who: { email: string; role: string }, db: Db, body: unknown = {}) {
   const { api } = await import('../../api/index');
   const { sign, SESSION } = await import('../../lib/auth');
   const p = { id: 'u1', email: who.email, role: who.role, dashboards: ['social'], access: { social: 'approve' }, departments: [], company_id: WELL_COMPANY, active: true };
   const writes: { url: string; body: unknown }[] = [], rpc: { fn: string; body: Record<string, unknown> }[] = [];
   vi.stubGlobal('fetch', vi.fn(async (url: string, init: RequestInit = {}) => {
+    if (url.startsWith('https://pz.test') && db.pz) return db.pz.f(url, init);
     if (url.startsWith('https://graph.facebook.com') && db.graph) return db.graph(url, init);
     if (url.includes('/rest/v1/profiles')) return new Response(JSON.stringify([p]));
     if (url.includes('/rest/v1/companies')) return new Response(JSON.stringify([{ social_approvers: db.approvers ?? [] }]));
@@ -109,5 +112,35 @@ describe('GET /api/social/connection (test post, nothing posted)', () => {
     expect(r.json).toMatchObject({ page: 'Well Care', instagram: 'well.care' });
     expect(g.st.calls.filter(c => c.method === 'POST')).toHaveLength(0);
     expect((await call('GET', '/api/social/connection', MEMBER, { vault, graph: g.f })).status).toBe(403);
+  });
+});
+
+describe('the extra publishing engine on the Social tab', () => {
+  const pz = () => postizMock({ channels: [{ id: 'c-x', name: 'Well X', identifier: 'x' }] });
+  const vault = (m: ReturnType<typeof postizMock>) => Object.entries(m.tokens).map(([name, value]) => ({ name, value }));
+  afterEach(() => _clearStatusCache());
+  it('GET /api/social/engine: owner only; channel names, no key', async () => {
+    const m = pz();
+    const o = await call('GET', '/api/social/engine', OWNER, { vault: vault(m), pz: m });
+    expect(o.status).toBe(200);
+    expect(o.json!.status).toBe('ok');
+    expect(o.json!.channels).toContainEqual({ platform: 'x', code: 'ok', names: ['Well X'] });
+    expect(JSON.stringify(o.json)).not.toContain('pz-key');
+    expect((await call('GET', '/api/social/engine', MEMBER, { vault: vault(m), pz: m })).status).toBe(403);
+    expect(m.st.calls.filter(c => c.path === '/posts')).toHaveLength(0);   // a check never posts
+  });
+  it('the post list: a platform is live only when connected in the engine; everyone sees the same short words, the owner gets the reasons from the check', async () => {
+    const m = pz();
+    for (const who of [OWNER, MEMBER]) {
+      const r = await call('GET', '/api/social/posts', who, { vault: vault(m), pz: m });
+      expect(r.json!.platforms.x.live).toBe(true);
+      expect(r.json!.platforms.tiktok.live).toBe(false);
+      expect(r.json!.ready.x).toBe('');
+      expect(r.json!.ready.tiktok).toBe('غير متاح الحين: بينحفظ كتذكير');
+      expect(JSON.stringify(r.json)).not.toMatch(/postiz|pz-key|channel/i);
+    }
+    _clearStatusCache();
+    const off = await call('GET', '/api/social/posts', MEMBER, { vault: [], pz: m });
+    expect(off.json!.platforms.x.live).toBe(false);
   });
 });

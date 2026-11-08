@@ -4,6 +4,9 @@
 // secret: false = رقم حساب أو معرّف، ينعرض في الصفحة. fetch: true = عندنا سحب بيانات لها اليوم.
 // إضافة منصة جديدة = عنصر جديد هنا بس.
 
+import { postizStatus } from '../modules/social/postiz';
+import { SOCIAL } from '../modules/social/engine';
+
 export interface Field { env: string; label: string; secret: boolean; type: string; optional?: boolean; manual?: boolean; placeholder?: string }
 export interface Platform { id: string; name: string; group: string; core?: string; fetch?: boolean; mcp?: boolean; docs?: string; help?: string; fields: Field[]; logo?: string | null; color?: string | null }
 type FieldOpts = Partial<Omit<Field, 'env' | 'label'>>;
@@ -89,6 +92,9 @@ export const PLATFORMS: Platform[] = [
   { id: 'meta_pages', name: 'صفحة فيسبوك وحساب انستقرام (للنشر)', group: 'ads', docs: 'https://developers.facebook.com/apps/',
     help: 'زر "اربط" بنفس تطبيق ميتا: يطلب صلاحيات النشر ويحفظ مفتاح الصفحة ورقمها ورقم انستقرام المربوط فيها. السوشال يستخدمها للنشر.',
     fields: [ID('META_PAGE_ID', 'رقم صفحة فيسبوك'), ID('IG_USER_ID', 'رقم حساب انستقرام (Business)', { optional: true }), F('META_PAGE_ACCESS_TOKEN', 'مفتاح الصفحة', { manual: true })] },
+  { id: 'postiz', name: 'Postiz (محرك نشر إضافي: تيك توك وX ولينكدإن)', group: 'ads', docs: 'https://docs.postiz.com/public-api/introduction',
+    help: 'Postiz برنامج مفتوح المصدر تستضيفه أنت (docker compose على سيرفر صغير) وننشر من خلاله لتيك توك وX ولينكدإن بعد اعتماد المنشور. العنوان: https://دومينك (نكمل مسار /api/public/v1 بنفسنا). المفتاح: Postiz ← Settings ← Public API. ما ينشر شي قبل الاعتماد، ولا نستخدم الجدولة ولا المسودات في Postiz. التفاصيل في docs/social-engine.md.',
+    fields: [ID('POSTIZ_URL', 'عنوان Postiz (https فقط)', { placeholder: 'https://postiz.example.com' }), F('POSTIZ_API_KEY', 'مفتاح Public API')] },
   { id: 'meta_capi', name: 'Meta Conversions API (Pixel)', group: 'ads', docs: 'https://business.facebook.com/events_manager2', help: 'Events Manager ← البيكسل ← Settings ← Conversions API ← Generate access token.',
     fields: [F('META_CAPI_TOKEN', 'Conversions API token'), ID('META_PIXEL_ID', 'Pixel / Dataset ID')] },
   { id: 'tiktok_events', name: 'TikTok Events API (Pixel)', group: 'ads', docs: 'https://ads.tiktok.com/i18n/events_manager', help: 'Events Manager ← البيكسل ← Settings ← Generate access token.',
@@ -327,6 +333,13 @@ export async function check(p: Platform, v: Values): Promise<{ ok: boolean; msg:
     if (!r.ok) return { ok: false, msg: 'Meta رفض المفتاح أو رقم الحساب' };
     const d = (await r.json().catch(() => ({}))) as Obj;
     return { ok: true, msg: d.name ? `Meta: ${d.name}` : 'Meta قبل المفتاح' };
+  }
+  if (p.id === 'postiz' && (v.POSTIZ_URL || v.POSTIZ_API_KEY)) {
+    // One read: is the address reachable over https, is the key valid, which platforms already have a connected account
+    const s = await postizStatus(v);
+    if (s.code !== 'ok') return { ok: false, msg: ({ off: 'ما انكتب عنوان ولا مفتاح', url: 'العنوان لازم https ومن دومين (مو IP ولا localhost)', key: 'Postiz رفض المفتاح أو المفتاح ناقص', down: 'ما قدرت أوصل لـ Postiz. تأكد من العنوان وإن السيرفر شغال' } as const)[s.code] };
+    const on = s.channels.filter(c => c.code === 'ok').map(c => SOCIAL[c.platform].name);
+    return { ok: true, msg: on.length ? `Postiz شغال. حسابات مربوطة: ${on.join('، ')}` : 'Postiz شغال بس ما فيه حساب مربوط لتيك توك أو X أو لينكدإن. اربطها من داخل Postiz' };
   }
   return null;
 }

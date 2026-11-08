@@ -361,6 +361,16 @@ export const EN = {
   'رقم صفحة فيسبوك': 'Facebook page ID',
   'رقم حساب انستقرام (Business)': 'Instagram account ID (Business)',
   'مفتاح الصفحة': 'Page token',
+  // Postiz: the extra publishing engine (Connectors page)
+  'Postiz (محرك نشر إضافي: تيك توك وX ولينكدإن)': 'Postiz (extra publishing engine: TikTok, X and LinkedIn)',
+  'Postiz برنامج مفتوح المصدر تستضيفه أنت (docker compose على سيرفر صغير) وننشر من خلاله لتيك توك وX ولينكدإن بعد اعتماد المنشور. العنوان: https://دومينك (نكمل مسار /api/public/v1 بنفسنا). المفتاح: Postiz ← Settings ← Public API. ما ينشر شي قبل الاعتماد، ولا نستخدم الجدولة ولا المسودات في Postiz. التفاصيل في docs/social-engine.md.': 'Postiz is open-source software you host yourself (docker compose on a small server). We publish through it to TikTok, X and LinkedIn once a post is approved. Address: https://your-domain (we add the /api/public/v1 path ourselves). Key: Postiz → Settings → Public API. Nothing is published before approval, and we never use Postiz scheduling or drafts. Details in docs/social-engine.md.',
+  'عنوان Postiz (https فقط)': 'Postiz address (https only)',
+  'مفتاح Public API': 'Public API key',
+  'ما انكتب عنوان ولا مفتاح': 'No address or key entered',
+  'العنوان لازم https ومن دومين (مو IP ولا localhost)': 'The address must be https and a domain name (not an IP or localhost)',
+  'Postiz رفض المفتاح أو المفتاح ناقص': 'Postiz rejected the key, or the key is missing',
+  'ما قدرت أوصل لـ Postiz. تأكد من العنوان وإن السيرفر شغال': 'Could not reach Postiz. Check the address and that the server is running',
+  'Postiz شغال بس ما فيه حساب مربوط لتيك توك أو X أو لينكدإن. اربطها من داخل Postiz': 'Postiz is running but has no connected TikTok, X or LinkedIn account. Connect them inside Postiz',
   // تيك توك MCP
   'زر "اربط" يسجّل دخولك على سيرفر MCP الرسمي حق TikTok for Business (بدون تطبيق مطوّرين). الدخول يخلص كل 30 يوم. بدونه يكمّل السحب من فرع tiktok-data.': 'Connect signs you in to the official TikTok for Business MCP server (no developer app). The sign-in lasts 30 days. Without it the pull keeps reading the tiktok-data branch.',
   'بعد 30 يوم': 'after 30 days',
@@ -1039,6 +1049,7 @@ const needs = x => {
 };
 // Patterns for strings with numbers or names in them. Some translate their parts with i18n.js's t(), passed in.
 export const pat = t => [
+  [/^Postiz شغال\. حسابات مربوطة: (.+)$/, (m, a) => 'Postiz is running. Connected accounts: ' + a.split('، ').map(t).join(', ')],
   // Language sweep: counters, lists and strings with a name, number or date inside
   [/^\((\d+) من (\d+) مربوطة\)$/, '($1 of $2 connected)'], [/^الأسئلة الأساسية: (\d+) من (\d+)$/, 'Core questions: $1 of $2'],
   [/^الأساسية (\d+) من (\d+)$/, 'Core $1 of $2'], [/^الكل (\d+) من (\d+)$/, 'All $1 of $2'], [/^(\d+) فعل$/, '$1 actions'],
