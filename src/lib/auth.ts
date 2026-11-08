@@ -186,7 +186,10 @@ export async function sb<T = unknown>(cfg: Cfg, path: string,
 // A table or column a migration adds, read before that migration is applied (PostgREST / Postgres error codes)
 export const missingSchema = (r: SbResult<unknown>): boolean =>
   !r.ok && ['PGRST205', 'PGRST204', '42P01', '42703'].includes(String((r.data as { code?: unknown } | null)?.code ?? ''));
-export const notApplied = (file: string) => `الجدول ناقص في قاعدة البيانات: شغّل ${file} في Supabase ← SQL Editor`;
+// A table a migration adds is not there yet: only the owner hears which file (a normal user gets a plain sentence)
+export const notApplied = (user: { role: string } | null | undefined, file: string) =>
+  user?.role === 'owner' ? `الجدول ناقص في قاعدة البيانات: شغّل ${file} في Supabase ← SQL Editor`
+    : 'جزء من النظام ما اكتمل تجهيزه. بلّغ الإدارة.';
 
 // A feature waiting for a key: the owner gets the exact step, everyone else a plain sentence
 export const notEnabled = (user: { role: string } | null | undefined, what: string, key: string) =>

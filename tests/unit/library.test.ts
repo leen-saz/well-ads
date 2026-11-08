@@ -111,6 +111,14 @@ describe('saving', () => {
     vi.stubGlobal('fetch', vi.fn(async (url: string) => new Response(JSON.stringify(url.includes('/profiles') ? [writer] : { code: 'PGRST205' }), { status: url.includes('/profiles') ? 200 : 404 })));
     const r = await call(root.GET, writer);
     expect(r.status).toBe(503);
+    // A normal user is told to ask the owner: no file name, no Supabase
+    const said = ((await r.json()) as { error: string }).error;
+    expect(said).not.toMatch(/020_library|Supabase|SQL/);
+    expect(said).toContain('بلّغ الإدارة');
+  });
+  it('the owner is told which migration to run', async () => {
+    vi.stubGlobal('fetch', vi.fn(async (url: string) => new Response(JSON.stringify(url.includes('/profiles') ? [owner] : { code: 'PGRST205' }), { status: url.includes('/profiles') ? 200 : 404 })));
+    const r = await call(root.GET, owner);
     expect(((await r.json()) as { error: string }).error).toContain('020_library.sql');
   });
 });

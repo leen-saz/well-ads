@@ -8,19 +8,23 @@ export const OWNER = `owner@${DOMAIN}`;
 // u-<key>@example.test may open only that dashboard; nobody@ has no dashboard at all
 const uuid = n => `00000000-0000-4000-8000-${String(n).padStart(12, '0')}`;
 
-export function profileFor(email, n) {
+export function profileFor(email, n, all = []) {
   const local = email.split('@')[0];
   const base = { id: uuid(n), email, name: 'Smoke ' + local, active: true, departments: [], company_id: null, company: { disabled_modules: [] } };
   if (local === 'owner') return { ...base, role: 'owner', dashboards: [] };
   if (local === 'nobody') return { ...base, role: 'member', dashboards: [] };
+  // A normal member who may open every tab (the technical-text test reads what such a user sees)
+  if (local === 'member') return { ...base, role: 'member', dashboards: all };
   const m = local.match(/^u-([a-z]+)$/);
   // The overview numbers also need analytics (src/modules/overview/routes.ts)
   return { ...base, role: 'member', dashboards: m ? (m[1] === 'overview' ? ['overview', 'ceo'] : [m[1]]) : [] };
 }
 
 export function startFake(port, keys) {
-  const accounts = [OWNER, `nobody@${DOMAIN}`, ...keys.map(k => `u-${k}@${DOMAIN}`)];
-  const profiles = accounts.map((e, i) => profileFor(e, i + 1));
+  const accounts = [OWNER, `nobody@${DOMAIN}`, `member@${DOMAIN}`, ...keys.map(k => `u-${k}@${DOMAIN}`)];
+  const profiles = accounts.map((e, i) => profileFor(e, i + 1, keys));
+  // POST /__mode {"missing":true}: every table except profiles answers like a table that was never created (PGRST205)
+  let missing = false;
   const send = (res, status, body) => { res.writeHead(status, { 'content-type': 'application/json' }); res.end(body === undefined ? '' : JSON.stringify(body)); };
   const server = http.createServer((req, res) => {
     const url = new URL(req.url, 'http://x');
@@ -34,6 +38,8 @@ export function startFake(port, keys) {
         if (!p || b.password !== PASSWORD) return send(res, 400, { error_code: 'invalid_credentials', msg: 'Invalid login credentials' });
         return send(res, 200, { access_token: 'fake', user: { id: p.id, email: p.email } });
       }
+      if (url.pathname === '/__mode') { try { missing = !!JSON.parse(raw || '{}').missing; } catch { missing = false; } return send(res, 200, { missing }); }
+      if (missing && url.pathname.startsWith('/rest/v1/') && url.pathname !== '/rest/v1/profiles') return send(res, 404, { code: 'PGRST205', message: 'Could not find the table in the schema cache' });
       if (url.pathname === '/rest/v1/profiles' && req.method === 'GET') {
         const id = (url.searchParams.get('id') || '').replace(/^eq\./, '');
         return send(res, 200, profiles.filter(p => p.id === id));

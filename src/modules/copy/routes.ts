@@ -39,7 +39,7 @@ export const projects = {
   GET: handle(async (request, e) => {
     const { cfg, user } = await requireUser(request, e, 'copy');
     const r = await sb<Row[]>(cfg, scoped('/rest/v1/copy_projects?select=*&order=updated_at.desc&limit=50', user.co), { admin: true });
-    if (!r.ok) return json(missingSchema(r) ? 503 : 500, { error: missingSchema(r) ? notApplied('migration 015_copy.sql') : 'ما قدرت أقرأ المشاريع' });
+    if (!r.ok) return json(missingSchema(r) ? 503 : 500, { error: missingSchema(r) ? notApplied(user, 'migration 015_copy.sql') : 'ما قدرت أقرأ المشاريع' });
     return json(200, { projects: rows(r.data).map(withCards), kinds: KINDS });
   }),
   POST: handle(async (request, e) => {
@@ -47,7 +47,7 @@ export const projects = {
     const p = cleanProject(await readJson(request, 200_000));
     if ('error' in p) return json(400, { error: p.error });
     const r = await sb<Row[]>(cfg, '/rest/v1/copy_projects', { method: 'POST', admin: true, headers: { Prefer: 'return=representation' }, body: { ...p, company_id: user.co, created_by: user.email } });
-    if (!r.ok || !rows(r.data).length) return json(missingSchema(r) ? 503 : 500, { error: missingSchema(r) ? notApplied('migration 015_copy.sql') : 'ما انحفظ المشروع' });
+    if (!r.ok || !rows(r.data).length) return json(missingSchema(r) ? 503 : 500, { error: missingSchema(r) ? notApplied(user, 'migration 015_copy.sql') : 'ما انحفظ المشروع' });
     await audit(cfg, user, 'copy_project_created', { target: { id: rows(r.data)[0]!.id, name: p.name } });
     return json(200, { ok: true, project: withCards(rows(r.data)[0]!) });
   }),
@@ -60,7 +60,7 @@ export const projects = {
     const p = cleanProject(b, prev);
     if ('error' in p) return json(400, { error: p.error });
     const r = await sb<Row[]>(cfg, scoped(`/rest/v1/copy_projects?id=eq.${id}`, user.co), { method: 'PATCH', admin: true, headers: { Prefer: 'return=representation' }, body: { ...p, updated_at: new Date().toISOString() } });
-    if (!r.ok || !rows(r.data).length) return json(missingSchema(r) ? 503 : 500, { error: missingSchema(r) ? notApplied('migration 015_copy.sql') : 'ما انحفظ المشروع' });
+    if (!r.ok || !rows(r.data).length) return json(missingSchema(r) ? 503 : 500, { error: missingSchema(r) ? notApplied(user, 'migration 015_copy.sql') : 'ما انحفظ المشروع' });
     return json(200, { ok: true, project: withCards(rows(r.data)[0]!) });
   }),
 };
