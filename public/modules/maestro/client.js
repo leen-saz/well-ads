@@ -1,6 +1,6 @@
 // المدير: تبويبات (لوحة، الوارد، المهام، الإيجنتس، المحادثة) بالرابط، قائمة أو لوحة، فلاتر، بحث، ومهمة جديدة في نافذة.
 // اختصارات: C مهمة جديدة، / بحث، 1-5 التبويبات.
-import { $, $$, api, say, esc, fmt, shell, busy, pageSignal, failure, pageFailure } from '/assets/common.js';
+import { $, $$, api, say, esc, fmt, shell, busy, pageSignal, failure, pageFailure, when } from '/assets/common.js';
 
 // Runs on every visit of this page (assets/router.js calls it after each ClientRouter navigation).
 export default async function mount() {
@@ -177,7 +177,7 @@ export default async function mount() {
       const p = await api(`/api/maestro/agent?id=${encodeURIComponent(a.id)}&days=${perfDays}`);
       const k = [[n(p.done), 'مهام خلصت'], [p.spentCents == null ? '—' : usd(p.spentCents), 'الصرف'], [n(p.successRate, '%'), `نجاح التشغيلات (${n(p.runs)})`], [n(p.avgTaskMinutes, ' د'), 'متوسط وقت المهمة']];
       $('#perfBody').innerHTML = `<div class="mx-kpis">${k.map(([v, t]) => `<div class="card mx-kpi"><b>${esc(v)}</b><span>${t}</span></div>`).join('')}</div>
-        ${spend(a)}<p class="muted">آخر تشغيل: ${p.lastRunAt ? esc(new Date(p.lastRunAt).toLocaleString('ar-SA-u-nu-latn')) : '—'}</p>${p.lastError ? `<p class="so-note">آخر خطأ: ${esc(p.lastError)}</p>` : ''}`;
+        ${spend(a)}<p class="muted">آخر تشغيل: ${p.lastRunAt ? esc(when(p.lastRunAt)) : '—'}</p>${p.lastError ? `<p class="so-note">آخر خطأ: ${esc(p.lastError)}</p>` : ''}`;
     } catch (err) { failure($('#perfBody'), err, perf); }
   }
   $('#view').addEventListener('click', e => { const b = e.target.closest('[data-perf]'); if (!b) return; perfAgent = b.closest('[data-agent]').dataset.agent; $('#pdlg').showModal(); perf(); });
