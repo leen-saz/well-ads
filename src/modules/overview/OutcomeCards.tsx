@@ -13,6 +13,7 @@ import { fullDay, qty, sar, show, val } from './format';
 import type { DataSpan } from './span';
 import { Delta } from './Delta';
 import { T, pageLang, pick } from './lang';
+import { AuditBadge } from './AuditBadge';
 
 // The band (d3-shape) and its motion (motion) load after the numbers
 const FunnelChart = React.lazy(() => import('./FunnelChart'));
@@ -152,6 +153,7 @@ function JourneyCard({ data, from, to, by }: Props & { by: CrmBy }) {
             </div>
             <h3 id="verdict-h" className="font-semibold">{v.title}</h3>
             {v.owner && <Owner who={v.owner} label={t('المسؤول', 'Owner')} />}
+            <AuditBadge data={data} from={from} to={to} by={by} plat={p} />
             {v.stage && <p className="text-sm"><span className="text-muted-foreground">{t('المرحلة: ', 'Stage: ')}</span>{v.stage}</p>}
             {v.evidence && <p className="text-sm tabular-nums"><span className="text-muted-foreground">{t('الدليل: ', 'Evidence: ')}</span>{v.evidence}</p>}
             {v.sar != null && <p className="text-sm tabular-nums"><span className="text-muted-foreground">{t('على المحك: ', 'At stake: ')}</span><b>≈ {formats().sar(v.sar)}</b></p>}

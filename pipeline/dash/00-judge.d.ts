@@ -34,6 +34,8 @@ export interface Verdict {
 export interface Judge {
   DEFAULTS: Targets; FIELDS: Field[]; MIN: { clicks: number; leads: number };
   SEV: Record<Severity, [string, string]>; RANK: Record<Severity, number>;
+  RULES: { key: StepKey; owner: OwnerKey; kind: 'rate' | 'cost' | 'ratio'; target: string }[];
+  OWNERS: Record<OwnerKey, { who: [string, string]; fix: [string, string] }>;
   targets(...layers: unknown[]): Targets;
   cohort(byDay: [string, number][], paid: [string, string | null][], from: string, to: string, asOf: string, maturityDays: number): Cohort;
   judge(input: Input, targets: Targets, l: Lang, f: Formats): Verdict;

@@ -7,6 +7,32 @@ import { t } from '/assets/i18n.js';
 export default async function mount() {
 
   const ST = { draft: 'مسودة', scheduled: 'مجدول', publishing: 'ينشر الحين', published: 'انتشر', partial: 'انتشر جزئياً', failed: 'ما انتشر', cancelled: 'ملغي' };
+  // Why a platform did not publish, in plain words (the platform's own message is for the owner only, under "تفاصيل")
+  const WHY = {
+    not_connected: 'الحساب مو مربوط. اربطه من صفحة الربط وبعدها أعد المحاولة',
+    no_media: 'انستقرام يحتاج صورة أو فيديو',
+    token: 'انتهى ربط الحساب. اربطه من جديد من صفحة الربط',
+    permission: 'ما عندنا إذن النشر على هالحساب. اربطه من جديد ووافق على كل الصلاحيات',
+    busy: 'المنصة مشغولة الحين. جرّب بعد شوي',
+    media_rejected: 'المنصة ما قبلت الصورة أو الفيديو. جرّب ملف ثاني',
+    video_failed: 'المنصة ما قدرت تعالج الفيديو. جرّب فيديو ثاني بصيغة MP4',
+    video_timeout: 'الفيديو تأخر كثير في المعالجة عند المنصة',
+    unconfirmed: 'ما وصلنا رد من المنصة وممكن يكون المنشور اننشر. افتح الصفحة وتأكد قبل ما تعيد المحاولة',
+    network: 'تعذر الاتصال بالمنصة',
+    platform: 'المنصة ما قبلت المنشور',
+    unsupported: 'النشر التلقائي لهالمنصة قريباً',
+  };
+  const CHECK = {
+    fb_ok: 'فيسبوك جاهز للنشر', fb_not_connected: 'صفحة فيسبوك مو مربوطة. اربطها من صفحة الربط',
+    fb_token: 'ربط فيسبوك انتهى أو انرفض. اربطه من جديد', fb_page: 'ما قدرنا نوصل لصفحة فيسبوك. تأكد إنها موجودة وإنك مديرها',
+    fb_perm: 'ناقص إذن النشر على الصفحة. اربط من جديد ووافق على كل الصلاحيات', fb_expiring: 'الربط بينتهي قريباً. اربطه من جديد قبل ما تتأخر',
+    perm_unknown: 'وصلنا للصفحة بس ما قدرنا نتأكد من الصلاحيات',
+    ig_ok: 'انستقرام جاهز للنشر', ig_not_connected: 'حساب انستقرام مو مربوط. اربطه من صفحة الربط',
+    ig_token: 'ربط انستقرام انتهى أو انرفض. اربطه من جديد', ig_not_linked: 'الصفحة المربوطة ما لها حساب انستقرام تجاري. اربط الحساب بالصفحة من إعدادات الصفحة',
+    ig_not_saved: 'حساب انستقرام ما انحفظ. اربط ميتا من جديد', ig_mismatch: 'حساب انستقرام المحفوظ غير المربوط بالصفحة. اربط ميتا من جديد',
+    ig_perm: 'ناقص إذن النشر على انستقرام. اربط من جديد ووافق على كل الصلاحيات', ig_page: 'ما قدرنا نوصل لحساب انستقرام',
+  };
+  const processing = p => Object.values(p.results || {}).some(r => !r.ok && r.state === 'processing' && !r.code);
   let PLATS = {}, APPR = { approvers: [], canApprove: false, owner: false, people: [] };
   const fmtDay = d => new Intl.DateTimeFormat((LANG === 'en' ? 'en-GB' : 'ar-SA-u-nu-latn'), { weekday: 'long', day: 'numeric', month: 'long', timeZone: 'Asia/Riyadh' }).format(d);
   const fmtTime = d => new Intl.DateTimeFormat((LANG === 'en' ? 'en-GB' : 'ar-SA-u-nu-latn'), { hour: 'numeric', minute: '2-digit', timeZone: 'Asia/Riyadh' }).format(d);
@@ -23,12 +49,21 @@ export default async function mount() {
   function postCard(p) {
     const at = new Date(p.publish_at);
     const waiting = p.status === 'scheduled' && !p.approved_at;
-    const errs = Object.entries(p.results || {}).filter(([, r]) => !r.ok).map(([k, r]) => `${PLATS[k]?.name || k}: ${r.error}`);
+    const bad = Object.entries(p.results || {}).filter(([, r]) => !r.ok && r.code);
+    const retryable = ['failed', 'partial'].includes(p.status) && !p.retried_at && bad.some(([, r]) => r.code !== 'unsupported');
+    const unsure = bad.some(([, r]) => r.code === 'unconfirmed');
+    const failBox = bad.length && ['failed', 'partial'].includes(p.status) ? `<div class="so-note so-fail" role="alert">
+        <strong>${p.status === 'partial' ? 'انتشر على بعض المنصات بس' : 'المنشور ما انتشر'}</strong>
+        <ul>${bad.map(([k, r]) => `<li><span>${esc(PLATS[k]?.name || k)}</span>: <span>${esc(WHY[r.code] || WHY.platform)}</span>${APPR.owner && r.detail ? `<details class="so-more"><summary>تفاصيل للمالك</summary><code>${esc(r.detail)}</code></details>` : ''}</li>`).join('')}</ul>
+        ${retryable ? `<div class="bar" style="margin-top:10px"><button class="btn sm primary" data-act="retry" data-unsure="${unsure ? 1 : 0}"${APPR.canApprove ? '' : ' disabled'}>أعد المحاولة للمنصات اللي ما انتشرت</button>${APPR.canApprove ? '' : '<span class="muted">المعتمد بس يقدر يعيد المحاولة</span>'}</div>`
+          : p.retried_at ? '<p class="muted" style="margin:8px 0 0">انعادت المحاولة مرة. لو تبي تنشر ثاني، سوّ منشور جديد.</p>' : ''}
+      </div>` : '';
+    const waitingVideo = p.status === 'scheduled' && processing(p);
     return `<article class="card so-post" data-id="${p.id}">
       <div class="so-top">${p.platforms.map(k => `<span class="so-chip">${esc(PLATS[k]?.name || k)}</span>`).join('')}
-        <span class="muted">${fmtTime(at)}</span><span class="so-st muted">${waiting ? 'ينتظر الاعتماد' : p.status === 'scheduled' ? `معتمد · ${esc(p.approved_by || '')}` : ST[p.status] || p.status}</span></div>
+        <span class="muted">${fmtTime(at)}</span><span class="so-st muted">${waiting ? 'ينتظر الاعتماد' : waitingVideo ? 'الفيديو قيد المعالجة عند المنصة' : p.status === 'scheduled' ? `معتمد · ${esc(p.approved_by || '')}` : ST[p.status] || p.status}</span></div>
       ${p.body ? (p.compliance?.length ? block(p.body, p.compliance) : `<p class="so-body">${esc(p.body)}</p>`) : ''}
-      ${errs.length ? `<p class="so-note">${errs.map(esc).join('<br>')}</p>` : ''}
+      ${failBox}
       ${p.status === 'scheduled' ? `<div class="bar">${waiting && APPR.canApprove ? '<button class="btn sm primary" data-act="approve">اعتمد</button>' : ''}<button class="btn sm ghost" data-act="cancel">ألغِ</button></div>` : ''}
     </article>`;
   }
@@ -37,6 +72,7 @@ export default async function mount() {
     const from = new Date(Date.now() - 864e5), to = new Date(Date.now() + 14 * 864e5);
     const r = await api(`/api/social/posts?from=${from.toISOString()}&to=${to.toISOString()}`);
     PLATS = r.platforms;
+    showAccount(r.account);
     if (!$('#plats').innerHTML) {
       // Each platform says up front whether it can publish by itself (account connected) or not
       const R = r.ready || {};
@@ -51,6 +87,45 @@ export default async function mount() {
     counter();
   }
 
+  // The connected Facebook page and Instagram account (names only). The owner can test the connection without posting,
+  // and chooses the page when Meta was connected with several.
+  let ACC = null;
+  function showAccount(a) {
+    ACC = a; const el = $('#connNames');
+    if (!a) { el.textContent = 'ربط المنصات لهالشركة قيد التجهيز.'; return; }
+    const one = (label, name) => `<span>${label}</span>: ${name ? `<strong dir="auto">${esc(name)}</strong>` : '<span>مو مربوط</span>'}`;
+    if (a.page || a.instagram) el.innerHTML = `${one('فيسبوك', a.page)} · ${one('انستقرام', a.instagram)}`;
+    else el.textContent = a.pick ? 'ما انربطت صفحة للحين. اختر صفحة من تحت.' : 'ما انربط حساب للنشر للحين.';
+    $('#connLink').hidden = !APPR.owner;
+    $('#connCheck').hidden = !APPR.owner || !a.page;
+    loadPick();
+  }
+  async function loadPick() {
+    if (!APPR.owner || !ACC?.pick) { $('#pick').hidden = true; return; }
+    const r = await api('/api/social/pages').catch(() => null);
+    const list = r?.choices || [];
+    $('#pick').hidden = !list.length;
+    $('#pickList').innerHTML = list.map((c, i) => `<label><input type="radio" name="pg" value="${esc(c.id)}"${i === 0 ? ' checked' : ''}> ${esc(c.name)} <span class="muted">${c.instagram ? `· <span>انستقرام</span>: <bdi>${esc(c.instagram)}</bdi>` : '· <span>بدون حساب انستقرام</span>'}</span></label>`).join('');
+    if (list.length && new URLSearchParams(location.search).has('pick')) $('#conn').scrollIntoView({ block: 'start' });
+  }
+  $('#pickSave').onclick = async e => {
+    const btn = e.currentTarget, id = $$('input[name="pg"]:checked')[0]?.value; if (!id) return;
+    busy(btn, true);
+    try { await api('/api/social/pages', { method: 'POST', body: { id } }); say($('#pickMsg'), 'انربطت الصفحة.', true); $('#connOut').innerHTML = ''; await load(); }
+    catch (err) { say($('#pickMsg'), err.message); }
+    busy(btn, false);
+  };
+  $('#connCheck').onclick = async e => {
+    const btn = e.currentTarget;
+    busy(btn, true); $('#connOut').innerHTML = '';
+    try {
+      const r = await api('/api/social/connection');
+      $('#connOut').innerHTML = r.checks.map(c => `<li class="${c.level}"><span>${c.level === 'ok' ? '✓' : c.level === 'warn' ? '!' : '✕'}</span><span>${esc(CHECK[c.code] || c.code)}</span></li>`).join('')
+        + '<li class="muted"><span></span><span>هذا فحص بس، ما نشرنا شي.</span></li>';
+    } catch (err) { $('#connOut').innerHTML = `<li class="block"><span>✕</span><span>${esc(err.message)}</span></li>`; }
+    busy(btn, false);
+  };
+
   // Who approves: named in the tab by the owner; the form says who will approve the post
   async function loadApprovers() {
     APPR = await api('/api/social/approvers');
@@ -60,10 +135,11 @@ export default async function mount() {
     if (APPR.owner) $('#apprList').innerHTML = APPR.people.map(p => `<label><input type="checkbox" name="ap" value="${esc(p.email)}"${APPR.approvers.includes(p.email) ? ' checked' : ''}> ${esc(p.name || p.email)} <span class="muted" dir="ltr">${esc(p.email)}</span></label>`).join('');
   }
   $('#apprSave').onclick = async e => {
-    busy(e.currentTarget, true);
+    const btn = e.currentTarget;
+    busy(btn, true);
     try { await api('/api/social/approvers', { method: 'PUT', body: { approvers: $$('input[name="ap"]:checked').map(x => x.value) } }); say($('#apprMsg'), 'انحفظ.', true); await loadApprovers(); await load(); }
     catch (err) { say($('#apprMsg'), err.message); }
-    busy(e.currentTarget, false);
+    busy(btn, false);
   };
   $('#body').addEventListener('input', counter);
   // Upload the chosen photo/video right away; its public link goes into the post (Meta reads it from there)
@@ -111,6 +187,7 @@ export default async function mount() {
   $('#list').addEventListener('click', async e => {
     const b = e.target.closest('[data-act]'); if (!b) return;
     if (b.dataset.act === 'cancel' && !confirm(t('تلغي المنشور؟'))) return;
+    if (b.dataset.act === 'retry' && !confirm(t(b.dataset.unsure === '1' ? 'ممكن يكون المنشور اننشر على بعض المنصات. تأكد من الصفحة أول. تعيد المحاولة؟ (مرة وحدة بس)' : 'نعيد المحاولة للمنصات اللي ما انتشرت بس؟ (مرة وحدة بس)'))) return;
     busy(b, true);
     try { await api('/api/social/posts', { method: 'PATCH', body: { id: b.closest('[data-id]').dataset.id, action: b.dataset.act } }); await load(); }
     catch (err) { say($('#msg'), err.message); busy(b, false); }
