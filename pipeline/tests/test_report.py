@@ -228,7 +228,7 @@ class BillingTests(unittest.TestCase):
         self.assertIn("preset:'7'", html)
         self.assertIn("well-ads-ui", html)
         self.assertIn("لوحة أداء الإعلانات", html)
-        self.assertIn('class="ffun"', html)  # the customer-journey funnel (the old #funnel was a duplicate)
+        self.assertIn('class="ffun2"', html)  # the customer-journey funnel, a horizontal pipe (the old #funnel was a duplicate)
         self.assertIn('id="tCamp"', html)
         self.assertIn('id="cards"', html)
         self.assertNotIn("runGraphWrite", html)

@@ -36,14 +36,16 @@ async function expectKpi(page, label, value, note) {
   check(got && num(got.raw) === value, (note || label) + ' expected ' + value, got && got.raw);
   return got;
 }
+// A range through «اختيار تاريخ»: open the picker, type both days into its fields, apply
 async function setRange(page, from, to) {
+  await click(page, '#dpickBtn');
   await page.evaluate((from, to) => {
     const f = document.querySelector('#from');
     const t = document.querySelector('#to');
     f.value = from;
     t.value = to;
-    t.dispatchEvent(new Event('input', {bubbles: true}));
     t.dispatchEvent(new Event('change', {bubbles: true}));
+    document.querySelector('#dpApply').click();
   }, from, to);
   await page.waitForFunction((from, to) => document.querySelector('#from').value === from && document.querySelector('#to').value === to, {}, from, to);
 }
@@ -184,10 +186,11 @@ async function main() {
     await click(page, '#depts button[data-v=""]');
     await setRange(page, '2026-10-15', '2026-10-16');
 
-    await click(page, '#presets button[data-k="m"]');
+    // The month to the last full day, picked on the calendar (the «هذا الشهر» preset is gone)
+    await setRange(page, '2026-10-01', '2026-10-16');
     d = await dates(page);
-    check(d.from === '2026-10-01' && d.to === '2026-10-16', 'this month ends on the last full day', JSON.stringify(d));
-    await expectKpi(page, 'الصرف', '185', 'this month excludes partial today');
+    check(d.from === '2026-10-01' && d.to === '2026-10-16', 'a picked range is applied as typed', JSON.stringify(d));
+    await expectKpi(page, 'الصرف', '185', 'the month to the last full day excludes partial today');
 
     await click(page, '#presets button[data-k="90"]');
     d = await dates(page);
@@ -278,13 +281,14 @@ async function main() {
     await monthPage.evaluateOnNewDocument(() => localStorage.clear());
     await monthPage.goto(monthUrl, {waitUntil: 'load'});
     await ready(monthPage);
-    await click(monthPage, '#presets button[data-k="m"]');
+    // On the 1st: «اليوم» is that day, and the previous month picked on the calendar spans a month boundary
+    await click(monthPage, '#presets button[data-k="t"]');
     d = await dates(monthPage);
-    check(d.from === '2026-11-01' && d.to === '2026-11-01', 'on the 1st, this month is that day', JSON.stringify(d));
-    await expectKpi(monthPage, 'الصرف', '3.00', 'this month on the 1st');
-    await click(monthPage, '#presets button[data-k="pm"]');
+    check(d.from === '2026-11-01' && d.to === '2026-11-01', 'on the 1st, today is that day', JSON.stringify(d));
+    await expectKpi(monthPage, 'الصرف', '3.00', 'today on the 1st');
+    await setRange(monthPage, '2026-10-01', '2026-10-31');
     d = await dates(monthPage);
-    check(d.from === '2026-10-01' && d.to === '2026-10-31', 'last month on the 1st is the previous month', JSON.stringify(d));
+    check(d.from === '2026-10-01' && d.to === '2026-10-31', 'a picked previous month on the 1st', JSON.stringify(d));
     await expectKpi(monthPage, 'الصرف', '40.00', 'last month spend');
     if (shotDir) await monthPage.screenshot({path: shotDir + '/last-month-on-the-first.png', fullPage: false});
   } finally {

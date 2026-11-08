@@ -5,15 +5,13 @@ const addDays = (s,n) => { const d=toD(s); d.setUTCDate(d.getUTCDate()+n); retur
 const diffDays = (a,b) => Math.round((toD(b)-toD(a))/864e5);
 const MIN = D.range.start, MAX = D.range.end, TODAY = D.range.today || D.range.end;
 const clamp = s => s<MIN?MIN:s>TODAY?TODAY:s;
+// The quick periods. Days are the data's own (Riyadh) days: TODAY is today in Riyadh, MAX the last complete day.
+// Keys stay as before ('7', '30', '90') so saved choices keep working; any other range is picked on the calendar.
 const PRESETS = [
-  ['t','اليوم (جزئي)',()=>[TODAY,TODAY]],
+  ['t','اليوم',()=>[TODAY,TODAY]],
   ['y','أمس',()=>{ const y=addDays(TODAY,-1); const d=y<MIN?MIN:y>TODAY?TODAY:y; return [d,d]; }],
-  ['7','٧ أيام',()=>[addDays(MAX,-6),MAX]],
-  ['14','١٤ يوم',()=>[addDays(MAX,-13),MAX]],
-  ['30','٣٠ يوم',()=>[addDays(MAX,-29),MAX]],
-  ['m','هذا الشهر',()=>{ const s=TODAY.slice(0,8)+'01'; return [s, MAX>=s?MAX:TODAY]; }],
-  ['pm','الشهر الماضي',()=>{ const e=addDays(TODAY.slice(0,8)+'01',-1); return [e.slice(0,8)+'01', e]; }],
-  ['365','سنة',()=>[addDays(MAX,-364),MAX]],
+  ['7','آخر أسبوع',()=>[addDays(MAX,-6),MAX]],
+  ['30','آخر شهر',()=>[addDays(MAX,-29),MAX]],
   ['90','كل الفترة',()=>[MIN,TODAY]],
 ];
 const MONTHS_AR=['يناير','فبراير','مارس','أبريل','مايو','يونيو','يوليو','أغسطس','سبتمبر','أكتوبر','نوفمبر','ديسمبر'];

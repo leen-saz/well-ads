@@ -150,6 +150,35 @@ input[type=search]{width:min(240px,100%)}
 .range-label b{color:var(--ink);font-family:var(--f-num);font-weight:600}
 
 /* KPIs */
+/* Date picker (04-filters.js): a month of days from the data's own range, start and end, then apply */
+.dpick-wrap{position:relative}
+.dpick-btn{font:inherit;font-size:.82rem;padding:6px 12px;border-radius:999px;border:1px solid var(--line);background:var(--surface);color:var(--ink);cursor:pointer;display:inline-flex;align-items:center;gap:6px}
+.dpick-btn svg{width:14px;height:14px;fill:none;stroke:currentColor;stroke-width:2}
+.dpick-btn[aria-pressed="true"]{background:var(--accent);border-color:var(--accent);color:#fff}
+.dpick{position:absolute;inset-inline-start:0;top:calc(100% + 6px);z-index:60;width:300px;max-width:calc(100vw - 32px);background:var(--surface);border:1px solid var(--line);border-radius:14px;box-shadow:0 12px 32px rgba(20,10,60,.18);padding:12px;display:grid;gap:8px}
+.dpick[hidden]{display:none}
+.dp-head{display:flex;align-items:center;justify-content:space-between}
+.dp-head b{font-size:.9rem;color:var(--ink)}
+.dp-nav{width:30px;height:30px;border-radius:8px;border:1px solid var(--line);background:transparent;color:var(--ink);cursor:pointer;font-size:1rem;line-height:1}
+.dp-nav:disabled{opacity:.35;cursor:default}
+.dp-week,.dp-grid{display:grid;grid-template-columns:repeat(7,1fr);gap:2px 0;text-align:center}
+.dp-week span{font-size:.68rem;color:var(--muted)}
+.dp-grid button{font:inherit;font-size:.8rem;height:34px;border:0;border-radius:8px;background:transparent;color:var(--ink);cursor:pointer;font-variant-numeric:tabular-nums}
+.dp-grid button:hover:not(:disabled){background:color-mix(in srgb,var(--accent) 14%,transparent)}
+.dp-grid button:disabled{color:var(--muted);opacity:.4;cursor:default}
+.dp-grid button.in{background:color-mix(in srgb,var(--accent) 16%,transparent);border-radius:0}
+.dp-grid button.s,.dp-grid button.e{background:var(--accent);color:#fff;border-radius:8px}
+.dp-grid button.today{box-shadow:inset 0 0 0 1px var(--accent)}
+.dp-grid button:focus-visible,.dp-nav:focus-visible{outline:2px solid var(--accent);outline-offset:1px}
+.dp-fields{display:flex;gap:8px;flex-wrap:wrap}
+.dp-fields .field{flex:1;min-width:120px}
+.dp-foot{display:flex;align-items:center;gap:8px}
+.dp-foot .hint{flex:1;font-size:.75rem;color:var(--muted)}
+.dp-apply,.dp-cancel{font:inherit;font-size:.8rem;padding:6px 14px;border-radius:999px;cursor:pointer}
+.dp-apply{background:var(--accent);color:#fff;border:1px solid var(--accent)}
+.dp-apply:disabled{opacity:.5;cursor:default}
+.dp-cancel{background:transparent;border:1px solid var(--line);color:var(--ink)}
+@media (max-width:640px){.dpick{position:fixed;inset-inline:16px;top:auto;bottom:16px;width:auto;max-width:none;z-index:200}.dp-fields .field{min-width:100%}}
 .kgroups{display:grid;gap:18px}
 .kgroup{display:grid;gap:8px}
 .khead{display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap}
@@ -166,31 +195,55 @@ input[type=search]{width:min(240px,100%)}
 .tile.feature .spark{fill:#fff}
 .kpis.kout{grid-template-columns:repeat(auto-fit,minmax(min(100%,160px),1fr))}
 .kout .kpi.hero .v{font-size:1.6rem}
-.ffun{display:grid;gap:0;background:var(--surface);box-shadow:var(--lift);border-radius:var(--r);padding:16px 14px}
-.flayer{display:grid;grid-template-columns:minmax(120px,1fr) minmax(0,2.4fr) minmax(140px,1fr);align-items:center;gap:14px}
+/* The customer journey: a horizontal pipe that narrows with the numbers (pipeline/dash/05-render.js, funnelHTML) */
+.ffun2{display:grid;grid-template-columns:minmax(0,1fr) 17rem;gap:14px;align-items:start}
+@media (max-width:1000px){.ffun2{grid-template-columns:1fr}}
+.fmain{display:grid;gap:12px;min-width:0;background:var(--surface);box-shadow:var(--lift);border-radius:var(--r);padding:16px 14px}
+.fpipe-scroll{overflow-x:auto;overscroll-behavior-x:contain}
+.fpipe{display:block;width:100%;min-width:600px;height:auto}
+.fpipe text{text-anchor:middle;font-family:var(--f-num,inherit)}
+.fs-name{font-size:15px;font-weight:600;fill:var(--ink)}
+.fs-val{font-size:22px;font-weight:700;fill:var(--ink)}
+.fs-val.on{fill:#fff;paint-order:stroke;stroke:rgba(0,0,0,.18);stroke-width:3px}
+.fs-lab{font-size:12px;fill:var(--muted)}
+.fs-lab.on{fill:rgba(255,255,255,.9);paint-order:stroke;stroke:rgba(0,0,0,.18);stroke-width:3px}
+.fs-cost{font-size:14px;font-weight:600;fill:var(--ink)}
+.fs-cost.bad{fill:var(--bad)}
+.flinkp rect{fill:var(--surface);stroke:var(--line)}
+.flinkp text{font-size:13px;font-weight:600;fill:var(--ink)}
+.flinkp.watch text{fill:#b45309}
+.flinkp.weak rect{stroke:var(--bad);stroke-width:2}
+.flinkp.weak text,.flinkp .fl-neck{fill:var(--bad)}
+.flinkp .fl-neck{font-size:12px}
+.flinkp.off rect{stroke:var(--muted);stroke-dasharray:4 3}
+.flinkp.off text{fill:var(--muted)}
+.fcols{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:12px;border-top:1px solid var(--line);padding-top:10px}
+@media (max-width:760px){.fcols{grid-template-columns:1fr 1fr}}
+.fcol{display:grid;gap:6px;align-content:start}
+.fcol .kpi{background:transparent;box-shadow:none;border:0;-webkit-backdrop-filter:none;backdrop-filter:none;padding:0;display:flex;flex-wrap:wrap;align-items:baseline;justify-content:space-between;gap:2px 8px}
+.fcol .kpi .l{font-size:.75rem}
+.fcol .kpi .v{font-size:.95rem}
+.fcol .kpi .delta{flex-basis:100%;font-size:.7rem}
+.fverdict{display:grid;gap:8px;background:var(--surface);box-shadow:var(--lift);border-radius:var(--r);padding:14px;font-size:.85rem}
+.fverdict h4{margin:0;font-size:.95rem;color:var(--ink)}
+.fverdict p{margin:0}
+.fverdict .m{color:var(--muted)}
+.fv-badge{font-size:.72rem;font-weight:700;color:var(--accent)}
+.fverdict.bad .fv-badge{color:var(--bad)}
+.fverdict.watch .fv-badge{color:#b45309}
+.fv-unlinked{display:grid;gap:4px;border:1px dashed var(--line);border-radius:10px;padding:8px 10px}
+.fv-unlinked b{color:var(--muted)}
+.fv-note{font-size:.72rem;color:var(--muted)}
+.flines{list-style:none;margin:6px 0 0;padding:0;display:grid;gap:4px;font-size:.85rem}
+.flines li{position:relative;padding-inline-start:16px}
+.flines li::before{content:"";position:absolute;inset-inline-start:2px;top:.5em;width:8px;height:8px;border-radius:50%;background:var(--accent)}
+.flines li.bad{color:var(--bad)}.flines li.bad::before{background:var(--bad)}
+.flines li.watch{color:#b45309}.flines li.watch::before{background:#f59e0b}
+.flines li.off{color:var(--muted)}.flines li.off::before{background:var(--line)}
 .fname{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
 .fname b{width:24px;height:24px;border-radius:50%;background:var(--accent);color:#fff;display:grid;place-items:center;font-size:.78rem}
 .fname span{font-weight:600;color:var(--ink)}
 .fname em{font-style:normal;font-size:.75rem;color:var(--muted);flex-basis:100%}
-.fband-wrap{display:flex;justify-content:center}
-.fband{width:var(--w);min-width:180px;clip-path:polygon(0 0,100% 0,94% 100%,6% 100%);background:color-mix(in srgb,var(--accent) calc(100% - var(--k) * 14%),#1b1240);padding:12px 18px 14px;text-align:center}
-.fband .kpi{background:transparent;box-shadow:none;padding:0;justify-items:center}
-.fband .kpi .l,.fband .kpi .v,.fband .kpi .v small,.fband .delta,.fband .delta span{color:#fff!important}
-.fband .kpi .l{opacity:.85}
-.fband .kpi .v{font-size:1.5rem}
-.fband .delta{opacity:.85;font-size:.75rem}
-.fcost{display:grid;gap:6px}
-.fcost .kpi{background:transparent;box-shadow:none;padding:0;display:flex;flex-wrap:wrap;align-items:baseline;justify-content:space-between;gap:2px 8px}
-.fcost .kpi .l{font-size:.78rem}
-.fcost .kpi .v{font-size:.95rem}
-.fcost .kpi .delta{flex-basis:100%;font-size:.7rem}
-.flink{display:flex;justify-content:center;align-items:center;gap:8px;padding:6px 0}
-.flink .farrow{color:var(--accent);font-weight:700}
-.flink .kpi{display:flex;align-items:baseline;gap:6px;background:color-mix(in srgb,var(--accent) 10%,transparent);box-shadow:none;border-radius:999px;padding:3px 12px}
-.flink .kpi .l{font-size:.75rem}
-.flink .kpi .v{font-size:.9rem}
-.flink .kpi .delta{font-size:.68rem}
-@media (max-width:760px){.flayer{grid-template-columns:1fr;gap:6px}.fband{min-width:0}.fname em{flex-basis:auto}.fcost{grid-template-columns:1fr 1fr;gap:4px 12px}.flink .kpi{flex-wrap:wrap;justify-content:center}}
 .kpis{display:grid;grid-template-columns:repeat(auto-fill,minmax(min(100%,210px),1fr));gap:10px}
 .kpi{background:var(--surface);border:0;box-shadow:var(--lift);border-radius:var(--r);padding:12px 14px;display:grid;gap:2px;min-width:0}
 .kpi .l{font-size:.82rem;color:var(--muted)}
@@ -392,14 +445,11 @@ td.cap{white-space:normal;min-width:200px;max-width:360px}
 :root{--bg:#F1EEFA;--glass:rgba(255,255,255,.58);--glass-strong:rgba(255,255,255,.78);--glass-edge:rgba(255,255,255,.85);--glass-blur:blur(20px) saturate(160%);
   --lift:inset 0 1px 0 rgba(255,255,255,.9),0 1px 2px rgba(126,87,253,.06),0 12px 32px rgba(126,87,253,.12);--r:22px}
 body{background:radial-gradient(1100px 680px at 100% -10%,rgba(126,87,253,.22),transparent 62%),radial-gradient(900px 640px at -10% 35%,rgba(172,166,225,.55),transparent 62%),radial-gradient(760px 560px at 55% 115%,rgba(34,17,150,.12),transparent 60%),linear-gradient(180deg,#F5F3FC,#ECE8F8);background-attachment:fixed}
-.panel,.ffun,.filter-card{background:var(--glass);border:1px solid var(--glass-edge);-webkit-backdrop-filter:var(--glass-blur);backdrop-filter:var(--glass-blur)}
+.panel,.fmain,.fverdict,.filter-card{background:var(--glass);border:1px solid var(--glass-edge);-webkit-backdrop-filter:var(--glass-blur);backdrop-filter:var(--glass-blur)}
 .kpi,.card,.kpi.hero{background:var(--glass-strong);border:1px solid var(--glass-edge)}
-.fband .kpi,.fcost .kpi,.flink .kpi{border:0}
-.fband .kpi{background:transparent}
-.fcost .kpi{background:transparent}
 .seg{background:var(--glass);border-color:var(--glass-edge)}
 .seg button[aria-pressed="true"]{box-shadow:0 4px 14px rgba(126,87,253,.28)}
-@media (prefers-reduced-transparency:reduce){.panel,.ffun,.filter-card,.kpi,.card{background:#FFFFFF;-webkit-backdrop-filter:none;backdrop-filter:none}}
+@media (prefers-reduced-transparency:reduce){.panel,.fmain,.fverdict,.filter-card,.kpi,.card{background:#FFFFFF;-webkit-backdrop-filter:none;backdrop-filter:none}}
 
 /* ---- Glass v2: closer to ShopWave. Colour behind the glass, gradient glass with a bright edge, glossy funnel layers. Fonts and logo stay Well's. */
 :root{--glass-bg:linear-gradient(140deg,rgba(255,255,255,.74),rgba(255,255,255,.34));--glass-blur:blur(26px) saturate(185%);
@@ -410,15 +460,12 @@ body{background:
   radial-gradient(34vw 30vw at 48% 62%,rgba(172,166,225,.55),transparent 70%),
   radial-gradient(40vw 36vw at 88% 96%,rgba(34,17,150,.20),transparent 70%),
   linear-gradient(160deg,#EEF0FF,#ECE6FB 55%,#F1EAFB);background-attachment:fixed}
-.panel,.ffun,.filter-card,.kpi,.card,.kpi.hero{background:var(--glass-bg);border:1px solid rgba(255,255,255,.78);-webkit-backdrop-filter:var(--glass-blur);backdrop-filter:var(--glass-blur);box-shadow:var(--lift)}
-.fband .kpi,.fcost .kpi,.flink .kpi{background:transparent;border:0;box-shadow:none;-webkit-backdrop-filter:none;backdrop-filter:none}
-.flink .kpi{background:rgba(255,255,255,.6);border:1px solid rgba(255,255,255,.8)}
+.panel,.fmain,.fverdict,.filter-card,.kpi,.card,.kpi.hero{background:var(--glass-bg);border:1px solid rgba(255,255,255,.78);-webkit-backdrop-filter:var(--glass-blur);backdrop-filter:var(--glass-blur);box-shadow:var(--lift)}
 .tile .v{font-size:1.75rem}
 .tile .ic{border-radius:14px;background:linear-gradient(140deg,rgba(126,87,253,.22),rgba(172,166,225,.30));box-shadow:inset 0 1px 0 rgba(255,255,255,.8)}
 .kpis.kout>.tile:nth-child(3) .ic{background:linear-gradient(140deg,rgba(120,150,255,.28),rgba(172,166,225,.28));color:#4A5BD8}
 .kpis.kout>.tile:nth-child(4) .ic{background:linear-gradient(140deg,rgba(34,17,150,.16),rgba(126,87,253,.18));color:var(--ink)}
 .kpi.tile.feature{background:linear-gradient(150deg,#9B7BFF,#6A45F0 55%,#3A22B8);border-color:rgba(255,255,255,.45);box-shadow:inset 0 1px 1px rgba(255,255,255,.5),0 18px 40px rgba(106,69,240,.35)}
-.fband{clip-path:none;border-radius:22px 22px 60px 60px/22px 22px 34px 34px;background:linear-gradient(180deg,rgba(255,255,255,.38),rgba(255,255,255,0) 48%),var(--fc);box-shadow:inset 0 2px 1px rgba(255,255,255,.55),inset 0 -6px 14px rgba(20,8,90,.18),0 12px 26px rgba(76,52,180,.28)}
 
 /* ---- Bento (Leen's references): a 12-column grid for the sections, filters in one row on top. Phones keep the drawer. */
 @media (min-width:1101px){
@@ -496,8 +543,17 @@ body{background:
     </div>
     <div class="row">
       <div class="seg" id="presets" role="group" aria-label="الفترة"></div>
-      <label class="field" for="from">من <input type="date" id="from"></label>
-      <label class="field" for="to">إلى <input type="date" id="to"></label>
+      <!-- اختيار تاريخ: تقويم بالأيام اللي فيها بيانات (يوم الرياض)، ضغطة للبداية وضغطة للنهاية، وتطبيق -->
+      <div class="dpick-wrap">
+        <button type="button" id="dpickBtn" class="dpick-btn" aria-haspopup="dialog" aria-expanded="false" aria-controls="dpick" aria-pressed="false"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/></svg><span id="dpickLbl">اختيار تاريخ</span></button>
+        <div class="dpick" id="dpick" role="dialog" aria-label="اختيار تاريخ" hidden>
+          <div class="dp-head"><button type="button" class="dp-nav" data-nav="-1" aria-label="الشهر السابق"></button><b id="dpMonth" aria-live="polite"></b><button type="button" class="dp-nav" data-nav="1" aria-label="الشهر التالي"></button></div>
+          <div class="dp-week" id="dpWeek" aria-hidden="true"></div>
+          <div class="dp-grid" id="dpGrid"></div>
+          <div class="dp-fields"><label class="field" for="from">من <input type="date" id="from"></label><label class="field" for="to">إلى <input type="date" id="to"></label></div>
+          <div class="dp-foot"><span id="dpSel" class="hint"></span><button type="button" id="dpCancel" class="dp-cancel">إلغاء</button><button type="button" id="dpApply" class="dp-apply">تطبيق</button></div>
+        </div>
+      </div>
     </div>
     <div class="row adv">
       <span class="slc-l">القسم</span>

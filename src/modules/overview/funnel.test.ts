@@ -79,6 +79,12 @@ describe('overview: funnel rules', () => {
     expect(verdict(list)).toMatchObject({ level: 'ok', title: 'لا توجد مشكلة واضحة' });
   });
 
+  it('a step under its floor is the bottleneck before one that is only weaker than usual, even with a higher score', () => {
+    // click→lead 1.43% (floor 1.5, 17% under the earlier 1.72: score 0.83, bad); cost per lead +23% (score 0.82, watch)
+    const v = verdict(steps(as({ clickToResult: 1.43, cpl: 81.5 }), as({ clickToResult: 1.72, cpl: 66.5 }), { click: null, lead: null, cpl: null }));
+    expect(v).toMatchObject({ step: 'lead', level: 'bad' });
+  });
+
   it('below the floor is weak even when the history was as bad', () => {
     const low = as({ ctr: FLOORS.click / 2 });
     const st = steps(low, low, { ...usual, click: FLOORS.click / 2 }).find(s => s.key === 'click')!;
