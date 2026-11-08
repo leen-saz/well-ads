@@ -3,7 +3,8 @@
 import { defineConfig } from '@playwright/test';
 import { CORE_KEYS, MODULE_KEYS } from './tests/smoke/keys';
 
-const WORKER = 8787, FAKE = 8788;
+// Ports can be moved when another run on this machine holds the default ones: SMOKE_WORKER_PORT, SMOKE_FAKE_PORT
+const WORKER = Number(process.env['SMOKE_WORKER_PORT'] || 8787), FAKE = Number(process.env['SMOKE_FAKE_PORT'] || 8788);
 const CFG = '--config dist/server/wrangler.smoke.json', STATE = '.wrangler/smoke-state';
 const secret = 'smoke-session-secret-smoke-session-secret';
 

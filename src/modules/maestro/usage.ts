@@ -71,7 +71,7 @@ export const reconcile = { POST: handle(async (request, e) => {
   const { cfg, user } = await requireUser(request, e, 'owner', { write: true });
   const b = await readJson(request, 2000);
   const provider = String(b.provider || ''), m = MONTH.exec(String(b.month || '')), invoice = Number(b.invoice_usd);
-  if (provider !== 'openai' && provider !== 'xai') return json(400, { error: 'اختر المزوّد: OpenAI أو Grok' });
+  if (provider !== 'openai' && provider !== 'xai' && provider !== 'gemini') return json(400, { error: 'اختر المزوّد: OpenAI أو Grok' });
   if (!m) return json(400, { error: 'اختر الشهر' });
   if (!(isFinite(invoice) && invoice > 0 && invoice <= 100_000_000)) return json(400, { error: 'اكتب مبلغ الفاتورة بالدولار' });
   const from = new Date(Date.UTC(+m[1]!, +m[2]! - 1, 1) - 3 * 3600e3), to = new Date(Date.UTC(+m[1]!, +m[2]!, 1) - 3 * 3600e3);

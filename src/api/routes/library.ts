@@ -10,7 +10,7 @@ import { KINDS, clean, cleanEdit, complianceOf, type Item } from '../../lib/libr
 
 const MIGRATION = 'migration 020_library.sql';
 // The tabs whose outputs are saved here
-const SOURCES = ['copy', 'content', 'design', 'voice', 'social', 'journeys'];
+const SOURCES = ['copy', 'content', 'design', 'voice', 'social', 'journeys', 'transcribe'];
 const TABS = MODULES.filter(m => m.status === 'live' && SOURCES.includes(m.key));
 const readable = (u: Session, cfg: Cfg) => TABS.filter(m => can(u, m.key, cfg)).map(m => m.key);
 const writable = (u: Session, cfg: Cfg) => TABS.filter(m => can(u, m.key, cfg) && atLeast(u, m.key, 'edit', cfg)).map(m => m.key);

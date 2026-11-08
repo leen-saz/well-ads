@@ -5,8 +5,7 @@
 import { AsyncLocalStorage } from 'node:async_hooks';
 import { sb, audit, type Cfg } from './auth';
 import { scoped } from './tenant';
-import { priceOf, per } from './prices';
-import type { Provider } from './llm';
+import { priceOf, per, type Billed } from './prices';
 
 // The riyal is pegged to the dollar (SAMA, 3.75 since 1986); the pipeline uses the same number (USD_SAR in fetch_data.py)
 export const USD_SAR = 3.75;
@@ -20,10 +19,12 @@ export const usageCtx = (cfg: Cfg, user: { co: string; uid?: string } | null | u
 export const tabOf = (module: string, ctx?: UsageCtx): string => ctx?.tab || (module === 'motion' ? 'design' : module);
 
 const r6 = (n: number) => Math.round(n * 1e6) / 1e6;
-export function cost(provider: Provider, model: string, tin: number, tout: number): { usd: number; sar: number; priced: boolean } {
+// `audioIn`: the part of the input that was audio or video, billed at the model's audio rate when it has one
+export function cost(provider: Billed, model: string, tin: number, tout: number, audioIn = 0): { usd: number; sar: number; priced: boolean } {
   const p = priceOf(provider, model);
   if (!p) return { usd: 0, sar: 0, priced: false };
-  const usd = r6(per(tin, p.inUsd) + per(tout, p.outUsd));
+  const a = Math.min(Math.max(0, audioIn), tin);
+  const usd = r6(per(tin - a, p.inUsd) + per(a, p.audioInUsd ?? p.inUsd) + per(tout, p.outUsd));
   return { usd, sar: r6(usd * USD_SAR), priced: true };
 }
 
@@ -68,12 +69,12 @@ export async function overCap(ctx: UsageCtx, module: string): Promise<boolean> {
   return !!c && c.usd > 0 && (s.spent.get(tabOf(module, ctx)) || 0) >= c.usd;
 }
 
-export interface Used { provider: Provider; model: string; usage?: { in: number; out: number } | undefined; estimated?: boolean }
+export interface Used { provider: Billed; model: string; usage?: { in: number; out: number; audioIn?: number } | undefined; estimated?: boolean }
 
 export function record(ctx: UsageCtx | undefined, module: string, u: Used): void {
   if (!ctx) return;
   const tab = tabOf(module, ctx), tin = Math.max(0, Math.round(u.usage?.in ?? 0)), tout = Math.max(0, Math.round(u.usage?.out ?? 0));
-  const c = cost(u.provider, u.model, tin, tout);
+  const c = cost(u.provider, u.model, tin, tout, u.usage?.audioIn ?? 0);
   const job = (async () => {
     const r = await sb(ctx.cfg, '/rest/v1/ai_usage', { method: 'POST', admin: true, headers: { Prefer: 'return=minimal' },
       body: { company_id: ctx.co, user_id: ctx.uid ?? null, module: tab, provider: u.provider, model: u.model, tokens_in: tin, tokens_out: tout, cost_usd: c.usd, cost_sar: c.sar, usd_sar: USD_SAR, priced: c.priced, estimated: !!u.estimated } });
