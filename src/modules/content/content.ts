@@ -153,4 +153,4 @@ export async function searchConsole(site: string, t: Record<string, string | und
 }
 
 // Publishing options per item: export now; WordPress / GitHub PR once each is connected through OAuth
-export const PUBLISH = { export: { name: 'تصدير (نسخ)', live: true }, wordpress: { name: 'WordPress', live: false }, github: { name: 'طلب دمج على GitHub', live: false } } as const;
+export const PUBLISH = { export: { name: 'تصدير (نسخ)', live: true }, wordpress: { name: 'WordPress', live: false }, github: { name: 'نشر على الموقع بعد مراجعة', live: false } } as const;
