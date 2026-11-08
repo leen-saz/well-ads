@@ -25,8 +25,7 @@ for (const missing of [false, true]) {
           await page.waitForLoadState('networkidle');
           await page.waitForTimeout(500);
           const seen = new Set(await pageStrings(page));
-          await openTabs(page);
-          for (const s of await pageStrings(page)) seen.add(s);
+          await openTabs(page, seen);
           const bad = [...seen].filter(s => TECH_WORDS.test(s)).map(s => s.slice(0, 120));
           expect(bad, `technical words on ${path} (${lang})`).toEqual([]);
           // The plain sentences that replace the technical ones follow the language too

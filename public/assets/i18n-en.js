@@ -965,6 +965,19 @@ export const EN = {
   "التفاصيل وش ناقص في": "What is missing is listed in",
   "جداول الرصد ناقصة. شغّل": "The listening tables are missing. Run",
   "من مجلد supabase/migrations في Supabase ← SQL Editor، وبعدها ارجع هنا.": "from the supabase/migrations folder in Supabase → SQL Editor, then come back here.",
+  // New-request page: the platform blocks that are drawn one at a time (Snapchat, TikTok)
+  "نوع الإعلان": "Ad type",
+  "كولكشن": "Collection",
+  "الهدف في سناب": "Goal on Snapchat",
+  "نموذج ليد داخل سناب": "Lead form inside Snapchat",
+  "سوايب للموقع": "Swipe up to the website",
+  "شراء (Pixel)": "Purchase (Pixel)",
+  "سؤال التأهيل في النموذج": "Qualifying question in the form",
+  "مثل: متى تبي الجلسة؟": "e.g. When do you want the session?",
+  "تكلفة مستهدفة": "Target cost",
+  "Spark Ad (من حساب المؤثرة)": "Spark Ad (from the influencer's account)",
+  "كود تفويض Spark": "Spark authorisation code",
+  "من المؤثرة: 7 أو 30 أو 60 أو 365 يوم.": "From the influencer: 7, 30, 60 or 365 days.",
 };
 // «الحملات والمواد الإعلانية ولوحة القرارات» → "campaigns, creatives and the decision board"
 const NEEDS = { 'الحملات': 'campaigns', 'المواد الإعلانية': 'creatives', 'لوحة القرارات': 'the decision board', 'التحليلات العضوية': 'organic analytics', 'المحتوى و SEO': 'content and SEO', 'النشر في السوشال': 'social publishing' };
@@ -979,6 +992,7 @@ export const pat = t => [
   [/^الأساسية (\d+) من (\d+)$/, 'Core $1 of $2'], [/^الكل (\d+) من (\d+)$/, 'All $1 of $2'], [/^(\d+) فعل$/, '$1 actions'],
   [/^(.+) يحتاج تفعيل من الإدارة\. بلّغ مالك الحساب\.$/, (m, x) => t(x) + ' needs to be enabled by the admin. Tell the account owner.'],
   [/^أهلاً (.+)\. هذي صورة اليوم للي تشتغل عليه\.$/, "Welcome $1. This is today's picture of what you work on."],
+  [/^خيارات (.+)$/, '$1 options'],
   [/^اربط (.+)$/, (m, x) => 'Connect ' + x.replace(' و ', ' and ')], [/^بدونها يوقف: (.+)\.$/, (m, x) => 'Without it these stop: ' + needs(x) + '.'],
   [/^آخر فحص: (.+)$/, 'Last check: $1'], [/^أهلاً (.+)\. هذي صورة اليوم للنظام كله\.$/, "Welcome $1. This is today's picture for the whole system."],
   [/^احذف (.+)$/, (m, x) => 'Delete ' + t(x)],

@@ -23,8 +23,7 @@ test.describe('lang=en leaves no Arabic behind', () => {
       await page.waitForLoadState('networkidle');
       await page.waitForTimeout(600);
       const seen = new Set(await arabicLeft(page));
-      await openTabs(page);
-      for (const s of await arabicLeft(page)) seen.add(s);
+      for (const s of arabicIn([...(await openTabs(page))])) seen.add(s);
       expect([...seen], `Arabic left on ${path} in English`).toEqual([]);
     });
   }
