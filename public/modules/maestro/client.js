@@ -240,5 +240,5 @@ export default async function mount() {
     busy(b, false);
   });
 
-  shell({ active: 'maestro', title: 'المدير', tools: '' }).then(me => { if (me.role === 'owner') $('#healthLink')?.removeAttribute('hidden'); mountSpend(); return load(); }).catch(pageFailure);
+  shell({ active: 'maestro', title: 'المدير', tools: '' }).then(me => { if (me.role === 'owner') { $('#healthLink')?.removeAttribute('hidden'); $('#auditLink')?.removeAttribute('hidden'); } mountSpend(); return load(); }).catch(pageFailure);
 }

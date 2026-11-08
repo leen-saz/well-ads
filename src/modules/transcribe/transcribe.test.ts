@@ -11,7 +11,7 @@ import { MAX_BYTES, cleanUpload, libraryDoc, parseSummary, personalNotes, stepsF
 import { acquire, runTranscribe, stepJob } from './service';
 import { ROUTES } from '../routes';
 import { LIVE } from '../registry';
-import migration from '../../../supabase/migrations/023_transcribe.sql?raw';
+import migration from '../../../supabase/migrations/024_transcribe.sql?raw';
 
 const CO_A = '11111111-1111-1111-1111-111111111111', CO_B = '22222222-2222-2222-2222-222222222222';
 const E: A.AuthEnv & { GEMINI_API_KEY?: string; FILES?: R2Bucket } = { SUPABASE_URL: 'https://sb.example', SUPABASE_SERVICE_ROLE_KEY: 's', SESSION_SECRET: 'x'.repeat(40), OWNER_EMAIL: 'boss@example.com' };

@@ -4,7 +4,7 @@ import { login, addSession, emailFor } from './helpers';
 import { CORE_KEYS, MODULE_KEYS } from './keys';
 import { LIVE } from '../../src/modules/registry';
 
-const BASE = `http://localhost:${process.env['SMOKE_WORKER_PORT'] || 8787}`;
+const BASE = `http://localhost:${process.env['SMOKE_PORT'] || 8787}`;
 // Each live tab: its page and its main read-only API
 const TABS: { key: string; page: string; api: string }[] = [
   { key: 'overview', page: '/overview/', api: '/api/overview/data' },

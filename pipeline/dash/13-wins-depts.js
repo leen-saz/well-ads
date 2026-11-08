@@ -17,7 +17,7 @@ function renderWins(){
   if(newWins.length) add('🏆',ui(cnt(newWins.length,'إعلان فايز جديد','إعلانين فايزين جداد','إعلانات فايزة جديدة'),`${newWins.length} new winning ads`),esc(newWins.slice(0,3).join(' · '))+(newWins.length>3?' …':''));
   const ideas={}; for(const [k,o] of Object.entries(A.byAd)){ const a1=ADS[k]; if(a1.goal!=='lead') continue; const id=ideaKey(a1), y=ideas[id]||(ideas[id]={name:a1.name,leadSpend:0,leadN:0}); y.leadSpend+=o.leadSpend; y.leadN+=o.leadN; }
   const best=Object.values(ideas).filter(y=>y.leadN>=10).sort((p,q)=>p.leadSpend/p.leadN-q.leadSpend/q.leadN)[0];
-  if(best) add('🎬',ui('أرخص فكرة في الفترة','Cheapest idea in this period'),`${esc(best.name)} · ${qty(best.leadN)} ${ui('ليد بـ','leads at')} ${sar(best.leadSpend/best.leadN)} ${ui('ريال','SAR')}`);
+  if(best) add('🎬',ui('أرخص فكرة في الفترة','Cheapest idea in this period'),`<bdi data-user-text>${esc(best.name)}</bdi> · ${qty(best.leadN)} ${ui('ليد بـ','leads at')} ${sar(best.leadSpend/best.leadN)} ${ui('ريال','SAR')}`);
   if(B && !S.dept){ const ad=aggAllDepts(from,to), bd=aggAllDepts(pFrom,pTo);
     const imp=DORDER.map(k=>{ const x=derive(ad.by[k]||{}), y=derive(bd.by[k]||{}); return {k,c:(x.leadN>=10&&y.cpl)?ch(x.cpl,y.cpl):null,x,y}; }).filter(r=>r.c!=null&&r.c<=-5).sort((p,q)=>p.c-q.c)[0];
     if(imp) add('🩺',ui(`${depName(imp.k)}: تكلفة الليد نزلت ${fmt(-imp.c,0)}%`,`${depName(imp.k)}: cost per lead down ${fmt(-imp.c,0)}%`),ui(`${sar(imp.x.cpl)} ريال مقابل ${sar(imp.y.cpl)}`,`${sar(imp.x.cpl)} vs ${sar(imp.y.cpl)} SAR`)); }
@@ -116,7 +116,8 @@ function renderRules(){
   const el=$('#rulesNote'); if(!el) return;
   const hints=LANG==='en'
     ? {iv:'IV, drips, and Hair-Vitality', midwife:'Midwife, maternity care', foot:'Foot alignment', renan:'Renan'}
-    : {iv:'IV، محاليل، و Hair-Vitality', midwife:'قابلة، رعاية الحمل، midwife', foot:'Foot Alignment، تقويم القدم', renan:'رينان'};
+    // The words matched in ad names; the Latin ones are matching terms, not copy (data-user-text)
+    : {iv:'<bdi data-user-text>IV</bdi>، محاليل، و <bdi data-user-text>Hair-Vitality</bdi>', midwife:'قابلة، رعاية الحمل، <bdi data-user-text>midwife</bdi>', foot:'<bdi data-user-text>Foot Alignment</bdi>، تقويم القدم', renan:'رينان'};
   const cards=[
     ['براندينق','هذه حملات براندينق، وتبقى ضمن الحملات والمنصات بدون قسم.'],
     ...DORDER.map(k=>[depName(k), hints[k]||'']),
