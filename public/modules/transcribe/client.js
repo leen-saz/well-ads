@@ -15,7 +15,7 @@ export default async function mount() {
     const acts = (r.actions || []).map(a => `<li>${esc(a.task)}${a.owner ? ` <span class="muted">(${esc(a.owner)})</span>` : ''}${a.due ? ` <span class="muted">· ${esc(a.due)}</span>` : ''}</li>`).join('');
     return `<p class="tr-sum" data-user-text>${esc(r.summary || '')}</p>
       ${r.hook ? `<p class="tr-h">الهوك (أول 3 ثواني)</p><p class="tr-sum" data-user-text>${esc(r.hook)}</p>` : ''}
-      ${r.offer ? `<p class="tr-h">العرض</p><p class="tr-sum" data-user-text>${esc(r.offer)}</p>` : ''}
+      ${r.offer ? `<p class="tr-h">العرض الإعلاني</p><p class="tr-sum" data-user-text>${esc(r.offer)}</p>` : ''}
       ${acts ? `<p class="tr-h">بنود العمل</p><ul class="tr-list" data-user-text>${acts}</ul>` : ''}
       ${(r.notes || []).length ? '<div class="tr-warn" role="status">انتبه: النص فيه بيانات شخصية محتملة (رقم جوال أو هوية أو ذكر مريض). لا تشاركه قبل ما تراجعه وتشيل أي بيانات شخصية.</div>' : ''}
       <details data-full><summary>النص كامل</summary><pre class="tr-text" data-user-text></pre></details>
