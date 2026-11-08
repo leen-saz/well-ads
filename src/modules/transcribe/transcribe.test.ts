@@ -291,7 +291,7 @@ describe('failures', () => {
     delete E.GEMINI_API_KEY;
     expect(await drive(a.id)).toMatchObject({ status: 'failed', error: 'ما اكتمل تجهيزه، بلّغ الإدارة' });
     E.GEMINI_API_KEY = 'k';
-    const b = mkJob({ seconds: 100, r2_key: 'transcribe/x/gone' }); r2.delete('transcribe/x/gone');
+    const gone = 'transcribe/x/gone'; const b = mkJob({ seconds: 100, r2_key: gone }); r2.delete(gone);
     expect(await drive(b.id)).toMatchObject({ status: 'failed', error: 'الملف ما انحفظ، ارفعه مرة ثانية' });
     capRows = [{ module: 'transcribe', monthly_cap_usd: 1 }]; spendRows = [{ module: 'transcribe', cost_usd: 5 }]; clearSnaps();
     const c = mkJob({ seconds: 100, gemini_file: 'files/abc', gemini_uri: 'u', step: 1 });
