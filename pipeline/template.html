@@ -150,6 +150,35 @@ input[type=search]{width:min(240px,100%)}
 .range-label b{color:var(--ink);font-family:var(--f-num);font-weight:600}
 
 /* KPIs */
+/* Date picker (04-filters.js): a month of days from the data's own range, start and end, then apply */
+.dpick-wrap{position:relative}
+.dpick-btn{font:inherit;font-size:.82rem;padding:6px 12px;border-radius:999px;border:1px solid var(--line);background:var(--surface);color:var(--ink);cursor:pointer;display:inline-flex;align-items:center;gap:6px}
+.dpick-btn svg{width:14px;height:14px;fill:none;stroke:currentColor;stroke-width:2}
+.dpick-btn[aria-pressed="true"]{background:var(--accent);border-color:var(--accent);color:#fff}
+.dpick{position:absolute;inset-inline-start:0;top:calc(100% + 6px);z-index:60;width:300px;max-width:calc(100vw - 32px);background:var(--surface);border:1px solid var(--line);border-radius:14px;box-shadow:0 12px 32px rgba(20,10,60,.18);padding:12px;display:grid;gap:8px}
+.dpick[hidden]{display:none}
+.dp-head{display:flex;align-items:center;justify-content:space-between}
+.dp-head b{font-size:.9rem;color:var(--ink)}
+.dp-nav{width:30px;height:30px;border-radius:8px;border:1px solid var(--line);background:transparent;color:var(--ink);cursor:pointer;font-size:1rem;line-height:1}
+.dp-nav:disabled{opacity:.35;cursor:default}
+.dp-week,.dp-grid{display:grid;grid-template-columns:repeat(7,1fr);gap:2px 0;text-align:center}
+.dp-week span{font-size:.68rem;color:var(--muted)}
+.dp-grid button{font:inherit;font-size:.8rem;height:34px;border:0;border-radius:8px;background:transparent;color:var(--ink);cursor:pointer;font-variant-numeric:tabular-nums}
+.dp-grid button:hover:not(:disabled){background:color-mix(in srgb,var(--accent) 14%,transparent)}
+.dp-grid button:disabled{color:var(--muted);opacity:.4;cursor:default}
+.dp-grid button.in{background:color-mix(in srgb,var(--accent) 16%,transparent);border-radius:0}
+.dp-grid button.s,.dp-grid button.e{background:var(--accent);color:#fff;border-radius:8px}
+.dp-grid button.today{box-shadow:inset 0 0 0 1px var(--accent)}
+.dp-grid button:focus-visible,.dp-nav:focus-visible{outline:2px solid var(--accent);outline-offset:1px}
+.dp-fields{display:flex;gap:8px;flex-wrap:wrap}
+.dp-fields .field{flex:1;min-width:120px}
+.dp-foot{display:flex;align-items:center;gap:8px}
+.dp-foot .hint{flex:1;font-size:.75rem;color:var(--muted)}
+.dp-apply,.dp-cancel{font:inherit;font-size:.8rem;padding:6px 14px;border-radius:999px;cursor:pointer}
+.dp-apply{background:var(--accent);color:#fff;border:1px solid var(--accent)}
+.dp-apply:disabled{opacity:.5;cursor:default}
+.dp-cancel{background:transparent;border:1px solid var(--line);color:var(--ink)}
+@media (max-width:640px){.dpick{position:fixed;inset-inline:16px;top:auto;bottom:16px;width:auto;max-width:none;z-index:200}.dp-fields .field{min-width:100%}}
 .kgroups{display:grid;gap:18px}
 .kgroup{display:grid;gap:8px}
 .khead{display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap}
@@ -514,8 +543,17 @@ body{background:
     </div>
     <div class="row">
       <div class="seg" id="presets" role="group" aria-label="الفترة"></div>
-      <label class="field" for="from">من <input type="date" id="from"></label>
-      <label class="field" for="to">إلى <input type="date" id="to"></label>
+      <!-- اختيار تاريخ: تقويم بالأيام اللي فيها بيانات (يوم الرياض)، ضغطة للبداية وضغطة للنهاية، وتطبيق -->
+      <div class="dpick-wrap">
+        <button type="button" id="dpickBtn" class="dpick-btn" aria-haspopup="dialog" aria-expanded="false" aria-controls="dpick" aria-pressed="false"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/></svg><span id="dpickLbl">اختيار تاريخ</span></button>
+        <div class="dpick" id="dpick" role="dialog" aria-label="اختيار تاريخ" hidden>
+          <div class="dp-head"><button type="button" class="dp-nav" data-nav="-1" aria-label="الشهر السابق"></button><b id="dpMonth" aria-live="polite"></b><button type="button" class="dp-nav" data-nav="1" aria-label="الشهر التالي"></button></div>
+          <div class="dp-week" id="dpWeek" aria-hidden="true"></div>
+          <div class="dp-grid" id="dpGrid"></div>
+          <div class="dp-fields"><label class="field" for="from">من <input type="date" id="from"></label><label class="field" for="to">إلى <input type="date" id="to"></label></div>
+          <div class="dp-foot"><span id="dpSel" class="hint"></span><button type="button" id="dpCancel" class="dp-cancel">إلغاء</button><button type="button" id="dpApply" class="dp-apply">تطبيق</button></div>
+        </div>
+      </div>
     </div>
     <div class="row adv">
       <span class="slc-l">القسم</span>
