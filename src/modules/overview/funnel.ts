@@ -124,7 +124,9 @@ const ADVICE: Record<StepKey, { title: string; where: string; why: string; todo:
 // The bottleneck: the weakest step that can be judged. An unattributed step is never it; it gets its own note.
 export function verdict(list: Step[]): Verdict {
   const unlinked = list.some(s => s.unattributed) ? UNLINKED_ADVICE : null;
-  const pick = list.filter(s => s.score != null).sort((x, y) => x.score! - y.score!)[0];
+  // A step under its floor (bad) outranks one only weaker than usual (watch); then the lowest score
+  const rank: Record<Level, number> = { bad: 0, watch: 1, ok: 2 };
+  const pick = list.filter(s => s.score != null).sort((x, y) => rank[x.level] - rank[y.level] || x.score! - y.score!)[0];
   if (!pick) return { step: null, level: 'ok', title: 'ما فيه أرقام كفاية للتحليل', where: '', why: '', todo: '', unlinked };
   const a = ADVICE[pick.key];
   if (pick.level === 'ok') return { step: pick.key, level: 'ok', title: 'ما فيه عنق زجاجة واضح', where: a.where, why: `أضعف خطوة ${a.where}، بس هي في حدودها المعتادة.`, todo: 'كمّل على نفس الخطة وراقب هالخطوة.', unlinked };

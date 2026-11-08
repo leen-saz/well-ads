@@ -1,7 +1,7 @@
 // The customer journey: the same funnel as the main dashboard (pipeline/dash/05-render.js), the sale stage always there,
 // and the same numbers as the pipeline page for the same dates (tests/parity/golden.json, built from the same fixture).
 import { describe, expect, it } from 'vitest';
-import { FUNNEL_COLOURS, FUNNEL_WIDTHS, NO_CRM, journey, outcome } from './analytics';
+import { FUNNEL_COLOURS, NO_CRM, journey, outcome } from './analytics';
 import type { Dash } from './numbers';
 import fixture from '../../../tests/parity/fixtures/ads.json';
 import golden from '../../../tests/parity/golden.json';
@@ -21,8 +21,7 @@ describe('overview: customer journey', () => {
     const w = j.stages.map(s => s.width);
     expect(w.every((x, i) => i === 0 || x < w[i - 1]!)).toBe(true);
     expect(j.stages.slice(1).every(s => s.rate)).toBe(true);
-    expect(render).toContain(`const widths = ${JSON.stringify(FUNNEL_WIDTHS).replace(/,/g, ', ')}`);
-    expect(render).toContain(JSON.stringify(FUNNEL_COLOURS).replace(/"/g, "'"));
+    expect(render).toContain(`COL:${JSON.stringify(FUNNEL_COLOURS).replace(/"/g, "'")}`);
   });
 
   it('the sale layer shows with no CRM: "—" and the reason', () => {

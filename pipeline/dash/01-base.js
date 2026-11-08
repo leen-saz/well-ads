@@ -32,6 +32,8 @@ const EN = {
   'كم واحد ضغط':'How many clicked',
   'كم واحد ترك بياناته أو راسلنا':'How many left details or messaged us',
   'كم واحد دفع':'How many paid',
+  'غير مربوط':'Not linked',
+  'عنق الزجاجة':'Bottleneck',
   'نظام العملاء مو موصول بهالأرقام':'The CRM is not connected to these numbers',
   'مرحلة البيع فاضية لأن أرقام نظام العملاء ما وصلت لهالنسخة من اللوحة. أول ما توصل تطلع الاقفالات هنا.':'The sale stage is empty because the CRM numbers did not reach this copy of the dashboard. Closings show here as soon as they do.',
   'اقفالات مدفوعة':'Paid closings',
