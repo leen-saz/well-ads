@@ -57,6 +57,6 @@ export default async function mount() {
         } catch (err) { out.textContent = ''; say($('#msg'), err.message); }
         btn.disabled = false;
       });
-    } catch (err) { failure(box, err, () => location.reload()); }
+    } catch (err) { if (err.status === 404) box.innerHTML = `<p class="muted">${esc(t.skip)}</p>`; else failure(box, err, () => location.reload()); }
   }).catch(pageFailure);
 }

@@ -4,7 +4,7 @@ import { test, expect, type Page } from '@playwright/test';
 import { login, addSession } from './helpers';
 
 const PAGES = [
-  '/', '/today/', '/control/', '/control/new/', '/connectors/', '/account/', '/admin/', '/admin/modules/', '/library/', '/maestro/health/',
+  '/', '/today/', '/control/', '/control/new/', '/connectors/', '/account/', '/admin/', '/admin/modules/', '/library/', '/maestro/health/', '/maestro/audit/',
   '/overview/', '/overview/creative/', '/listening/', '/design/', '/copy/', '/voice/', '/social/', '/content/', '/journeys/',
   '/compliance/', '/maestro/', '/knowledge/', '/debugger/', '/soon/', '/welcome/',
 ];
