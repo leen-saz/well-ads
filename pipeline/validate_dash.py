@@ -6,8 +6,11 @@ Usage: python validate_dash.py path/to/dash.json [dir-with-per-audience-json]
 The repo is public and so are its Actions logs: a message names the key or the kind of problem, never a figure
 (no row counts, spend, amounts or ad names). Exit 0 = fine, 1 = problems (listed), 2 = could not read the file.
 """
-import json, re, sys
+import json, os, re, sys
 from datetime import date
+
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+from dash_split import decode_rows  # noqa: E402  (same decoding as the page)
 
 MIN_ADS = 3          # a build that lost almost every ad is broken, not quiet
 MIN_ROWS = 30        # daily rows: real files have thousands
@@ -26,16 +29,41 @@ def _num(x):
     return isinstance(x, (int, float)) and not isinstance(x, bool) and x == x and abs(x) != float("inf")
 
 
+def _index(x, n):
+    return isinstance(x, int) and not isinstance(x, bool) and 0 <= x < n
+
+
+def rows_of(data):
+    """The daily rows as [ad, day, ...numbers], and a public-safe problem or None. The main dash.json carries them
+    column-wise in 'rows_cols' (dash_split.py: k = ad keys, d = days, c = seven columns); other files carry 'rows'.
+    Column-wise rows are decoded the same way the page decodes them, after checking the columns fit together."""
+    if "rows" in data:
+        return (data["rows"], None) if isinstance(data["rows"], list) else (None, "'rows' has the wrong type")
+    if "rows_cols" not in data:
+        return None, "missing required key 'rows'"
+    rc = data["rows_cols"]
+    k, d, c = (rc.get("k"), rc.get("d"), rc.get("c")) if isinstance(rc, dict) else (None, None, None)
+    if not (isinstance(k, list) and isinstance(d, list) and isinstance(c, list) and len(c) == 7
+            and all(isinstance(col, list) and len(col) == len(c[0]) for col in c)):
+        return None, "'rows_cols' is malformed (expected k, d and seven columns of the same length)"
+    if not (all(_index(i, len(k)) for i in c[0]) and all(_index(i, len(d)) for i in c[1])):
+        return None, "'rows_cols' has an ad or day index outside its list"
+    return decode_rows(rc), None
+
+
 def validate(data, min_ads=MIN_ADS, min_rows=MIN_ROWS):
     """Problems as short public-safe strings (empty list = valid)."""
     if not isinstance(data, dict):
         return ["the file is not a JSON object"]
     errs = []
-    for key, kind in (("range", dict), ("ads", dict), ("rows", list)):
+    for key, kind in (("range", dict), ("ads", dict)):
         if key not in data:
             errs.append(f"missing required key '{key}'")
         elif not isinstance(data[key], kind):
             errs.append(f"'{key}' has the wrong type")
+    rows, problem = rows_of(data)
+    if problem:
+        errs.append(problem)
     if errs:
         return errs
     rng = data["range"]
@@ -44,7 +72,7 @@ def validate(data, min_ads=MIN_ADS, min_rows=MIN_ROWS):
         errs.append("range needs start, end and today as YYYY-MM-DD dates")
     elif not (start <= end <= today):
         errs.append("range is out of order (start, end, today)")
-    ads, rows = data["ads"], data["rows"]
+    ads = data["ads"]
     if len(ads) < min_ads:
         errs.append("too few ads for a real build")
     if len(rows) < min_rows:
@@ -85,8 +113,9 @@ def validate(data, min_ads=MIN_ADS, min_rows=MIN_ROWS):
 
 
 def check_audience_files(directory):
-    """The per-audience files (data/*.json, data/dept/*.json) must at least be valid JSON objects with ads and rows."""
-    import glob, os
+    """The per-audience files (data/*.json, data/dept/*.json) must at least be valid JSON objects with ads and rows
+    (as 'rows', or column-wise as 'rows_cols')."""
+    import glob
     errs = []
     for path in sorted(glob.glob(os.path.join(directory, "*.json")) + glob.glob(os.path.join(directory, "dept", "*.json"))):
         name = os.path.relpath(path, directory)
@@ -96,7 +125,7 @@ def check_audience_files(directory):
         except (OSError, ValueError):
             errs.append(f"{name}: not valid JSON")
             continue
-        if not (isinstance(d, dict) and isinstance(d.get("ads"), dict) and isinstance(d.get("rows"), list)):
+        if not (isinstance(d, dict) and isinstance(d.get("ads"), dict) and rows_of(d)[1] is None):
             errs.append(f"{name}: needs 'ads' and 'rows'")
     return errs
 
