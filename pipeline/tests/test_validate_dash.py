@@ -1,7 +1,10 @@
-import contextlib, copy, io, json, os, sys, tempfile, unittest
+import contextlib, copy, io, json, os, subprocess, sys, tempfile, unittest
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 import validate_dash as v  # noqa: E402
+from dash_split import rows_cols, split  # noqa: E402
+
+ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 
 
 def good():
@@ -59,6 +62,34 @@ class ValidateTests(unittest.TestCase):
         split["extra"] = "aud"
         self.assertIn("'extra' must be a list of names", v.validate(split))
 
+    def test_column_wise_rows_pass_and_keep_every_row_rule(self):
+        """The main dash.json as dash_split.py writes it: rows_cols instead of rows. The same rules apply after decoding."""
+        main, _, _ = split(good())
+        self.assertNotIn("rows", main)
+        self.assertEqual(v.validate(main), [])
+        def cols(change):
+            d = good(); change(d["rows"]); m, _, _ = split(d); return v.validate(m)
+        self.assertIn("too few daily rows for a real build", cols(lambda r: r.__delitem__(slice(3, None))))
+        self.assertIn("some rows have a negative spend or metric", cols(lambda r: r[0].__setitem__(2, -1)))
+        self.assertIn("some rows have a day that is invalid or outside the range", cols(lambda r: r[1].__setitem__(1, "2027-01-01")))
+        self.assertIn("some rows are malformed (expected [ad, day, spend, ...numbers])", cols(lambda r: r[2].__setitem__(3, "100")))
+
+    def test_malformed_column_wise_rows(self):
+        def bad(change):
+            m, _, _ = split(good()); change(m["rows_cols"]); return v.validate(m)
+        cols_msg = "'rows_cols' is malformed (expected k, d and seven columns of the same length)"
+        index_msg = "'rows_cols' has an ad or day index outside its list"
+        self.assertEqual(bad(lambda rc: rc["c"].pop()), [cols_msg])
+        self.assertEqual(bad(lambda rc: rc["c"][4].pop()), [cols_msg])
+        self.assertEqual(bad(lambda rc: rc.__setitem__("k", "m0|x")), [cols_msg])
+        self.assertEqual(bad(lambda rc: rc["c"][0].__setitem__(0, 99)), [index_msg])
+        self.assertEqual(bad(lambda rc: rc["c"][1].__setitem__(0, -1)), [index_msg])
+        self.assertEqual(bad(lambda rc: rc["c"][0].__setitem__(0, True)), [index_msg])
+        m, _, _ = split(good()); m["rows_cols"] = []
+        self.assertEqual(v.validate(m), [cols_msg])
+        m, _, _ = split(good()); del m["rows_cols"]
+        self.assertEqual(v.validate(m), ["missing required key 'rows'"])
+
     def test_crm_block(self):
         d = good(); d["crm"]["rows"][0][4] = -5
         self.assertIn("some crm rows are malformed or have a negative amount", v.validate(d))
@@ -104,6 +135,54 @@ class CliTests(unittest.TestCase):
             json.dump({"ads": {}, "rows": []}, open(os.path.join(t, "full.json"), "w"))
             open(os.path.join(t, "dept", "iv.json"), "w").write("oops")
             self.assertEqual(v.check_audience_files(t), ["dept/iv.json: not valid JSON"])
+
+    def test_audience_files_in_both_row_shapes(self):
+        with tempfile.TemporaryDirectory() as t:
+            os.makedirs(os.path.join(t, "dept"))
+            json.dump({"ads": {}, "rows": []}, open(os.path.join(t, "full.json"), "w"))
+            json.dump({"ads": {}, "rows_cols": rows_cols(good()["rows"])}, open(os.path.join(t, "creative.json"), "w"))
+            self.assertEqual(v.check_audience_files(t), [])
+            json.dump({"ads": {}, "rows_cols": {"k": [], "d": [], "c": [[0]]}}, open(os.path.join(t, "dept", "iv.json"), "w"))
+            json.dump({"ads": {}}, open(os.path.join(t, "dept", "foot.json"), "w"))
+            self.assertEqual(v.check_audience_files(t), ["dept/foot.json: needs 'ads' and 'rows'", "dept/iv.json: needs 'ads' and 'rows'"])
+
+    def test_failure_output_carries_no_figures(self):
+        m, _, _ = split(good()); m["rows_cols"]["c"][2][0] = -123456.78
+        code, out = self.run_cli(m)
+        self.assertEqual(code, 1)
+        self.assertNotIn("123456", out)
+        self.assertFalse(any(ch.isdigit() for ch in out), out)
+
+
+class BuildOutputTests(unittest.TestCase):
+    """build.py on synthetic data, then the validator exactly as the workflows run it (refresh.yml, pipeline.yml)."""
+
+    def test_the_validator_passes_what_build_writes(self):
+        data_path = os.path.join(ROOT, "data.json")
+        previous = open(data_path, encoding="utf-8").read() if os.path.exists(data_path) else None
+        try:
+            payload = good()
+            payload.update({"generated_at": "2026-10-09T09:00+03:00", "schema": 2, "goals": {"lead": "ليدز"},
+                            "platforms": {"meta": {"ok": True, "currency": "SAR"}}})
+            del payload["crm"]
+            for ad in payload["ads"].values():
+                ad.update({"campaign": "c", "group": "g", "goal": "lead", "status": "ACTIVE", "text": "", "live": True,
+                           "aud": {"gender": [["female", 100, 5, 10.0, 1]]}})
+            json.dump(payload, open(data_path, "w", encoding="utf-8"))
+            subprocess.check_call([sys.executable, os.path.join(ROOT, "build.py")], cwd=ROOT, stdout=subprocess.DEVNULL)
+            public = os.path.join(ROOT, "web", "public")
+            dash = json.load(open(os.path.join(public, "dash.json"), encoding="utf-8"))
+            self.assertIn("rows_cols", dash)      # the shape that broke the hourly refresh
+            self.assertNotIn("rows", dash)
+            out = io.StringIO()
+            with contextlib.redirect_stdout(out):
+                code = v.main(["validate_dash.py", os.path.join(public, "dash.json"), os.path.join(public, "data")])
+            self.assertEqual(code, 0, out.getvalue())
+        finally:
+            if previous is None:
+                os.remove(data_path)
+            else:
+                open(data_path, "w", encoding="utf-8").write(previous)
 
 
 if __name__ == "__main__":
