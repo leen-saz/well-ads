@@ -21,7 +21,7 @@ export const usage = { GET: handle(async (request, e) => {
     sb<Row[]>(cfg, '/rest/v1/rpc/ai_spend', { method: 'POST', admin: true, body: { p_company: user.co, p_since: monthStart(now, 5) } }),
     sb<Budget[]>(cfg, scoped('/rest/v1/ai_budgets?select=module,monthly_cap_usd,alert_at_pct', user.co), { admin: true }),
   ]);
-  if (!u.ok || !b.ok) return json(missingSchema(u) || missingSchema(b) ? 503 : 500, { error: missingSchema(u) || missingSchema(b) ? notApplied(MIGRATION) : 'ما قدرت أقرأ الصرف' });
+  if (!u.ok || !b.ok) return json(missingSchema(u) || missingSchema(b) ? 503 : 500, { error: missingSchema(u) || missingSchema(b) ? notApplied(user, MIGRATION) : 'ما قدرت أقرأ الصرف' });
   const rows = Array.isArray(u.data) ? u.data : [];
   const months = [...new Set([...rows.map(r => String(r.month)), new Date(now + 3 * 3600e3).toISOString().slice(0, 7)])].sort().reverse();
   const month = months.includes(pick) ? pick : months[0]!;
@@ -60,7 +60,7 @@ export const budgets = { POST: handle(async (request, e) => {
   if (!(pct >= 1 && pct <= 99)) return json(400, { error: 'نسبة التنبيه بين 1 و99' });
   const r = await sb(cfg, '/rest/v1/ai_budgets?on_conflict=company_id,module', { method: 'POST', admin: true, headers: { Prefer: 'resolution=merge-duplicates,return=minimal' },
     body: { company_id: user.co, module: tab, monthly_cap_usd: raw === null ? null : Math.round((raw / USD_SAR) * 1e4) / 1e4, alert_at_pct: pct, updated_by: user.email, updated_at: new Date().toISOString() } });
-  if (!r.ok) return json(missingSchema(r) ? 503 : 500, { error: missingSchema(r) ? notApplied(MIGRATION) : 'ما انحفظ السقف' });
+  if (!r.ok) return json(missingSchema(r) ? 503 : 500, { error: missingSchema(r) ? notApplied(user, MIGRATION) : 'ما انحفظ السقف' });
   clearSnaps();
   await audit(cfg, user, raw === null ? 'ai_budget_cleared' : 'ai_budget_set', { target: { tab, alert_pct: pct } });
   return json(200, { ok: true });
@@ -76,7 +76,7 @@ export const reconcile = { POST: handle(async (request, e) => {
   if (!(isFinite(invoice) && invoice > 0 && invoice <= 100_000_000)) return json(400, { error: 'اكتب مبلغ الفاتورة بالدولار' });
   const from = new Date(Date.UTC(+m[1]!, +m[2]! - 1, 1) - 3 * 3600e3), to = new Date(Date.UTC(+m[1]!, +m[2]!, 1) - 3 * 3600e3);
   const r = await sb<{ calls: number; cost_usd: number; unpriced: number }[]>(cfg, '/rest/v1/rpc/ai_spend_provider', { method: 'POST', admin: true, body: { p_company: user.co, p_provider: provider, p_from: from.toISOString(), p_to: to.toISOString() } });
-  if (!r.ok) return json(missingSchema(r) ? 503 : 500, { error: missingSchema(r) ? notApplied(MIGRATION) : 'ما قدرت أقرأ الصرف' });
+  if (!r.ok) return json(missingSchema(r) ? 503 : 500, { error: missingSchema(r) ? notApplied(user, MIGRATION) : 'ما قدرت أقرأ الصرف' });
   const row = Array.isArray(r.data) ? r.data[0] : undefined, calls = num(row?.calls), unpriced = num(row?.unpriced);
   const out = compare(num(row?.cost_usd), invoice);
   await audit(cfg, user, 'ai_reconciled', { target: { provider, month: `${m[1]}-${m[2]}`, ok: out.ok, diff_pct: out.diff_pct } });
