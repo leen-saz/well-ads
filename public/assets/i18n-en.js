@@ -361,6 +361,34 @@ export const EN = {
   'رقم صفحة فيسبوك': 'Facebook page ID',
   'رقم حساب انستقرام (Business)': 'Instagram account ID (Business)',
   'مفتاح الصفحة': 'Page token',
+  // Postiz: the extra publishing engine (Connectors page)
+  'Postiz (محرك نشر إضافي: تيك توك وX ولينكدإن)': 'Postiz (extra publishing engine: TikTok, X and LinkedIn)',
+  'Postiz برنامج مفتوح المصدر تستضيفه أنت (docker compose على سيرفر صغير) وننشر من خلاله لتيك توك وX ولينكدإن بعد اعتماد المنشور. العنوان: https://دومينك (نكمل مسار /api/public/v1 بنفسنا). المفتاح: Postiz ← Settings ← Public API. ما ينشر شي قبل الاعتماد، ولا نستخدم الجدولة ولا المسودات في Postiz. التفاصيل في docs/social-engine.md.': 'Postiz is open-source software you host yourself (docker compose on a small server). We publish through it to TikTok, X and LinkedIn once a post is approved. Address: https://your-domain (we add the /api/public/v1 path ourselves). Key: Postiz → Settings → Public API. Nothing is published before approval, and we never use Postiz scheduling or drafts. Details in docs/social-engine.md.',
+  'عنوان Postiz (https فقط)': 'Postiz address (https only)',
+  'مفتاح Public API': 'Public API key',
+  // Social tab: the extra publishing service (owner's check)
+  'غير متاح الحين': 'Not available right now',
+  '(غير متاح الحين)': '(not available now)',
+  'غير متاح الحين: بينحفظ كتذكير': 'Not available right now: it will be saved as a reminder',
+  'النشر التلقائي لهالمنصة غير متاح الحين. انحفظ كتذكير': 'Automatic publishing to this platform is not available right now. It was saved as a reminder',
+  'المنشور ما يناسب شروط المنصة (عدد الصور أو نوع الملف)': "The post does not fit the platform's rules (number of images or file type)",
+  'فيه أكثر من حساب مربوط لهالمنصة. خلّ المالك يترك حساب واحد': 'More than one account is connected for this platform. Ask the owner to keep one',
+  'الخدمة شغالة': 'The service is running',
+  'ما انربطت خدمة النشر لتيك توك وX ولينكدإن. اربطها من صفحة الربط': 'The publishing service for TikTok, X and LinkedIn is not connected. Connect it from the Connectors page',
+  'عنوان الخدمة غير صحيح. صححه من صفحة الربط': 'The service address is not valid. Fix it on the Connectors page',
+  'مفتاح الخدمة مرفوض أو ناقص. حدّثه من صفحة الربط': 'The service key was rejected or is missing. Update it on the Connectors page',
+  'ما قدرنا نوصل للخدمة. تأكد إنها شغالة': 'We could not reach the service. Make sure it is running',
+  'حساب مربوط': 'Account connected',
+  'ما فيه حساب مربوط. اربطه من داخل الخدمة': 'No account connected. Connect it inside the service',
+  'أكثر من حساب مربوط. اترك حساب واحد': 'More than one account connected. Keep only one',
+  'النشر لتيك توك وX ولينكدإن': 'Publishing to TikTok, X and LinkedIn',
+  'يمر بخدمة نشر إضافية، وبعد الاعتماد بس.': 'It goes through an extra publishing service, and only after approval.',
+  'افحص الخدمة والحسابات': 'Check the service and accounts',
+  'ما انكتب عنوان ولا مفتاح': 'No address or key entered',
+  'العنوان لازم https ومن دومين (مو IP ولا localhost)': 'The address must be https and a domain name (not an IP or localhost)',
+  'Postiz رفض المفتاح أو المفتاح ناقص': 'Postiz rejected the key, or the key is missing',
+  'ما قدرت أوصل لـ Postiz. تأكد من العنوان وإن السيرفر شغال': 'Could not reach Postiz. Check the address and that the server is running',
+  'Postiz شغال بس ما فيه حساب مربوط لتيك توك أو X أو لينكدإن. اربطها من داخل Postiz': 'Postiz is running but has no connected TikTok, X or LinkedIn account. Connect them inside Postiz',
   // تيك توك MCP
   'زر "اربط" يسجّل دخولك على سيرفر MCP الرسمي حق TikTok for Business (بدون تطبيق مطوّرين). الدخول يخلص كل 30 يوم. بدونه يكمّل السحب من فرع tiktok-data.': 'Connect signs you in to the official TikTok for Business MCP server (no developer app). The sign-in lasts 30 days. Without it the pull keeps reading the tiktok-data branch.',
   'بعد 30 يوم': 'after 30 days',
@@ -1139,6 +1167,7 @@ const needs = x => {
 };
 // Patterns for strings with numbers or names in them. Some translate their parts with i18n.js's t(), passed in.
 export const pat = t => [
+  [/^Postiz شغال\. حسابات مربوطة: (.+)$/, (m, a) => 'Postiz is running. Connected accounts: ' + a.split('، ').map(t).join(', ')],
   [/^(\d+) من (\d+)$/, '$1 of $2'],
   [/^المدة نحو (\d+) ثانية\. اسمعه قبل ما تستخدمه\.$/, 'About $1 seconds. Listen before you use it.'], [/^النص أطول من (\d+) حرف\. قسّمه لأجزاء$/, 'The text is longer than $1 characters. Split it into parts'],
   [/^الخطوة (\d+) من (\d+)$/, 'Step $1 of $2'], [/^يرفع الملف… (\d+)%$/, 'Uploading the file… $1%'],

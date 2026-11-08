@@ -10,6 +10,7 @@ import { knowledgeFor, rulesFor, withKnowledge } from '../knowledge/knowledge';
 import { generate, pick, type LlmEnv } from '../../lib/llm';
 import { usageCtx } from '../../lib/usage';
 import { MEDIA_TYPES, MEDIA_MAX, mediaKey } from './media';
+import { cachedStatus, postizPlatforms, withEngineSecrets, type EngineStatus } from './postiz';
 
 type Row = Record<string, unknown>;
 const rows = (d: unknown): Row[] => (Array.isArray(d) ? (d as Row[]) : []);
@@ -22,13 +23,19 @@ const ONLY = (names: string[]) => names.length ? `الاعتماد لـ ${names.
 const day = (s: string | null, fallback: number) => { const t = Date.parse(s || ''); return new Date(Number.isFinite(t) ? t : fallback).toISOString(); };
 
 // The connected accounts, as the publisher sees them (src/modules/social/cron.ts): Well's vault today
-async function tokensFor(cfg: Cfg, co: string): Promise<Record<string, string>> {
+async function tokensFor(cfg: Cfg, co: string, e?: unknown): Promise<Record<string, string>> {
   if (co !== WELL_COMPANY) return {};
   const v = await sb<{ name: string; value: string }[]>(cfg, '/rest/v1/rpc/connector_env', { method: 'POST', admin: true, body: {} });
-  return Object.fromEntries((v.ok && Array.isArray(v.data) ? v.data : []).map(x => [x.name, x.value]));
+  return withEngineSecrets(Object.fromEntries((v.ok && Array.isArray(v.data) ? v.data : []).map(x => [x.name, x.value])), e);
 }
+// What the extra publishing engine reports (asked at most once a minute per Worker). A platform it carries is "ready" only when
+// the engine is set up AND that account is connected there. Not asked at all when no Postiz platform is involved or none is set up.
+const engineState = (t: Record<string, string>): Promise<EngineStatus> => cachedStatus(t);
 // Per platform: '' when it can go out, else why not (no token values leave the server)
-const readyOf = (t: Record<string, string>) => Object.fromEntries((Object.keys(SOCIAL) as SocialPlatform[]).map(p => [p, readiness(p, t)]));
+const readyOf = (t: Record<string, string>, s: EngineStatus | null) => Object.fromEntries((Object.keys(SOCIAL) as SocialPlatform[]).map(p => [p, readiness(p, t, s)]));
+// The platform list the page gets: `live` = can go out by itself right now (nothing says which engine does it)
+const platformsView = (ready: Record<string, string>) => Object.fromEntries((Object.entries(SOCIAL) as [SocialPlatform, (typeof SOCIAL)[SocialPlatform]][]).map(([k, s]) =>
+  [k, { name: s.name, max: s.max, ...('needsMedia' in s && s.needsMedia ? { needsMedia: true } : {}), live: s.live && !ready[k]!.startsWith('غير متاح') }]));
 
 // What each platform did, for the page: a code the page words in plain language. The platform's own message
 // (and the ids and Instagram container, which only matter to the server) go to the owner alone.
@@ -61,16 +68,17 @@ export const posts = {
     // Each post carries its compliance notice, so an auto post shows it until it goes out
     const extra = await rulesFor(cfg, user.co);
     const owner = isOwner(user, cfg);
-    return json(200, { posts: rows(r.data).map(p => ({ ...p, results: shownResults(p.results, owner), compliance: check(String(p.body || ''), extra) })), platforms: SOCIAL,
-      ready: readyOf(await tokensFor(cfg, user.co)), account: await accountOf(cfg, user.co) });
+    const tk = await tokensFor(cfg, user.co, e), ready = readyOf(tk, await engineState(tk));
+    return json(200, { posts: rows(r.data).map(p => ({ ...p, results: shownResults(p.results, owner), compliance: check(String(p.body || ''), extra) })), platforms: platformsView(ready),
+      ready, account: await accountOf(cfg, user.co) });
   }),
   POST: handle(async (request, e) => {
     const { cfg, user } = await requireUser(request, e, 'social', { write: true });
-    const v = validate(await readJson(request), Date.now(), await rulesFor(cfg, user.co));
+    const tk = await tokensFor(cfg, user.co, e), ready = readyOf(tk, await engineState(tk));
+    const v = validate(await readJson(request), Date.now(), await rulesFor(cfg, user.co), p => SOCIAL[p].live && !ready[p]!.startsWith('غير متاح'));
     if (!v.draft) return json(400, { error: v.error, notices: v.notices });
     // A platform whose account is not connected would fail at its time: said now, while it can still be fixed
-    const ready = readyOf(await tokensFor(cfg, user.co));
-    for (const pl of v.draft.platforms) if (ready[pl] && SOCIAL[pl].live) v.notices.push(`${SOCIAL[pl].name}: ${ready[pl]}`);
+    for (const pl of v.draft.platforms) if (ready[pl] && SOCIAL[pl].live && !ready[pl].startsWith('غير متاح')) v.notices.push(`${SOCIAL[pl].name}: ${ready[pl]}`);
     const r = await sb<Row[]>(cfg, '/rest/v1/social_posts', { method: 'POST', admin: true, headers: { Prefer: 'return=representation' },
       body: { ...v.draft, company_id: user.co, status: 'scheduled', created_by: user.email } });
     if (!r.ok) return json(500, { error: 'ما انحفظ المنشور' });
@@ -175,7 +183,7 @@ export const pages = {
 export const connection = { GET: handle(async (request, e) => {
   const { cfg, user } = await requireUser(request, e, 'social', { well: true });
   if (!isOwner(user, cfg)) return json(403, { error: 'فحص الربط للمالك بس' });
-  return json(200, await checkConnection(await tokensFor(cfg, user.co)));
+  return json(200, await checkConnection(await tokensFor(cfg, user.co, e)));
 }) };
 
 // Upload a photo or video for a post: stored in R2 under social/<company>/<random>.<ext> and served at /m/… (public,
@@ -214,4 +222,13 @@ export const suggest = { POST: handle(async (request, e: Parameters<typeof requi
   const text = cleanSuggestion(out.response, platforms);
   if (text.length < 20) return json(502, { error: 'ما طلع نص واضح، جرّب مرة ثانية' });
   return json(200, { body: text, engine: out.engine, compliance: check(text, await rulesFor(cfg, user.co)) });
+}) };
+
+// Owner only: is the extra publishing engine reachable, is its key valid, and which platforms have a connected account there.
+// Reads only (nothing is posted); channel names only, never a key. Asked fresh every time (the page caches nothing).
+export const engine = { GET: handle(async (request, e) => {
+  const { cfg, user } = await requireUser(request, e, 'social', { well: true });
+  if (!isOwner(user, cfg)) return json(403, { error: 'فحص النشر للمالك بس' });
+  const s = await cachedStatus(await tokensFor(cfg, user.co, e), fetch, Date.now(), true);
+  return json(200, { status: s.code, channels: s.channels, platforms: postizPlatforms.map(p => ({ key: p, name: SOCIAL[p].name })) });
 }) };

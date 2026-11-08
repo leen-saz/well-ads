@@ -16,3 +16,5 @@
 - اختيار الصفحة: ربط ميتا بعدة صفحات ما يربط أي وحدة؛ المالك يختار من تاب السوشال (`/api/social/pages`).
 - فحص الجاهزية بدون نشر: `/api/social/connection` (المالك).
 - الاختبارات: `publish.test.ts` على Graph API وهمي بحالة (`graph-mock.ts`)، و`routes.test.ts`.
+
+**محركات النشر:** `engine.ts` يحدد لكل منصة محركها وحدودها. فيسبوك وانستقرام = محركنا (Graph). تيك توك وX ولينكدإن = Postiz كمحرك إضافي (`postiz.ts`) بعد الاعتماد بس، بأمر «انشر الحين» (never schedule/draft). المنصة تصير جاهزة لما يكون المحرك مضبوط والحساب مربوط فيه. الإعداد والـ AGPL: `docs/social-engine.md`. فحص المالك: `/api/social/engine`. اختبارات: `postiz.test.ts` على `postiz-mock.ts`.
