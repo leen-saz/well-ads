@@ -167,7 +167,9 @@ export const oauthFields = (p: Platform): Field[] => p.fields.filter(f => !f.man
 // ---- زر "اربط": الطريقة الأساسية لكل منصة تدعم OAuth. الخانات اليدوية بديل إذا الربط ما ضبط.
 // app = أسماء متغيرات بيانات التطبيق في بيئة السيرفر. store = وين ينحفظ اللي يرجع (أسماء متغيرات السحب).
 export type Values = Record<string, string>;
-export interface Exchanged { values: Values; expiresIn?: number | null }
+// shown: names that may appear in the page (never a secret); drop: stored names that must not stay bound;
+// pick: several choices were granted and none is bound yet (the owner chooses on the Social tab)
+export interface Exchanged { values: Values; expiresIn?: number | null; shown?: Values; drop?: string[]; pick?: boolean }
 interface ExchangeArgs { code: string; redirect: string; id: string; secret: string }
 export interface OAuthCfg {
   authorize: string; token?: string; scope?: string; app: string[]; expires?: string; basic?: boolean; v1?: boolean;
@@ -267,16 +269,23 @@ async function metaExchange({ code, redirect, id, secret }: ExchangeArgs, env = 
   return { values: { [env]: String(long.access_token) }, expiresIn: Number(long.expires_in) || 60 * 86400 };
 }
 
-// Page tokens obtained from a long-lived user token do not expire. The first page the user granted is used;
-// its linked Instagram business account (if any) is stored with it.
+// Page tokens obtained from a long-lived user token do not expire. One page granted: it is bound with its linked
+// Instagram business account (if any). Several pages: none is bound; the list (with the page tokens) waits in the vault
+// as META_PAGES_PENDING until the owner chooses one on the Social tab, so the wrong page is never picked by position.
+export interface PageCand { id: string; name: string; token: string; ig?: { id: string; name: string } }
+export const META_PENDING = 'META_PAGES_PENDING';
+export const pageValues = (g: PageCand): Exchanged => ({
+  values: { META_PAGE_ID: g.id, META_PAGE_ACCESS_TOKEN: g.token, ...(g.ig ? { IG_USER_ID: g.ig.id } : {}) }, expiresIn: null,
+  shown: { META_PAGE_NAME: g.name, IG_ACCOUNT_NAME: g.ig?.name || '' }, drop: g.ig ? [META_PENDING] : ['IG_USER_ID', META_PENDING],
+});
 async function metaPagesExchange(args: ExchangeArgs): Promise<Exchanged> {
   const user = (await metaExchange(args, 'USER')).values.USER as string;
-  const pages = await getJson(`https://graph.facebook.com/v23.0/me/accounts?fields=id,name,access_token,instagram_business_account&access_token=${encodeURIComponent(user)}`);
-  const page = (Array.isArray(pages.data) ? pages.data : [])[0] as { id?: string; access_token?: string; instagram_business_account?: { id?: string } } | undefined;
-  if (!page?.id || !page.access_token) throw new Error('no page');
-  const values: Values = { META_PAGE_ID: page.id, META_PAGE_ACCESS_TOKEN: page.access_token };
-  if (page.instagram_business_account?.id) values.IG_USER_ID = page.instagram_business_account.id;
-  return { values, expiresIn: null };
+  const pages = await getJson(`https://graph.facebook.com/v23.0/me/accounts?fields=${encodeURIComponent('id,name,access_token,instagram_business_account{id,username,name}')}&limit=25&access_token=${encodeURIComponent(user)}`);
+  const list: PageCand[] = (Array.isArray(pages.data) ? pages.data : []).flatMap((x: { id?: string; name?: string; access_token?: string; instagram_business_account?: { id?: string; username?: string; name?: string } }) =>
+    x?.id && x.access_token ? [{ id: x.id, name: x.name || x.id, token: x.access_token, ...(x.instagram_business_account?.id ? { ig: { id: x.instagram_business_account.id, name: x.instagram_business_account.username || x.instagram_business_account.name || x.instagram_business_account.id } } : {}) }] : []);
+  if (!list.length) throw new Error('no page');
+  if (list.length === 1) return pageValues(list[0] as PageCand);
+  return { values: { [META_PENDING]: JSON.stringify({ at: Date.now(), pages: list }) }, expiresIn: null, pick: true };
 }
 
 // ---- OAuth 1.0a (X): توقيع HMAC-SHA1 حسب RFC 5849

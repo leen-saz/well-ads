@@ -1,6 +1,6 @@
 ---
 import { ClientRouter } from 'astro:transitions';
-// السوشال: تقويم المنشورات لكل شركة. النشر يشغّله Cron في الـ Worker (src/lib/social-cron.ts).
+// السوشال: تقويم المنشورات لكل شركة. النشر يشغّله Cron في الـ Worker (src/modules/social/cron.ts).
 ---
 <!doctype html>
 <html lang="ar" dir="rtl">
@@ -31,6 +31,12 @@ import { ClientRouter } from 'astro:transitions';
 .so-note{font-size:13px;margin:8px 0 0;padding:10px 12px;border-radius:12px;background:var(--tint)}
 .so-appr{margin-bottom:20px}.so-appr h2{margin:0 0 6px}
 .so-warn{color:var(--deep);font-weight:600;font-size:12px}
+.so-conn{margin-bottom:20px}.so-conn h2{margin:0 0 6px}.so-conn p{margin:4px 0}
+.so-ck{list-style:none;margin:10px 0 0;padding:0;display:grid;gap:6px}.so-ck li{padding:8px 12px;border-radius:12px;background:var(--tint);font-size:13px;display:flex;gap:8px;align-items:flex-start}
+.so-ck .block{color:#C0392B;font-weight:600}.so-ck .warn{color:var(--deep);font-weight:600}.so-ck .ok{color:inherit}
+.so-pick{display:grid;gap:8px;margin:10px 0}.so-pick label{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+.so-fail{border:1px solid #C0392B55;background:#C0392B0F}.so-fail ul{margin:6px 0 0;padding-inline-start:18px}
+.so-more{margin:6px 0 0;font-size:12px}.so-more summary{cursor:pointer}.so-more code{direction:ltr;unicode-bidi:plaintext;display:block;white-space:pre-wrap;word-break:break-word}
 </style>
 </head>
 <body data-page="social" data-module>
@@ -60,6 +66,20 @@ import { ClientRouter } from 'astro:transitions';
           </form>
         </section>
         <section>
+          <section class="card pad so-conn" id="conn">
+            <h2>الحساب المربوط</h2>
+            <p id="connNames" class="muted"></p>
+            <div id="pick" hidden>
+              <p>ربطت ميتا وفيه أكثر من صفحة. اختر الصفحة اللي ينشر عليها:</p>
+              <div class="so-pick" id="pickList"></div>
+              <div class="bar"><button class="btn sm primary" type="button" id="pickSave">اعتمد هالصفحة</button><span class="msg" id="pickMsg" role="status"></span></div>
+            </div>
+            <div class="bar" id="connBar" style="margin-top:10px">
+              <button class="btn sm secondary" type="button" id="connCheck" hidden>افحص جاهزية النشر</button>
+              <a class="btn sm ghost" href="/connectors/" id="connLink" hidden>غيّر الربط</a>
+            </div>
+            <ul class="so-ck" id="connOut"></ul>
+          </section>
           <section class="card pad so-appr" id="appr" hidden>
             <h2>مين يعتمد النشر</h2>
             <p class="muted" style="margin:0 0 10px">ما ينشر أي منشور إلا بعد اعتماده. بدون اختيار: المالك بس.</p>

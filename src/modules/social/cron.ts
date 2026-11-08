@@ -1,25 +1,48 @@
 // Every 5 minutes (Worker cron): publish the posts that are due. Each post is claimed first
-// (scheduled -> publishing) so two runs never publish it twice.
-import { env, sb, type AuthEnv } from '../../lib/auth';
+// (scheduled -> publishing) so two runs never publish it twice. What each platform has done is written down as it
+// happens (social_posts.results), which is what makes three things safe:
+//  - a video that Instagram is still preparing comes back 'scheduled' and the next run continues it (bounded: social.ts VIDEO_WAIT_MS);
+//  - a post stuck in 'publishing' (the Worker died mid-way) is re-claimed after STALE_MS and finished from its stored results:
+//    what went out is never repeated, what never started starts, what may have gone out is marked 'unconfirmed' for a person to decide;
+//  - a retry of the failed platforms (routes.ts) goes through the same path with the failed entries cleared.
+import { env, sb, type AuthEnv, type Cfg } from '../../lib/auth';
 import { WELL_COMPANY } from '../../lib/tenant';
-import { due, publishPost, type Draft } from './social';
+import { due, publishPost, stale, type Draft, type Results } from './social';
 
-type Row = Draft & { id: number; company_id: string; status: string; approved_at?: string | null; approved_by?: string | null; company?: { social_approvers?: string[] | null } | null };
+type Row = Draft & { id: number; company_id: string; status: string; claimed_at?: string | null; results?: Results | null; approved_at?: string | null; approved_by?: string | null; company?: { social_approvers?: string[] | null } | null };
+
+async function work(cfg: Cfg, p: Row, tokens: Record<string, string>, f: typeof fetch, now: number): Promise<void> {
+  const patch = (body: Record<string, unknown>) => sb(cfg, `/rest/v1/social_posts?id=eq.${p.id}`, { method: 'PATCH', admin: true, body });
+  const out = await publishPost(p, p.company_id === WELL_COMPANY ? tokens : {}, f, p.results || {}, { now, save: async results => { await patch({ results }); } });
+  // pending = Instagram is still preparing a video: back to 'scheduled' (still approved, still due) and the next run goes on
+  await patch({ status: out.status === 'pending' ? 'scheduled' : out.status, results: out.results, claimed_at: null });
+}
 
 export async function runSocial(e: AuthEnv, now = Date.now(), f: typeof fetch = fetch): Promise<number> {
   let cfg;
   try { cfg = env(e); } catch { console.error('social: setup incomplete'); return 0; }
-  const list = await sb<Row[]>(cfg, `/rest/v1/social_posts?select=*,company:companies(social_approvers)&status=eq.scheduled&publish_at=lte.${new Date(now).toISOString()}&order=publish_at.asc&limit=50`, { admin: true });
+  const iso = new Date(now).toISOString();
+  const sel = 'select=*,company:companies(social_approvers)';
+  const list = await sb<Row[]>(cfg, `/rest/v1/social_posts?${sel}&status=eq.scheduled&publish_at=lte.${iso}&order=publish_at.asc&limit=50`, { admin: true });
   if (!list.ok || !Array.isArray(list.data)) return 0;
+  // Stuck in 'publishing' (a Worker that died): found by age, re-claimed by the old claim time so two runs never both take it
+  const stuck = await sb<Row[]>(cfg, `/rest/v1/social_posts?${sel}&status=eq.publishing&publish_at=lte.${iso}&order=publish_at.asc&limit=20`, { admin: true });
   // Platform tokens: the vault holds Well's today; per-company vault names come with ADR-0006's next step
   const vault = await sb<{ name: string; value: string }[]>(cfg, '/rest/v1/rpc/connector_env', { method: 'POST', admin: true, body: {} });
   const wellTokens = Object.fromEntries((vault.ok && Array.isArray(vault.data) ? vault.data : []).map(x => [x.name, x.value]));
   let done = 0;
   for (const p of list.data.filter(x => due(x, x.company?.social_approvers || [], now))) {
-    const claim = await sb<Row[]>(cfg, `/rest/v1/social_posts?id=eq.${p.id}&status=eq.scheduled`, { method: 'PATCH', admin: true, headers: { Prefer: 'return=representation' }, body: { status: 'publishing' } });
+    const claim = await sb<Row[]>(cfg, `/rest/v1/social_posts?id=eq.${p.id}&status=eq.scheduled`, { method: 'PATCH', admin: true, headers: { Prefer: 'return=representation' }, body: { status: 'publishing', claimed_at: iso } });
     if (!claim.ok || !Array.isArray(claim.data) || !claim.data.length) continue;
-    const out = await publishPost(p, p.company_id === WELL_COMPANY ? wellTokens : {}, f);
-    await sb(cfg, `/rest/v1/social_posts?id=eq.${p.id}`, { method: 'PATCH', admin: true, body: out });
+    await work(cfg, p, wellTokens, f, now);
+    done++;
+  }
+  for (const p of (stuck.ok && Array.isArray(stuck.data) ? stuck.data : []).filter(x => stale(x, now))) {
+    const old = p.claimed_at ? `claimed_at=eq.${encodeURIComponent(p.claimed_at)}` : 'claimed_at=is.null';
+    const claim = await sb<Row[]>(cfg, `/rest/v1/social_posts?id=eq.${p.id}&status=eq.publishing&${old}`, { method: 'PATCH', admin: true, headers: { Prefer: 'return=representation' }, body: { claimed_at: iso } });
+    if (!claim.ok || !Array.isArray(claim.data) || !claim.data.length) continue;
+    console.error('social: recovering a post stuck in publishing', p.id);
+    await work(cfg, p, wellTokens, f, now);
     done++;
   }
   return done;
