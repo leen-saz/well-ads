@@ -83,6 +83,24 @@ export default async function mount() {
     const vbox = document.createElement('div');
     box.prepend(vbox);
     const loadVitals = async () => { try { vbox.innerHTML = vitalsCard(await api('/api/maestro/vitals')); } catch (err) { failure(vbox, err, loadVitals); } };
+    // Listening sources that are off, with the key names and where to get them (owner only: the Listening tab shows plain words)
+    const lbox = document.createElement('div');
+    vbox.after(lbox);
+    const LISTEN = [
+      { src: 'youtube', label: 'يوتيوب', keys: 'YOUTUBE_API_KEY', where: 'Google Cloud ← APIs ← YouTube Data API v3 ← Credentials ← API key' },
+      { src: 'x', label: 'X وتيك توك عن طريق Grok', keys: 'XAI_API_KEY', where: 'console.x.ai ← API keys' },
+      { src: 'reddit', label: 'ريديت', keys: 'REDDIT_CLIENT_ID و REDDIT_CLIENT_SECRET', where: 'reddit.com/prefs/apps ← create app ← نوع script' },
+    ];
+    const loadListen = async () => {
+      try {
+        const d = await api('/api/listening/watch');
+        const off = d.missing ? [] : LISTEN.filter(k => !d.sources?.[k.src]);
+        lbox.innerHTML = d.missing ? `<section class="card pad"><h2 style="margin:0 0 6px">الرصد: ما اكتمل تجهيزه</h2><p class="muted" style="margin:0">جداول الرصد ناقصة. شغّل <code>013_listening.sql</code> من مجلد supabase/migrations في Supabase ← SQL Editor، وبعدها ارجع هنا.</p></section>`
+          : off.length ? `<section class="card pad"><h2 style="margin:0 0 6px">الرصد: مصادر ما انفعّلت</h2><p class="muted" style="margin:0 0 8px">أسرار في Cloudflare: Workers ← well-ads ← Settings ← Variables and Secrets ← Add ← Secret.</p>
+            <ul>${off.map(k => `<li><b>${esc(k.label)}</b>: <code>${esc(k.keys)}</code> · من ${esc(k.where)}</li>`).join('')}</ul></section>` : '';
+      } catch (err) { failure(lbox, err, loadListen); }
+    };
+    loadListen();
     loadVitals();
     // One request per part: each stays under the platform's per-request call limit
     const h = { duplicates: {}, counts: {}, orphans: {}, migrations_missing: [], freshness: { platforms: [] }, joins: null };

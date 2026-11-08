@@ -1,8 +1,8 @@
 // The rest of the analytics overview page, for the overview tab: each platform's share, the month's pace and forecast,
 // cost per lead by weekday, and departments. Pure functions over /dash.json, same rules as pipeline/template.html
 // (renderBI, renderPace, renderDeptMini). rows = [key, day, spend, impr, clicks, leads, conv]
-import { type Ad, type Dash, HIDDEN, addDays, family, holes, platformName } from './numbers';
-import { type Lang, pick } from './lang';
+import { type Ad, type Dash, DEP_AR, DEP_EN, HIDDEN, addDays, family, holes, platformName } from './numbers';
+import { type Lang, T, pageLang, pick } from './lang';
 
 const num = (v: unknown): number => (typeof v === 'number' && Number.isFinite(v) ? v : 0);
 // The main dashboard's platform order (channels.py), then any other platform present
@@ -107,7 +107,7 @@ export function depts(d: Dash, from: string, to: string): Dept[] {
     if (x.ad.goal === 'lead') { o.ls += x.spend; o.ln += x.leads; }
     by.set(k, o);
   }
-  return keys.map(k => { const o = by.get(k) ?? { spend: 0, leads: 0, ls: 0, ln: 0 }; return { key: k, name: names[k]!.ar || k, spend: o.spend, leads: o.leads, cpl: o.ln ? o.ls / o.ln : null }; });
+  return keys.map(k => { const o = by.get(k) ?? { spend: 0, leads: 0, ls: 0, ln: 0 }; return { key: k, name: (pageLang() === 'en' ? DEP_EN[k] : undefined) ?? names[k]!.ar ?? DEP_AR[k] ?? k, spend: o.spend, leads: o.leads, cpl: o.ln ? o.ls / o.ln : null }; });
 }
 
 // ---- The outcome and the customer journey (template.html agg + renderKpis). CRM rows from pipeline/crm/join.py:
@@ -215,7 +215,8 @@ export function journey(a: Outcome, l: Lang = 'ar'): { stages: JStage[]; noCrm: 
 
 // ---- Wins of the period against the one before it (template.html renderWins). "New winning ads" stays out: the main
 // dashboard keeps it off (WIN_ON = false) until winners are judged on closed patients.
-export interface Win { icon: string; title: string; detail: string }
+// name: an ad or idea name inside the detail (data, in whatever language it was written): shown isolated before it
+export interface Win { icon: string; title: string; detail: string; name?: string }
 // Idea = the same creative across ad sets and platforms: the name without the uploaded file prefix and the Spark/copy suffix
 export function ideaKey(name: string): string {
   let n = String(name || '').replace(/[‎‏‪-‮]/g, '');
@@ -249,14 +250,14 @@ export function wins(d: Dash, from: string, to: string, compare: boolean): Win[]
   const pf = addDays(from, -days), pt = addDays(from, -1), B = compare ? sums(d, pf, pt) : null;
   if (B) {
     const c = pctCh(A.tot.leads, B.tot.leads);
-    if (c != null && c >= 3) out.push({ icon: '📈', title: `الليدز زادت ${r0(c)}%`, detail: `${r0(A.tot.leads)} ليد مقابل ${r0(B.tot.leads)}` });
+    if (c != null && c >= 3) out.push({ icon: '📈', title: T(`الليدز زادت ${r0(c)}%`, `Leads up ${r0(c)}%`), detail: T(`${r0(A.tot.leads)} ليد مقابل ${r0(B.tot.leads)}`, `${r0(A.tot.leads)} leads vs ${r0(B.tot.leads)}`) });
     const l = pctCh(cplOf(A.tot), cplOf(B.tot));
-    if (l != null && l <= -3) out.push({ icon: '💰', title: `تكلفة الليد نزلت ${r0(-l)}%`, detail: `${r2(cplOf(A.tot))} ريال مقابل ${r2(cplOf(B.tot))}` });
+    if (l != null && l <= -3) out.push({ icon: '💰', title: T(`تكلفة الليد نزلت ${r0(-l)}%`, `Cost per lead down ${r0(-l)}%`), detail: T(`${r2(cplOf(A.tot))} ريال مقابل ${r2(cplOf(B.tot))}`, `${r2(cplOf(A.tot))} SAR vs ${r2(cplOf(B.tot))}`) });
     const m = pctCh(A.tot.conv, B.tot.conv);
-    if (m != null && m >= 5 && A.tot.conv >= 10) out.push({ icon: '💬', title: `المحادثات زادت ${r0(m)}%`, detail: `${r0(A.tot.conv)} محادثة مقابل ${r0(B.tot.conv)}` });
+    if (m != null && m >= 5 && A.tot.conv >= 10) out.push({ icon: '💬', title: T(`المحادثات زادت ${r0(m)}%`, `Conversations up ${r0(m)}%`), detail: T(`${r0(A.tot.conv)} محادثة مقابل ${r0(B.tot.conv)}`, `${r0(A.tot.conv)} conversations vs ${r0(B.tot.conv)}`) });
   }
   const best = [...A.idea.values()].filter(y => y.ln >= 10).sort((p, q) => p.ls / p.ln - q.ls / q.ln)[0];
-  if (best) out.push({ icon: '🎬', title: 'أرخص فكرة في الفترة', detail: `${best.name} · ${r0(best.ln)} ليد بـ ${r2(best.ls / best.ln)} ريال` });
+  if (best) out.push({ icon: '🎬', title: T('أرخص فكرة في الفترة', 'Cheapest idea in the period'), name: best.name, detail: T(`${r0(best.ln)} ليد بـ ${r2(best.ls / best.ln)} ريال`, `${r0(best.ln)} leads at ${r2(best.ls / best.ln)} SAR`) });
   if (B) {
     const better = (a: Map<string, Sum>, b: Map<string, Sum>, keys: string[]) => keys.map(k => {
       const x = a.get(k) ?? blank(), y = b.get(k) ?? blank();
@@ -264,15 +265,15 @@ export function wins(d: Dash, from: string, to: string, compare: boolean): Win[]
     }).filter(r => r.c != null && r.c <= -5).sort((p, q) => p.c! - q.c!)[0];
     const names = depts(d, from, to);
     const dp = better(A.dept, B.dept, names.map(x => x.key));
-    if (dp) out.push({ icon: '🩺', title: `${names.find(x => x.key === dp.k)!.name}: تكلفة الليد نزلت ${r0(-dp.c!)}%`, detail: `${r2(cplOf(dp.x))} ريال مقابل ${r2(cplOf(dp.y))}` });
+    if (dp) out.push({ icon: '🩺', title: T(`${names.find(x => x.key === dp.k)!.name}: تكلفة الليد نزلت ${r0(-dp.c!)}%`, `${names.find(x => x.key === dp.k)!.name}: cost per lead down ${r0(-dp.c!)}%`), detail: T(`${r2(cplOf(dp.x))} ريال مقابل ${r2(cplOf(dp.y))}`, `${r2(cplOf(dp.x))} SAR vs ${r2(cplOf(dp.y))}`) });
     const pl = better(A.plat, B.plat, [...A.plat.keys()]);
-    if (pl) out.push({ icon: '📣', title: `${platformName(family(pl.k))}: تكلفة الليد نزلت ${r0(-pl.c!)}%`, detail: `${r2(cplOf(pl.x))} ريال مقابل ${r2(cplOf(pl.y))}` });
+    if (pl) out.push({ icon: '📣', title: T(`${platformName(family(pl.k))}: تكلفة الليد نزلت ${r0(-pl.c!)}%`, `${platformName(family(pl.k))}: cost per lead down ${r0(-pl.c!)}%`), detail: T(`${r2(cplOf(pl.x))} ريال مقابل ${r2(cplOf(pl.y))}`, `${r2(cplOf(pl.x))} SAR vs ${r2(cplOf(pl.y))}`) });
   }
   // A lead day above every day before the period, since the data starts
   const top = [...A.day.entries()].sort((p, q) => q[1] - p[1])[0];
   if (top && d.range?.start) {
     const before = sums(d, d.range.start, addDays(from, -1)), rec = Math.max(0, ...before.day.values());
-    if (top[1] > rec && rec > 0) out.push({ icon: '⭐', title: 'أعلى يوم ليدز من بداية البيانات', detail: `${top[0]} · ${r0(top[1])} ليد` });
+    if (top[1] > rec && rec > 0) out.push({ icon: '⭐', title: T('أعلى يوم ليدز من بداية البيانات', 'Best lead day since the data began'), detail: T(`${top[0]} · ${r0(top[1])} ليد`, `${top[0]} · ${r0(top[1])} leads`) });
   }
   // Launches: campaigns and ads whose first spend is inside the period
   const firstAd = new Map<string, string>(), firstCamp = new Map<string, string>();
@@ -289,8 +290,10 @@ export function wins(d: Dash, from: string, to: string, compare: boolean): Win[]
     if ((firstCamp.get(c) ?? '') >= from) camps.add(c);
     if ((firstAd.get(b) ?? '') >= from) newAds.add(b);
   }
-  const launched = [camps.size && few(camps.size, 'حملة', 'حملتين', 'حملات'), newAds.size && few(newAds.size, 'إعلان جديد', 'إعلانين جداد', 'إعلانات جديدة')].filter(Boolean);
-  if (launched.length) out.push({ icon: '🚀', title: `أطلقنا ${launched.join(' و')}`, detail: 'أول صرف لها كان في هالفترة' });
+  const en = pageLang() === 'en', many = (n: number, one: string) => (n === 1 ? `1 ${one}` : `${n} ${one}s`);
+  const launched = en ? [camps.size && many(camps.size, 'campaign'), newAds.size && many(newAds.size, 'new ad')].filter(Boolean)
+    : [camps.size && few(camps.size, 'حملة', 'حملتين', 'حملات'), newAds.size && few(newAds.size, 'إعلان جديد', 'إعلانين جداد', 'إعلانات جديدة')].filter(Boolean);
+  if (launched.length) out.push({ icon: '🚀', title: en ? `Launched ${launched.join(' and ')}` : `أطلقنا ${launched.join(' و')}`, detail: T('أول صرف لها كان في هالفترة', 'Their first spend was in this period') });
   return out;
 }
 
