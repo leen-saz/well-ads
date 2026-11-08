@@ -1,0 +1,2 @@
+# A test's made-up storage path next to the word `key` looked like an API key to gitleaks (generic-api-key). It is not a secret.
+03a4c0f376f56fa54301632c6567354e14739a6c:src/modules/transcribe/transcribe.test.ts:generic-api-key:294
