@@ -996,7 +996,6 @@ export const EN = {
   'مثلاً: إعلان المحاليل في البيت': 'e.g. the home IV drips ad',
   'اوصف الصورة': 'Describe the image',
   'ما فيه صور للحين. ارفع أول صورة.': 'No images yet. Upload the first one.',
-  'العرض الإعلاني': 'Offer',
   'الوصف': 'Description',
   'النص البديل': 'Alt text',
   'النص داخل الصورة': 'Text inside the image',
