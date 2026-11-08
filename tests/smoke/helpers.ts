@@ -2,7 +2,7 @@ import type { APIRequestContext, BrowserContext } from '@playwright/test';
 import { PASSWORD, DOMAIN } from './fake-supabase.mjs';
 
 export const emailFor = (who: string) => `${who}@${DOMAIN}`;
-const BASE = 'http://localhost:8787';
+const BASE = `http://localhost:${process.env['SMOKE_PORT'] || 8787}`;
 
 // Signs in through the real /api/auth/login and returns the session cookie as {name, value}
 export async function login(request: APIRequestContext, who: string): Promise<{ name: string; value: string; header: string }> {

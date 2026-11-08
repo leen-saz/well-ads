@@ -56,7 +56,7 @@ export const EN = {
   'سبب الرفض': 'Reason for rejecting', 'وش التعديل المطلوب؟': 'What should change?', 'مطلوب. لو تبي نسوي شي بداله اكتبه هنا.': 'Required. If you want something else done instead, write it here.',
   'مثال: ارفعها 10% بس.': 'Example: raise it 10% only.', 'وافق بالتعديل': 'Approve with change', 'الملاحظة مطلوبة': 'A note is required',
   'انحفظت الموافقة': 'Approval saved', 'انحفظ الرفض': 'Rejection saved', 'انحفظت الموافقة بالتعديل': 'Approval with change saved',
-  'ما فيه أرقام آخر 14 يوم': 'No numbers in the last 14 days', 'الصرف': 'Spend', 'الليدز': 'Leads', 'إغلاق': 'Close', 'افتح في المنصة': 'Open in platform',
+  'ما فيه أرقام آخر 14 يوم': 'No numbers in the last 14 days', 'الصرف': 'Spend', 'الليدز': 'Leads', 'إغلاق': 'Close', 'سكّر': 'Close', 'افتح في المنصة': 'Open in platform',
   'ليش؟': 'Why?', 'الصرف آخر 7 أيام': 'Spend, last 7 days', 'الليدز آخر 7 أيام': 'Leads, last 7 days', 'تكلفة الليد': 'Cost per lead', 'الهدف': 'Target',
   '(متوسط 30 يوم للمنصة)': '(platform 30-day average)', 'انقترح': 'Suggested', 'قبل ← بعد': 'Before → after',
   'الصرف مقابل الليدز · آخر 14 يوم': 'Spend vs leads · last 14 days', 'سجل هذا الإعلان': 'This ad\'s history', 'يحمّل…': 'Loading…',
