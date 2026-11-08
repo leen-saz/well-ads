@@ -2,7 +2,8 @@
 // names, the owner, how sure it is), whatever code produced it. The auditor never imports the judge's calculations: it
 // recomputes from the raw dash.json (facts.ts) and compares. Fields the judge does not state yet are optional, and a check
 // whose input is missing is skipped, never guessed. Judge-specific mapping lives in adapter.ts only.
-export type StepKey = 'cpm' | 'click' | 'lead' | 'sale' | 'cpl';
+// cpa = cost per closing, roas = return on spend (the marketing judge's CRM-side steps)
+export type StepKey = 'cpm' | 'click' | 'lead' | 'sale' | 'cpl' | 'cpa' | 'roas';
 export type Level = 'bad' | 'watch' | 'ok';
 export type Confidence = 'high' | 'medium' | 'low';
 export type Status = 'confirmed' | 'weakened' | 'contradicted';
@@ -10,7 +11,8 @@ export type Bi = { ar: string; en: string };
 
 export interface ClaimStep {
   key: StepKey;
-  now: number | null; prev?: number | null; median?: number | null;
+  // Left out when the judge reads the figure differently from the auditor's facts (see adapter.ts)
+  now?: number | null; prev?: number | null; median?: number | null;
   // The target the step is held to (a floor for the rates), and whether someone set it or it is still the shipped default
   target?: number | null; targetEdited?: boolean;
   level: Level;
@@ -63,6 +65,8 @@ export const OWNER_RULE: Record<StepKey | 'crm', Bi> = {
   lead: { ar: 'الإنتاج + صفحة الهبوط / النموذج', en: 'Production + landing page / form' },
   sale: { ar: 'المبيعات', en: 'Sales' },
   cpl: { ar: 'المشتري الإعلامي', en: 'Media buyer' },
+  cpa: { ar: 'المشتري الإعلامي', en: 'Media buyer' },
+  roas: { ar: 'التسويق / الإدارة', en: 'Marketing / management' },
   crm: { ar: 'نظام العملاء / العمليات', en: 'CRM / operations' },
 };
 

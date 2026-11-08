@@ -6,6 +6,7 @@ import { type Facts, valueOf, volumeOf } from './facts';
 const NAME: Record<StepKey, { ar: string; en: string }> = {
   click: { ar: 'نسبة النقر', en: 'click rate' }, lead: { ar: 'من نقرة إلى ليد', en: 'click to lead' }, sale: { ar: 'من ليد إلى إقفالة', en: 'lead to closing' },
   cpl: { ar: 'تكلفة الليد', en: 'cost per lead' }, cpm: { ar: 'تكلفة الألف ظهور', en: 'cost per 1,000 impressions' },
+  cpa: { ar: 'تكلفة الإقفالة', en: 'cost per closing' }, roas: { ar: 'العائد على الصرف', en: 'return on spend' },
 };
 export const nameOf = (k: StepKey) => NAME[k];
 const num = (v: number | null | undefined, d = 2) => (v == null ? '—' : v.toFixed(d));

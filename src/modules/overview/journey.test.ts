@@ -43,7 +43,10 @@ describe('overview: customer journey', () => {
     // Not tied to ads: the amount is the CRM's total, said so, and the ads' share is «غير مربوط», not 0
     expect(a.stages[3]!.amount).toMatchObject({ label: 'إجمالي المدفوع (CRM)', key: 'paid', now: 1300 });
     expect(by('المبيعات من الإعلانات')).toMatchObject({ now: null, missing: 'غير مربوط' });
-    expect(a.stages[3]!.rate).toMatchObject({ now: null, missing: 'غير مربوط' });
+    // Lead to closing is judged on the whole CRM even so: 2 paid closings ÷ the ads' leads and chats
+    const o = outcome(withAll, '2026-10-15', '2026-10-21');
+    expect(a.stages[3]!.rate).toMatchObject({ key: 'closeRateAll', now: (100 * 2) / (o.leads + o.conv) });
+    expect(a.stages[3]!.rate!.missing).toBeUndefined();
     const rowsOnly = { ...FX, crm: { rows: [[k, '2026-10-16', '2026-10-17', true, 900]] } } as unknown as Dash;
     expect(journey(outcome(rowsOnly, '2026-10-15', '2026-10-21')).stages[3]!.main).toMatchObject({ key: 'booked', now: 1 });
   });

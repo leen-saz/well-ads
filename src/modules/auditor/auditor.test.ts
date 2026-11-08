@@ -7,7 +7,7 @@ import { backtest } from './backtest';
 import { OWNER_RULE, type Claim } from './contract';
 import { recompute } from './facts';
 import { synth } from './synth';
-import { OWNERS } from '../overview/funnel';
+import { J } from '../overview/judge';
 import { outcome } from '../overview/analytics';
 
 const from = '2026-10-02', to = '2026-10-31';
@@ -36,20 +36,27 @@ describe('auditor: Leen\'s proportions', () => {
     expect(f.crm.closingsAll).toBe(o.closingsAll); expect(f.crm.bookedAll).toBe(o.bookedAll);
   });
 
-  it('partial attribution: «no problem» while 48 closings in ~4K results sit under the floor is contradicted', () => {
-    // Too few leads tied to ads: the judge cannot read the sale step and says «no clear problem»
+  it('partial attribution: the judge names the sales gap itself (whole CRM); a «no problem» claim is still contradicted', () => {
+    // Few leads tied to ads: the marketing judge reads lead to closing on the whole CRM (48 closings in ~4K results)
     const dd = synth({ tied: 0.12, paidTied: 4 });
     const c = claimFromJudge(dd, from, to);
-    expect(c.verdict.level).toBe('ok');
-    expect(c.steps.find(s => s.key === 'sale')!.unattributed).toBe(true);
-    const r = audit(dd, c);
+    expect(c.steps.find(s => s.key === 'sale')!.level).toBe('bad');
+    expect(c.verdict.level).toBe('bad');
+    expect(ids(audit(dd, c))).not.toContain('silent_below_floor');
+    // The check that caught the old judge's silence still fires on a claim that says «no problem»
+    const lie = structuredClone(c);
+    lie.verdict = { ...lie.verdict, step: null, level: 'ok', owner: null };
+    for (const s of lie.steps) s.level = 'ok';
+    const r = audit(dd, lie);
     expect(r.status).toBe('contradicted');
     expect(ids(r)).toContain('silent_below_floor');
     expect(r.verdict.findings.find(f => f.id === 'silent_below_floor')!.needs?.en).toMatch(/Tie closings/);
   });
 
   it('a clean healthy period is confirmed', () => {
-    const healthy = synth({ paidAll: 300, paidTied: 140, tied: 0.6, c2r: 0.09, ctr: 0.02 });
+    // Targets this period meets (the defaults are stricter than the synthetic shop)
+    const healthy = { ...synth({ paidAll: 300, paidTied: 140, tied: 0.6, c2r: 0.09, ctr: 0.02 }),
+      funnel_targets: { ctr: 1, clickToLead: 5, leadToClose: 1, cpl: 100000, costShare: 100, roas: 0.01 } };
     const c = claimFromJudge(healthy, from, to);
     const r = audit(healthy, c);
     expect(c.verdict.level).toBe('ok');
@@ -57,7 +64,9 @@ describe('auditor: Leen\'s proportions', () => {
   });
 
   it('tied to the judge: the owner table is the judge\'s', () => {
-    for (const k of ['cpm', 'click', 'lead', 'sale', 'cpl', 'crm'] as const) expect(OWNER_RULE[k]).toEqual({ ar: OWNERS[k].ar.who, en: OWNERS[k].en.who });
+    // Every step of the shared rules file (pipeline/dash/00-judge.js), and the CRM owner of an unlinked step
+    for (const r of J.RULES) expect(OWNER_RULE[r.key]).toEqual({ ar: J.OWNERS[r.owner].who[0], en: J.OWNERS[r.owner].who[1] });
+    expect(OWNER_RULE.crm).toEqual({ ar: J.OWNERS.crm.who[0], en: J.OWNERS.crm.who[1] });
   });
 });
 
@@ -68,9 +77,10 @@ describe('auditor: a deliberately corrupted verdict is caught', () => {
 
   it('a quoted rate that is off', () => {
     const r = corrupt(c => { const s = c.steps.find(x => x.key === 'click')!; s.now = s.now! * 1.4; });
-    expect(r.status === 'confirmed').toBe(false);
+    // The headline names the sale step, so the wrong click figure shows on the click step's own audit
+    expect(r.steps.click!.status).toBe('contradicted');
     expect(ids(r)).toContain('mismatch_now');
-    expect(ids(r)).toContain('chain_product');
+    // (chain_product needs the sale figure, which the adapter leaves out: the judge reads it on the whole CRM)
   });
   it('a wrong owner', () => {
     const c = honest(); c.verdict.step = c.steps.find(s => s.level !== 'ok')?.key ?? 'sale'; c.verdict.level = 'bad'; c.verdict.owner = 'المشتري الإعلامي';

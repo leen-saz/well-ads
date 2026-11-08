@@ -3,5 +3,7 @@
   "meta": {"cpl": null, "chat": null},
   "snap": {"cpl": null, "chat": null},
   "tiktok": {"cpl": null, "chat": null},
-  "google": {"cpl": null, "chat": null}
+  "google": {"cpl": null, "chat": null},
+  "funnel": {"_note": "أهداف حكم رحلة العميل (افتراضي — عدّله). النسب بالمية، cpl بالريال، costShare = أقصى تكلفة للإقفالة من قيمتها، roas بالمرات، maturityDays = عمر الليد قبل ما ينحكم على إقفاله. كل تغيير بـ PR.",
+    "ctr": 1, "clickToLead": 8, "leadToClose": 8, "cpl": 60, "costShare": 0.33, "roas": 3, "maturityDays": 30}
 }

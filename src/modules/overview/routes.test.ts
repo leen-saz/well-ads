@@ -1,7 +1,7 @@
 // /api/overview/data: same reach as the analytics page
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import * as A from '../../lib/auth';
-import { data } from './routes';
+import { data, span } from './routes';
 
 const BASE: A.AuthEnv = { SUPABASE_URL: 'https://sb.example', SUPABASE_SERVICE_ROLE_KEY: 's', SESSION_SECRET: 'x'.repeat(40), OWNER_EMAIL: 'leen@example.com' };
 const cfg = A.env(BASE);
@@ -36,5 +36,38 @@ describe('overview data', () => {
   });
   it('says so when the pipeline has not uploaded numbers yet', async () => {
     expect((await call(member(['overview', 'ceo']), { ...BASE, FILES: { get: async () => null } } as unknown as A.AuthEnv)).status).toBe(404);
+  });
+});
+
+// /api/overview/span: the owner sees how much history there is (counts and dates only); nobody else does
+describe('overview data span (owner only)', () => {
+  // Synthetic: two channels, a few days of spend (one day with 0 spend), and three paid closings over two days
+  const dash = {
+    ads: { a: { platform: 'facebook' }, b: { platform: 'google_search' } },
+    rows_cols: { k: ['a', 'b'], d: ['2026-01-01', '2026-01-02', '2026-01-03'], c: [[0, 0, 1, 1], [0, 1, 1, 2], [10, 0, 5, 7], [1, 1, 1, 1], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0]] },
+    crm: { paid_all: [['2025-12-20', '2026-01-02', 900, 'x'], ['2025-12-21', '2026-01-02', 400, 'y'], ['2025-12-22', '2026-01-03', 700, 'z']] },
+  };
+  const F = { ...BASE, FILES: { get: async (k: string) => (k === 'site/dash.json' ? { body: JSON.stringify(dash) } : null) } } as unknown as A.AuthEnv;
+  const ask = async (p: A.Profile) => {
+    vi.stubGlobal('fetch', vi.fn(async (url: string) => new Response(JSON.stringify(url.includes('/profiles?id=eq.') ? [p] : []))));
+    const cookie = `${A.SESSION}=${encodeURIComponent(await A.sign(A.sessionFor(p, cfg), cfg.secret))}`;
+    return span.GET(new Request('https://well.example/api/overview/span', { headers: { cookie } }), F);
+  };
+  const owner = { ...member(['overview', 'ceo']), email: 'leen@example.com' } as unknown as A.Profile;
+  it('gives the owner the first and last day of spend, per channel, and the CRM closing days and count', async () => {
+    const r = await ask(owner);
+    expect(r.status).toBe(200);
+    const body = await r.json() as Record<string, unknown>;
+    expect(body).toEqual({
+      spend: { first: '2026-01-01', last: '2026-01-03', days: 3 },
+      channels: [{ channel: 'google', first: '2026-01-02', last: '2026-01-03', days: 2, mmmReady: false }, { channel: 'meta', first: '2026-01-01', last: '2026-01-01', days: 1, mmmReady: false }],
+      crm: { first: '2026-01-02', last: '2026-01-03', days: 2, closings: 3 },
+      mmm: { needDays: 730, ready: false },
+    });
+    // Counts and dates only: no amount from the CRM or the spend comes out
+    expect(JSON.stringify(body)).not.toMatch(/900|400|700|"spend":\s*\d/);
+  });
+  it('refuses everyone else, analytics access included', async () => {
+    expect((await ask(member(['overview', 'ceo']))).status).toBe(403);
   });
 });

@@ -159,7 +159,8 @@ export function recompute(d: Raw, from: string, to: string, by: 'lead' | 'paid' 
 // The number each step is measured by, and the volume it stands on (its denominator)
 export function valueOf(f: Facts, key: StepKey): number | null {
   const s = f.scope;
-  return key === 'click' ? s.ctr : key === 'lead' ? s.c2r : key === 'sale' ? f.crm.closeRate : key === 'cpl' ? s.cpl : s.cpm;
+  // cpa and roas: the judge reads them on the whole CRM; the auditor does not recompute them yet
+  return key === 'click' ? s.ctr : key === 'lead' ? s.c2r : key === 'sale' ? f.crm.closeRate : key === 'cpl' ? s.cpl : key === 'cpm' ? s.cpm : null;
 }
 export function volumeOf(f: Facts, key: StepKey): { kind: 'impr' | 'clicks' | 'results' | 'crmLeads'; n: number } {
   const s = f.scope;
