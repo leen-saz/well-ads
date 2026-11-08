@@ -93,6 +93,55 @@ class JoinTests(unittest.TestCase):
         self.assertIn("crm by source", loud)
         self.assertIn("1200", loud)
 
+class AttributionRuleTests(unittest.TestCase):
+    """Before: only five exact source names matched, and only TikTok matched by ad name. After: any source that says its
+    platform matches by id; any family also matches by an unambiguous ad name; the data explains every unmatched closing."""
+    ADS2 = {"m111|fb": {"name": "Hair tonic"}, "m111|ig": {"name": "Hair tonic"}, "m555": {"name": "Shared"}, "m556": {"name": "Shared"},
+            "s222": {"name": "Snap"}, "g777": {"name": "Search"}}
+
+    def test_family_of_a_source(self):
+        f = join.family
+        self.assertEqual([f("meta_form"), f("meta_ctwa"), f("whatsapp_ad_prefill"), f("snapchat_form"), f("tiktok_form")], list("mmmst"))
+        # new: sources that name their platform but were not in the old exact list
+        self.assertEqual([f("facebook_lead_ads"), f("instagram_form"), f("snapchat_ctwa"), f("tiktok_ctwa"), f("google_form")], list("mmstg"))
+        # still nothing: organic, manual and imports, even when they mention a platform
+        for src in ("whatsapp_organic", "instagram_dm", "manual", "late_import", "cold_outreach", None, ""):
+            self.assertIsNone(f(src), src)
+
+    def test_before_after_matching(self):
+        rows = [lead(lead_id="1", source_platform="instagram_form", ad_id="111"),                 # before: unmatched (source name)
+                lead(lead_id="2", source_platform="meta_form", ad_id="999", ad_name="Hair tonic"),  # before: unmatched (id not pulled)
+                lead(lead_id="3", source_platform="meta_form", ad_id="999", ad_name="Shared"),      # ambiguous name: stays unmatched
+                lead(lead_id="4", source_platform="google_form", ad_id="777")]                      # before: unmatched (no google)
+        crm = join.attach({"ads": self.ADS2}, rows)
+        self.assertEqual([r[0] for r in crm["rows"]], ["m111|fb", "m111|fb", "g777"])
+        self.assertEqual(crm["unmatched"], 1)
+
+    def test_every_paid_closing_is_explained(self):
+        paid = dict(payment_status="paid", amount_paid_sar=500, paid_at="2026-10-22T09:00:00Z")
+        rows = [lead(lead_id="a", ad_id="111", **paid),
+                lead(lead_id="b", source_platform="meta_form", ad_id="999", ad_name="Hair tonic", **paid),
+                lead(lead_id="c", customer_id="c9", source_platform="snapchat_form", ad_id="222", created_at="2026-10-01T09:00:00Z"),
+                lead(lead_id="d", customer_id="c9", source_platform="manual", ad_id=None, **paid),
+                lead(lead_id="e", source_platform="whatsapp_organic", ad_id=None, **paid),
+                lead(lead_id="f", source_platform="meta_form", ad_id=None, **paid),
+                lead(lead_id="g", source_platform="meta_form", ad_id="999", **paid),
+                lead(lead_id="h", source_platform="tiktok_form", ad_id="1.8E+15", ad_id_quality="broken_by_import", **paid),
+                lead(lead_id="i", source_platform="meta_form", ad_id="111", payment_status="unpaid")]
+        att = join.attach({"ads": self.ADS2}, rows)["attribution"]
+        self.assertEqual(att["paid"], 7)
+        self.assertEqual(att["why"], {"id": 1, "name": 1, "via_customer": 1, "source": 1, "no_id": 1, "broken_id": 1, "not_in_ads": 1})
+        self.assertEqual(att["unmatched_sources"], {"whatsapp_organic": 1})
+        self.assertEqual(sum(att["why"].values()), att["paid"])
+
+    def test_attribution_block_has_counts_only(self):
+        crm = join.attach({"ads": self.ADS2}, [lead(lead_id="SECRET-ID", customer_id="C-SECRET", ad_name="Private Name", source_platform="odd source!", ad_id=None,
+                                              payment_status="paid", amount_paid_sar=123, paid_at="2026-10-22T09:00:00Z")])
+        text = str(crm["attribution"])
+        for s in ("SECRET", "Private", "123"):
+            self.assertNotIn(s, text)
+        self.assertEqual(crm["attribution"]["unmatched_sources"], {"oddsource": 1})
+
 
 if __name__ == "__main__":
     unittest.main()

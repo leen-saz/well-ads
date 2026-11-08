@@ -40,6 +40,10 @@ const age = iso => { if (!iso) return ['—', 'bad']; const h = (Date.now() - Da
 const dayAge = d => { if (!d) return ['—', 'bad']; const h = (Date.now() - Date.parse(d + 'T00:00:00+03:00')) / 36e5; return [esc(d), h > 72 ? 'bad' : '']; };
 const cell = ([t, bad]) => (bad ? `<b style="color:#8A2A1B">${t}</b>` : t);
 
+const WHYTXT = { id: 'مربوطة برقم الإعلان', name: 'مربوطة باسم الإعلان', via_customer: 'منسوبة لإعلان سابق لنفس العميل', source: 'مصدرها مو إعلان (واتساب عضوي، يدوي…)', no_id: 'مصدرها إعلان بس بدون رقم إعلان', broken_id: 'رقم الإعلان تالف من الاستيراد', not_in_ads: 'رقم الإعلان مو بين الإعلانات المسحوبة' };
+const attribution = A => !A || !A.paid ? '' : `<h3>وين راحت الإقفالات المدفوعة؟</h3>${table(['السبب', 'إقفالات'], Object.entries(A.why).filter(([, n]) => n).map(([k, n]) => [esc(WHYTXT[k] || k), fmt(n)]))}`
+  + (Object.keys(A.unmatched_sources).length ? `<p class="muted">مصادر الإقفالات اللي بدون إعلان: ${Object.entries(A.unmatched_sources).map(([k, n]) => `<code>${esc(k)}</code> ${fmt(n)}`).join('، ')}</p>` : '');
+
 export function healthCards(h) {
   const f = h.freshness, J = h.joins;
   const plat = table(['المنصة', 'إعلانات', 'آخر تحديث للإعلانات', 'آخر يوم أرقام', 'انتهاء الربط'], f.platforms.map(p => [esc(PLAT[p.platform] || p.platform), fmt(p.ads), cell(age(p.newest_ad_update)), cell(dayAge(p.newest_metric_day)), p.token_expires_at ? when(p.token_expires_at) : '—']));
@@ -50,13 +54,14 @@ export function healthCards(h) {
   const joins = J ? table(['الربط', 'العدد', 'النسبة'], [['ليدز CRM', fmt(J.leads), ''], ['مربوطة بإعلان', fmt(J.matched), J.matched_pct == null ? '—' : J.matched_pct + '%'], ['بدون إعلان', fmt(J.unmatched), ''],
     ['كل الإقفالات', fmt(J.closings_all), ''], ['إقفالات مربوطة بإعلان', fmt(J.closings_with_ad), J.closings_pct == null ? '—' : J.closings_pct + '%'], ['منسوبة بالعميل لإعلان سابق', fmt(J.credited_via_customer), '']])
     : '<p class="muted">ما فيه dash.json مرفوع للحين.</p>';
+  const attr = J ? attribution(J.attribution) : '';
   const dups = table(['المكرر', 'الصفوف الزايدة'], Object.entries(h.duplicates).map(([k, n]) => [esc(DUP[k] || k), cell([fmt(n), n > 0])]));
   const orph = table(['الجدول', 'صفوف شركتها محذوفة'], Object.entries(h.orphans).map(([k, n]) => [esc(ORPHAN[k] || k), n == null ? '<span class="muted">ما انقرا</span>' : cell([fmt(n), n > 0])]));
   const miss = h.migrations_missing.length
     ? `<p class="dh-find bad">مايقريشنات ما انطبقت (بالترتيب): ${[...new Set(h.migrations_missing.map(m => m.migration))].map(m => `<code>${esc(m)}</code>`).join('، ')}</p>` + table(['المايقريشن', 'الجدول', 'ناقص'], h.migrations_missing.map(m => [esc(m.migration), esc(m.table), m.reason === 'table' ? 'الجدول كله' : esc(m.columns.join(', '))]))
     : '<p class="dh-find ok">كل الجداول والأعمدة اللي يقراها الكود موجودة.</p>';
   const sec = (t, body, note = '') => `<section class="card pad dh-sec"><h2>${t}</h2>${note ? `<p class="muted" style="margin:0 0 8px">${note}</p>` : ''}${body}</section>`;
-  return sec('حداثة المصادر', plat + other, 'آخر مرة وصلتنا بيانات كل منصة. الأحمر = أقدم من يومين.') + sec('الربط بين الليدز والإعلانات', joins, 'من آخر ملف أرقام انرفع.')
+  return sec('حداثة المصادر', plat + other, 'آخر مرة وصلتنا بيانات كل منصة. الأحمر = أقدم من يومين.') + sec('الربط بين الليدز والإعلانات', joins + attr, 'من آخر ملف أرقام انرفع.')
     + sec('المكرر', dups) + sec('اليتيم', orph, 'صفوف تشير إلى شركة ما عاد لها وجود.') + sec('عدد الصفوف', counts) + sec('المايقريشنات', miss);
 }
 
