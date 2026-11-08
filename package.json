@@ -16,7 +16,7 @@
   },
   "dependencies": {
     "@anthropic-ai/sdk": "1.2.0",
-    "@astrojs/cloudflare": "^14.4.3",
+    "@astrojs/cloudflare": "^14.4.4",
     "@astrojs/react": "^7.1.2",
     "@tanstack/react-table": "^8.21.3",
     "@types/react": "^19.3.0",
