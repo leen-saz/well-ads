@@ -20,7 +20,13 @@ export const PLATFORM: Record<string, string> = {
   snap: 'سناب شات', tiktok: 'تيك توك', google: 'جوجل', google_search: 'جوجل · بحث', google_pmax: 'جوجل · أداء أقصى',
   google_display: 'جوجل · شبكة العرض', google_video: 'جوجل · يوتيوب', google_demand_gen: 'جوجل · توليد الطلب',
 };
+const PLATFORM_EN: Record<string, string> = {
+  facebook: 'Facebook', instagram: 'Instagram', messenger: 'Messenger', threads: 'Threads', meta: 'Meta',
+  snap: 'Snapchat', tiktok: 'TikTok', google: 'Google', google_search: 'Google · Search', google_pmax: 'Google · Performance Max',
+  google_display: 'Google · Display', google_video: 'Google · YouTube', google_demand_gen: 'Google · Demand Gen',
+};
 export const platformName = (p: string): string => PLATFORM[p] ?? p;
+export const platformNameIn = (p: string, lang: 'ar' | 'en'): string => (lang === 'en' ? PLATFORM_EN[p] : PLATFORM[p]) ?? p;
 
 export const GOAL: Record<string, string> = { lead: 'ليدز', messages: 'محادثات' };
 

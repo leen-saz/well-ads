@@ -2,7 +2,7 @@
 // median), the floors, and a band whose height follows the volume and whose waist narrows on a weak step.
 import { describe, expect, it } from 'vitest';
 import { FLOORS, medians, points, shape, stageX, steps, verdict } from './funnel';
-import { outcome, type Outcome } from './analytics';
+import { journey, outcome, type Outcome } from './analytics';
 import { addDays, type Dash } from './numbers';
 
 // A healthy period: CTR 1.5%, 3% of clicks become a lead or chat, 10% of ad-linked leads close, 50 SAR a lead
@@ -14,10 +14,22 @@ const as = (o: Partial<Outcome>): Outcome => ({ ...base, ...o });
 const usual = { click: 1.5, lead: 3, cpl: 50 };
 
 describe('overview: funnel rules', () => {
-  it('all steps as usual: no clear bottleneck, still names the weakest', () => {
+  it('all steps as usual: «لا توجد مشكلة واضحة», no step singled out', () => {
     const v = verdict(steps(base, base, usual));
-    expect(v.level).toBe('ok');
-    expect(v.title).toBe('ما فيه عنق زجاجة واضح');
+    expect(v).toMatchObject({ level: 'ok', step: null, title: 'لا توجد مشكلة واضحة' });
+  });
+
+  it("small gaps are not a problem: Leen's 1.71% vs a usual 1.84% and 6.78% vs 6.90% stay fine", () => {
+    const now = as({ ctr: 1.71, clickToResult: 6.78 }), before = as({ ctr: 1.95, clickToResult: 7.4 });
+    const list = steps(now, before, { click: 1.84, lead: 6.9, cpl: 50 });
+    expect(list.filter(s => s.key === 'click' || s.key === 'lead').map(s => s.level)).toEqual(['ok', 'ok']);
+    expect(verdict(list)).toMatchObject({ level: 'ok', title: 'لا توجد مشكلة واضحة' });
+  });
+
+  it('weak only when weaker than every reference: 20% under both is watch, close to one of them is fine', () => {
+    expect(steps(as({ ctr: 1.2 }), as({ ctr: 1.5 }), usual).find(s => s.key === 'click')!.level).toBe('watch');
+    expect(steps(as({ ctr: 1.2 }), as({ ctr: 1.25 }), usual).find(s => s.key === 'click')!.level).toBe('ok');
+    expect(steps(as({ ctr: 1.0 }), as({ ctr: 1.5 }), usual).find(s => s.key === 'click')!.level).toBe('bad');
   });
 
   it('a low click rate points at the creative and the first line', () => {
@@ -64,7 +76,7 @@ describe('overview: funnel rules', () => {
     expect(sale.line).toContain('45 إقفالة');
     expect(sale.line).toContain('مو صفر');
     expect(sale.line).not.toMatch(/0\.00%|100%/);
-    expect(verdict(list)).toMatchObject({ level: 'ok', title: 'ما فيه عنق زجاجة واضح' });
+    expect(verdict(list)).toMatchObject({ level: 'ok', title: 'لا توجد مشكلة واضحة' });
   });
 
   it('a step under its floor is the bottleneck before one that is only weaker than usual, even with a higher score', () => {
@@ -92,6 +104,62 @@ describe('overview: funnel rules', () => {
     const all = [as({ ctr: 0.5 }), as({ clickToResult: 1 }), as({ closeRate: 1 }), as({ cpl: 200 }), as({ crmLinked: false }), as({ booked: 0, closings: 9, closingsAll: 9, bookedAll: 0 })]
       .flatMap(o => { const l = steps(o, base, usual); const v = verdict(l); return [v.why, v.todo, v.unlinked?.why ?? '', v.unlinked?.todo ?? '', ...l.map(s => s.line)]; }).join(' ');
     expect(all).not.toMatch(/تسوين|شيكي|جربي|غيري|وسعي|قصري|تأكدي/);
+  });
+});
+
+describe('overview: who owns the problem', () => {
+  it('each step names its department; the verdict names the weakest one', () => {
+    const owner = (o: Partial<Outcome>, b: Partial<Outcome> = base) => verdict(steps(as(o), as(b), { ...usual, cpm: 75 }));
+    expect(owner({ ctr: 0.5 })).toMatchObject({ step: 'click', owner: 'الإنتاج / الكريتيف' });
+    expect(owner({ clickToResult: 1 })).toMatchObject({ step: 'lead', owner: 'الإنتاج + صفحة الهبوط / النموذج' });
+    expect(owner({ closeRate: 1 })).toMatchObject({ step: 'sale', owner: 'المبيعات' });
+    expect(owner({ cpl: 200 })).toMatchObject({ step: 'cpl', owner: 'المشتري الإعلامي' });
+    expect(owner({ cpm: 150 })).toMatchObject({ step: 'cpm', owner: 'المشتري الإعلامي' });
+    expect(verdict(steps(base, base, { ...usual, cpm: 75 }))).toMatchObject({ owner: null, title: 'لا توجد مشكلة واضحة' });
+  });
+  it('not tied to ads: the CRM / operations owns it, as a note, never the bottleneck', () => {
+    const list = steps(as({ booked: 0, closings: 45, closingsAll: 45, bookedAll: 0 }), base, usual);
+    expect(list.find(s => s.key === 'sale')).toMatchObject({ owner: 'نظام العملاء / العمليات', unattributed: true });
+    expect(verdict(list).unlinked?.owner).toBe('نظام العملاء / العمليات');
+  });
+  it('a platform filter changes the owner when its weak step differs', () => {
+    const to = '2026-10-30', ads = { a: { name: 'a', campaign: 'c', platform: 'facebook', goal: 'lead' }, b: { name: 'b', campaign: 'c', platform: 'snap', goal: 'lead' } };
+    // facebook: plenty of clicks, almost no leads; snap: very few clicks for its impressions
+    const rows: unknown[][] = [['a', to, 100, 10000, 300, 1, 0], ['b', to, 100, 10000, 20, 2, 0]];
+    const D = { ads, rows } as unknown as Dash;
+    const v = (p: string) => verdict(steps(outcome(D, to, to, 'lead', p), null, { click: null, lead: null, cpl: null }));
+    expect(v('facebook')).toMatchObject({ step: 'lead', owner: 'الإنتاج + صفحة الهبوط / النموذج' });
+    expect(v('snap')).toMatchObject({ step: 'click', owner: 'الإنتاج / الكريتيف' });
+  });
+  it('owners in English too', () => {
+    expect(verdict(steps(as({ closeRate: 1 }), base, usual, 'en'), 'en').owner).toBe('Sales');
+  });
+});
+
+describe('overview: funnel in English', () => {
+  const arabic = /[\u0600-\u06FF]/;
+  it('every step line, verdict and unlinked note comes out in English, no Arabic letters', () => {
+    for (const o of [base, as({ ctr: 0.5 }), as({ clickToResult: 1 }), as({ closeRate: 1 }), as({ cpl: 200 }), as({ crmLinked: false }), as({ booked: 0, closings: 9, closingsAll: 9, bookedAll: 0 })]) {
+      const list = steps(o, base, usual, 'en'), v = verdict(list, 'en');
+      const text = [v.title, v.why, v.todo, v.unlinked?.why ?? '', v.unlinked?.todo ?? '', ...list.flatMap(s => [s.label, s.line])].join(' ');
+      expect(text).not.toMatch(arabic);
+    }
+    expect(verdict(steps(base, base, usual, 'en'), 'en').title).toBe('No clear problem');
+    expect(steps(as({ booked: 0, closings: 45, closingsAll: 45, bookedAll: 0 }), base, usual, 'en').find(s => s.key === 'sale')!.line).toContain('it is not zero');
+  });
+  it('the journey labels and «غير مربوط» in English', () => {
+    const j = journey(as({ booked: 0, closings: 45, closingsAll: 45, bookedAll: 0 }), 'en');
+    expect(j.stages.map(s => s.n)).toEqual(['Awareness', 'Interest', 'Conversion', 'Sale']);
+    const all = j.stages.flatMap(s => [s.n, s.hint, s.main.label, ...s.sub.map(x => x.label + (x.missing ?? '')), s.rate ? s.rate.label + (s.rate.missing ?? '') : '']).join(' ');
+    expect(all).not.toMatch(arabic);
+    expect(j.stages[3]!.rate!.missing).toBe('Not linked');
+    expect(journey(as({ crmLinked: false }), 'en').noCrm).not.toMatch(arabic);
+  });
+  it('the band reads left to right in English: stage 1 on the left', () => {
+    expect(stageX(0, 4, 960, false)).toBeLessThan(stageX(3, 4, 960, false));
+    const p = points(shape([1000, 100, 10, 1], [1, 1, 1], 190, 28), 960, false);
+    expect(p[0]!.h).toBe(190);
+    expect(p.every((q, i) => i === 0 || q.x > p[i - 1]!.x)).toBe(true);
   });
 });
 

@@ -6,6 +6,7 @@ import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group';
 import { Skeleton } from '@/components/ui/skeleton';
 import { addDays, lastDay } from './numbers';
 import { useDash } from './useDash';
+import { pageLang } from './lang';
 import { SectionCards } from './SectionCards';
 import { OverviewSkeleton } from './Skeletons';
 import { DeptsCard, HeatCard, PaceCard, ShareCard, WinsCard } from './AnalyticsCards';
@@ -47,8 +48,8 @@ export default function Overview() {
   const from = addDays(to, -(Number(range) - 1));
 
   return (
-    // Radix menus, selects and the sheet open in their own layer: tell them the page is Arabic
-    <Direction.Provider dir="rtl">
+    // Radix menus, selects and the sheet open in their own layer: tell them the page direction (Arabic RTL, English LTR)
+    <Direction.Provider dir={pageLang() === 'en' ? 'ltr' : 'rtl'}>
     {/* min-w-0: a wide table or chart scrolls inside its card instead of widening the page on a phone */}
     <div className="ui grid gap-4 [&>*]:min-w-0 [&>.grid>*]:min-w-0">
       <div className="flex flex-wrap items-center justify-between gap-3">
