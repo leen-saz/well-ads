@@ -37,7 +37,9 @@ test('the funnel draws four stages and three links, with a verdict, a line per s
   await expect(stages(page)).toHaveCount(7);
   for (const n of ['الوعي', 'الاهتمام', 'التحويل', 'البيع']) await expect(page.locator('svg[role="group"]')).toContainText(n);
   await expect(verdict(page)).not.toBeEmpty();
-  await expect(page.locator('section[aria-labelledby="analysis-h"] li')).toHaveCount(4);
+  // One line per step: cost per 1,000 impressions, click rate, click to lead, lead to closing, cost per lead
+  await expect(page.locator('section[aria-labelledby="analysis-h"] li')).toHaveCount(5);
+  await expect(page.locator('section[aria-labelledby="analysis-h"] li').first()).toContainText('المسؤول');
   await expect(page.locator('#analysis-h')).toHaveText('التحليل');
   await page.getByText('الأرقام كجدول').click();
   await expect(page.locator('table:has(caption:text("رحلة العميل بالأرقام")) tbody tr')).toHaveCount(4);

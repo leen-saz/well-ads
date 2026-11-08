@@ -109,7 +109,11 @@ function JourneyCard({ data, from, to, by }: Props & { by: CrmBy }) {
                 {list.map(x => (
                   <li key={x.key} className="flex items-start gap-2">
                     <span className={`mt-1.5 size-2 shrink-0 rounded-full ${x.unattributed ? 'bg-muted-foreground/40' : DOT[x.level]}`} aria-hidden="true" />
-                    <span className={x.unattributed ? 'text-muted-foreground' : x.level === 'ok' ? '' : LEVEL[x.level]}>{x.line}</span>
+                    <span className="grid gap-0.5">
+                  <span className={x.unattributed ? 'text-muted-foreground' : x.level === 'ok' ? '' : LEVEL[x.level]}>{x.line}</span>
+                  {/* Who owns this step; and, when it is weak or not linked, that department's fix */}
+                  <span className="text-xs text-muted-foreground">{t('المسؤول', 'Owner')}: {x.owner}{x.unattributed || x.level !== 'ok' ? ` · ${x.fix}` : ''}</span>
+                </span>
                   </li>
                 ))}
               </ul>
@@ -121,11 +125,13 @@ function JourneyCard({ data, from, to, by }: Props & { by: CrmBy }) {
               <span className={`text-xs font-semibold ${LEVEL[v.level]}`}>{BADGE[l][v.level]}</span>
             </div>
             <h3 id="verdict-h" className="font-semibold">{v.title}</h3>
+            {v.owner && <Owner who={v.owner} label={t('المسؤول', 'Owner')} />}
             {v.why && <p className="text-sm"><span className="text-muted-foreground">{t('ليش: ', 'Why: ')}</span>{v.why}</p>}
             {v.todo && <p className="text-sm"><span className="text-muted-foreground">{t('وش تسوي: ', 'What to do: ')}</span>{v.todo}</p>}
             {v.unlinked && (
               <div className="grid gap-1 rounded-lg border border-dashed p-2.5 text-sm">
                 <b className="text-muted-foreground">{t('مرحلة البيع غير مربوطة', 'The sale stage is not linked')}</b>
+                <Owner who={v.unlinked.owner} label={t('المسؤول', 'Owner')} />
                 <p>{v.unlinked.why}</p>
                 <p><span className="text-muted-foreground">{t('وش تسوي: ', 'What to do: ')}</span>{v.unlinked.todo}</p>
               </div>
@@ -159,4 +165,9 @@ function JourneyCard({ data, from, to, by }: Props & { by: CrmBy }) {
       </CardContent>
     </Card>
   );
+}
+
+// The department that owns a problem, as a chip
+function Owner({ who, label }: { who: string; label: string }) {
+  return <span className="w-fit rounded-full border px-2.5 py-0.5 text-xs"><span className="text-muted-foreground">{label}: </span><b>{who}</b></span>;
 }

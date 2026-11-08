@@ -165,7 +165,8 @@ export function outcome(d: Dash, from: string, to: string, by: CrmBy = 'lead', p
 export type Fmt = 'qty' | 'sar' | 'pct' | 'x';
 // missing: shown instead of a number that would mislead (a closing rate of 0% when no closing is tied to an ad)
 export type JStat = { label: string; key: keyof Outcome | null; now: number | null; fmt: Fmt; lowerIsBetter: boolean; missing?: string };
-export interface JStage { n: string; hint: string; width: number; colour: string; main: JStat; sub: JStat[]; rate?: JStat }
+// cost: the stage's cost shown under the band; amount: the sale stage's money, shown next to its count
+export interface JStage { n: string; hint: string; width: number; colour: string; main: JStat; sub: JStat[]; rate?: JStat; cost?: JStat; amount?: JStat }
 export const FUNNEL_WIDTHS = [100, 84, 68, 52];
 export const FUNNEL_COLOURS = ['#7C8CFF', '#8B6CFF', '#7E57FD', '#5B36D6'];
 export const NO_CRM = 'مرحلة البيع فاضية لأن أرقام نظام العملاء ما وصلت لهالنسخة من اللوحة. أول ما توصل تطلع الإقفالات هنا.';
@@ -190,20 +191,24 @@ export function journey(a: Outcome, l: Lang = 'ar'): { stages: JStage[]; noCrm: 
   // Counted only when the closings are tied to their ads; else «غير مربوط», no number and no change
   const ad = (label: string, key: keyof Outcome, fmt: Fmt, lowerIsBetter = false): JStat =>
     (tied ? st(label, key, fmt, lowerIsBetter) : { label, key: null, now: null, fmt, lowerIsBetter, missing: t(UNLINKED, UNLINKED_EN) });
+  const cpm = st(t('تكلفة الألف ظهور', 'Cost per 1,000 impressions'), 'cpm', 'sar', true), cpc = st(t('تكلفة النقرة', 'Cost per click'), 'cpc', 'sar', true);
+  const cpl = st(t('تكلفة الليد', 'Cost per lead'), 'cpl', 'sar', true), cac = st(t('تكلفة العميل', 'Cost per customer'), 'cac', 'sar', true, linked);
+  // The sales amount: every paid closing in the CRM (all platforms), or this platform's ad-linked ones. When the closings
+  // aren't tied to ads it is the CRM's total, said so, and the ads' share is «غير مربوط» rather than 0.
+  const amount = st(a.crm && !tied ? t('إجمالي المدفوع (CRM)', 'Total paid (CRM)') : t('مبلغ المبيعات', 'Sales amount'), 'paid', 'sar', false, linked);
   const raw: Omit<JStage, 'width' | 'colour'>[] = [
-    { n: t('الوعي', 'Awareness'), hint: t('كم شخص شاف الإعلان', 'How many saw the ad'), main: st(t('الظهور', 'Impressions'), 'impr', 'qty'),
-      sub: [st(t('تكلفة الألف ظهور', 'Cost per 1,000 impressions'), 'cpm', 'sar', true)] },
+    { n: t('الوعي', 'Awareness'), hint: t('كم شخص شاف الإعلان', 'How many saw the ad'), main: st(t('الظهور', 'Impressions'), 'impr', 'qty'), sub: [cpm], cost: cpm },
     { n: t('الاهتمام', 'Interest'), hint: t('كم واحد ضغط', 'How many clicked'), main: st(t('نقرات الرابط والسوايب', 'Link clicks and swipes'), 'clicks', 'qty'),
-      sub: [st(t('تكلفة النقرة', 'Cost per click'), 'cpc', 'sar', true)], rate: st(t('نسبة النقر', 'Click rate'), 'ctr', 'pct') },
+      sub: [cpc], rate: st(t('نسبة النقر', 'Click rate'), 'ctr', 'pct'), cost: cpc },
     { n: t('التحويل', 'Conversion'), hint: t('كم واحد ترك بياناته أو راسلنا', 'How many left details or messaged us'), main: st(t('الليدز', 'Leads'), 'leads', 'qty'),
-      sub: [st(t('تكلفة الليد', 'Cost per lead'), 'cpl', 'sar', true), st(t('محادثات واتساب وماسنجر', 'WhatsApp and Messenger chats'), 'conv', 'qty')],
-      rate: st(t('من نقرة إلى ليد أو محادثة', 'Click to lead or chat'), 'clickToResult', 'pct') },
+      sub: [cpl, st(t('محادثات واتساب وماسنجر', 'WhatsApp and Messenger chats'), 'conv', 'qty')],
+      rate: st(t('من نقرة إلى ليد أو محادثة', 'Click to lead or chat'), 'clickToResult', 'pct'), cost: cpl },
     { n: t('البيع', 'Sale'), hint: linked ? t('كم واحد دفع', 'How many paid') : t('نظام العملاء مو موصول بهالأرقام', 'The CRM is not connected to these numbers'),
       // Same as the main dashboard: every paid closing in the CRM, or the ad-linked ones when that list is missing
       main: st(t('إقفالات مدفوعة', 'Paid closings'), a.crm ? 'closings' : 'booked', 'qty', false, linked),
-      sub: [ad(t('إقفالات من الإعلانات', 'Closings from ads'), 'booked', 'qty'), ad(t('العائد من الإعلانات', 'Return from ads'), 'roas', 'x'),
-        st(t('تكلفة العميل', 'Cost per customer'), 'cac', 'sar', true, linked)],
-      rate: ad(t('من ليد إلى إقفالة', 'Lead to closing'), 'closeRate', 'pct') },
+      sub: [amount, ...(a.crm ? [ad(t('المبيعات من الإعلانات', 'Sales from ads'), 'value', 'sar')] : []), ad(t('إقفالات من الإعلانات', 'Closings from ads'), 'booked', 'qty'),
+        ad(t('العائد من الإعلانات', 'Return from ads'), 'roas', 'x'), cac],
+      rate: ad(t('من ليد إلى إقفالة', 'Lead to closing'), 'closeRate', 'pct'), cost: cac, amount },
   ];
   return { stages: raw.map((s, i) => ({ ...s, width: FUNNEL_WIDTHS[i]!, colour: FUNNEL_COLOURS[i]! })), noCrm: linked ? null : t(NO_CRM, NO_CRM_EN) };
 }

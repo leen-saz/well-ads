@@ -101,6 +101,35 @@ describe('overview: funnel rules', () => {
   });
 });
 
+describe('overview: who owns the problem', () => {
+  it('each step names its department; the verdict names the weakest one', () => {
+    const owner = (o: Partial<Outcome>, b: Partial<Outcome> = base) => verdict(steps(as(o), as(b), { ...usual, cpm: 75 }));
+    expect(owner({ ctr: 0.5 })).toMatchObject({ step: 'click', owner: 'الإنتاج / الكريتيف' });
+    expect(owner({ clickToResult: 1 })).toMatchObject({ step: 'lead', owner: 'الإنتاج + صفحة الهبوط / النموذج' });
+    expect(owner({ closeRate: 1 })).toMatchObject({ step: 'sale', owner: 'المبيعات' });
+    expect(owner({ cpl: 200 })).toMatchObject({ step: 'cpl', owner: 'المشتري الإعلامي' });
+    expect(owner({ cpm: 150 })).toMatchObject({ step: 'cpm', owner: 'المشتري الإعلامي' });
+    expect(verdict(steps(base, base, { ...usual, cpm: 75 }))).toMatchObject({ owner: null, title: 'لا توجد مشكلة واضحة' });
+  });
+  it('not tied to ads: the CRM / operations owns it, as a note, never the bottleneck', () => {
+    const list = steps(as({ booked: 0, closings: 45, closingsAll: 45, bookedAll: 0 }), base, usual);
+    expect(list.find(s => s.key === 'sale')).toMatchObject({ owner: 'نظام العملاء / العمليات', unattributed: true });
+    expect(verdict(list).unlinked?.owner).toBe('نظام العملاء / العمليات');
+  });
+  it('a platform filter changes the owner when its weak step differs', () => {
+    const to = '2026-10-30', ads = { a: { name: 'a', campaign: 'c', platform: 'facebook', goal: 'lead' }, b: { name: 'b', campaign: 'c', platform: 'snap', goal: 'lead' } };
+    // facebook: plenty of clicks, almost no leads; snap: very few clicks for its impressions
+    const rows: unknown[][] = [['a', to, 100, 10000, 300, 1, 0], ['b', to, 100, 10000, 20, 2, 0]];
+    const D = { ads, rows } as unknown as Dash;
+    const v = (p: string) => verdict(steps(outcome(D, to, to, 'lead', p), null, { click: null, lead: null, cpl: null }));
+    expect(v('facebook')).toMatchObject({ step: 'lead', owner: 'الإنتاج + صفحة الهبوط / النموذج' });
+    expect(v('snap')).toMatchObject({ step: 'click', owner: 'الإنتاج / الكريتيف' });
+  });
+  it('owners in English too', () => {
+    expect(verdict(steps(as({ closeRate: 1 }), base, usual, 'en'), 'en').owner).toBe('Sales');
+  });
+});
+
 describe('overview: funnel in English', () => {
   const arabic = /[\u0600-\u06FF]/;
   it('every step line, verdict and unlinked note comes out in English, no Arabic letters', () => {

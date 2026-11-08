@@ -7,7 +7,7 @@ import { addDays } from './numbers';
 import { type Outcome, unattributed } from './analytics';
 import { type Lang, pick as tr } from './lang';
 
-export type StepKey = 'click' | 'lead' | 'sale' | 'cpl';
+export type StepKey = 'cpm' | 'click' | 'lead' | 'sale' | 'cpl';
 export type Level = 'bad' | 'watch' | 'ok';
 
 // Below the floor the step is weak whatever the history says. Rates in %; cost per lead has no floor (SAR varies by offer).
@@ -19,7 +19,8 @@ const MIN_DAYS = 7;
 export interface Step {
   key: StepKey;
   label: string;
-  // The link it sits on in the funnel: 0 = awareness→interest, 1 = interest→conversion, 2 = conversion→sale. cpl sits on stage 2.
+  // The link it sits on in the funnel: 0 = awareness→interest, 1 = interest→conversion, 2 = conversion→sale.
+  // The two costs sit on a stage instead: cpm on stage 0 (awareness), cpl on stage 2 (conversion).
   link: number;
   now: number | null; prev: number | null; median: number | null; floor: number | null;
   lowerIsBetter: boolean;
@@ -29,9 +30,31 @@ export interface Step {
   // Not tied to ads (analytics.ts unattributed): shown as «غير مربوط», never scored, never the bottleneck
   unattributed: boolean;
   line: string;
+  // The department that owns this step (OWNERS), and its one-line fix
+  owner: string;
+  fix: string;
 }
 
-export interface Verdict { step: StepKey | null; level: Level; title: string; where: string; why: string; todo: string; unlinked: { why: string; todo: string } | null }
+export interface Verdict {
+  step: StepKey | null; level: Level; title: string; where: string; why: string; todo: string;
+  // The department that owns the problem (null when there is none)
+  owner: string | null;
+  unlinked: { why: string; todo: string; owner: string } | null;
+}
+
+// Who owns each step, from how the funnel works. One table so it can be edited in one place.
+// cpm: what the reach costs (audience, bid, placement); click: whether the ad stops the scroll; lead: what happens after
+// the click (the offer, the page, the form; the buyer too when the traffic itself is wrong); sale: what happens after
+// the lead; cpl: what a lead costs, mostly audience and fatigue; crm: whether the closings reach us tied to their ads.
+export const OWNERS: Record<StepKey | 'crm', Record<Lang, { who: string; fix: string }>> = {
+  cpm: { ar: { who: 'المشتري الإعلامي', fix: 'راجع الجمهور والمزايدة وأماكن الظهور.' }, en: { who: 'Media buyer', fix: 'Review the audience, the bid and the placements.' } },
+  click: { ar: { who: 'الإنتاج / الكريتيف', fix: 'جدّد الافتتاحية والمادة والنص.' }, en: { who: 'Production / creative', fix: 'Refresh the hook, the creative and the copy.' } },
+  lead: { ar: { who: 'الإنتاج + صفحة الهبوط / النموذج', fix: 'راجع العرض وطول النموذج وسرعة الصفحة، ومع المشتري الإعلامي إذا الزوار مو الجمهور الصح.' },
+    en: { who: 'Production + landing page / form', fix: 'Review the offer, the form length and the page speed; with the media buyer if the traffic is the wrong audience.' } },
+  sale: { ar: { who: 'المبيعات', fix: 'سرّع الرد على الليد وتابع اللي ما ردوا.' }, en: { who: 'Sales', fix: 'Answer leads faster and follow up on the ones who did not reply.' } },
+  cpl: { ar: { who: 'المشتري الإعلامي', fix: 'وسّع الجمهور أو غيّره، وبدّل المواد اللي طوّلت.' }, en: { who: 'Media buyer', fix: 'Widen or change the audience and replace long-running creatives.' } },
+  crm: { ar: { who: 'نظام العملاء / العمليات', fix: 'تأكد إن كل ليد ودفعة توصل ومعها رقم الإعلان.' }, en: { who: 'CRM / operations', fix: 'Make sure every lead and payment arrives with its ad id.' } },
+};
 
 const med = (xs: number[]): number | null => {
   if (xs.length < MIN_DAYS) return null;
@@ -42,14 +65,15 @@ const num = (v: unknown): number => (typeof v === 'number' && isFinite(v) ? v : 
 
 // The usual level of each step: the median of its daily values over the 30 days up to `to`, counting only days with
 // enough volume to mean something. Ad-linked closings are too few per day, so the sale step has none.
-export function medians(d: Dash, to: string, plat?: string): { click: number | null; lead: number | null; cpl: number | null } {
+export type Usual = { click: number | null; lead: number | null; cpl: number | null; cpm?: number | null };
+export function medians(d: Dash, to: string, plat?: string): Usual {
   const from = addDays(to, -29);
-  const day = new Map<string, { impr: number; clicks: number; res: number; ls: number; ln: number }>();
+  const day = new Map<string, { spend: number; impr: number; clicks: number; res: number; ls: number; ln: number }>();
   for (const r of d.rows ?? []) {
     const k = String(r[0]), dd = String(r[1]), ad = d.ads?.[k];
     if (dd < from || dd > to || !ad || (plat && ad.platform !== plat)) continue;
-    const o = day.get(dd) ?? { impr: 0, clicks: 0, res: 0, ls: 0, ln: 0 };
-    o.impr += num(r[3]); o.clicks += num(r[4]); o.res += num(r[5]) + num(r[6]);
+    const o = day.get(dd) ?? { spend: 0, impr: 0, clicks: 0, res: 0, ls: 0, ln: 0 };
+    o.spend += num(r[2]); o.impr += num(r[3]); o.clicks += num(r[4]); o.res += num(r[5]) + num(r[6]);
     if (ad.goal === 'lead') { o.ls += num(r[2]); o.ln += num(r[5]); }
     day.set(dd, o);
   }
@@ -58,6 +82,7 @@ export function medians(d: Dash, to: string, plat?: string): { click: number | n
     click: med(v.filter(o => o.impr >= 200).map(o => (100 * o.clicks) / o.impr)),
     lead: med(v.filter(o => o.clicks >= 20).map(o => (100 * o.res) / o.clicks)),
     cpl: med(v.filter(o => o.ln >= 1).map(o => o.ls / o.ln)),
+    cpm: med(v.filter(o => o.impr >= 200).map(o => (1000 * o.spend) / o.impr)),
   };
 }
 
@@ -93,14 +118,14 @@ function sentence(l: Lang, label: string, now: number | null, prev: number | nul
 }
 
 // The four steps of the period. b is the earlier period's outcome, only when the comparison is valid.
-export function steps(a: Outcome, b: Partial<Outcome> | null, m: { click: number | null; lead: number | null; cpl: number | null }, l: Lang = 'ar'): Step[] {
+export function steps(a: Outcome, b: Partial<Outcome> | null, m: Usual, l: Lang = 'ar'): Step[] {
   const t = (ar: string, en: string) => tr(l, ar, en);
   const pc = (v: number) => `${v.toFixed(2)}%`, money = (v: number) => `${v.toFixed(2)} ${t('ر.س', 'SAR')}`;
   const mk = (key: StepKey, label: string, link: number, now: number | null, prev: number | null, median: number | null, floor: number | null, lowerIsBetter: boolean, fmt: (v: number) => string, off = false): Step => {
-    if (off) return { key, label, link, now: null, prev: null, median: null, floor, lowerIsBetter, score: null, level: 'ok', unattributed: true, line: unlinkedLine(a, l) };
+    if (off) return { key, label, link, now: null, prev: null, median: null, floor, lowerIsBetter, score: null, level: 'ok', unattributed: true, line: unlinkedLine(a, l), owner: OWNERS.crm[l].who, fix: OWNERS.crm[l].fix };
     const score = judge(now, prev, median, floor, lowerIsBetter);
     const below = floor != null && now != null && now < floor;
-    return { key, label, link, now, prev, median, floor, lowerIsBetter, score, level: levelOf(score, below), unattributed: false, line: sentence(l, label, now, prev, median, floor, fmt) };
+    return { key, label, link, now, prev, median, floor, lowerIsBetter, score, level: levelOf(score, below), unattributed: false, line: sentence(l, label, now, prev, median, floor, fmt), owner: OWNERS[key][l].who, fix: OWNERS[key][l].fix };
   };
   const off = unattributed(a);
   return [
@@ -108,7 +133,8 @@ export function steps(a: Outcome, b: Partial<Outcome> | null, m: { click: number
     mk('lead', t('من نقرة إلى ليد أو محادثة', 'Click to lead or chat'), 1, a.clickToResult, b?.clickToResult ?? null, m.lead, FLOORS.lead, false, pc),
     // The earlier period's rate only counts when it was tied to ads too (b.closeRate is null otherwise)
     mk('sale', t('من ليد إلى إقفالة', 'Lead to closing'), 2, a.closeRate, b && !unattributed(b as Outcome) ? b.closeRate ?? null : null, null, FLOORS.sale, false, pc, off),
-    mk('cpl', t('تكلفة الليد', 'Cost per lead'), 1, a.cpl, b?.cpl ?? null, m.cpl, null, true, money),
+    mk('cpl', t('تكلفة الليد', 'Cost per lead'), 2, a.cpl, b?.cpl ?? null, m.cpl, null, true, money),
+    mk('cpm', t('تكلفة الألف ظهور', 'Cost per 1,000 impressions'), 0, a.cpm, b?.cpm ?? null, m.cpm ?? null, null, true, money),
   ];
 }
 
@@ -130,12 +156,14 @@ const UNLINKED_ADVICE: Record<Lang, { why: string; todo: string }> = {
 };
 const ADVICE: Record<Lang, Record<StepKey, Advice>> = {
   ar: {
+    cpm: { title: 'الوصول صار أغلى', where: 'تكلفة الألف ظهور', why: 'المزايدة أو الجمهور أو أماكن الظهور ترفع سعر الوصول.', todo: 'راجع الجمهور والمزايدة وأماكن الظهور، وجرّب جمهور أوسع.' },
     click: { title: 'الإعلان ما يجيب نقرات كفاية', where: 'من الظهور للنقرة', why: 'الإعلان ما يشد: الصورة أو أول سطر ما يوقف اللي يمرر.', todo: 'جرّب مادة جديدة، وغيّر أول سطر والعنوان، وابدأ بالفايدة أو بسؤال يلمس المشكلة.' },
     lead: { title: 'النقرات ما تصير ليدز', where: 'من النقرة لليد', why: 'الناس تضغط بس ما تكمل: النموذج طويل، أو الصفحة بطيئة، أو دخول الواتساب فيه خطوة زايدة.', todo: 'قصّر النموذج، وشيك على سرعة الصفحة من الجوال، وجرّب رسالة الواتساب الجاهزة بنفسك.' },
     sale: { title: 'الليدز ما تصير إقفالات', where: 'من الليد للإقفالة', why: 'المتابعة متأخرة، أو جودة الليدز نازلة.', todo: 'شيك كم ياخذ الفريق عشان يرد على الليد، وراجع أسئلة النموذج عشان تفلتر الجادين.' },
     cpl: { title: 'تكلفة الليد طالعة', where: 'تكلفة الليد', why: 'الجمهور تشبّع، أو المواد تعبت من كثر ما انعرضت.', todo: 'وسّع الجمهور أو غيّره، وبدّل المواد اللي صار لها فترة طويلة تنعرض.' },
   },
   en: {
+    cpm: { title: 'Reach got more expensive', where: 'Cost per 1,000 impressions', why: 'The bid, the audience or the placements are pushing up the price of reach.', todo: 'Review the audience, the bid and the placements; try a wider audience.' },
     click: { title: 'The ads get too few clicks', where: 'Impression to click', why: 'The ad does not stop the scroll: the image or the first line.', todo: 'Try a new creative and a new first line and headline; lead with the benefit or a question about the problem.' },
     lead: { title: 'Clicks are not becoming leads', where: 'Click to lead', why: 'People click but do not finish: a long form, a slow page, or an extra step into WhatsApp.', todo: 'Shorten the form, check the page speed on a phone, and try the WhatsApp entry yourself.' },
     sale: { title: 'Leads are not closing', where: 'Lead to closing', why: 'Follow-up is slow, or lead quality dropped.', todo: 'Check how long the team takes to answer a lead, and tighten the form questions to filter serious ones.' },
@@ -146,14 +174,14 @@ const ADVICE: Record<Lang, Record<StepKey, Advice>> = {
 // The bottleneck: the weakest step that can be judged, under-the-floor (bad) before only-weaker (watch). Nothing weak
 // enough: «لا توجد مشكلة واضحة», with no step singled out. An unattributed step is never it; it gets its own note.
 export function verdict(list: Step[], l: Lang = 'ar'): Verdict {
-  const unlinked = list.some(s => s.unattributed) ? UNLINKED_ADVICE[l] : null;
+  const unlinked = list.some(s => s.unattributed) ? { ...UNLINKED_ADVICE[l], owner: OWNERS.crm[l].who } : null;
   const rank: Record<Level, number> = { bad: 0, watch: 1, ok: 2 };
   const top = list.filter(s => s.score != null).sort((x, y) => rank[x.level] - rank[y.level] || x.score! - y.score!)[0];
-  if (!top) return { step: null, level: 'ok', title: tr(l, 'ما فيه أرقام كفاية للتحليل', 'Not enough numbers to judge'), where: '', why: '', todo: '', unlinked };
+  if (!top) return { step: null, level: 'ok', title: tr(l, 'ما فيه أرقام كفاية للتحليل', 'Not enough numbers to judge'), where: '', why: '', todo: '', owner: null, unlinked };
   if (top.level === 'ok') return { step: null, level: 'ok', title: tr(l, 'لا توجد مشكلة واضحة', 'No clear problem'), where: '',
-    why: tr(l, 'كل خطوة في حدودها المعتادة أو قريبة منها، وما فيه شي تحت حده الأدنى.', 'Every step is at or near its usual level and nothing is under its floor.'), todo: tr(l, 'كمّل على نفس الخطة.', 'Keep the plan.'), unlinked };
+    why: tr(l, 'كل خطوة في حدودها المعتادة أو قريبة منها، وما فيه شي تحت حده الأدنى.', 'Every step is at or near its usual level and nothing is under its floor.'), todo: tr(l, 'كمّل على نفس الخطة.', 'Keep the plan.'), owner: null, unlinked };
   const a = ADVICE[l][top.key];
-  return { step: top.key, level: top.level, title: a.title, where: a.where, why: a.why, todo: a.todo, unlinked };
+  return { step: top.key, level: top.level, title: a.title, where: a.where, why: a.why, todo: a.todo, owner: top.owner, unlinked };
 }
 
 // ---- The band. Heights on an eased scale ((v / top)^EASE) between minH and maxH: it visibly shrinks with the numbers

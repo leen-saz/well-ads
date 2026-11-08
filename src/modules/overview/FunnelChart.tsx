@@ -18,9 +18,12 @@ const reduced = () => typeof matchMedia !== 'undefined' && matchMedia('(prefers-
 type Active = { kind: 'stage' | 'link'; i: number } | null;
 interface Props { stages: JStage[]; steps: Step[]; verdict: Verdict; was: (x: JStat) => number | null }
 
+const RATE = ['click', 'lead', 'sale'];
+
 export default function FunnelChart({ stages, steps, verdict, was }: Props) {
   const l = pageLang(), rtl = l !== 'en', t = (ar: string, en: string) => pick(l, ar, en);
-  const linkStep = (i: number) => steps.find(s => s.link === i && s.key !== 'cpl')!;
+  // The rate steps sit on the links; the two costs (cpm, cpl) sit on stages
+  const linkStep = (i: number) => steps.find(s => s.link === i && RATE.includes(s.key))!;
   const target = shape(stages.map(s => s.main.now), [0, 1, 2].map(i => linkStep(i).score), MAX_H, MIN_H);
   const key = [...target.heights, ...target.waists].map(v => v.toFixed(1)).join(',');
   const path = React.useRef<SVGPathElement>(null);
@@ -41,8 +44,9 @@ export default function FunnelChart({ stages, steps, verdict, was }: Props) {
   }, [key, rtl]); // the shape key holds every number the target uses
 
   const [active, setActive] = React.useState<Active>(null);
-  const bottleneckLink = verdict.step && verdict.level !== 'ok' && verdict.step !== 'cpl' ? steps.find(s => s.key === verdict.step)?.link ?? null : null;
-  const cplWeak = verdict.step === 'cpl' && verdict.level !== 'ok';
+  const bottleneckLink = verdict.step && verdict.level !== 'ok' && RATE.includes(verdict.step) ? steps.find(s => s.key === verdict.step)?.link ?? null : null;
+  // A weak cost (cpm on stage 0, cpl on stage 2) shows in red under its stage
+  const weakCost = verdict.level !== 'ok' && (verdict.step === 'cpm' || verdict.step === 'cpl') ? steps.find(s => s.key === verdict.step)!.link : null;
   const saleMissing = stages[3]!.main.now == null;
   const on = (x: Active) => ({
     onMouseEnter: () => setActive(x), onMouseLeave: () => setActive(null), onFocus: () => setActive(x), onBlur: () => setActive(null),
@@ -62,7 +66,7 @@ export default function FunnelChart({ stages, steps, verdict, was }: Props) {
           </defs>
           <path ref={path} fill="url(#funnel-fill)" />
           {stages.map((s, i) => {
-            const x = stageX(i, 4, W, rtl), hot = active?.kind === 'stage' && active.i === i, cost = s.sub.find(c => c.fmt === 'sar') ?? s.sub[0]!;
+            const x = stageX(i, 4, W, rtl), hot = active?.kind === 'stage' && active.i === i, cost = s.cost ?? s.sub[0]!;
             // White inside the band where it is tall enough to hold the text; on a thin band the number sits just above it
             // and its label just below, dark on the card, so no text ever overlaps the band
             const hh = target.heights[i]! / 2, onBand = s.main.now != null && hh * 2 >= 56;
@@ -74,8 +78,10 @@ export default function FunnelChart({ stages, steps, verdict, was }: Props) {
                 <text x={x} y={22} textAnchor="middle" className="fill-foreground text-[15px] font-semibold">{i + 1}. {s.n}</text>
                 <text x={x} y={valueY} textAnchor="middle" className={`${onBand ? 'fill-white' : 'fill-foreground'} text-[22px] font-semibold tabular-nums`} style={halo}>{val(s.main)}</text>
                 <text x={x} y={labelY} textAnchor="middle" className={`${onBand ? 'fill-white/90' : 'fill-muted-foreground'} text-[12px]`} style={halo}>{s.main.label}</text>
+                {/* The sale stage's money under its count, with its own label («مبلغ المبيعات», or «إجمالي المدفوع (CRM)» when not tied to ads) */}
+                {s.amount && <text x={x} y={onBand ? MID + hh + 14 : labelY + 16} textAnchor="middle" className="fill-foreground text-[12px] font-semibold tabular-nums">{s.amount.label}: {val(s.amount)}</text>}
                 <text x={x} y={H - 34} textAnchor="middle" className="fill-muted-foreground text-[12px]">{cost.label}</text>
-                <text x={x} y={H - 14} textAnchor="middle" className={`text-[14px] font-semibold tabular-nums ${i === 2 && cplWeak ? 'fill-destructive' : 'fill-foreground'}`}>{val(cost)}</text>
+                <text x={x} y={H - 14} textAnchor="middle" className={`text-[14px] font-semibold tabular-nums ${i === weakCost ? 'fill-destructive' : 'fill-foreground'}`}>{val(cost)}</text>
               </g>
             );
           })}
@@ -110,11 +116,12 @@ function Detail({ stages, steps, active, was, linkStep, rtl }: { stages: JStage[
       <div aria-live="polite" className="grid gap-1 rounded-lg border p-3 text-sm">
         <div className="flex flex-wrap items-baseline gap-2"><b>{stages[active.i]!.n} {arrow} {stages[active.i + 1]!.n}</b>
           <span className="tabular-nums">{rate.label}: <b>{val(rate)}</b></span><Delta now={rate.now} was={was(rate)} lowerIsBetter={false} /></div>
-        <p className={st.unattributed ? 'text-muted-foreground' : LEVEL[st.level]}>{st.line}</p>
+        <p className={st.unattributed ? 'text-muted-foreground' : LEVEL[st.level]}>{st.line} <span className="text-muted-foreground">({pick(pageLang(), 'المسؤول', 'Owner')}: {st.owner})</span></p>
       </div>
     );
   }
-  const s = stages[active.i]!, own = steps.filter(x => (active.i === 2 && x.key === 'cpl') || (active.i > 0 && x.link === active.i - 1 && x.key !== 'cpl'));
+  // A stage's own steps: its cost (cpm on stage 0, cpl on stage 2) and the rate that brought people into it
+  const s = stages[active.i]!, own = steps.filter(x => (!RATE.includes(x.key) && x.link === active.i) || (active.i > 0 && RATE.includes(x.key) && x.link === active.i - 1));
   return (
     <div aria-live="polite" className="grid gap-1 rounded-lg border p-3 text-sm">
       <div className="flex flex-wrap items-baseline gap-2"><b>{active.i + 1}. {s.n}</b><span className="text-muted-foreground">{s.hint}</span></div>
@@ -123,7 +130,7 @@ function Detail({ stages, steps, active, was, linkStep, rtl }: { stages: JStage[
           <span key={x.label} className="tabular-nums">{x.label}: <b>{val(x)}</b> <Delta now={x.now} was={was(x)} lowerIsBetter={x.lowerIsBetter} /></span>
         ))}
       </div>
-      {own.map(x => <p key={x.key} className={x.unattributed ? 'text-muted-foreground' : LEVEL[x.level]}>{x.line}</p>)}
+      {own.map(x => <p key={x.key} className={x.unattributed ? 'text-muted-foreground' : LEVEL[x.level]}>{x.line} <span className="text-muted-foreground">({pick(pageLang(), 'المسؤول', 'Owner')}: {x.owner})</span></p>)}
     </div>
   );
 }
