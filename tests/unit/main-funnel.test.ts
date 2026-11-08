@@ -1,30 +1,36 @@
 // The main dashboard's customer journey (funnelHTML at the end of pipeline/dash/05-render.js), run on its own with the page's helpers stubbed:
-// a horizontal pipe that narrows with the numbers, «غير مربوط» instead of a false 0%, and the bottleneck rules.
+// a horizontal pipe that narrows with the numbers, and the marketing judge (pipeline/dash/00-judge.js, the same file Overview uses).
 import { describe, expect, it } from 'vitest';
 import render from '../../pipeline/dash/05-render.js?raw';
+import { J } from '../../src/modules/overview/judge';
 
 // The funnel section of the page script: from its header comment to the end of the file
 const START = '// رحلة العميل كأنبوب أفقي';
 const src = render.slice(render.indexOf(START));
 
 type Fn = (...a: unknown[]) => unknown;
-type Api = { FUN: { MIN: number; MAX: number }; funShape: Fn; funPath: Fn; funX: (i: number) => number; funSteps: Fn; funVerdict: Fn; funUnlinked: Fn; funnelHTML: Fn };
+type Verdict = { level: string; step: string | null; owner: string | null; evidence: string; sar: number | null; unlinked: unknown; steps: { key: string; level: string; unattributed: boolean; line: string }[] };
+type Api = { FUN: { MIN: number; MAX: number }; funShape: Fn; funPath: Fn; funX: (i: number) => number; funJudge: (a: unknown) => Verdict; funnelHTML: Fn; funTargetsHTML: () => string };
+// The period's rows match `base` below: one ad, one day
+const ROWS = [['a', '2026-10-05', 15000, 200000, 3000, 70, 20]];
 // The page's script runs with these names in scope (no Node typings in this project, so no node:vm)
 function page(over: { crm?: unknown; rows?: unknown[][]; LANG?: string } = {}) {
   const fmt = (n: number | null, d = 0) => (n == null || !isFinite(n) ? '—' : n.toLocaleString('en-US', { maximumFractionDigits: d, minimumFractionDigits: d }));
+  const lang = over.LANG ?? 'ar';
   const scope: Record<string, unknown> = {
-    D: { rows: over.rows ?? [], crm: over.crm }, ADS: { a: { platform: 'facebook', goal: 'lead' } }, S: { from: '2026-10-01', to: '2026-10-30', crmBy: 'lead' },
-    LANG: over.LANG ?? 'ar', matchesSlice: () => true, tr: (s: string) => s, ui: (ar: string) => ar, money: () => 'ر.س', fmt,
+    D: { rows: over.rows ?? ROWS, crm: over.crm }, ADS: { a: { platform: 'facebook', goal: 'lead' } },
+    S: { from: '2026-10-01', to: '2026-10-30', crmBy: 'lead', plat: 'all', stat: 'all', dept: '', camp: '', goal: '', fmt: '' }, MAX: '2026-10-30',
+    LANG: lang, JUDGE: J, render: () => {}, document: { addEventListener: () => {} }, localStorage: { getItem: () => null, setItem: () => {}, removeItem: () => {} },
+    matchesSlice: () => true, tr: (s: string) => s, ui: (ar: string, en: string) => (lang === 'en' ? en : ar), money: () => 'ر.س', fmt,
     qty: (n: number) => fmt(n), sar: (n: number | null) => (n == null ? '—' : fmt(n, 2)), pct: (n: number | null) => (n == null ? '—' : fmt(n, 2) + '%'),
     addDays: (s: string, n: number) => { const d = new Date(s + 'T00:00:00Z'); d.setUTCDate(d.getUTCDate() + n); return d.toISOString().slice(0, 10); },
     delta: (x: number | null, y: number | null) => (x == null || y == null || !y ? '<span class="delta flat">— لا مقارنة</span>' : `<span class="delta">${x > y ? '▲' : '▼'} عن الفترة السابقة</span>`),
   };
-  const run = new Function(...Object.keys(scope), src + '\n;return { FUN, funShape, funPath, funX, funSteps, funVerdict, funUnlinked, funnelHTML };');
+  const run = new Function(...Object.keys(scope), src + '\n;return { FUN, funShape, funPath, funX, funJudge, funnelHTML, funTargetsHTML };');
   return run(...Object.values(scope)) as Api;
 }
-const base = { spend: 15000, impr: 200000, clicks: 3000, leads: 70, conv: 20, crmLeads: 60, booked: 6, allPaidN: 8, ctr: 1.5, cpl: 50, closeRate: 10 };
-const usual = { click: 1.5, lead: 3, cpl: 50 };
-type Step = { key: string; level: string; score: number | null; unlinked?: boolean; line: string };
+const base = { spend: 15000, impr: 200000, clicks: 3000, leads: 70, conv: 20, crmLeads: 60, booked: 6, allPaidN: 8, allPaid: 12000, ctr: 1.5, cpl: 50, closeRate: 10 };
+const tiedCrm = { rows: Array.from({ length: 60 }, (_, i) => ['a', '2026-10-05', i < 6 ? '2026-10-06' : '', i < 6, i < 6 ? 1500 : 0]), paid_all: Array.from({ length: 8 }, () => ['2026-10-05', '2026-10-06', 1500, 'x']) };
 
 describe('main dashboard: customer journey', () => {
   it('the funnel section is found', () => expect(render.indexOf(START)).toBeGreaterThan(0));
@@ -40,71 +46,72 @@ describe('main dashboard: customer journey', () => {
     expect(f.funPath(sh)).toMatch(/^M0,[\d.]+C.*Z$/);
   });
 
-  it('paid closings in the CRM with none tied to an ad: «غير مربوط», no 0%, never the bottleneck', () => {
-    const crm = { rows: [['a', '2026-10-05', '', false, 0]], paid_all: [['2026-10-05', '2026-10-06', 900, 'manual']] };
+  it('paid closings in the CRM with none tied to an ad: sales are still judged on the whole CRM; only the ads\' own figures are «غير مربوط»', () => {
+    const crm = { rows: [['a', '2026-10-05', '', false, 0]], paid_all: Array.from({ length: 45 }, () => ['2026-10-05', '2026-10-06', 900, 'manual']) };
     const f = page({ crm }), a = { ...base, booked: 0, closeRate: 0, allPaidN: 45 };
-    expect(f.funUnlinked(a)).toBe('none');
-    const steps = f.funSteps(a, { ...base }, usual, 3, 3, 'none') as Step[];
-    const sale = steps.find(s => s.key === 'sale')!;
-    expect(sale).toMatchObject({ unlinked: true, score: null });
-    expect(sale.line).toContain('45 اقفالة');
-    expect(sale.line).toContain('مو صفر');
-    expect((f.funVerdict(steps) as { step: string; unlinked: boolean }).step).not.toBe('sale');
+    const v = f.funJudge(a), sale = v.steps.find(s => s.key === 'sale')!;
+    expect(sale).toMatchObject({ unattributed: false });
+    expect(sale.line).toContain('مقابل هدف 8%');
+    expect(v.unlinked).not.toBeNull();
     const html = f.funnelHTML(a, {}) as string;
-    expect(html).toContain('غير مربوط');
+    expect(html).toContain('الربط بالإعلانات ناقص');
+    expect(html).toMatch(/اقفالات من الإعلانات<\/span><span class="v">غير مربوط/);
+    // The sale link: 45 ÷ 90 leads and chats, not «غير مربوط» and not 0%
+    expect(html).toContain('>50.00%</text>');
+  });
+
+  it('no CRM at all: the sale link is «غير مربوط», not judged, and the note says why', () => {
+    const f = page(), v = f.funJudge(base);
+    expect(v.steps.find(s => s.key === 'sale')).toMatchObject({ level: 'na', unattributed: true });
+    expect(v.steps.map(s => s.key)).toEqual(['click', 'lead', 'sale', 'cpl']);
+    expect(v.step).not.toBe('sale');
+    const html = f.funnelHTML(base, {}) as string;
+    expect(html).toContain('نظام العملاء مو موصول بهالأرقام');
     expect(html).not.toContain('0.00%');
-    expect(html).toContain('مرحلة البيع غير مربوطة');
   });
 
-  it('no CRM at all, or too few leads tied to an ad: also «غير مربوط»', () => {
-    expect(page().funUnlinked(base)).toBe('nocrm');
-    expect(page({ crm: { rows: [], paid_all: [] } }).funUnlinked({ ...base, crmLeads: 5 })).toBe('cover');
-    expect(page({ crm: { rows: [['a', '2026-10-05', '2026-10-05', true, 900]], paid_all: [] } }).funUnlinked(base)).toBeNull();
+  it('the same verdict as Overview for the same numbers (one rules file)', () => {
+    const f = page({ crm: tiedCrm }), a = { ...base, ctr: 0.5, clicks: 1000, impr: 200000 };
+    const mine = f.funJudge(a);
+    const theirs = J.judge({ top: { impr: 200000, clicks: 1000, results: 90, spend: 15000, cpl: 50 },
+      sale: { crm: true, results: 90, spend: 15000, closings: 8, paid: 12000, adClosings: 6, adLeads: 60, wide: false },
+      cohort: J.cohort([['2026-10-05', 90]], tiedCrm.paid_all.map(r => [r[0], r[1]] as [string, string]), '2026-10-01', '2026-10-30', '2026-10-30', 30) }, J.targets(), 'ar', {
+      pct: v => `${Number(v.toFixed(Math.abs(v) < 0.1 ? 3 : 2)).toLocaleString('en-US', { maximumFractionDigits: 3 })}%`, sar: v => v.toFixed(0), x: v => v.toFixed(2), qty: v => String(v), num: (v, d) => v.toFixed(d) });
+    expect(mine.level).toBe(theirs.level);
+    expect(mine.step).toBe(theirs.step);
+    expect(mine.sar ?? 0).toBeCloseTo(theirs.sar ?? 0);
+    expect(mine.steps.map(s => s.level)).toEqual(theirs.steps.map(s => s.level));
   });
 
-  it('a step under its floor is the bottleneck before one only weaker than usual', () => {
-    const f = page({ crm: { rows: [], paid_all: [] } });
-    const steps = f.funSteps({ ...base, cpl: 81.5 }, { ...base, cpl: 66.5 }, { click: null, lead: null, cpl: null }, 1.43, 1.72, null) as Step[];
-    expect(f.funVerdict(steps)).toMatchObject({ step: 'lead', level: 'bad', title: 'النقرات ما تصير ليدز' });
+  it('each step names the department that owns it; the verdict names the worst', () => {
+    const f = page({ crm: tiedCrm });
+    expect(f.funJudge({ ...base, clicks: 600 })).toMatchObject({ step: 'click', owner: 'الإنتاج / الكريتيف' });
+    const v = f.funJudge(base);
+    expect(v.steps.find(s => s.key === 'lead')).toBeDefined();
+    expect(['sale', 'lead', 'cpa', 'roas']).toContain(v.step);
+    expect(v.level).not.toBe('fine');
   });
 
-  it("small gaps are not a problem: Leen's 1.71% vs a usual 1.84% stays fine, «لا توجد مشكلة واضحة»", () => {
-    const f = page({ crm: { rows: [['a', '2026-10-05', '2026-10-05', true, 900]], paid_all: [] } });
-    const steps = f.funSteps({ ...base, ctr: 1.71 }, { ...base, ctr: 1.95 }, { click: 1.84, lead: 3, cpl: 50 }, 6.78, 6.9, null) as Step[];
-    expect(steps.find(s => s.key === 'click')!.level).toBe('ok');
-    expect(f.funVerdict(steps)).toMatchObject({ step: null, level: 'ok', title: 'لا توجد مشكلة واضحة' });
-  });
-
-  it('weak only when weaker than every reference: 20% under both is watch, close to one of them is fine', () => {
-    const f = page({ crm: { rows: [], paid_all: [] } });
-    const click = (prev: number) => (f.funSteps({ ...base, ctr: 1.2 }, { ...base, ctr: prev }, usual, 3, 3, null) as Step[]).find(s => s.key === 'click')!.level;
-    expect(click(1.5)).toBe('watch');
-    expect(click(1.25)).toBe('ok');
-  });
-
-  it('each step names the department that owns it; the verdict names the weakest', () => {
-    const f = page({ crm: { rows: [['a', '2026-10-05', '2026-10-05', true, 900]], paid_all: [] } });
-    const v = (o: Record<string, number>, c2l = 3) => f.funVerdict(f.funSteps({ ...base, cpm: 75, ...o }, { ...base, cpm: 75 }, { ...usual, cpm: 75 }, c2l, 3, null)) as { step: string; owner: string | null };
-    expect(v({ ctr: 0.5 })).toMatchObject({ step: 'click', owner: 'الإنتاج / الكريتيف' });
-    expect(v({}, 1)).toMatchObject({ step: 'lead', owner: 'الإنتاج + صفحة الهبوط / النموذج' });
-    expect(v({ closeRate: 1 })).toMatchObject({ step: 'sale', owner: 'المبيعات' });
-    expect(v({ cpm: 150 })).toMatchObject({ step: 'cpm', owner: 'المشتري الإعلامي' });
-    expect(v({})).toMatchObject({ step: null, owner: null });
+  it('no green «تمام» badge while a step is under target; the targets table says «افتراضي — عدّله»', () => {
+    const f = page({ crm: tiedCrm }), html = f.funnelHTML({ ...base }, {}) as string;
+    expect(html).toMatch(/<div class="fverdict (watch|bad|bad dis)">/);
+    const t = f.funTargetsHTML();
+    expect(t.match(/data-ftarget="/g)).toHaveLength(7);
+    expect(t.match(/افتراضي — عدّله/g)).toHaveLength(7);
   });
 
   it('the sale stage shows the sales amount; the CRM total, said so, when the closings are not tied to ads', () => {
-    const tied = page({ crm: { rows: [['a', '2026-10-05', '2026-10-05', true, 900]], paid_all: [['2026-10-05', '2026-10-05', 900, 'x']] } })
-      .funnelHTML({ ...base, allPaid: 900, value: 900 }, {}) as string;
-    expect(tied).toContain('مبلغ المبيعات: 900.00');
+    const tied = page({ crm: tiedCrm }).funnelHTML({ ...base, value: 9000 }, {}) as string;
+    expect(tied).toContain('مبلغ المبيعات: 12,000.00');
     const loose = page({ crm: { rows: [['a', '2026-10-05', '', false, 0]], paid_all: [['2026-10-05', '2026-10-06', 900, 'manual']] } })
       .funnelHTML({ ...base, booked: 0, closeRate: 0, allPaidN: 45, allPaid: 67500, value: 0 }, {}) as string;
     expect(loose).toContain('إجمالي المدفوع (CRM): 67,500.00');
     expect(loose).toMatch(/المبيعات من الإعلانات<\/span><span class="v">غير مربوط/);
-    expect(loose).toContain('المسؤول: نظام العملاء / العمليات');
+    expect(loose).toContain('<b>نظام العملاء / العمليات</b>');
   });
 
   it('one «التحليل» heading over the lines', () => {
-    const html = page({ crm: { rows: [['a', '2026-10-05', '2026-10-05', true, 900]], paid_all: [] } }).funnelHTML({ ...base }, {}) as string;
+    const html = page({ crm: tiedCrm }).funnelHTML({ ...base }, {}) as string;
     expect(html.match(/<h4 class="flines-h">/g)).toHaveLength(1);
     expect(html).toContain('<h4 class="flines-h">التحليل</h4>');
   });

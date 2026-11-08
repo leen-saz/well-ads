@@ -112,7 +112,7 @@ describe('judge: minimum sample', () => {
 });
 
 describe('judge: data trust', () => {
-  const at = (adLeads: number) => step({ ...healthy, sale: { ...healthy.sale, closings: 24, adLeads } }, 'sale');
+  const at = (adLeads: number) => step({ ...healthy, sale: { ...healthy.sale, closings: 24, adClosings: 5, adLeads } }, 'sale');
   it('confidence from how many leads the CRM ties to an ad: ≥70% high, ≥30% medium, else low', () => {
     expect(at(900).confidence).toBe('high');
     expect(at(500).confidence).toBe('medium');
