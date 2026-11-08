@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { api } from '../../src/api/index';
-import { PLATFORMS, oauth1 } from '../../src/lib/connectors';
+import { PLATFORMS, oauth1, pullState } from '../../src/lib/connectors';
 import { sign, SESSION, type AuthEnv } from '../../src/lib/auth';
 
 const ENV: AuthEnv = { SUPABASE_URL: 'https://db.test', SUPABASE_SERVICE_ROLE_KEY: 'sb_secret_x', SESSION_SECRET: 's'.repeat(32), OWNER_EMAIL: 'leen@x.co' };
@@ -194,5 +194,27 @@ describe('oauth1 (X)', () => {
     const r = await oauth1('https://api.x.com/oauth/request_token', { key: 'ck', secret: 'cs', extra: { oauth_callback: 'https://w/cb' } });
     expect(r).toEqual({ oauth_token: 't', oauth_token_secret: 's' });
     expect(auth).toMatch(/^OAuth .*oauth_signature_method="HMAC-SHA1".*oauth_signature="[^"]+"/);
+  });
+});
+
+describe('pullState: is the GitHub pull delivering?', () => {
+  const NOW = Date.parse('2026-11-08T12:00:00Z');
+  it('a recent ad write or a recent metric day counts; nothing, or only old rows, does not', () => {
+    expect(pullState('2026-11-08T11:00:00Z', null, NOW).live).toBe(true);
+    expect(pullState('2026-11-01T11:00:00Z', '2026-11-07', NOW).live).toBe(true);   // ads quiet, daily numbers arriving
+    expect(pullState('2026-11-01T11:00:00Z', '2026-11-01', NOW).live).toBe(false);
+    expect(pullState(null, null, NOW)).toEqual({ live: false, last: null });
+  });
+  it('last is the newer of the two, as an ISO time', () => {
+    expect(pullState('2026-11-05T00:00:00Z', '2026-11-07', NOW).last).toBe('2026-11-07T00:00:00.000Z');
+  });
+  it('the list answers github for a pulled platform with no saved keys, and keeps ok for saved ones', async () => {
+    db(url => url.includes('/rest/v1/ads?') && url.includes('platform=eq.snap') ? [{ updated_at: new Date().toISOString() }]
+      : url.includes('/connections') ? [{ platform: 'meta', names: ['META_ACCESS_TOKEN', 'META_AD_ACCOUNT_ID'] }] : url.includes('/rest/v1/ads?') && url.includes('platform=eq.meta') ? [{ updated_at: new Date().toISOString() }] : []);
+    const { platforms } = await (await call('/api/connectors/list')).json() as { platforms: { id: string; status: string }[] };
+    const st = Object.fromEntries(platforms.map(p => [p.id, p.status]));
+    expect(st['snap']).toBe('github');
+    expect(st['meta']).toBe('ok');
+    expect(st['google_ads']).toBe('none');
   });
 });

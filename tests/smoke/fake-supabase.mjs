@@ -38,6 +38,9 @@ export function startFake(port, keys) {
         const id = (url.searchParams.get('id') || '').replace(/^eq\./, '');
         return send(res, 200, profiles.filter(p => p.id === id));
       }
+      // Synthetic pull history: Meta wrote an ad just now, Snapchat delivered yesterday's metric day, Google has nothing
+      if (url.pathname === '/rest/v1/ads' && req.method === 'GET' && url.searchParams.get('platform') === 'eq.meta' && url.searchParams.get('select') === 'updated_at') return send(res, 200, [{ updated_at: new Date().toISOString() }]);
+      if (url.pathname === '/rest/v1/ad_metrics' && req.method === 'GET' && url.searchParams.get('ads.platform') === 'eq.snap') return send(res, 200, [{ day: new Date(Date.now() - 864e5).toISOString().slice(0, 10), ads: { platform: 'snap' } }]);
       if (req.method === 'GET') return send(res, 200, []);
       return send(res, 201);
     });

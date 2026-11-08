@@ -6,7 +6,7 @@ import {
 } from '../../lib/auth';
 import { WELL_COMPANY } from '../../lib/tenant';
 import { TIKTOK_MCP_DAYS, pkce, registerClient, authorizeUrl as mcpAuthorizeUrl, exchangeCode } from '../../lib/mcp-oauth';
-import { PLATFORMS, OAUTH, byId, appCreds, authorizeUrl, exchange, oauth1, check, type Platform, type Values, type Exchanged, CORE } from '../../lib/connectors';
+import { PLATFORMS, OAUTH, byId, appCreds, authorizeUrl, exchange, oauth1, check, pullState, type Platform, type Values, type Exchanged, CORE } from '../../lib/connectors';
 
 type Row = Record<string, unknown>;
 const rows = (d: unknown): Row[] => (Array.isArray(d) ? (d as Row[]) : []);
@@ -51,15 +51,18 @@ export const list = {
     const r = await sb(cfg, '/rest/v1/connections?select=platform,method,names,shown,connected_by,connected_at,expires_at,checked', { admin: true });
     if (!r.ok) return json(500, { error: 'ما قدرت أقرأ حالة الربط. تأكد إن 005_connectors.sql انطبق على القاعدة' });
     const by = Object.fromEntries(rows(r.data).map(x => [String(x.platform), x]));
-    // Platforms the hourly pull already reads with keys kept in GitHub secrets: ads updated in the last 2 days
-    const since = new Date(Date.now() - 2 * 864e5).toISOString();
+    // Platforms the hourly pull reads with keys kept in GitHub secrets: the last ad write and the last metric day of each
     const PULL: Record<string, string> = { meta: 'meta', google: 'google_ads', snap: 'snap', tiktok: 'tiktok' };
     // One row per platform is enough (a single 5000-row read is cut at 1000 and could hold only one platform)
-    const seen = await Promise.all(Object.keys(PULL).map(async k => {
-      const r = await sb(cfg, `/rest/v1/ads?select=platform&platform=eq.${k}&updated_at=gte.${since}&limit=1`, { admin: true });
-      return r.ok && rows(r.data).length ? PULL[k] : undefined;
+    const first = async (path: string, field: string) => { const r = await sb(cfg, path, { admin: true }); const x = r.ok ? rows(r.data)[0] : undefined; return x ? String(x[field] ?? '') || null : null; };
+    const pulls = new Map<string, { live: boolean; last: string | null }>();
+    await Promise.all(Object.keys(PULL).map(async k => {
+      const [ad, day] = await Promise.all([
+        first(`/rest/v1/ads?select=updated_at&platform=eq.${k}&order=updated_at.desc&limit=1`, 'updated_at'),
+        first(`/rest/v1/ad_metrics?select=day,ads!inner(platform)&ads.platform=eq.${k}&order=day.desc&limit=1`, 'day'),
+      ]);
+      pulls.set(PULL[k] as string, pullState(ad, day));
     }));
-    const live = new Set(seen.filter(Boolean));
     const platforms = PLATFORMS.map(p => {
       const c = by[p.id] || null;
       const o = OAUTH[p.id];
@@ -68,14 +71,17 @@ export const list = {
       const have = new Set<string>(c ? (c.names as string[]) || [] : []);
       const expires = c?.expires_at as string | null | undefined;
       // TikTok stays on MCP: 'mcp' (Grok's branch) until it is signed in to TikTok's MCP server from here.
-      const status = p.mcp && !have.size ? 'mcp' : !c ? (live.has(p.id) ? 'pull' : 'none') : expires && new Date(expires) < new Date() ? 'expired' : required.every(n => have.has(n)) ? 'ok' : 'partial';
+      // 'github' = keys live in GitHub secrets and the hourly pull is delivering: working, but not connected from this page
+      const pull = pulls.get(p.id);
+      const own = !c ? 'none' : expires && new Date(expires) < new Date() ? 'expired' : required.every(n => have.has(n)) ? 'ok' : 'partial';
+      const status = p.mcp && !have.size ? 'mcp' : own !== 'ok' && pull?.live ? 'github' : own;
       const shown = (c?.shown as Values | undefined) || {};
       return {
         id: p.id, name: p.name, group: p.group, core: CORE[p.id] || null, fetch: !!p.fetch, mcp: !!p.mcp, docs: p.docs, help: p.help,
         oauth: !!o, oauthReady: !!(o && (o.mcpOAuth || appCreds(p, vars(e)))), expiresNote: o?.expires || null, logo: p.logo || null, color: p.color || null,
         fields: p.fields.map(f => ({ env: f.env, label: f.label, secret: f.secret, type: f.type, optional: !!f.optional, manual: !!f.manual,
           placeholder: f.placeholder || '', saved: have.has(f.env), shown: !f.secret && c ? shown[f.env] || '' : '' })),
-        status, method: c && c.method, by: c && c.connected_by, at: c && c.connected_at, expires: c && c.expires_at, checked: c && c.checked,
+        status, lastPull: pull?.last || null, method: c && c.method, by: c && c.connected_by, at: c && c.connected_at, expires: c && c.expires_at, checked: c && c.checked,
       };
     });
     return json(200, { platforms });
