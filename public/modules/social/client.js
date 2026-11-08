@@ -20,8 +20,17 @@ export default async function mount() {
     unconfirmed: 'ما وصلنا رد من المنصة وممكن يكون المنشور اننشر. افتح الصفحة وتأكد قبل ما تعيد المحاولة',
     network: 'تعذر الاتصال بالمنصة',
     platform: 'المنصة ما قبلت المنشور',
-    unsupported: 'النشر التلقائي لهالمنصة قريباً',
+    unsupported: 'النشر التلقائي لهالمنصة غير متاح الحين. انحفظ كتذكير',
+    invalid: 'المنشور ما يناسب شروط المنصة (عدد الصور أو نوع الملف)',
+    many_accounts: 'فيه أكثر من حساب مربوط لهالمنصة. خلّ المالك يترك حساب واحد',
   };
+  // The extra publishing service, for the owner's check (words only; the codes come from /api/social/engine)
+  const ENGINE = {
+    ok: 'الخدمة شغالة', off: 'ما انربطت خدمة النشر لتيك توك وX ولينكدإن. اربطها من صفحة الربط',
+    url: 'عنوان الخدمة غير صحيح. صححه من صفحة الربط', key: 'مفتاح الخدمة مرفوض أو ناقص. حدّثه من صفحة الربط',
+    down: 'ما قدرنا نوصل للخدمة. تأكد إنها شغالة',
+  };
+  const CHANNEL = { ok: 'حساب مربوط', none: 'ما فيه حساب مربوط. اربطه من داخل الخدمة', many: 'أكثر من حساب مربوط. اترك حساب واحد' };
   const CHECK = {
     fb_ok: 'فيسبوك جاهز للنشر', fb_not_connected: 'صفحة فيسبوك مو مربوطة. اربطها من صفحة الربط',
     fb_token: 'ربط فيسبوك انتهى أو انرفض. اربطه من جديد', fb_page: 'ما قدرنا نوصل لصفحة فيسبوك. تأكد إنها موجودة وإنك مديرها',
@@ -76,7 +85,7 @@ export default async function mount() {
     if (!$('#plats').innerHTML) {
       // Each platform says up front whether it can publish by itself (account connected) or not
       const R = r.ready || {};
-      $('#plats').innerHTML = Object.entries(PLATS).map(([k, p]) => `<label title="${esc(R[k] || 'جاهز للنشر')}"><input type="checkbox" name="pl" value="${k}"> ${esc(p.name)}${!p.live ? ' <span class="muted">(قريباً)</span>' : R[k] ? ' <span class="so-warn">· مو مربوط</span>' : ' <span class="muted">· جاهز</span>'}</label>`).join('');
+      $('#plats').innerHTML = Object.entries(PLATS).map(([k, p]) => `<label title="${esc(R[k] || 'جاهز للنشر')}"><input type="checkbox" name="pl" value="${k}"> ${esc(p.name)}${!p.live ? ` <span class="muted">(${(R[k] || '').includes('غير متاح') ? 'غير متاح الحين' : 'قريباً'})</span>` : R[k] ? ' <span class="so-warn">· مو مربوط</span>' : ' <span class="muted">· جاهز</span>'}</label>`).join('');
       $$('input[name="pl"]').forEach(x => x.addEventListener('change', counter));
     }
     $('#range').textContent = `${fmtDay(from)} ← ${fmtDay(to)}`;
@@ -98,6 +107,7 @@ export default async function mount() {
     else el.textContent = a.pick ? 'ما انربطت صفحة للحين. اختر صفحة من تحت.' : 'ما انربط حساب للنشر للحين.';
     $('#connLink').hidden = !APPR.owner;
     $('#connCheck').hidden = !APPR.owner || !a.page;
+    $('#eng').hidden = !APPR.owner;
     loadPick();
   }
   async function loadPick() {
@@ -123,6 +133,21 @@ export default async function mount() {
       $('#connOut').innerHTML = r.checks.map(c => `<li class="${c.level}"><span>${c.level === 'ok' ? '✓' : c.level === 'warn' ? '!' : '✕'}</span><span>${esc(CHECK[c.code] || c.code)}</span></li>`).join('')
         + '<li class="muted"><span></span><span>هذا فحص بس، ما نشرنا شي.</span></li>';
     } catch (err) { $('#connOut').innerHTML = `<li class="block"><span>✕</span><span>${esc(err.message)}</span></li>`; }
+    busy(btn, false);
+  };
+
+  // The owner's check of the extra publishing service: reachable, key valid, which platforms have a connected account (names only). Reads only.
+  $('#engCheck').onclick = async e => {
+    const btn = e.currentTarget;
+    busy(btn, true); $('#engOut').innerHTML = '';
+    try {
+      const r = await api('/api/social/engine');
+      const line = (cls, mark, html) => `<li class="${cls}"><span>${mark}</span><span>${html}</span></li>`;
+      $('#engOut').innerHTML = line(r.status === 'ok' ? 'ok' : 'block', r.status === 'ok' ? '✓' : '✕', esc(ENGINE[r.status] || ENGINE.down))
+        + (r.status === 'ok' ? r.channels.map(c => line(c.code === 'ok' ? 'ok' : 'warn', c.code === 'ok' ? '✓' : '!',
+          `<span>${esc(PLATS[c.platform]?.name || c.platform)}</span>: <span>${esc(CHANNEL[c.code])}</span>${c.names.length ? ` <bdi dir="auto">(${c.names.map(esc).join('، ')})</bdi>` : ''}`)).join('') : '')
+        + '<li class="muted"><span></span><span>هذا فحص بس، ما نشرنا شي.</span></li>';
+    } catch (err) { $('#engOut').innerHTML = `<li class="block"><span>✕</span><span>${esc(err.message)}</span></li>`; }
     busy(btn, false);
   };
 
