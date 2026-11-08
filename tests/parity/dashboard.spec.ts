@@ -41,17 +41,19 @@ function pipelinePage(): string {
   return oldPage;
 }
 
-type Step = { click: string };
+type Step = { click: string } | { range: [string, string] };
 type Scenario = { name: string; query?: string; steps?: Step[] };
 const preset = (k: string): Step => ({ click: `#presets button[data-k="${k}"]` });
 const plat = (v: string): Step => ({ click: `#plats button[data-v="${v}"]` });
 const dept = (v: string): Step => ({ click: `#depts button[data-v="${v}"]` });
 const stat = (v: string): Step => ({ click: `#stat button[data-v="${v}"]` });
+// A range picked with «اختيار تاريخ»: open the picker, type the two days, apply
+const range = (from: string, to: string): Step => ({ range: [from, to] });
 
 const SCENARIOS: Scenario[] = [
   { name: 'overview 7d' },
   { name: 'overview 30d', steps: [preset('30')] },
-  { name: 'overview last month', steps: [preset('pm')] },
+  { name: 'overview last month', steps: [range('2026-09-01', '2026-09-30')] },
   { name: 'overview all time', steps: [preset('90')] },
   { name: 'overview 30d facebook', steps: [preset('30'), plat('facebook')] },
   { name: 'overview 30d snap', steps: [preset('30'), plat('snap')] },
@@ -59,7 +61,7 @@ const SCENARIOS: Scenario[] = [
   { name: 'overview 30d live only', steps: [preset('30'), stat('live')] },
   { name: 'depts 30d', query: 'p=depts', steps: [preset('30')] },
   { name: 'channels 30d', query: 'p=channels', steps: [preset('30')] },
-  { name: 'channels 14d google', query: 'p=channels', steps: [preset('14'), plat('google')] },
+  { name: 'channels 14d google', query: 'p=channels', steps: [range('2026-10-08', '2026-10-21'), plat('google')] },
   { name: 'creative 30d', query: 'p=creative', steps: [preset('30')] },
   { name: 'creative wall only 30d', query: 'view=creative', steps: [preset('30')] },
   { name: 'organic accounts', query: 'mode=organic&p=accounts', steps: [preset('90')] },
@@ -92,7 +94,13 @@ async function open(page: Page, s: Scenario): Promise<unknown> {
   await page.waitForFunction(() => !!document.querySelector('#kpis .kpi .v')?.textContent?.trim() || !!document.querySelector('#acctPage *'));
   // Dispatched, not clicked: department and status sit in the collapsed "more filters" rows
   for (const st of s.steps ?? []) {
-    await page.locator(st.click).first().dispatchEvent('click');
+    if ('range' in st) {
+      await page.locator('#dpickBtn').click();
+      await page.locator('#from').fill(st.range[0]);
+      await page.locator('#to').fill(st.range[1]);
+      await page.locator('#to').dispatchEvent('change');
+      await page.locator('#dpApply').click();
+    } else await page.locator(st.click).first().dispatchEvent('click');
   }
   await page.waitForTimeout(300);
   return snapshot(page);
