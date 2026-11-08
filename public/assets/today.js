@@ -2,7 +2,7 @@
 import { $, api, esc, icon, shell, say, when, day, fmt, sar, LANG, failure } from './common.js';
 import { sections } from './sidebar.js';
 
-const READY = new Set(['ok', 'mcp', 'pull']);
+const READY = new Set(['ok', 'mcp', 'github']);
 const STALE_H = 3; // التحديث كل ساعة: أقدم من 3 ساعات = فيه شي واقف
 const KIND = { new_campaign: 'حملة جديدة', pause: 'إيقاف', pause_campaign: 'إيقاف الحملة', budget_up: 'رفع الميزانية', budget_down: 'تنزيل الميزانية', refresh_creative: 'مادة إعلانية جديدة', resume: 'إعادة تشغيل' };
 const L = (ar, en) => (LANG === 'en' ? en : ar);

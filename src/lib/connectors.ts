@@ -321,3 +321,14 @@ export async function check(p: Platform, v: Values): Promise<{ ok: boolean; msg:
   }
   return null;
 }
+
+// Is the hourly pull (GitHub secrets, pipeline/) delivering for a platform? The newest ad write or the newest metric day decides:
+// ads.updated_at only moves when an ad row changes, so a quiet ad set would look dead while its daily numbers keep arriving.
+// Names, dates and a yes/no only: no figures.
+export function pullState(adUpdated: string | null | undefined, metricDay: string | null | undefined, now = Date.now()): { live: boolean; last: string | null } {
+  const a = adUpdated ? Date.parse(adUpdated) : NaN;
+  const m = metricDay ? Date.parse(`${String(metricDay).slice(0, 10)}T00:00:00Z`) : NaN;
+  const live = (Number.isFinite(a) && a >= now - 2 * 864e5) || (Number.isFinite(m) && m >= now - 3 * 864e5);
+  const best = Math.max(Number.isFinite(a) ? a : -Infinity, Number.isFinite(m) ? m : -Infinity);
+  return { live, last: Number.isFinite(best) ? new Date(best).toISOString() : null };
+}

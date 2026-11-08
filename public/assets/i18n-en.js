@@ -516,7 +516,8 @@ export const pat = t => [
   [/^· (.+)$/, (m, x) => '· ' + t(x)],
   // صفحة الربط: نصوص فيها اسم منصة أو تاريخ أو عدد
   [/^(\d+) (?:مربوطة|مربوط) من (\d+)$/, '$1 of $2 connected'], [/^آخر ربط (.+)$/, 'Last connected $1'], [/^ينتهي (.+)$/, 'Expires $1'],
-  [/^مربوطة من (.+)$/, 'Connected from $1'], [/^انفك ربط (.+)$/, 'Disconnected $1'],
+  [/^مربوطة من (.+)$/, 'Connected from $1'],
+  [/^يعمل عبر GitHub$/, 'Active via GitHub'], [/^آخر سحب ناجح (.+)$/, 'Last successful pull $1'], [/^المفاتيح في أسرار GitHub، مو مربوطة من هذي الصفحة$/, 'The keys are in GitHub secrets, not connected from this page'], [/^انفك ربط (.+)$/, 'Disconnected $1'],
   [/^فك ربط (.+)؟ المفاتيح المحفوظة تنمسح من الخزنة\.$/, 'Disconnect $1? The saved keys are wiped from the vault.'],
   [/^(\d+) حرف$/, '$1 characters'], [/^(\d+) خطوات$/, '$1 steps'], [/^الخطة ·(.*)$/, (m, a) => 'Plan ·' + t(a)],
   [/^البوزشن:(.*)$/, 'Positioning:$1'], [/^مجال النشاط:(.*)$/, 'Business field:$1'],

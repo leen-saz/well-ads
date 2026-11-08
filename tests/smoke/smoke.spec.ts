@@ -191,3 +191,24 @@ test.describe('sidebar and language (browser)', () => {
     await expect(page.locator('html')).toHaveAttribute('lang', 'ar');
   });
 });
+
+test.describe('connectors: a platform pulled through GitHub secrets is not «not connected»', () => {
+  test('the list says github for Meta (ad written) and Snapchat (metric day), none for Google, and carries no figures', async ({ request }) => {
+    const c = await login(request, 'owner');
+    const r = await request.get('/api/connectors/list', { headers: { cookie: c.header } });
+    expect(r.status()).toBe(200);
+    const { platforms } = await r.json() as { platforms: { id: string; status: string; lastPull: string | null }[] };
+    const st = Object.fromEntries(platforms.map(p => [p.id, p.status]));
+    expect(st).toMatchObject({ meta: 'github', snap: 'github', google_ads: 'none' });
+    expect(platforms.find(p => p.id === 'meta')?.lastPull).toMatch(/^\d{4}-\d{2}-\d{2}T/);
+    expect(platforms.find(p => p.id === 'google_ads')?.lastPull).toBeNull();
+  });
+  for (const [lang, on, off] of [['ar', 'يعمل عبر GitHub', 'مو مربوط'], ['en', 'Active via GitHub', 'Not connected']] as const) {
+    test(`the page shows the chip in ${lang}, distinct from the not-connected one`, async ({ page, context, request }) => {
+      await addSession(context, await login(request, 'owner'));
+      await page.goto(`/connectors/?lang=${lang}`);
+      await expect(page.locator('.chip', { hasText: on }).first()).toBeVisible();
+      await expect(page.locator('.chip', { hasText: off }).first()).toBeVisible();
+    });
+  }
+});
