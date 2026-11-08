@@ -1,6 +1,6 @@
 # Vision (image description)
 
-Phase 2 of the DaVinci PRD (the idea only: image analysis as its own tool with per-provider cost; no DaVinci code or prompts). Code: `src/modules/vision/`, the adapter in `src/lib/gemini.ts`, migration `supabase/migrations/024_vision.sql`.
+Phase 2 of the DaVinci PRD (the idea only: image analysis as its own tool with per-provider cost; no DaVinci code or prompts). Code: `src/modules/vision/`, the adapter in `src/lib/gemini.ts`, migration `supabase/migrations/025_vision.sql`.
 
 ## Flow
 1. The browser shrinks the picture to at most 1600 px and re-encodes it as JPEG (faster, cheaper, and the camera's location data is dropped), takes its SHA-256, and sends `{title, mime, data (base64), hash}` to `POST /api/vision/describe`. The request is capped at about 2 MB of base64.

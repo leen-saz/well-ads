@@ -70,9 +70,9 @@ by code that is live on main; open «المدير ← صحة الداتا ← ا
 | `library_items` | 020 | shared library (copywriter and the other tabs) | yes (FK) | id, module, kind, title, content, platform, service, compliance_result, review_status, reviewed_by, approved_by, created_by, created_by_id | Forever; the owner edits and approves. Deleting is not offered yet. |
 | `library_favorites` | 020 | shared library | yes (FK) | item_id + user_id PK, created_at | Goes with its item (cascade). |
 | `web_vitals` | 022 | vitals beacon (`/api/vitals/report`) → data-health «الأداء» card | no (global: page path and timings only, no user, no company) | id, at, path (ids collapsed to `:id`), lcp, inp, cls, ttfb, mobile | 7 days: rows older than that are deleted when the owner opens the card. |
-| `transcribe_jobs` | 023 | transcribe | yes (FK) | id, title, purpose, mime, bytes, seconds, r2_key, status, step, steps, attempts, gemini_file, gemini_uri, segments, result, error, locked_until | The original file is deleted (R2 and Google) when the job ends, only the text stays; failed and finished jobs keep their text. |
-| `vision_analyses` | 024 | vision | yes (FK) | id, title, file_hash (unique per company), mime, result, compliance_result, library_id. The image itself is never stored. | Forever (text only); the owner can ask to clear. |
-| `voiceover_settings` | 025 | voiceover | yes (FK, one row per company) | company_id PK, voice, accent, tone, pace, updated_by | Forever (one row). The audio itself is never stored. |
+| `transcribe_jobs` | 024 | transcribe | yes (FK) | id, title, purpose, mime, bytes, seconds, r2_key, status, step, steps, attempts, gemini_file, gemini_uri, segments, result, error, locked_until | The original file is deleted (R2 and Google) when the job ends, only the text stays; failed and finished jobs keep their text. |
+| `vision_analyses` | 025 | vision | yes (FK) | id, title, file_hash (unique per company), mime, result, compliance_result, library_id. The image itself is never stored. | Forever (text only); the owner can ask to clear. |
+| `voiceover_settings` | 026 | voiceover | yes (FK, one row per company) | company_id PK, voice, accent, tone, pace, updated_by | Forever (one row). The audio itself is never stored. |
 | `motion_versions` | 018 | design (video) | yes (FK) | id, project_id, version, parent_version, change_request, spec, engine, model | Never edited; goes with its project. |
 
 ## Indexes against the queries the code makes

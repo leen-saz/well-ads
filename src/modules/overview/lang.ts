@@ -10,3 +10,5 @@ export function pageLang(): Lang {
   return document.documentElement.lang === 'en' ? 'en' : 'ar';
 }
 export const pick = (l: Lang, ar: string, en: string): string => (l === 'en' ? en : ar);
+// The same in the current page language: T('الصرف', 'Spend')
+export const T = (ar: string, en: string): string => pick(pageLang(), ar, en);

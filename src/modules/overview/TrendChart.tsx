@@ -7,17 +7,20 @@ import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group';
 import { type Dash, type Day, platformName } from './numbers';
 import { type Bucket, type Gran, buckets, granOf, order } from './analytics';
 import { shortDay } from './format';
+import { T, pageLang } from './lang';
 
+// The labels are read when the chart draws, so they follow the page language
 const config = {
-  spend: { label: 'الصرف (ر.س)', color: 'var(--ui-chart-1)' },
-  results: { label: 'النتائج', color: 'var(--ui-chart-2)' },
-  leads: { label: 'الليدز', color: 'var(--ui-chart-2)' },
+  spend: { get label() { return T('الصرف (ر.س)', 'Spend (SAR)'); }, color: 'var(--ui-chart-1)' },
+  results: { get label() { return T('النتائج', 'Results'); }, color: 'var(--ui-chart-2)' },
+  leads: { get label() { return T('الليدز', 'Leads'); }, color: 'var(--ui-chart-2)' },
 } satisfies ChartConfig;
 type Metric = keyof typeof config;
 const COLORS = ['#7E57FD', '#221196', '#ACA6E1', '#F86080', '#1D1069', '#B49CFE', '#5B4FB0'];
 const MONTHS = ['يناير', 'فبراير', 'مارس', 'أبريل', 'مايو', 'يونيو', 'يوليو', 'أغسطس', 'سبتمبر', 'أكتوبر', 'نوفمبر', 'ديسمبر'];
-const tickOf = (g: string) => (k: string) => (g === 'month' ? `${MONTHS[Number(k.slice(5, 7)) - 1]} ${k.slice(2, 4)}` : shortDay(k));
-const labelOf = (g: string) => (k: string) => (g === 'week' ? `أسبوع ${shortDay(k)}` : tickOf(g)(k));
+const MONTHS_EN = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+const tickOf = (g: string) => (k: string) => (g === 'month' ? `${(pageLang() === 'en' ? MONTHS_EN : MONTHS)[Number(k.slice(5, 7)) - 1]} ${k.slice(2, 4)}` : shortDay(k));
+const labelOf = (g: string) => (k: string) => (g === 'week' ? T(`أسبوع ${shortDay(k)}`, `Week of ${shortDay(k)}`) : tickOf(g)(k));
 
 export function DayChart({ days, metric, height = 250, gran = 'day' }: { days: (Day & { leads?: number })[]; metric: Metric; height?: number; gran?: string }) {
   const id = `fill-${metric}`;
@@ -73,23 +76,23 @@ export function TrendChart({ data, from, to }: { data: Dash; from: string; to: s
   return (
     <Card className="@container/card">
       <CardHeader>
-        <CardTitle>الاتجاه</CardTitle>
-        <CardDescription>{metric === 'spend' ? 'الصرف لكل المنصات' : metric === 'results' ? 'الليدز والمحادثات' : 'الليدز بس'} · {g === 'day' ? 'يومي' : g === 'week' ? 'أسبوعي (من الأحد)' : 'شهري'}</CardDescription>
+        <CardTitle>{T('الاتجاه', 'Trend')}</CardTitle>
+        <CardDescription>{metric === 'spend' ? T('الصرف لكل المنصات', 'Spend on all platforms') : metric === 'results' ? T('الليدز والمحادثات', 'Leads and conversations') : T('الليدز بس', 'Leads only')} · {g === 'day' ? T('يومي', 'Daily') : g === 'week' ? T('أسبوعي (من الأحد)', 'Weekly (from Sunday)') : T('شهري', 'Monthly')}</CardDescription>
         <CardAction className="flex flex-wrap gap-2">
-          <ToggleGroup type="single" variant="outline" value={metric} onValueChange={v => v && setMetric(v as Metric)} aria-label="الرقم">
-            <ToggleGroupItem value="spend" className="px-3">الصرف</ToggleGroupItem>
-            <ToggleGroupItem value="results" className="px-3">النتائج</ToggleGroupItem>
-            <ToggleGroupItem value="leads" className="px-3">الليدز</ToggleGroupItem>
+          <ToggleGroup type="single" variant="outline" value={metric} onValueChange={v => v && setMetric(v as Metric)} aria-label={T('الرقم', 'Metric')}>
+            <ToggleGroupItem value="spend" className="px-3">{T('الصرف', 'Spend')}</ToggleGroupItem>
+            <ToggleGroupItem value="results" className="px-3">{T('النتائج', 'Results')}</ToggleGroupItem>
+            <ToggleGroupItem value="leads" className="px-3">{T('الليدز', 'Leads')}</ToggleGroupItem>
           </ToggleGroup>
-          <ToggleGroup type="single" variant="outline" value={split} onValueChange={v => v && setSplit(v as 'total' | 'plat')} aria-label="العرض">
-            <ToggleGroupItem value="total" className="px-3">المجموع</ToggleGroupItem>
-            <ToggleGroupItem value="plat" className="px-3">حسب المنصة</ToggleGroupItem>
+          <ToggleGroup type="single" variant="outline" value={split} onValueChange={v => v && setSplit(v as 'total' | 'plat')} aria-label={T('العرض', 'View')}>
+            <ToggleGroupItem value="total" className="px-3">{T('المجموع', 'Total')}</ToggleGroupItem>
+            <ToggleGroupItem value="plat" className="px-3">{T('حسب المنصة', 'By platform')}</ToggleGroupItem>
           </ToggleGroup>
-          <ToggleGroup type="single" variant="outline" value={gran} onValueChange={v => v && setGran(v as Gran)} aria-label="التجميع">
-            <ToggleGroupItem value="auto" className="px-3">تلقائي</ToggleGroupItem>
-            <ToggleGroupItem value="day" className="px-3">يومي</ToggleGroupItem>
-            <ToggleGroupItem value="week" className="px-3">أسبوعي</ToggleGroupItem>
-            <ToggleGroupItem value="month" className="px-3">شهري</ToggleGroupItem>
+          <ToggleGroup type="single" variant="outline" value={gran} onValueChange={v => v && setGran(v as Gran)} aria-label={T('التجميع', 'Grouping')}>
+            <ToggleGroupItem value="auto" className="px-3">{T('تلقائي', 'Auto')}</ToggleGroupItem>
+            <ToggleGroupItem value="day" className="px-3">{T('يومي', 'Daily')}</ToggleGroupItem>
+            <ToggleGroupItem value="week" className="px-3">{T('أسبوعي', 'Weekly')}</ToggleGroupItem>
+            <ToggleGroupItem value="month" className="px-3">{T('شهري', 'Monthly')}</ToggleGroupItem>
           </ToggleGroup>
         </CardAction>
       </CardHeader>
@@ -98,7 +101,7 @@ export function TrendChart({ data, from, to }: { data: Dash; from: string; to: s
           ? <PlatBars all={all} plats={shown} metric={metric} gran={g} config={platConfig} />
           : <DayChart days={all} metric={metric} gran={g} />}
         <div>
-          <p className="mb-2 text-sm text-muted-foreground">تكلفة الليد حسب المنصة (ر.س، إعلانات الليدز)</p>
+          <p className="mb-2 text-sm text-muted-foreground">{T('تكلفة الليد حسب المنصة (ر.س، إعلانات الليدز)', 'Cost per lead by platform (SAR, lead ads)')}</p>
           {plats.length ? (
             <ChartContainer config={cplConfig} className="aspect-auto w-full" style={{ height: 200 }} dir="ltr">
               <LineChart data={cplRows}>
@@ -108,7 +111,7 @@ export function TrendChart({ data, from, to }: { data: Dash; from: string; to: s
                 <ChartTooltip content={<ChartTooltipContent labelFormatter={v => labelOf(g)(String(v))} indicator="dot" />} />
                 {plats.map(p => <Line key={p} dataKey={p} type="monotone" stroke={`var(--color-${p})`} strokeWidth={2} dot={false} connectNulls={false} />)}
               </LineChart>
-            </ChartContainer>) : <p className="text-sm text-muted-foreground">ما فيه ليدز في هالفترة.</p>}
+            </ChartContainer>) : <p className="text-sm text-muted-foreground">{T('ما فيه ليدز في هالفترة.', 'No leads in this period.')}</p>}
         </div>
       </CardContent>
     </Card>

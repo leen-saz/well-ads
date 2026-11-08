@@ -8,7 +8,7 @@ import { check as complianceCheck } from '../compliance/compliance';
 import { rulesFor } from '../knowledge/knowledge';
 import { ACCENTS, DEFAULTS, MAX_CHARS, PACES, TONES, TTS_MODEL, TTS_VOICES, body, choice, cleanSpeak, guessUsage, usageIn, type Choice } from './voiceover';
 
-const MIGRATION = 'migration 025_voiceover.sql';
+const MIGRATION = 'migration 026_voiceover.sql';
 type Env = AuthEnv & GeminiEnv;
 type Row = Choice & { company_id: string };
 
@@ -30,7 +30,7 @@ export const settings = { POST: handle(async (request, e: Env) => {
   const c = choice(await readJson(request, 2000));
   const r = await sb(cfg, '/rest/v1/voiceover_settings?on_conflict=company_id', { method: 'POST', admin: true, headers: { Prefer: 'resolution=merge-duplicates,return=minimal' },
     body: { company_id: user.co, ...c, updated_by: user.email, updated_at: new Date().toISOString() } });
-  if (!r.ok) return json(missingSchema(r) ? 503 : 500, { error: missingSchema(r) ? notApplied(MIGRATION) : 'ما انحفظ صوت العلامة' });
+  if (!r.ok) return json(missingSchema(r) ? 503 : 500, { error: missingSchema(r) ? notApplied(user, MIGRATION) : 'ما انحفظ صوت العلامة' });
   await audit(cfg, user, 'voiceover_brand_set', { target: { voice: c.voice, accent: c.accent, tone: c.tone, pace: c.pace } });
   return json(200, { ok: true, brand: c });
 }) };

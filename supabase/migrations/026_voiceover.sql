@@ -1,4 +1,4 @@
--- 025: الفويس أوفر العربي (docs/voiceover.md). نص يتحول لصوت بلهجة سعودية أو خليجية، والصوت ما ينحفظ (يتولّد ويتسمع وينزّل).
+-- 026: الفويس أوفر العربي (docs/voiceover.md). نص يتحول لصوت بلهجة سعودية أو خليجية، والصوت ما ينحفظ (يتولّد ويتسمع وينزّل).
 -- صوت العلامة: الصوت واللهجة والنبرة والإيقاع الافتراضية للشركة، تحددها مرة وتنطبق على كل توليد.
 create table if not exists public.voiceover_settings (
   company_id uuid primary key references public.companies (id),

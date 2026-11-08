@@ -10,16 +10,16 @@ import { check } from '../compliance/compliance';
 import { rulesFor } from '../knowledge/knowledge';
 import { MAX_DATA, PROMPT, SYSTEM, TYPES, cleanUpload, libraryDoc, parseResult, sayings, view, type Row } from './vision';
 
-const MIGRATION = 'migration 024_vision.sql';
+const MIGRATION = 'migration 025_vision.sql';
 type Env = AuthEnv & { GEMINI_API_KEY?: string; GEMINI_MODEL?: string };
 const rows = (d: unknown): Row[] => (Array.isArray(d) ? (d as Row[]) : []);
 const COLS = 'id,company_id,title,file_hash,mime,result,compliance_result,library_id,created_by,created_by_id,created_at';
-const fail = (r: { status: number; data: unknown; ok: boolean }, say: string) => json(missingSchema(r) ? 503 : 500, { error: missingSchema(r) ? notApplied(MIGRATION) : say });
+const fail = (user: { role: string }, r: { status: number; data: unknown; ok: boolean }, say: string) => json(missingSchema(r) ? 503 : 500, { error: missingSchema(r) ? notApplied(user, MIGRATION) : say });
 
 export const recent = { GET: handle(async (request, e: Env) => {
   const { cfg, user } = await requireUser(request, e, 'vision');
   const r = await sb<Row[]>(cfg, scoped(`/rest/v1/vision_analyses?select=${COLS}&order=created_at.desc&limit=30`, user.co), { admin: true });
-  if (!r.ok) return fail(r, 'ما قدرت أقرأ الصور');
+  if (!r.ok) return fail(user, r, 'ما قدرت أقرأ الصور');
   const ready = geminiReady(e);
   return json(200, { items: rows(r.data).map(view), ready, why: ready ? '' : notReady(user), types: TYPES });
 }) };
@@ -32,7 +32,7 @@ export const describe = { POST: handle(async (request, e: Env) => {
   const ctx = usageCtx(cfg, user, 'vision');
   // The same image again: the stored answer, no new call and no new cost
   const had = await sb<Row[]>(cfg, scoped(`/rest/v1/vision_analyses?file_hash=eq.${c.hash}&select=${COLS}&limit=1`, user.co), { admin: true });
-  if (!had.ok) return fail(had, 'ما قدرت أبدأ');
+  if (!had.ok) return fail(user, had, 'ما قدرت أبدأ');
   if (rows(had.data)[0]) return json(200, { item: view(rows(had.data)[0]!), cached: true });
   if (ctx && await overCap(ctx, 'vision')) return json(429, { error: WHY.capped });
   let result;
@@ -48,7 +48,7 @@ export const describe = { POST: handle(async (request, e: Env) => {
   const ins = await sb<Row[]>(cfg, '/rest/v1/vision_analyses', { method: 'POST', admin: true, headers: { Prefer: 'return=representation' }, body: {
     company_id: user.co, created_by: user.email, created_by_id: user.uid, title: c.title, file_hash: c.hash, mime: c.mime, result, compliance_result: complianceOf(hits) } });
   const made = rows(ins.data)[0];
-  if (!ins.ok || !made) return fail(ins, 'ما انحفظ الناتج');
+  if (!ins.ok || !made) return fail(user, ins, 'ما انحفظ الناتج');
   await audit(cfg, user, 'vision_described', { target: { id: made.id } });
   return json(200, { item: view(made), cached: false });
 }) };
@@ -66,7 +66,7 @@ export const save = { POST: handle(async (request, e: Env) => {
     company_id: user.co, module: 'vision', kind: 'design', title: `${row.title} · وصف`.slice(0, 120), content, platform: '', service: '',
     compliance_result: complianceOf(check(content, await rulesFor(cfg, user.co))), created_by: user.email, created_by_id: user.uid } });
   const libId = Array.isArray(lib.data) ? lib.data[0]?.id : undefined;
-  if (!lib.ok || !libId) return fail(lib, 'ما انحفظ في المكتبة');
+  if (!lib.ok || !libId) return fail(user, lib, 'ما انحفظ في المكتبة');
   await sb(cfg, scoped(`/rest/v1/vision_analyses?id=eq.${row.id}`, user.co), { method: 'PATCH', admin: true, headers: { Prefer: 'return=minimal' }, body: { library_id: libId } });
   await audit(cfg, user, 'vision_saved', { target: { id: row.id, library: libId } });
   return json(200, { ok: true, library_id: libId });

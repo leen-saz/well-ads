@@ -6,7 +6,7 @@ import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group';
 import { Skeleton } from '@/components/ui/skeleton';
 import { addDays, lastDay } from './numbers';
 import { useDash } from './useDash';
-import { pageLang } from './lang';
+import { T, pageLang } from './lang';
 import { SectionCards } from './SectionCards';
 import { OverviewSkeleton } from './Skeletons';
 import { DeptsCard, HeatCard, PaceCard, ShareCard, WinsCard } from './AnalyticsCards';
@@ -34,7 +34,7 @@ function WhenNear({ minHeight, children }: { minHeight: number; children: React.
   return near ? <React.Suspense fallback={box}>{children}</React.Suspense> : <div ref={ref}>{box}</div>;
 }
 
-const RANGES = [['7', '7 أيام'], ['30', '30 يوم'], ['90', '90 يوم']] as const;
+const RANGES = [['7', '7 أيام', '7 days'], ['30', '30 يوم', '30 days'], ['90', '90 يوم', '90 days']] as const;
 type Range = (typeof RANGES)[number][0];
 
 export default function Overview() {
@@ -44,7 +44,7 @@ export default function Overview() {
   if (error) return <p className="ui text-destructive">{error}</p>;
   if (!data) return <OverviewSkeleton />;
   const to = lastDay(data);
-  if (!to) return <p className="ui text-muted-foreground">ما فيه أرقام للحين.</p>;
+  if (!to) return <p className="ui text-muted-foreground">{T('ما فيه أرقام للحين.', 'No numbers yet.')}</p>;
   const from = addDays(to, -(Number(range) - 1));
 
   return (
@@ -53,9 +53,9 @@ export default function Overview() {
     {/* min-w-0: a wide table or chart scrolls inside its card instead of widening the page on a phone */}
     <div className="ui grid gap-4 [&>*]:min-w-0 [&>.grid>*]:min-w-0">
       <div className="flex flex-wrap items-center justify-between gap-3">
-        <p className="text-sm text-muted-foreground">من {longDay(from)} إلى {longDay(to)}، مقارنة بنفس المدة اللي قبلها</p>
-        <ToggleGroup type="single" variant="outline" value={range} onValueChange={v => v && setRange(v as Range)} aria-label="الفترة">
-          {RANGES.map(([v, t]) => <ToggleGroupItem key={v} value={v} className="px-4">{t}</ToggleGroupItem>)}
+        <p className="text-sm text-muted-foreground">{T(`من ${longDay(from)} إلى ${longDay(to)}، مقارنة بنفس المدة اللي قبلها`, `${longDay(from)} to ${longDay(to)}, compared with the same length before`)}</p>
+        <ToggleGroup type="single" variant="outline" value={range} onValueChange={v => v && setRange(v as Range)} aria-label={T('الفترة', 'Period')}>
+          {RANGES.map(([v, ar, en]) => <ToggleGroupItem key={v} value={v} className="px-4">{T(ar, en)}</ToggleGroupItem>)}
         </ToggleGroup>
       </div>
       <SectionCards data={data} from={from} to={to} />

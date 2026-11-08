@@ -1,6 +1,6 @@
 # Voiceover (Arabic speech)
 
-Phase 2 of the DaVinci PRD (the idea only: voiceover as its own tool with per-provider cost; no DaVinci code or prompts). Code: `src/modules/voiceover/`, the adapter in `src/lib/gemini.ts`, migration `supabase/migrations/025_voiceover.sql`.
+Phase 2 of the DaVinci PRD (the idea only: voiceover as its own tool with per-provider cost; no DaVinci code or prompts). Code: `src/modules/voiceover/`, the adapter in `src/lib/gemini.ts`, migration `supabase/migrations/026_voiceover.sql`.
 
 The existing **Voice** tab (brand-voice guide, copy checker, a first speech generator) is not changed. Voiceover is the separate, locked tool that adds what the PRD asks of the speech feature: a brand voice per company, cost tracking under a monthly cap, a compliance check of the script, and saving the script to the library. It reuses Voice's lists of voices, accents and tones.
 
