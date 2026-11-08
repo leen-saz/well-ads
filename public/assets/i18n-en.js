@@ -957,6 +957,7 @@ export const EN = {
   'انسخ النص ✓': 'Copy the text ✓',
   'ما قدرت أنسخ': 'Couldn\'t copy',
   'افتح المكتبة': 'Open the library',
+  'العرض الإعلاني': 'Offer',
   'النص كامل': 'Full text',
   'الهوك (أول 3 ثواني)': 'Hook (first 3 seconds)',
   'بنود العمل': 'Action items',
