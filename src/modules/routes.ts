@@ -12,5 +12,6 @@ import * as copy from './copy/routes';
 import * as knowledge from './knowledge/routes';
 import * as overview from './overview/routes';
 import * as transcribe from './transcribe/routes';
+import * as vision from './vision/routes';
 
-export const ROUTES = { maestro, social, journeys, content, debugger: debuggerRoutes, compliance, listening, design, voice, copy, knowledge, overview, transcribe };
+export const ROUTES = { maestro, social, journeys, content, debugger: debuggerRoutes, compliance, listening, design, voice, copy, knowledge, overview, transcribe, vision };

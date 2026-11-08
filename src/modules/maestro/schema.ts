@@ -3,6 +3,8 @@
 // 011, 013 and 014: the file name is what Leen runs, not the number.
 export type Probe = { migration: string; table: string; columns: string[] };
 
+// One probe per migration is enough (its first table says the file ran). Each probe is one request and a part may make at most 40,
+// so a second table of the same migration is not probed.
 export const SCHEMA: Probe[] = [
   { migration: '000_base.sql', table: 'ads', columns: ['ad_key', 'platform', 'name', 'campaign', 'live', 'doc', 'updated_at'] },
   { migration: '000_base.sql', table: 'ad_metrics', columns: ['ad_key', 'day', 'spend', 'leads'] },
@@ -41,7 +43,7 @@ export const SCHEMA: Probe[] = [
   { migration: '019_ai_usage.sql', table: 'ai_usage', columns: ['id', 'company_id', 'module', 'cost_usd', 'estimated'] },
   { migration: '019_ai_usage.sql', table: 'ai_budgets', columns: ['company_id', 'module', 'monthly_cap_usd'] },
   { migration: '024_transcribe.sql', table: 'transcribe_jobs', columns: ['id', 'company_id', 'status', 'step', 'steps', 'segments'] },
+  { migration: '025_vision.sql', table: 'vision_analyses', columns: ['id', 'company_id', 'file_hash', 'result', 'library_id'] },
   { migration: '020_library.sql', table: 'library_items', columns: ['id', 'company_id', 'module', 'review_status', 'approved_by'] },
-  { migration: '020_library.sql', table: 'library_favorites', columns: ['item_id', 'user_id', 'company_id'] },
 ];
 // 017 only widens a CHECK constraint (knowledge.source accepts 'brand_file'): a read cannot see it, so it is not probed.
