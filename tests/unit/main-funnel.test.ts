@@ -68,6 +68,47 @@ describe('main dashboard: customer journey', () => {
     expect(f.funVerdict(steps)).toMatchObject({ step: 'lead', level: 'bad', title: 'النقرات ما تصير ليدز' });
   });
 
+  it("small gaps are not a problem: Leen's 1.71% vs a usual 1.84% stays fine, «لا توجد مشكلة واضحة»", () => {
+    const f = page({ crm: { rows: [['a', '2026-10-05', '2026-10-05', true, 900]], paid_all: [] } });
+    const steps = f.funSteps({ ...base, ctr: 1.71 }, { ...base, ctr: 1.95 }, { click: 1.84, lead: 3, cpl: 50 }, 6.78, 6.9, null) as Step[];
+    expect(steps.find(s => s.key === 'click')!.level).toBe('ok');
+    expect(f.funVerdict(steps)).toMatchObject({ step: null, level: 'ok', title: 'لا توجد مشكلة واضحة' });
+  });
+
+  it('weak only when weaker than every reference: 20% under both is watch, close to one of them is fine', () => {
+    const f = page({ crm: { rows: [], paid_all: [] } });
+    const click = (prev: number) => (f.funSteps({ ...base, ctr: 1.2 }, { ...base, ctr: prev }, usual, 3, 3, null) as Step[]).find(s => s.key === 'click')!.level;
+    expect(click(1.5)).toBe('watch');
+    expect(click(1.25)).toBe('ok');
+  });
+
+  it('each step names the department that owns it; the verdict names the weakest', () => {
+    const f = page({ crm: { rows: [['a', '2026-10-05', '2026-10-05', true, 900]], paid_all: [] } });
+    const v = (o: Record<string, number>, c2l = 3) => f.funVerdict(f.funSteps({ ...base, cpm: 75, ...o }, { ...base, cpm: 75 }, { ...usual, cpm: 75 }, c2l, 3, null)) as { step: string; owner: string | null };
+    expect(v({ ctr: 0.5 })).toMatchObject({ step: 'click', owner: 'الإنتاج / الكريتيف' });
+    expect(v({}, 1)).toMatchObject({ step: 'lead', owner: 'الإنتاج + صفحة الهبوط / النموذج' });
+    expect(v({ closeRate: 1 })).toMatchObject({ step: 'sale', owner: 'المبيعات' });
+    expect(v({ cpm: 150 })).toMatchObject({ step: 'cpm', owner: 'المشتري الإعلامي' });
+    expect(v({})).toMatchObject({ step: null, owner: null });
+  });
+
+  it('the sale stage shows the sales amount; the CRM total, said so, when the closings are not tied to ads', () => {
+    const tied = page({ crm: { rows: [['a', '2026-10-05', '2026-10-05', true, 900]], paid_all: [['2026-10-05', '2026-10-05', 900, 'x']] } })
+      .funnelHTML({ ...base, allPaid: 900, value: 900 }, {}) as string;
+    expect(tied).toContain('مبلغ المبيعات: 900.00');
+    const loose = page({ crm: { rows: [['a', '2026-10-05', '', false, 0]], paid_all: [['2026-10-05', '2026-10-06', 900, 'manual']] } })
+      .funnelHTML({ ...base, booked: 0, closeRate: 0, allPaidN: 45, allPaid: 67500, value: 0 }, {}) as string;
+    expect(loose).toContain('إجمالي المدفوع (CRM): 67,500.00');
+    expect(loose).toMatch(/المبيعات من الإعلانات<\/span><span class="v">غير مربوط/);
+    expect(loose).toContain('المسؤول: نظام العملاء / العمليات');
+  });
+
+  it('one «التحليل» heading over the lines', () => {
+    const html = page({ crm: { rows: [['a', '2026-10-05', '2026-10-05', true, 900]], paid_all: [] } }).funnelHTML({ ...base }, {}) as string;
+    expect(html.match(/<h4 class="flines-h">/g)).toHaveLength(1);
+    expect(html).toContain('<h4 class="flines-h">التحليل</h4>');
+  });
+
   it('every change figure in the block says what it compares against', () => {
     const f = page({ crm: { rows: [['a', '2026-10-05', '2026-10-05', true, 900]], paid_all: [['2026-10-05', '2026-10-05', 900, 'x']] } });
     const html = f.funnelHTML({ ...base, cpm: 75, cpc: 5, roas: 0.6 }, { ...base, impr: 150000, cpm: 70, cpc: 4, roas: 0.5 }) as string;
