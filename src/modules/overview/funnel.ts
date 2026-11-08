@@ -3,15 +3,13 @@
 // وهنا بعد شكل الشريط: ارتفاع كل مرحلة من حجمها (مقياس لوغاريتمي) وضيق الوصلة من قوة الخطوة.
 import type { Dash } from './numbers';
 import { addDays } from './numbers';
-import type { Outcome } from './analytics';
+import { type Outcome, unattributed } from './analytics';
 
 export type StepKey = 'click' | 'lead' | 'sale' | 'cpl';
 export type Level = 'bad' | 'watch' | 'ok';
 
 // Below the floor the step is weak whatever the history says. Rates in %; cost per lead has no floor (SAR varies by offer).
 export const FLOORS: Record<'click' | 'lead' | 'sale', number> = { click: 0.7, lead: 1.5, sale: 2 };
-// The share of leads the CRM should have tied to an ad before the sale step can be judged
-export const MIN_CRM_COVERAGE = 0.3;
 const MIN_DAYS = 7;
 
 export interface Step {
@@ -24,11 +22,12 @@ export interface Step {
   // 1 = as usual; below 1 = weaker (the lowest of the comparisons). null = nothing to judge.
   score: number | null;
   level: Level;
-  crmGap: boolean;
+  // Not tied to ads (analytics.ts unattributed): shown as «غير مربوط», never scored, never the bottleneck
+  unattributed: boolean;
   line: string;
 }
 
-export interface Verdict { step: StepKey | 'crm' | null; level: Level; title: string; where: string; why: string; todo: string }
+export interface Verdict { step: StepKey | null; level: Level; title: string; where: string; why: string; todo: string; unlinked: { why: string; todo: string } | null }
 
 const med = (xs: number[]): number | null => {
   if (xs.length < MIN_DAYS) return null;
@@ -89,51 +88,59 @@ function sentence(label: string, now: number | null, prev: number | null, median
 
 // The four steps of the period. b is the earlier period's outcome, only when the comparison is valid.
 export function steps(a: Outcome, b: Partial<Outcome> | null, m: { click: number | null; lead: number | null; cpl: number | null }): Step[] {
-  const mk = (key: StepKey, label: string, link: number, now: number | null, prev: number | null, median: number | null, floor: number | null, lowerIsBetter: boolean, fmt: (v: number) => string, crmGap = false): Step => {
-    const score = crmGap ? 0 : judge(now, prev, median, floor, lowerIsBetter);
+  const mk = (key: StepKey, label: string, link: number, now: number | null, prev: number | null, median: number | null, floor: number | null, lowerIsBetter: boolean, fmt: (v: number) => string, off = false): Step => {
+    if (off) return { key, label, link, now: null, prev: null, median: null, floor, lowerIsBetter, score: null, level: 'ok', unattributed: true, line: unlinkedLine(a) };
+    const score = judge(now, prev, median, floor, lowerIsBetter);
     const below = floor != null && now != null && now < floor;
-    const line = crmGap
-      ? (a.crmLinked ? `أغلب الليدز ما انربطت بإعلان في نظام العملاء (${a.crmLeads} من ${a.leads + a.conv})، فنسبة الإقفال ما تنحكم.` : 'نظام العملاء مو موصول بهالأرقام، فما نعرف كم ليد صار إقفالة.')
-      : sentence(label, now, prev, median, floor, fmt);
-    return { key, label, link, now, prev, median, floor, lowerIsBetter, score, level: crmGap ? 'bad' : levelOf(score, below), crmGap, line };
+    return { key, label, link, now, prev, median, floor, lowerIsBetter, score, level: levelOf(score, below), unattributed: false, line: sentence(label, now, prev, median, floor, fmt) };
   };
-  const results = a.leads + a.conv;
-  const crmGap = !a.crmLinked || (results >= 10 && a.crmLeads < MIN_CRM_COVERAGE * results);
+  const off = unattributed(a);
   return [
     mk('click', 'نسبة النقر', 0, a.ctr, b?.ctr ?? null, m.click, FLOORS.click, false, pc),
     mk('lead', 'من نقرة إلى ليد أو محادثة', 1, a.clickToResult, b?.clickToResult ?? null, m.lead, FLOORS.lead, false, pc),
-    mk('sale', 'من ليد إلى إقفالة', 2, crmGap ? null : a.closeRate, crmGap ? null : b?.closeRate ?? null, null, FLOORS.sale, false, pc, crmGap),
+    // The earlier period's rate only counts when it was tied to ads too (b.closeRate is null otherwise)
+    mk('sale', 'من ليد إلى إقفالة', 2, a.closeRate, b && !unattributed(b as Outcome) ? b.closeRate ?? null : null, null, FLOORS.sale, false, pc, off),
     mk('cpl', 'تكلفة الليد', 1, a.cpl, b?.cpl ?? null, m.cpl, null, true, money),
   ];
 }
 
-const ADVICE: Record<StepKey | 'crm', { title: string; where: string; why: string; todo: string }> = {
+// Why the sale step is «غير مربوط», in the reader's words
+function unlinkedLine(a: Outcome): string {
+  if (!a.crmLinked) return 'غير مربوط: نظام العملاء مو موصول بهالأرقام، فما نعرف كم ليد صار إقفالة.';
+  if (a.closingsAll > 0 && a.bookedAll === 0) return `غير مربوط: في نظام العملاء ${a.closingsAll} إقفالة مدفوعة بس ولا وحدة منها مربوطة بإعلان، فنسبة الإقفال من الإعلانات ما تنحسب (مو صفر).`;
+  return `غير مربوط: أغلب الليدز ما انربطت بإعلان في نظام العملاء (${a.crmLeads} من ${a.leads + a.conv})، فنسبة الإقفال ما تنحكم.`;
+}
+
+// Not a bottleneck: the sale step just can't be read until the CRM ties closings to ads
+const UNLINKED_ADVICE = { why: 'الإقفالات ما توصل من نظام العملاء مربوطة بإعلاناتها، فما نقدر نقول وين تضيع الليدز بعد التواصل.', todo: 'شيك على ربط نظام العملاء من صفحة الربط، وتأكد إن كل ليد يوصل ومعه رقم الإعلان.' };
+
+const ADVICE: Record<StepKey, { title: string; where: string; why: string; todo: string }> = {
   click: { title: 'الإعلان ما يجيب نقرات كفاية', where: 'من الظهور للنقرة', why: 'الإعلان ما يشد: الصورة أو أول سطر ما يوقف اللي يمرر.', todo: 'جرّب مادة جديدة، وغيّر أول سطر والعنوان، وابدأ بالفايدة أو بسؤال يلمس المشكلة.' },
   lead: { title: 'النقرات ما تصير ليدز', where: 'من النقرة لليد', why: 'الناس تضغط بس ما تكمل: النموذج طويل، أو الصفحة بطيئة، أو دخول الواتساب فيه خطوة زايدة.', todo: 'قصّر النموذج، وشيك على سرعة الصفحة من الجوال، وجرّب رسالة الواتساب الجاهزة بنفسك.' },
   sale: { title: 'الليدز ما تصير إقفالات', where: 'من الليد للإقفالة', why: 'المتابعة متأخرة، أو جودة الليدز نازلة.', todo: 'شيك كم ياخذ الفريق عشان يرد على الليد، وراجع أسئلة النموذج عشان تفلتر الجادين.' },
   cpl: { title: 'تكلفة الليد طالعة', where: 'تكلفة الليد', why: 'الجمهور تشبّع، أو المواد تعبت من كثر ما انعرضت.', todo: 'وسّع الجمهور أو غيّره، وبدّل المواد اللي صار لها فترة طويلة تنعرض.' },
-  crm: { title: 'أرقام البيع ناقصة', where: 'مرحلة البيع', why: 'الإقفالات ما توصل من نظام العملاء، أو أغلب الليدز ما انربطت بإعلان.', todo: 'شيك على ربط نظام العملاء من صفحة الربط، وتأكد إن كل ليد يوصل ومعه رقم الإعلان.' },
 };
 
-// The bottleneck: the weakest step. A CRM gap comes first (the sale step can't be judged without it).
+// The bottleneck: the weakest step that can be judged. An unattributed step is never it; it gets its own note.
 export function verdict(list: Step[]): Verdict {
-  const gap = list.find(s => s.crmGap);
-  const pick = gap ?? [...list].filter(s => s.score != null).sort((x, y) => x.score! - y.score!)[0];
-  if (!pick) return { step: null, level: 'ok', title: 'ما فيه أرقام كفاية للتحليل', where: '', why: '', todo: '' };
-  const key = gap ? 'crm' : pick.key;
-  const a = ADVICE[key];
-  if (pick.level === 'ok') return { step: pick.key, level: 'ok', title: 'ما فيه عنق زجاجة واضح', where: a.where, why: `أضعف خطوة ${a.where}، بس هي في حدودها المعتادة.`, todo: 'كمّل على نفس الخطة وراقب هالخطوة.' };
-  return { step: pick.key, level: pick.level, title: a.title, where: a.where, why: a.why, todo: a.todo };
+  const unlinked = list.some(s => s.unattributed) ? UNLINKED_ADVICE : null;
+  const pick = list.filter(s => s.score != null).sort((x, y) => x.score! - y.score!)[0];
+  if (!pick) return { step: null, level: 'ok', title: 'ما فيه أرقام كفاية للتحليل', where: '', why: '', todo: '', unlinked };
+  const a = ADVICE[pick.key];
+  if (pick.level === 'ok') return { step: pick.key, level: 'ok', title: 'ما فيه عنق زجاجة واضح', where: a.where, why: `أضعف خطوة ${a.where}، بس هي في حدودها المعتادة.`, todo: 'كمّل على نفس الخطة وراقب هالخطوة.', unlinked };
+  return { step: pick.key, level: pick.level, title: a.title, where: a.where, why: a.why, todo: a.todo, unlinked };
 }
 
-// ---- The band. Heights on a log scale between minH and maxH so the sale stage stays visible next to the impressions;
-// each link's waist is the smaller of its two stages, pinched by the step's score (a weak step looks like a bottleneck).
+// ---- The band. Heights on an eased scale ((v / top)^EASE) between minH and maxH: it visibly shrinks with the numbers
+// (a log scale made 1.9M impressions and 27K clicks look alike) while the sale stage stays visible. Every link narrows
+// into a neck (NECK of the smaller stage), pinched further by a weak step's score, so a weak step reads as the bottleneck.
+export const EASE = 0.25, NECK = 0.6, MIN_NECK = 8;
 export interface Shape { heights: number[]; waists: number[] }
 export function shape(volumes: (number | null)[], linkScores: (number | null)[], maxH: number, minH: number): Shape {
   const top = Math.max(1, ...volumes.map(v => v ?? 0));
-  const h = (v: number | null) => (v == null || v <= 0 ? minH : minH + ((maxH - minH) * Math.log10(v + 1)) / Math.log10(top + 1));
+  const h = (v: number | null) => (v == null || v <= 0 ? minH : minH + (maxH - minH) * (v / top) ** EASE);
   const heights = volumes.map(h);
-  const waists = linkScores.map((s, i) => Math.min(heights[i]!, heights[i + 1]!) * Math.max(0.35, Math.min(1, s ?? 1)));
+  const waists = linkScores.map((s, i) => Math.max(MIN_NECK, Math.min(heights[i]!, heights[i + 1]!) * NECK * Math.max(0.35, Math.min(1, s ?? 1))));
   return { heights, waists };
 }
 

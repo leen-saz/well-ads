@@ -1,5 +1,5 @@
 // Arabic number formats shared by the overview pieces
-import type { Fmt } from './analytics';
+import type { Fmt, JStat } from './analytics';
 const n0 = new Intl.NumberFormat('ar-SA-u-nu-latn', { maximumFractionDigits: 0 });
 const n2 = new Intl.NumberFormat('ar-SA-u-nu-latn', { maximumFractionDigits: 2 });
 
@@ -17,3 +17,6 @@ export const shortDay = (day: string): string => {
 export const show: Record<Fmt, (v: number | null) => string> = {
   qty: v => (v == null ? '—' : qty(v)), sar, pct: v => (v == null ? '—' : `${v.toFixed(2)}%`), x: v => (v == null ? '—' : `${v.toFixed(2)}×`),
 };
+
+// A journey value as shown: its text when the number would mislead («غير مربوط»), else the number
+export const val = (x: JStat): string => x.missing ?? show[x.fmt](x.now);

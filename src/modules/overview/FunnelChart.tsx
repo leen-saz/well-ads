@@ -5,22 +5,14 @@ import { area, curveMonotoneX } from 'd3-shape';
 import { animateValue } from 'motion';
 import { FUNNEL_COLOURS, type JStage, type JStat } from './analytics';
 import { type Step, type Verdict, linkX, points, shape, stageX } from './funnel';
-import { change } from './numbers';
-import { show } from './format';
+import { val } from './format';
+import { Delta } from './Delta';
 
 const W = 960, H = 300, MID = 138, MAX_H = 190, MIN_H = 28;
 const LEVEL = { bad: 'text-destructive', watch: 'text-amber-700 dark:text-amber-400', ok: 'text-primary' } as const;
 
 const band = area<{ x: number; h: number }>().x(p => p.x).y0(p => MID - p.h / 2).y1(p => MID + p.h / 2).curve(curveMonotoneX);
 const reduced = () => typeof matchMedia !== 'undefined' && matchMedia('(prefers-reduced-motion: reduce)').matches;
-
-// The change against the same length before; shown only when the comparison is valid (was is null otherwise)
-function Delta({ now, was, lowerIsBetter }: { now: number | null; was: number | null; lowerIsBetter: boolean }) {
-  const d = change(now, was);
-  if (d == null) return null;
-  const good = lowerIsBetter ? d < 0 : d > 0;
-  return <span dir="ltr" className={`text-xs tabular-nums ${good ? 'text-primary' : 'text-destructive'}`}>{d > 0 ? '+' : ''}{d.toFixed(1)}%</span>;
-}
 
 type Active = { kind: 'stage' | 'link'; i: number } | null;
 interface Props { stages: JStage[]; steps: Step[]; verdict: Verdict; was: (x: JStat) => number | null }
@@ -68,27 +60,33 @@ export default function FunnelChart({ stages, steps, verdict, was }: Props) {
           <path ref={path} fill="url(#funnel-fill)" />
           {stages.map((s, i) => {
             const x = stageX(i, 4, W), hot = active?.kind === 'stage' && active.i === i, cost = s.sub.find(c => c.fmt === 'sar') ?? s.sub[0]!;
-            // White on the band only where the band is tall enough to hold the text; else dark on the card
-            const onBand = s.main.now != null && target.heights[i]! >= 52, halo = onBand ? { paintOrder: 'stroke' as const, stroke: 'rgb(0 0 0 / .18)', strokeWidth: 3 } : undefined;
+            // White inside the band where it is tall enough to hold the text; on a thin band the number sits just above it
+            // and its label just below, dark on the card, so no text ever overlaps the band
+            const hh = target.heights[i]! / 2, onBand = s.main.now != null && hh * 2 >= 56;
+            const halo = onBand ? { paintOrder: 'stroke' as const, stroke: 'rgb(0 0 0 / .18)', strokeWidth: 3 } : undefined;
+            const valueY = onBand ? MID - 4 : MID - hh - 8, labelY = onBand ? MID + 18 : MID + hh + 16;
             return (
-              <g key={s.n} role="button" tabIndex={0} aria-label={`${s.n}: ${s.main.label} ${show[s.main.fmt](s.main.now)}`} className="cursor-pointer outline-none [&:focus-visible>rect]:stroke-ring" {...on({ kind: 'stage', i })}>
+              <g key={s.n} role="button" tabIndex={0} aria-label={`${s.n}: ${s.main.label} ${val(s.main)}`} className="cursor-pointer outline-none [&:focus-visible>rect]:stroke-ring" {...on({ kind: 'stage', i })}>
                 <rect x={x - 80} y={18} width={160} height={H - 26} rx={12} fill={hot ? 'currentColor' : 'transparent'} fillOpacity={hot ? 0.05 : 0} stroke="transparent" strokeWidth={2} />
                 <text x={x} y={30} textAnchor="middle" className="fill-foreground text-[15px] font-semibold">{i + 1}. {s.n}</text>
-                <text x={x} y={MID - 4} textAnchor="middle" className={`${onBand ? 'fill-white' : 'fill-foreground'} text-[22px] font-semibold tabular-nums`} style={halo}>{show[s.main.fmt](s.main.now)}</text>
-                <text x={x} y={MID + 18} textAnchor="middle" className={`${onBand ? 'fill-white/90' : 'fill-muted-foreground'} text-[12px]`} style={halo}>{s.main.label}</text>
+                <text x={x} y={valueY} textAnchor="middle" className={`${onBand ? 'fill-white' : 'fill-foreground'} text-[22px] font-semibold tabular-nums`} style={halo}>{val(s.main)}</text>
+                <text x={x} y={labelY} textAnchor="middle" className={`${onBand ? 'fill-white/90' : 'fill-muted-foreground'} text-[12px]`} style={halo}>{s.main.label}</text>
                 <text x={x} y={H - 34} textAnchor="middle" className="fill-muted-foreground text-[12px]">{cost.label}</text>
-                <text x={x} y={H - 14} textAnchor="middle" className={`text-[14px] font-semibold tabular-nums ${i === 2 && cplWeak ? 'fill-destructive' : 'fill-foreground'}`}>{show[cost.fmt](cost.now)}</text>
+                <text x={x} y={H - 14} textAnchor="middle" className={`text-[14px] font-semibold tabular-nums ${i === 2 && cplWeak ? 'fill-destructive' : 'fill-foreground'}`}>{val(cost)}</text>
               </g>
             );
           })}
           {[0, 1, 2].map(i => {
-            const x = linkX(i, 4, W), st = linkStep(i), weak = bottleneckLink === i, rate = stages[i + 1]!.rate!;
+            const x = linkX(i, 4, W), st = linkStep(i), weak = bottleneckLink === i, rate = stages[i + 1]!.rate!, off = st.unattributed;
+            // Unattributed: a dashed grey pill «غير مربوط», never the bottleneck and never 0%
+            const pill = off ? 'fill-background stroke-muted-foreground' : weak ? 'fill-background stroke-destructive' : 'fill-background stroke-border';
+            const ink = off ? 'fill-muted-foreground' : weak ? 'fill-destructive' : st.level === 'watch' ? 'fill-amber-700' : 'fill-foreground';
             return (
-              <g key={i} role="button" tabIndex={0} aria-label={`${rate.label}: ${show[rate.fmt](rate.now)}${weak ? '، عنق الزجاجة' : ''}`} className="cursor-pointer outline-none [&:focus-visible>rect:first-child]:stroke-ring" {...on({ kind: 'link', i })}>
-                <rect x={x - 40} y={MID - 60} width={80} height={120} fill="transparent" stroke="transparent" strokeWidth={2} rx={10} />
+              <g key={i} role="button" tabIndex={0} aria-label={`${rate.label}: ${val(rate)}${weak ? '، عنق الزجاجة' : ''}`} className="cursor-pointer outline-none [&:focus-visible>rect:first-child]:stroke-ring" {...on({ kind: 'link', i })}>
+                <rect x={x - 44} y={MID - 60} width={88} height={120} fill="transparent" stroke="transparent" strokeWidth={2} rx={10} />
                 {weak && <text x={x} y={MID - 34} textAnchor="middle" className="fill-destructive text-[12px] font-semibold">عنق الزجاجة</text>}
-                <rect x={x - 38} y={MID - 13} width={76} height={26} rx={13} className={weak ? 'fill-background stroke-destructive' : 'fill-background stroke-border'} strokeWidth={weak ? 2 : 1} />
-                <text x={x} y={MID + 5} textAnchor="middle" className={`text-[13px] font-semibold tabular-nums ${weak ? 'fill-destructive' : st.level === 'watch' ? 'fill-amber-700' : 'fill-foreground'}`}>{show[rate.fmt](rate.now)}</text>
+                <rect x={x - 42} y={MID - 13} width={84} height={26} rx={13} className={pill} strokeWidth={weak ? 2 : 1} strokeDasharray={off ? '4 3' : undefined} />
+                <text x={x} y={MID + 5} textAnchor="middle" className={`text-[13px] font-semibold tabular-nums ${ink}`}>{val(rate)}</text>
               </g>
             );
           })}
@@ -107,8 +105,8 @@ function Detail({ stages, steps, active, was, linkStep }: { stages: JStage[]; st
     return (
       <div aria-live="polite" className="grid gap-1 rounded-lg border p-3 text-sm">
         <div className="flex flex-wrap items-baseline gap-2"><b>{stages[active.i]!.n} ← {stages[active.i + 1]!.n}</b>
-          <span className="tabular-nums">{rate.label}: <b>{show[rate.fmt](rate.now)}</b></span><Delta now={rate.now} was={was(rate)} lowerIsBetter={false} /></div>
-        <p className={LEVEL[st.level]}>التحليل: {st.line}</p>
+          <span className="tabular-nums">{rate.label}: <b>{val(rate)}</b></span><Delta now={rate.now} was={was(rate)} lowerIsBetter={false} /></div>
+        <p className={st.unattributed ? 'text-muted-foreground' : LEVEL[st.level]}>التحليل: {st.line}</p>
       </div>
     );
   }
@@ -118,10 +116,10 @@ function Detail({ stages, steps, active, was, linkStep }: { stages: JStage[]; st
       <div className="flex flex-wrap items-baseline gap-2"><b>{active.i + 1}. {s.n}</b><span className="text-muted-foreground">{s.hint}</span></div>
       <div className="flex flex-wrap gap-x-5 gap-y-1">
         {[s.main, ...s.sub, ...(s.rate ? [s.rate] : [])].map(x => (
-          <span key={x.label} className="tabular-nums">{x.label}: <b>{show[x.fmt](x.now)}</b> <Delta now={x.now} was={was(x)} lowerIsBetter={x.lowerIsBetter} /></span>
+          <span key={x.label} className="tabular-nums">{x.label}: <b>{val(x)}</b> <Delta now={x.now} was={was(x)} lowerIsBetter={x.lowerIsBetter} /></span>
         ))}
       </div>
-      {own.map(x => <p key={x.key} className={LEVEL[x.level]}>التحليل: {x.line}</p>)}
+      {own.map(x => <p key={x.key} className={x.unattributed ? 'text-muted-foreground' : LEVEL[x.level]}>التحليل: {x.line}</p>)}
     </div>
   );
 }

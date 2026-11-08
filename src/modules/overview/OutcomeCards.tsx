@@ -4,10 +4,11 @@ import * as React from 'react';
 import { Card, CardAction, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
 import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group';
-import { type Dash, canCompare, change, platformName, previous } from './numbers';
+import { type Dash, canCompare, platformName, previous } from './numbers';
 import { type CrmBy, type JStat, type Outcome, journey, order, outcome } from './analytics';
 import { medians, steps, verdict } from './funnel';
-import { qty, sar, show } from './format';
+import { qty, sar, show, val } from './format';
+import { Delta } from './Delta';
 
 // The band (d3-shape) and its motion (motion) load after the numbers
 const FunnelChart = React.lazy(() => import('./FunnelChart'));
@@ -17,14 +18,6 @@ const x2 = show.x;
 const LEVEL = { bad: 'text-destructive', watch: 'text-amber-700 dark:text-amber-400', ok: 'text-primary' } as const;
 const DOT = { bad: 'bg-destructive', watch: 'bg-amber-500', ok: 'bg-primary' } as const;
 const BADGE = { bad: 'مشكلة', watch: 'انتبه', ok: 'تمام' } as const;
-
-// The change against the same length before; lowerIsBetter colours a drop in cost as good news, null = neither
-function Delta({ now, was, lowerIsBetter }: { now: number | null; was: number | null; lowerIsBetter: boolean | null }) {
-  const d = change(now, was);
-  if (d == null) return null;
-  const good = lowerIsBetter == null ? null : lowerIsBetter ? d < 0 : d > 0;
-  return <span dir="ltr" className={`text-xs tabular-nums ${good == null ? 'text-muted-foreground' : good ? 'text-primary' : 'text-destructive'}`}>{d > 0 ? '+' : ''}{d.toFixed(1)}%</span>;
-}
 
 function Stat({ label, value, now, was, lowerIsBetter, big }: { label: string; value: string; now: number | null; was: number | null; lowerIsBetter: boolean | null; big?: boolean }) {
   return (
@@ -112,14 +105,21 @@ function JourneyCard({ data, from, to, by }: Props & { by: CrmBy }) {
             <h3 id="verdict-h" className="font-semibold">{v.title}</h3>
             {v.why && <p className="text-sm"><span className="text-muted-foreground">ليش: </span>{v.why}</p>}
             {v.todo && <p className="text-sm"><span className="text-muted-foreground">وش تسوي: </span>{v.todo}</p>}
+            {v.unlinked && (
+              <div className="grid gap-1 rounded-lg border border-dashed p-2.5 text-sm">
+                <b className="text-muted-foreground">مرحلة البيع غير مربوطة</b>
+                <p>{v.unlinked.why}</p>
+                <p><span className="text-muted-foreground">وش تسوي: </span>{v.unlinked.todo}</p>
+              </div>
+            )}
             <p className="text-xs text-muted-foreground">حكم بالقواعد: كل خطوة مقارنة بالفترة اللي قبلها وبالمعتاد آخر 30 يوم وبحد أدنى. ما تطلع الأرقام لأي مكان.</p>
           </section>
         </div>
         <ul className="grid gap-1.5 text-sm" aria-label="التحليل لكل خطوة">
           {list.map(x => (
             <li key={x.key} className="flex items-start gap-2">
-              <span className={`mt-1.5 size-2 shrink-0 rounded-full ${DOT[x.level]}`} aria-hidden="true" />
-              <span><b>التحليل</b> <span className="text-muted-foreground">({x.label})</span>: <span className={x.level === 'ok' ? '' : LEVEL[x.level]}>{x.line}</span></span>
+              <span className={`mt-1.5 size-2 shrink-0 rounded-full ${x.unattributed ? 'bg-muted-foreground/40' : DOT[x.level]}`} aria-hidden="true" />
+              <span><b>التحليل</b> <span className="text-muted-foreground">({x.label})</span>: <span className={x.unattributed ? 'text-muted-foreground' : x.level === 'ok' ? '' : LEVEL[x.level]}>{x.line}</span></span>
             </li>
           ))}
         </ul>
@@ -134,9 +134,9 @@ function JourneyCard({ data, from, to, by }: Props & { by: CrmBy }) {
                 {j.stages.map((s, i) => (
                   <tr key={s.n} className="border-b last:border-0">
                     <th scope="row" className="p-2 text-start font-semibold">{i + 1}. {s.n}</th>
-                    <td className="p-2 tabular-nums">{s.main.label}: {show[s.main.fmt](s.main.now)} <Delta now={s.main.now} was={was(s.main)} lowerIsBetter={false} /></td>
-                    <td className="p-2 tabular-nums">{s.sub.map(x => `${x.label}: ${show[x.fmt](x.now)}`).join('، ')}</td>
-                    <td className="p-2 tabular-nums">{s.rate ? `${s.rate.label}: ${show[s.rate.fmt](s.rate.now)}` : '—'}</td>
+                    <td className="p-2 tabular-nums">{s.main.label}: {val(s.main)} <Delta now={s.main.now} was={was(s.main)} lowerIsBetter={false} /></td>
+                    <td className="p-2 tabular-nums">{s.sub.map(x => `${x.label}: ${val(x)}`).join('، ')}</td>
+                    <td className="p-2 tabular-nums">{s.rate ? `${s.rate.label}: ${val(s.rate)}` : '—'}</td>
                   </tr>
                 ))}
               </tbody>

@@ -8,7 +8,7 @@ import { addDays, type Dash } from './numbers';
 // A healthy period: CTR 1.5%, 3% of clicks become a lead or chat, 10% of ad-linked leads close, 50 SAR a lead
 const base: Outcome = {
   spend: 15000, impr: 200000, clicks: 3000, leads: 70, conv: 20, crm: true, crmLinked: true, crmLeads: 60, booked: 6, value: 9000,
-  closings: 8, paid: 12000, cpm: 75, cpc: 5, ctr: 1.5, cpl: 50, clickToResult: 3, closeRate: 10, roas: 0.6, mer: 0.8, cac: 1875,
+  closings: 8, paid: 12000, cpm: 75, cpc: 5, ctr: 1.5, cpl: 50, clickToResult: 3, closeRate: 10, roas: 0.6, mer: 0.8, cac: 1875, closingsAll: 8, bookedAll: 6,
 };
 const as = (o: Partial<Outcome>): Outcome => ({ ...base, ...o });
 const usual = { click: 1.5, lead: 3, cpl: 50 };
@@ -45,14 +45,26 @@ describe('overview: funnel rules', () => {
     expect(verdict(list)).toMatchObject({ step: 'cpl', where: 'تكلفة الليد' });
   });
 
-  it('no CRM, or most leads not tied to an ad: the sale step is a CRM gap, ahead of everything else', () => {
-    for (const o of [as({ crmLinked: false, crm: false, crmLeads: 0 }), as({ crmLeads: 10 })]) {
+  it('no CRM, too few leads tied to ads, or paid closings with none tied to an ad: «غير مربوط», never the bottleneck', () => {
+    for (const o of [as({ crmLinked: false, crm: false, crmLeads: 0 }), as({ crmLeads: 10 }), as({ booked: 0, closeRate: 0, closings: 45, closingsAll: 45, bookedAll: 0 })]) {
       const list = steps(o, base, usual);
       const sale = list.find(s => s.key === 'sale')!;
-      expect(sale).toMatchObject({ crmGap: true, now: null, level: 'bad' });
-      expect(verdict(list)).toMatchObject({ step: 'sale', where: 'مرحلة البيع' });
-      expect(verdict(list).todo).toContain('صفحة الربط');
+      expect(sale).toMatchObject({ unattributed: true, now: null, score: null });
+      expect(sale.line).toMatch(/^غير مربوط/);
+      const v = verdict(list);
+      expect(v.step).not.toBe('sale');
+      expect(v.unlinked?.todo).toContain('صفحة الربط');
     }
+  });
+
+  it("Leen's case: 45 paid closings, none tied to an ad, a valid earlier rate: no 0% and no −100% bottleneck", () => {
+    const now = as({ booked: 0, closeRate: 0, closings: 45, closingsAll: 45, bookedAll: 0 });
+    const list = steps(now, base, usual), sale = list.find(s => s.key === 'sale')!;
+    expect(sale.prev).toBeNull();
+    expect(sale.line).toContain('45 إقفالة');
+    expect(sale.line).toContain('مو صفر');
+    expect(sale.line).not.toMatch(/0\.00%|100%/);
+    expect(verdict(list)).toMatchObject({ level: 'ok', title: 'ما فيه عنق زجاجة واضح' });
   });
 
   it('below the floor is weak even when the history was as bad', () => {
@@ -71,8 +83,8 @@ describe('overview: funnel rules', () => {
   });
 
   it('every line and verdict addresses the reader in the masculine', () => {
-    const all = [as({ ctr: 0.5 }), as({ clickToResult: 1 }), as({ closeRate: 1 }), as({ cpl: 200 }), as({ crmLinked: false })]
-      .flatMap(o => { const l = steps(o, base, usual); const v = verdict(l); return [v.why, v.todo, ...l.map(s => s.line)]; }).join(' ');
+    const all = [as({ ctr: 0.5 }), as({ clickToResult: 1 }), as({ closeRate: 1 }), as({ cpl: 200 }), as({ crmLinked: false }), as({ booked: 0, closings: 9, closingsAll: 9, bookedAll: 0 })]
+      .flatMap(o => { const l = steps(o, base, usual); const v = verdict(l); return [v.why, v.todo, v.unlinked?.why ?? '', v.unlinked?.todo ?? '', ...l.map(s => s.line)]; }).join(' ');
     expect(all).not.toMatch(/تسوين|شيكي|جربي|غيري|وسعي|قصري|تأكدي/);
   });
 });
@@ -108,21 +120,32 @@ describe('overview: the usual level (30-day median of daily values)', () => {
     expect(all).toMatchObject({ crm: true, closings: 3, impr: 14000 });
     expect(fb).toMatchObject({ crm: false, crmLinked: true, closings: 1, paid: 500, booked: 1, value: 500, impr: 7000, clicks: 70 });
   });
+  it('a platform filter cannot turn missing attribution into a 0% close rate: attribution is judged across all platforms', () => {
+    // Paid closings in the CRM, none tied to an ad; plenty of CRM leads tied to facebook ads
+    const leads = Array.from({ length: 40 }, () => ['a', to, '', false, 0]);
+    const C = { ...D, crm: { rows: leads, paid_all: [[to, to, 900, 'manual'], [to, to, 900, 'manual']] } } as unknown as Dash;
+    const fb = outcome(C, addDays(to, -6), to, 'lead', 'facebook');
+    expect(fb).toMatchObject({ booked: 0, closeRate: 0, closingsAll: 2, bookedAll: 0 });
+    const sale = steps(fb, null, { click: null, lead: null, cpl: null }).find(s => s.key === 'sale')!;
+    expect(sale).toMatchObject({ unattributed: true, now: null });
+    expect(sale.line).toContain('2 إقفالة');
+  });
 });
 
 describe('overview: the band', () => {
-  it('height follows volume on a log scale; the sale stage stays visible; no data = the thinnest', () => {
+  it('height shrinks with the numbers (eased scale); the sale stage stays visible; no data = the thinnest', () => {
     const s = shape([2000000, 30000, 600, 12], [1, 1, 1], 190, 28);
     expect(s.heights[0]).toBe(190);
     expect(s.heights.every((h, i) => i === 0 || h < s.heights[i - 1]!)).toBe(true);
-    expect(s.heights[3]).toBeGreaterThan(28 + 20);
+    expect(s.heights[1]).toBeLessThan(190 * 0.6);   // 66x fewer clicks than impressions must look much smaller
+    expect(s.heights[3]).toBeGreaterThan(28);
     expect(shape([100, 10, 1, null], [1, 1, 1], 190, 28).heights[3]).toBe(28);
   });
-  it('a weak step pinches its waist, never wider than the stages beside it', () => {
+  it('every link narrows into a neck; a weak step pinches it further', () => {
     const ok = shape([1000, 100, 10, 1], [1, 1, 1], 190, 28), weak = shape([1000, 100, 10, 1], [1, 0.5, 1], 190, 28);
     expect(weak.waists[1]).toBeLessThan(ok.waists[1]!);
     expect(weak.waists[1]).toBeCloseTo(ok.waists[1]! * 0.5);
-    ok.waists.forEach((w, i) => expect(w).toBeLessThanOrEqual(Math.min(ok.heights[i]!, ok.heights[i + 1]!)));
+    ok.waists.forEach((w, i) => expect(w).toBeLessThan(Math.min(ok.heights[i]!, ok.heights[i + 1]!)));
     expect(shape([1000, 100, 10, 1], [1, 0, 1], 190, 28).waists[1]).toBeGreaterThan(0);
   });
   it('reads right to left: stage 1 on the right, the points run left to right across the full width', () => {
