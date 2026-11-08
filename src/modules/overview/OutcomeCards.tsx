@@ -9,7 +9,7 @@ import { type CrmBy, type JStat, type Outcome, journey, order, outcome } from '.
 import { medians, steps, verdict } from './funnel';
 import { qty, sar, show, val } from './format';
 import { Delta } from './Delta';
-import { pageLang, pick } from './lang';
+import { T, pageLang, pick } from './lang';
 
 // The band (d3-shape) and its motion (motion) load after the numbers
 const FunnelChart = React.lazy(() => import('./FunnelChart'));
@@ -41,24 +41,24 @@ export function OutcomeCards({ data, from, to }: Props) {
     <div className="grid gap-4">
       <Card>
         <CardHeader>
-          <CardTitle>النتيجة</CardTitle>
-          <CardDescription>{a.crm ? 'الإقفالات والمدفوع من كل المصادر في نظام العملاء. العائد على الصرف = المدفوع ÷ الصرف. تكلفة العميل = الصرف ÷ الإقفالات.' : 'نظام العملاء مو مربوط، فما فيه إقفالات.'}</CardDescription>
+          <CardTitle>{T('النتيجة', 'Result')}</CardTitle>
+          <CardDescription>{a.crm ? T('الإقفالات والمدفوع من كل المصادر في نظام العملاء. العائد على الصرف = المدفوع ÷ الصرف. تكلفة العميل = الصرف ÷ الإقفالات.', 'Closings and payments from every source in the CRM. Return on spend = paid ÷ spend. Cost per customer = spend ÷ closings.') : T('نظام العملاء مو مربوط، فما فيه إقفالات.', 'The CRM is not connected, so there are no closings.')}</CardDescription>
           {a.crm && (
             <CardAction>
-              <ToggleGroup type="single" variant="outline" value={by} onValueChange={x => x && setBy(x as CrmBy)} aria-label="الإقفالات حسب">
-                <ToggleGroupItem value="lead" className="px-3">يوم الليد</ToggleGroupItem>
-                <ToggleGroupItem value="paid" className="px-3">يوم الدفع</ToggleGroupItem>
+              <ToggleGroup type="single" variant="outline" value={by} onValueChange={x => x && setBy(x as CrmBy)} aria-label={T('الإقفالات حسب', 'Closings by')}>
+                <ToggleGroupItem value="lead" className="px-3">{T('يوم الليد', 'Lead day')}</ToggleGroupItem>
+                <ToggleGroupItem value="paid" className="px-3">{T('يوم الدفع', 'Payment day')}</ToggleGroupItem>
               </ToggleGroup>
             </CardAction>
           )}
         </CardHeader>
         <CardContent className="grid grid-cols-2 gap-4 sm:grid-cols-3 xl:grid-cols-5">
-          <Stat big label="الصرف" value={sar(a.spend)} now={a.spend} was={v('spend')} lowerIsBetter={null} />
+          <Stat big label={T('الصرف', 'Spend')} value={sar(a.spend)} now={a.spend} was={v('spend')} lowerIsBetter={null} />
           {a.crm && <>
-            <Stat big label="الإقفالات" value={qty(a.closings)} now={a.closings} was={v('closings')} lowerIsBetter={false} />
-            <Stat big label="المدفوع" value={sar(a.paid)} now={a.paid} was={v('paid')} lowerIsBetter={false} />
-            <Stat big label="العائد على الصرف" value={x2(a.mer)} now={a.mer} was={v('mer')} lowerIsBetter={false} />
-            <Stat big label="تكلفة العميل" value={sar(a.cac)} now={a.cac} was={v('cac')} lowerIsBetter />
+            <Stat big label={T('الإقفالات', 'Closings')} value={qty(a.closings)} now={a.closings} was={v('closings')} lowerIsBetter={false} />
+            <Stat big label={T('المدفوع', 'Paid')} value={sar(a.paid)} now={a.paid} was={v('paid')} lowerIsBetter={false} />
+            <Stat big label={T('العائد على الصرف', 'Return on spend')} value={x2(a.mer)} now={a.mer} was={v('mer')} lowerIsBetter={false} />
+            <Stat big label={T('تكلفة العميل', 'Cost per customer')} value={sar(a.cac)} now={a.cac} was={v('cac')} lowerIsBetter />
           </>}
         </CardContent>
       </Card>

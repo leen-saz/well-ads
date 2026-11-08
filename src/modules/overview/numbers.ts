@@ -2,6 +2,8 @@
 // Same rules as the main dashboard (pipeline/template.html): agg(), derive(), holesBetween(), compareOk.
 // rows = [key, day, spend, impr, clicks, leads, conv]
 
+import { pageLang } from './lang';
+
 export interface Ad { name: string; campaign: string; platform: string; dept?: string; goal?: string; status?: string; live?: boolean; group?: string }
 export interface Coverage { coverage_end?: string; synced_at?: string; ok?: boolean; stale_from?: string }
 export interface Dash {
@@ -24,11 +26,20 @@ const PLATFORM_EN: Record<string, string> = {
   facebook: 'Facebook', instagram: 'Instagram', messenger: 'Messenger', threads: 'Threads', meta: 'Meta',
   snap: 'Snapchat', tiktok: 'TikTok', google: 'Google', google_search: 'Google · Search', google_pmax: 'Google · Performance Max',
   google_display: 'Google · Display', google_video: 'Google · YouTube', google_demand_gen: 'Google · Demand Gen',
+  google_shopping: 'Google · Shopping', google_app: 'Google · App', google_smart: 'Google · Smart', google_local: 'Google · Local',
 };
-export const platformName = (p: string): string => PLATFORM[p] ?? p;
+// The department names when dash.json has none (pipeline/config/departments.json), and the main dashboard's English ones
+export const DEP_AR: Record<string, string> = { iv: 'المحاليل الوريدية', midwife: 'القبالة / رعاية الحمل', foot: 'تقويم القدم', renan: 'رينان لصحة الطفل', brand: 'العلامة التجارية / الوعي' };
+// (pipeline/dash/01-base.js DEP_EN)
+export const DEP_EN: Record<string, string> = { iv: 'IV Drips', midwife: 'Midwifery / Maternity', foot: 'Foot Alignment', renan: 'Renan Child Health', brand: 'Brand / Awareness' };
+// In the page language (lang.ts): every caller gets the right name, including .map(platformName)
+export const platformName = (p: string): string => platformNameIn(p, pageLang());
 export const platformNameIn = (p: string, lang: 'ar' | 'en'): string => (lang === 'en' ? PLATFORM_EN[p] : PLATFORM[p]) ?? p;
 
 export const GOAL: Record<string, string> = { lead: 'ليدز', messages: 'محادثات' };
+const GOAL_EN: Record<string, string> = { lead: 'Leads', messages: 'Conversations' };
+// The goal's name in the page language; fallback when the ad has none
+export const goalName = (g: string, other = '—'): string => (pageLang() === 'en' ? GOAL_EN[g] : GOAL[g]) ?? (other === '—' ? '—' : pageLang() === 'en' ? 'Other' : other);
 
 const META = new Set(['facebook', 'instagram', 'messenger', 'threads', 'audience_network']);
 export const family = (p: string): string => (p.startsWith('google') ? 'google' : p.startsWith('meta') || META.has(p) ? 'meta' : p);

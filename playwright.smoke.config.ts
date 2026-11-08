@@ -3,7 +3,8 @@
 import { defineConfig } from '@playwright/test';
 import { CORE_KEYS, MODULE_KEYS } from './tests/smoke/keys';
 
-const WORKER = 8787, FAKE = 8788;
+// SMOKE_PORT / SMOKE_FAKE_PORT let two checkouts run the suite at the same time on one machine
+const WORKER = Number(process.env['SMOKE_PORT'] || 8787), FAKE = Number(process.env['SMOKE_FAKE_PORT'] || 8788);
 const CFG = '--config dist/server/wrangler.smoke.json', STATE = '.wrangler/smoke-state';
 const secret = 'smoke-session-secret-smoke-session-secret';
 
