@@ -25,8 +25,9 @@ export async function pageStrings(page: Page): Promise<string[]> {
   return [...new Set(found.filter(Boolean))];
 }
 
-// Open every tab/segment button so the panes that are drawn on demand are on the page too
-export async function openTabs(page: Page) {
+// Open every tab/segment button so the panes that are drawn on demand are on the page too. A click can redraw the buttons
+// and replace the pane (the launch page draws one platform at a time), so what is on the page is collected after every click.
+export async function openTabs(page: Page, into: Set<string> = new Set()): Promise<Set<string>> {
   const sel = '#content [role="tab"], #content [data-tab], #content .seg button';
   const n = await page.locator(sel).count();
   for (let i = 0; i < Math.min(n, 12); i++) {
@@ -34,7 +35,9 @@ export async function openTabs(page: Page) {
     if (!(await b.isVisible().catch(() => false))) continue;
     await b.click({ timeout: 1500 }).catch(() => {});
     await page.waitForTimeout(250);
+    for (const s of await pageStrings(page)) into.add(s);
   }
+  return into;
 }
 
 // What may stay Arabic in English: the language button itself, the product's own proper names, and data the user wrote
