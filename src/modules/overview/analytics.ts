@@ -2,6 +2,7 @@
 // cost per lead by weekday, and departments. Pure functions over /dash.json, same rules as pipeline/template.html
 // (renderBI, renderPace, renderDeptMini). rows = [key, day, spend, impr, clicks, leads, conv]
 import { type Ad, type Dash, HIDDEN, addDays, family, holes, platformName } from './numbers';
+import { type Lang, pick } from './lang';
 
 const num = (v: unknown): number => (typeof v === 'number' && Number.isFinite(v) ? v : 0);
 // The main dashboard's platform order (channels.py), then any other platform present
@@ -168,8 +169,10 @@ export interface JStage { n: string; hint: string; width: number; colour: string
 export const FUNNEL_WIDTHS = [100, 84, 68, 52];
 export const FUNNEL_COLOURS = ['#7C8CFF', '#8B6CFF', '#7E57FD', '#5B36D6'];
 export const NO_CRM = 'مرحلة البيع فاضية لأن أرقام نظام العملاء ما وصلت لهالنسخة من اللوحة. أول ما توصل تطلع الإقفالات هنا.';
+export const NO_CRM_EN = "The sale stage is empty because the CRM numbers did not reach this copy of the dashboard. Closings show here as soon as they do.";
 
 export const UNLINKED = 'غير مربوط';
+export const UNLINKED_EN = 'Not linked';
 // The ad-to-sale step can't be judged: no CRM, too few leads tied to an ad, or paid closings in the CRM with none tied to
 // an ad (counted across all platforms, so a platform filter can't turn missing attribution into a 0% close rate).
 // Then the step is «غير مربوط», never 0% and never the bottleneck.
@@ -179,25 +182,30 @@ export function unattributed(a: Outcome): boolean {
   return !a.crmLinked || (results >= 10 && a.crmLeads < MIN_CRM_COVERAGE * results) || (a.closingsAll > 0 && a.bookedAll === 0);
 }
 
-export function journey(a: Outcome): { stages: JStage[]; noCrm: string | null } {
+export function journey(a: Outcome, l: Lang = 'ar'): { stages: JStage[]; noCrm: string | null } {
+  const t = (ar: string, en: string) => pick(l, ar, en);
   const st = (label: string, key: keyof Outcome, fmt: Fmt, lowerIsBetter = false, on = true): JStat =>
     ({ label, key: on ? key : null, now: on ? (a[key] as number | null) : null, fmt, lowerIsBetter });
   const linked = a.crmLinked, tied = !unattributed(a);
   // Counted only when the closings are tied to their ads; else «غير مربوط», no number and no change
   const ad = (label: string, key: keyof Outcome, fmt: Fmt, lowerIsBetter = false): JStat =>
-    (tied ? st(label, key, fmt, lowerIsBetter) : { label, key: null, now: null, fmt, lowerIsBetter, missing: UNLINKED });
+    (tied ? st(label, key, fmt, lowerIsBetter) : { label, key: null, now: null, fmt, lowerIsBetter, missing: t(UNLINKED, UNLINKED_EN) });
   const raw: Omit<JStage, 'width' | 'colour'>[] = [
-    { n: 'الوعي', hint: 'كم شخص شاف الإعلان', main: st('الظهور', 'impr', 'qty'), sub: [st('تكلفة الألف ظهور', 'cpm', 'sar', true)] },
-    { n: 'الاهتمام', hint: 'كم واحد ضغط', main: st('نقرات الرابط والسوايب', 'clicks', 'qty'), sub: [st('تكلفة النقرة', 'cpc', 'sar', true)], rate: st('نسبة النقر', 'ctr', 'pct') },
-    { n: 'التحويل', hint: 'كم واحد ترك بياناته أو راسلنا', main: st('الليدز', 'leads', 'qty'),
-      sub: [st('تكلفة الليد', 'cpl', 'sar', true), st('محادثات واتساب وماسنجر', 'conv', 'qty')], rate: st('من نقرة إلى ليد أو محادثة', 'clickToResult', 'pct') },
-    { n: 'البيع', hint: linked ? 'كم واحد دفع' : 'نظام العملاء مو موصول بهالأرقام',
+    { n: t('الوعي', 'Awareness'), hint: t('كم شخص شاف الإعلان', 'How many saw the ad'), main: st(t('الظهور', 'Impressions'), 'impr', 'qty'),
+      sub: [st(t('تكلفة الألف ظهور', 'Cost per 1,000 impressions'), 'cpm', 'sar', true)] },
+    { n: t('الاهتمام', 'Interest'), hint: t('كم واحد ضغط', 'How many clicked'), main: st(t('نقرات الرابط والسوايب', 'Link clicks and swipes'), 'clicks', 'qty'),
+      sub: [st(t('تكلفة النقرة', 'Cost per click'), 'cpc', 'sar', true)], rate: st(t('نسبة النقر', 'Click rate'), 'ctr', 'pct') },
+    { n: t('التحويل', 'Conversion'), hint: t('كم واحد ترك بياناته أو راسلنا', 'How many left details or messaged us'), main: st(t('الليدز', 'Leads'), 'leads', 'qty'),
+      sub: [st(t('تكلفة الليد', 'Cost per lead'), 'cpl', 'sar', true), st(t('محادثات واتساب وماسنجر', 'WhatsApp and Messenger chats'), 'conv', 'qty')],
+      rate: st(t('من نقرة إلى ليد أو محادثة', 'Click to lead or chat'), 'clickToResult', 'pct') },
+    { n: t('البيع', 'Sale'), hint: linked ? t('كم واحد دفع', 'How many paid') : t('نظام العملاء مو موصول بهالأرقام', 'The CRM is not connected to these numbers'),
       // Same as the main dashboard: every paid closing in the CRM, or the ad-linked ones when that list is missing
-      main: st('إقفالات مدفوعة', a.crm ? 'closings' : 'booked', 'qty', false, linked),
-      sub: [ad('إقفالات من الإعلانات', 'booked', 'qty'), ad('العائد من الإعلانات', 'roas', 'x'), st('تكلفة العميل', 'cac', 'sar', true, linked)],
-      rate: ad('من ليد إلى إقفالة', 'closeRate', 'pct') },
+      main: st(t('إقفالات مدفوعة', 'Paid closings'), a.crm ? 'closings' : 'booked', 'qty', false, linked),
+      sub: [ad(t('إقفالات من الإعلانات', 'Closings from ads'), 'booked', 'qty'), ad(t('العائد من الإعلانات', 'Return from ads'), 'roas', 'x'),
+        st(t('تكلفة العميل', 'Cost per customer'), 'cac', 'sar', true, linked)],
+      rate: ad(t('من ليد إلى إقفالة', 'Lead to closing'), 'closeRate', 'pct') },
   ];
-  return { stages: raw.map((s, i) => ({ ...s, width: FUNNEL_WIDTHS[i]!, colour: FUNNEL_COLOURS[i]! })), noCrm: linked ? null : NO_CRM };
+  return { stages: raw.map((s, i) => ({ ...s, width: FUNNEL_WIDTHS[i]!, colour: FUNNEL_COLOURS[i]! })), noCrm: linked ? null : t(NO_CRM, NO_CRM_EN) };
 }
 
 // ---- Wins of the period against the one before it (template.html renderWins). "New winning ads" stays out: the main

@@ -37,7 +37,8 @@ test('the funnel draws four stages and three links, with a verdict, a line per s
   await expect(stages(page)).toHaveCount(7);
   for (const n of ['الوعي', 'الاهتمام', 'التحويل', 'البيع']) await expect(page.locator('svg[role="group"]')).toContainText(n);
   await expect(verdict(page)).not.toBeEmpty();
-  await expect(page.locator('ul[aria-label="التحليل لكل خطوة"] li')).toHaveCount(4);
+  await expect(page.locator('section[aria-labelledby="analysis-h"] li')).toHaveCount(4);
+  await expect(page.locator('#analysis-h')).toHaveText('التحليل');
   await page.getByText('الأرقام كجدول').click();
   await expect(page.locator('table:has(caption:text("رحلة العميل بالأرقام")) tbody tr')).toHaveCount(4);
 });
@@ -76,7 +77,19 @@ test('paid closings with none tied to an ad: «غير مربوط», no 0% and no
   const sale = page.locator('svg[role="group"] g[role="button"][aria-label^="من ليد إلى إقفالة"]');
   await expect(sale).toHaveAttribute('aria-label', /غير مربوط/);
   await expect(sale).not.toHaveAttribute('aria-label', /عنق الزجاجة/);
-  await expect(page.locator('ul[aria-label="التحليل لكل خطوة"]')).toContainText('مو صفر');
+  await expect(page.locator('section[aria-labelledby="analysis-h"]')).toContainText('مو صفر');
+});
+
+test('English: every word in the journey card is English and the band reads left to right', async ({ page, request }) => {
+  await page.addInitScript(() => { try { localStorage.setItem('well-ads-lang', 'en'); } catch { /* storage blocked */ } });
+  await open(page, request, withCrm());
+  const card = page.locator('[data-slot="card"]', { has: page.locator('#verdict-h') });
+  await expect(card).toContainText('Customer journey');
+  await expect(page.locator('#analysis-h')).toHaveText('Analysis');
+  const text = await card.evaluate(el => el.textContent ?? '');
+  expect(text).not.toMatch(/[\u0600-\u06FF]/);
+  const x = await page.locator('svg[role="group"] g[role="button"]').evaluateAll(gs => gs.slice(0, 4).map(g => (g as SVGGElement).getBBox().x));
+  expect(x[0]!).toBeLessThan(x[3]!);
 });
 
 test('375 px: the funnel scrolls inside its card, the page does not scroll sideways', async ({ page, request }) => {
