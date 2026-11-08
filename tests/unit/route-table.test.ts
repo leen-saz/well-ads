@@ -32,7 +32,7 @@ const needOfGroup = (g: string) => CORE_NEED[g] ?? g;
 // Public on purpose (the gate lets them through without a session)
 const PUBLIC = new Set(['auth/login', 'auth/logout', 'auth/refresh', 'auth/forgot', 'auth/reset', 'connectors/callback', 'listening/probe']);
 // Handlers that ask for a higher need than their group (owner-only actions inside a module group)
-const OWNER_ONLY = new Set(['admin/log', 'admin/users', 'admin/modules', 'control/settings:POST', 'maestro/connect', 'maestro/crm', 'maestro/health', 'maestro/usage', 'maestro/budgets', 'maestro/reconcile', 'social/approvers:PUT', 'social/pages', 'social/connection', 'listening/probe', 'maestro/vitals']);
+const OWNER_ONLY = new Set(['admin/log', 'admin/users', 'admin/modules', 'control/settings:POST', 'maestro/connect', 'maestro/crm', 'maestro/health', 'maestro/usage', 'maestro/budgets', 'maestro/reconcile', 'social/approvers:PUT', 'social/pages', 'social/connection', 'listening/probe', 'maestro/vitals', 'maestro/audit', 'maestro/critique']);
 // POST/PUT/PATCH/DELETE handlers that change nothing (a check that happens to take a body), so they may skip the same-origin and level checks
 const READ_ONLY_VERBS = new Set(['control/compliance:POST', 'vitals/report:POST']);
 // Handlers that need no module level (any signed-in user): the level checks do not apply, and nothing is company data
