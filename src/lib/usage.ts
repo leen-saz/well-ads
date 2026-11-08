@@ -5,8 +5,7 @@
 import { AsyncLocalStorage } from 'node:async_hooks';
 import { sb, audit, type Cfg } from './auth';
 import { scoped } from './tenant';
-import { priceOf, per } from './prices';
-import type { Provider } from './llm';
+import { priceOf, per, type Provider } from './prices';
 
 // The riyal is pegged to the dollar (SAMA, 3.75 since 1986); the pipeline uses the same number (USD_SAR in fetch_data.py)
 export const USD_SAR = 3.75;
