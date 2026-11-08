@@ -10,6 +10,7 @@ import { medians, steps, verdict } from './funnel';
 import { qty, sar, show, val } from './format';
 import { Delta } from './Delta';
 import { pageLang, pick } from './lang';
+import { AuditBadge } from './AuditBadge';
 
 // The band (d3-shape) and its motion (motion) load after the numbers
 const FunnelChart = React.lazy(() => import('./FunnelChart'));
@@ -126,6 +127,7 @@ function JourneyCard({ data, from, to, by }: Props & { by: CrmBy }) {
             </div>
             <h3 id="verdict-h" className="font-semibold">{v.title}</h3>
             {v.owner && <Owner who={v.owner} label={t('المسؤول', 'Owner')} />}
+            <AuditBadge data={data} from={from} to={to} by={by} plat={p} />
             {v.why && <p className="text-sm"><span className="text-muted-foreground">{t('ليش: ', 'Why: ')}</span>{v.why}</p>}
             {v.todo && <p className="text-sm"><span className="text-muted-foreground">{t('وش تسوي: ', 'What to do: ')}</span>{v.todo}</p>}
             {v.unlinked && (

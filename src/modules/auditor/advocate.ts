@@ -3,12 +3,12 @@
 // target that is only a default, a small sample, a comparison period with holes. Each challenge says what it does to the
 // verdict (contradicts / weakens) and what data would settle it.
 import { type AuditConfig, type Claim, type ClaimStep, type Finding, type StepKey } from './contract';
-import { type Facts, valueOf, volumeOf } from './facts';
+import { type Facts, volumeOf } from './facts';
 import { nameOf, type Run } from './checks';
 
 const pc = (v: number | null, d = 1) => (v == null ? '—' : v.toFixed(d));
 const FLOORED = ['click', 'lead', 'sale'] as const;
-const floorOf = (c: Claim, s: ClaimStep, cfg: AuditConfig): number | null =>
+const floorOf = (s: ClaimStep, cfg: AuditConfig): number | null =>
   s.target ?? ((FLOORED as readonly string[]).includes(s.key) ? cfg.floors[s.key as 'click' | 'lead' | 'sale'] : null);
 
 export function advocate(c: Claim, f: Facts, cfg: AuditConfig): Run {
@@ -36,7 +36,7 @@ export function advocate(c: Claim, f: Facts, cfg: AuditConfig): Run {
   if (!c.plat && plats.length > 1) for (const k of FLOORED) {
     const s = c.steps.find(x => x.key === k);
     if (!s || s.unattributed) continue;
-    const fl = floorOf(c, s, cfg);
+    const fl = floorOf(s, cfg);
     if (fl == null) continue;
     const rows = plats.map(([p, t]) => ({ p, v: k === 'click' ? t.ctr : k === 'lead' ? t.c2r : (t.crm.leads ? (100 * t.crm.booked) / t.crm.leads : null),
       n: k === 'click' ? t.impr : k === 'lead' ? t.clicks : t.crm.leads })).filter(x => x.v != null && x.n >= min[k === 'click' ? 'impr' : k === 'lead' ? 'clicks' : 'crmLeads']);
@@ -59,7 +59,7 @@ export function advocate(c: Claim, f: Facts, cfg: AuditConfig): Run {
   const U = f.crm.unattributed, res = f.scope.results;
   if (sale && f.crm.linked && res > 0) {
     r.checked++;
-    const fl = floorOf(c, sale, cfg) ?? cfg.floors.sale;
+    const fl = floorOf(sale, cfg) ?? cfg.floors.sale;
     const worst = (100 * f.crm.booked) / res, best = (100 * (f.crm.booked + U)) / res;
     if (says === 'ok' && best < fl)
       add({ id: 'silent_below_floor', kind: 'challenge', effect: 'contradicts', step: 'verdict',
@@ -89,7 +89,7 @@ export function advocate(c: Claim, f: Facts, cfg: AuditConfig): Run {
   // ---- 4. Timing: leads younger than the usual time to close have not had the chance. Only the lead-date cohort is affected.
   if (c.by === 'lead' && f.cohort.immatureShare != null) {
     r.checked++;
-    const sh = f.cohort.immatureShare, fl = sale ? floorOf(c, sale, cfg) ?? cfg.floors.sale : cfg.floors.sale;
+    const sh = f.cohort.immatureShare, fl = sale ? floorOf(sale, cfg) ?? cfg.floors.sale : cfg.floors.sale;
     if (sh >= cfg.immatureShare && (flagged.includes('sale') || says === 'ok'))
       add({ id: 'timing_artifact', kind: 'challenge', effect: flagged.includes('sale') && f.cohort.matureRate != null && f.cohort.matureRate >= fl ? 'contradicts' : flagged.includes('sale') ? 'weakens' : 'info', step: flagged.includes('sale') ? 'sale' : 'verdict',
         text: { ar: `${pc(100 * sh, 0)}% من ليدز الفترة أصغر من المدة المعتادة للإقفال (${f.lag.p75} يوم)، فإقفالاتها لسا ما صارت.${f.cohort.matureRate != null ? ` على الليدز الناضجة بس النسبة ${pc(f.cohort.matureRate)}%.` : ''}`,
@@ -101,7 +101,7 @@ export function advocate(c: Claim, f: Facts, cfg: AuditConfig): Run {
   for (const s of weak) {
     if (!flagged.includes(s.key)) continue;
     r.checked++;
-    const fl = floorOf(c, s, cfg);
+    const fl = floorOf(s, cfg);
     if (fl == null || s.now == null || s.targetEdited !== false || s.now >= fl) continue;
     // Is the history also against it? Then the default is not what decides.
     const refs = [s.prev, s.median].filter((x): x is number => x != null && x > 0);

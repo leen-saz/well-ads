@@ -5,12 +5,21 @@ import { medians, steps as judgeSteps, verdict as judgeVerdict } from '../overvi
 import { canCompare, previous, type Dash } from '../overview/numbers';
 import type { Claim } from './contract';
 
-export function claimFromJudge(d: Dash, from: string, to: string, by: CrmBy = 'lead', plat?: string): Claim {
+function judged(d: Dash, from: string, to: string, by: CrmBy, plat: string | undefined, l: 'ar' | 'en') {
   const a = outcome(d, from, to, by, plat);
   const [pf, pt] = previous(from, to);
   const b = canCompare(d, from, to) ? outcome(d, pf, pt, by, plat) : null;
-  const list = judgeSteps(a, b, medians(d, to, plat), 'ar');
-  const v = judgeVerdict(list, 'ar');
+  const list = judgeSteps(a, b, medians(d, to, plat), l);
+  return { list, v: judgeVerdict(list, l) };
+}
+// What the judge shows the reader for this period, in both languages: the headline and the owner (for the owner's audit page)
+export function judgeHeadline(d: Dash, from: string, to: string, by: CrmBy = 'lead', plat?: string): { ar: { title: string; owner: string | null }; en: { title: string; owner: string | null } } {
+  const x = judged(d, from, to, by, plat, 'ar').v, y = judged(d, from, to, by, plat, 'en').v;
+  return { ar: { title: x.title, owner: x.owner }, en: { title: y.title, owner: y.owner } };
+}
+
+export function claimFromJudge(d: Dash, from: string, to: string, by: CrmBy = 'lead', plat?: string): Claim {
+  const { list, v } = judged(d, from, to, by, plat, 'ar');
   return {
     from, to, plat, by,
     // The shipped judge has hard floors nobody edits; its verdict carries no SAR, confidence or range yet
