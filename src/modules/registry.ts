@@ -13,8 +13,11 @@ import { meta as voiceMeta } from './voice/module';
 import { meta as copyMeta } from './copy/module';
 import { meta as knowledgeMeta } from './knowledge/module';
 import { meta as overviewMeta } from './overview/module';
+import { meta as transcribeMeta } from './transcribe/module';
+import { meta as visionMeta } from './vision/module';
+import { meta as voiceoverMeta } from './voiceover/module';
 
 // Grouped by sidebar destination: performance, create, review, system
-export const MODULES: ModuleMeta[] = [overviewMeta, listeningMeta, designMeta, copyMeta, voiceMeta, socialMeta, contentMeta, journeysMeta, complianceMeta, maestroMeta, knowledgeMeta, debuggerMeta];
+export const MODULES: ModuleMeta[] = [overviewMeta, listeningMeta, designMeta, copyMeta, voiceMeta, transcribeMeta, visionMeta, voiceoverMeta, socialMeta, contentMeta, journeysMeta, complianceMeta, maestroMeta, knowledgeMeta, debuggerMeta];
 export const LIVE = MODULES.filter(m => m.status === 'live').map(m => m.key);
 export const isModule = (k: string): boolean => MODULES.some(m => m.key === k);

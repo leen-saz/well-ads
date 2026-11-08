@@ -1,0 +1,61 @@
+---
+import { ClientRouter } from 'astro:transitions';
+// وصف الصور: ارفع صورة إعلان، ويطلع وصفها ونصها وملاحظات الامتثال. السكربت في public/modules/vision/client.js
+---
+<!doctype html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="robots" content="noindex,nofollow">
+<meta name="referrer" content="no-referrer">
+<meta name="theme-color" content="#F6F0E3">
+<title>وصف الصور · Well</title>
+<link rel="preload" href="/assets/fonts/thmanyahsans-Regular.woff2" as="font" type="font/woff2" crossorigin>
+<link rel="preload" href="/assets/fonts/playfair-display-900.woff2" as="font" type="font/woff2" crossorigin>
+<link rel="stylesheet" href="/assets/app.css">
+<ClientRouter />
+<style is:global>
+.vi-grid{display:grid;grid-template-columns:minmax(0,420px) minmax(0,1fr);gap:16px;align-items:start}
+@media (max-width:1000px){.vi-grid{grid-template-columns:1fr}}
+.vi-grid h2{margin:0 0 6px}
+.vi-list{display:grid;gap:12px}
+.vi-item{padding:14px 16px;display:grid;gap:8px}
+.vi-top{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+.vi-top h3{margin:0;font-size:16px}
+.vi-prev{max-width:100%;max-height:220px;border-radius:12px;justify-self:start;object-fit:contain}
+.vi-h{font-size:13px;color:var(--muted);margin:6px 0 0}
+.vi-t{white-space:pre-wrap;margin:0;font-size:15px;line-height:1.8}
+.vi-flag{font-size:13px;padding:8px 12px;border-radius:12px;background:var(--tint)}
+.vi-flag.bad{background:color-mix(in srgb,var(--pulse) 12%,transparent)}
+.vi-act{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+.vi-empty{padding:28px 16px;text-align:center}
+</style>
+</head>
+<body data-page="vision" data-module>
+<div class="app" id="app">
+  <aside class="side" id="side" aria-label="القائمة" transition:persist="side"></aside>
+  <div class="scrim"></div>
+  <div class="main">
+    <header class="topbar" id="top"></header>
+    <main class="content" id="content">
+      <p class="muted" style="margin:0 0 14px">ارفع صورة إعلان، ويطلع لك وصفها بالعربي ونص بديل جاهز، والنص اللي داخلها، والعرض والهوك والدعوة، مع ملاحظات الامتثال. الصورة ما تنحفظ.</p>
+      <div class="so-note" id="notready" hidden role="status"></div>
+      <div class="vi-grid">
+        <section class="card pad">
+          <h2>صورة جديدة</h2>
+          <form id="uf" novalidate>
+            <label for="file">الصورة</label><input type="file" id="file" accept="image/jpeg,image/png,image/webp">
+            <label for="title">العنوان <span class="muted">(اختياري)</span></label><input type="text" id="title" maxlength="120" placeholder="مثلاً: إعلان المحاليل في البيت">
+            <div class="bar" style="margin-top:14px"><button class="btn primary" type="submit" id="go">اوصف الصورة</button></div>
+            <div class="msg" id="msg" role="status"></div>
+          </form>
+        </section>
+        <section><div id="items" class="vi-list" aria-live="polite"></div></section>
+      </div>
+    </main>
+  </div>
+</div>
+<script is:inline type="module" src="/assets/router.js"></script>
+</body>
+</html>

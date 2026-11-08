@@ -7,6 +7,9 @@
 import { AI_MODEL, type AiRun } from '../modules/content/content';
 import { overCap, record, type UsageCtx } from './usage';
 
+// Audio, video, image and speech calls (Gemini) live in gemini.ts and are reached through this adapter too
+export * from './gemini';
+
 export type Provider = 'openai' | 'xai' | 'workers';
 export interface LlmEnv { OPENAI_API_KEY?: string; OPENAI_MODEL?: string; OPENAI_IMAGE_MODEL?: string; XAI_API_KEY?: string; XAI_MODEL?: string; AI?: { run: AiRun } }
 export type Msg = { role: string; content: string };
