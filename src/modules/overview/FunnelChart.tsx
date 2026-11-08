@@ -10,7 +10,8 @@ import { Delta } from './Delta';
 import { pageLang, pick } from './lang';
 
 const W = 960, H = 250, MID = 118, MAX_H = 170, MIN_H = 26;
-const LEVEL = { bad: 'text-destructive', watch: 'text-amber-700 dark:text-amber-400', ok: 'text-primary' } as const;
+// The severity's colour; «ما ينحكم» stays muted
+const LEVEL = { disaster: 'text-destructive font-semibold', problem: 'text-destructive', watch: 'text-amber-700 dark:text-amber-400', fine: 'text-primary', na: 'text-muted-foreground' } as const;
 
 const band = area<{ x: number; h: number }>().x(p => p.x).y0(p => MID - p.h / 2).y1(p => MID + p.h / 2).curve(curveMonotoneX);
 const reduced = () => typeof matchMedia !== 'undefined' && matchMedia('(prefers-reduced-motion: reduce)').matches;
@@ -22,7 +23,7 @@ const RATE = ['click', 'lead', 'sale'];
 
 export default function FunnelChart({ stages, steps, verdict, was }: Props) {
   const l = pageLang(), rtl = l !== 'en', t = (ar: string, en: string) => pick(l, ar, en);
-  // The rate steps sit on the links; the two costs (cpm, cpl) sit on stages
+  // The rate steps sit on the links; the costs and the return sit on stages (cpl on stage 2, cpa and roas on stage 3)
   const linkStep = (i: number) => steps.find(s => s.link === i && RATE.includes(s.key))!;
   const target = shape(stages.map(s => s.main.now), [0, 1, 2].map(i => linkStep(i).score), MAX_H, MIN_H);
   const key = [...target.heights, ...target.waists].map(v => v.toFixed(1)).join(',');
@@ -44,9 +45,10 @@ export default function FunnelChart({ stages, steps, verdict, was }: Props) {
   }, [key, rtl]); // the shape key holds every number the target uses
 
   const [active, setActive] = React.useState<Active>(null);
-  const bottleneckLink = verdict.step && verdict.level !== 'ok' && RATE.includes(verdict.step) ? steps.find(s => s.key === verdict.step)?.link ?? null : null;
-  // A weak cost (cpm on stage 0, cpl on stage 2) shows in red under its stage
-  const weakCost = verdict.level !== 'ok' && (verdict.step === 'cpm' || verdict.step === 'cpl') ? steps.find(s => s.key === verdict.step)!.link : null;
+  const weakVerdict = verdict.level !== 'fine' && verdict.level !== 'na';
+  const bottleneckLink = verdict.step && weakVerdict && RATE.includes(verdict.step) ? steps.find(s => s.key === verdict.step)?.link ?? null : null;
+  // A weak cost or return (cpl on stage 2, cpa or roas on stage 3) shows in red under its stage
+  const weakCost = weakVerdict && verdict.step && !RATE.includes(verdict.step) ? steps.find(s => s.key === verdict.step)?.link ?? null : null;
   const saleMissing = stages[3]!.main.now == null;
   const on = (x: Active) => ({
     onMouseEnter: () => setActive(x), onMouseLeave: () => setActive(null), onFocus: () => setActive(x), onBlur: () => setActive(null),
@@ -89,7 +91,7 @@ export default function FunnelChart({ stages, steps, verdict, was }: Props) {
             const x = linkX(i, 4, W, rtl), st = linkStep(i), weak = bottleneckLink === i, rate = stages[i + 1]!.rate!, off = st.unattributed;
             // Unattributed: a dashed grey pill «غير مربوط», never the bottleneck and never 0%
             const pill = off ? 'fill-background stroke-muted-foreground' : weak ? 'fill-background stroke-destructive' : 'fill-background stroke-border';
-            const ink = off ? 'fill-muted-foreground' : weak ? 'fill-destructive' : st.level === 'watch' ? 'fill-amber-700' : 'fill-foreground';
+            const ink = off ? 'fill-muted-foreground' : weak ? 'fill-destructive' : st.level === 'watch' ? 'fill-amber-700' : st.level === 'problem' || st.level === 'disaster' ? 'fill-destructive' : 'fill-foreground';
             return (
               <g key={i} role="button" tabIndex={0} aria-label={`${rate.label}: ${val(rate)}${weak ? t('، عنق الزجاجة', ', bottleneck') : ''}`} className="cursor-pointer outline-none [&:focus-visible>rect:first-child]:stroke-ring" {...on({ kind: 'link', i })}>
                 <rect x={x - 44} y={MID - 60} width={88} height={120} fill="transparent" stroke="transparent" strokeWidth={2} rx={10} />
@@ -120,7 +122,7 @@ function Detail({ stages, steps, active, was, linkStep, rtl }: { stages: JStage[
       </div>
     );
   }
-  // A stage's own steps: its cost (cpm on stage 0, cpl on stage 2) and the rate that brought people into it
+  // A stage's own steps: its cost or return (cpl on stage 2, cpa and roas on stage 3) and the rate that brought people into it
   const s = stages[active.i]!, own = steps.filter(x => (!RATE.includes(x.key) && x.link === active.i) || (active.i > 0 && RATE.includes(x.key) && x.link === active.i - 1));
   return (
     <div aria-live="polite" className="grid gap-1 rounded-lg border p-3 text-sm">

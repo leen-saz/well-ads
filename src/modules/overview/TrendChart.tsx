@@ -78,7 +78,8 @@ export function TrendChart({ data, from, to }: { data: Dash; from: string; to: s
       <CardHeader>
         <CardTitle>{T('الاتجاه', 'Trend')}</CardTitle>
         <CardDescription>{metric === 'spend' ? T('الصرف لكل المنصات', 'Spend on all platforms') : metric === 'results' ? T('الليدز والمحادثات', 'Leads and conversations') : T('الليدز بس', 'Leads only')} · {g === 'day' ? T('يومي', 'Daily') : g === 'week' ? T('أسبوعي (من الأحد)', 'Weekly (from Sunday)') : T('شهري', 'Monthly')}</CardDescription>
-        <CardAction className="flex flex-wrap gap-2">
+        {/* On a phone the three toggles get their own row under the title: beside it, the English labels ran 1px past the screen */}
+        <CardAction className="col-span-2 col-start-1 row-span-1 row-start-3 flex flex-wrap gap-2 justify-self-start sm:col-span-1 sm:col-start-2 sm:row-span-2 sm:row-start-1 sm:justify-self-end">
           <ToggleGroup type="single" variant="outline" value={metric} onValueChange={v => v && setMetric(v as Metric)} aria-label={T('الرقم', 'Metric')}>
             <ToggleGroupItem value="spend" className="px-3">{T('الصرف', 'Spend')}</ToggleGroupItem>
             <ToggleGroupItem value="results" className="px-3">{T('النتائج', 'Results')}</ToggleGroupItem>

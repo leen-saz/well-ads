@@ -44,6 +44,11 @@ print("معاينات بعد", after)
 apply_all(data.get("ads") or {})
 data["channels"] = annotate(data.get("ads") or {})
 data["departments"] = public_config()
+# أهداف حكم رحلة العميل (pipeline/dash/00-judge.js): الكتلة «funnel» من config/targets.json، والباقي افتراضي في الملف نفسه
+try:
+    data["funnel_targets"] = {k: v for k, v in (json.load(open(os.path.join(HERE, "config", "targets.json"), encoding="utf-8")).get("funnel") or {}).items() if not k.startswith("_")}
+except (FileNotFoundError, ValueError):
+    data["funnel_targets"] = {}
 if not data.get("organic"):
     data["organic"] = pending_shell()
 else:

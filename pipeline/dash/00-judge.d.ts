@@ -1,0 +1,42 @@
+// Types for 00-judge.js (a plain script the main page inlines; Overview imports it through src/modules/overview/judge.ts)
+export type Lang = 'ar' | 'en';
+export type Severity = 'fine' | 'watch' | 'problem' | 'disaster' | 'na';
+export type Confidence = 'high' | 'medium' | 'low';
+export type StepKey = 'click' | 'lead' | 'sale' | 'cpl' | 'cpa' | 'roas';
+export type OwnerKey = 'creative' | 'landing' | 'sales' | 'buyer' | 'mgmt' | 'crm';
+export interface Targets { ctr: number; clickToLead: number; leadToClose: number; cpl: number; costShare: number; roas: number; maturityDays: number }
+export interface Field { key: keyof Targets; unit: '%' | 'sar' | 'share' | 'x' | 'days'; label: [string, string] }
+export interface Formats { pct(v: number): string; sar(v: number): string; x(v: number): string; qty(v: number): string; num(v: number, digits: number): string }
+export interface Cohort { mature: number; young: number; matureClosings: number; medianDays: number | null; cut: string }
+export interface Input {
+  top: { impr: number; clicks: number; results: number; spend: number; cpl: number | null };
+  sale: { crm: boolean; results: number; spend: number; closings: number; paid: number; adClosings: number; adLeads: number; wide: boolean };
+  cohort: Cohort | null;
+}
+export interface Step {
+  key: StepKey; kind: 'rate' | 'cost' | 'ratio'; link: number; label: string; now: number | null; target: number | null;
+  ownerKey: OwnerKey; owner: string; fix: string; unattributed: boolean;
+  level: Severity; ratio: number | null; score: number | null; small: boolean; sar: number | null; confidence: Confidence;
+  line: string; evidence: string; rule: string; change: string; range: { worst: number; best: number | null } | null;
+}
+export interface Verdict {
+  level: Severity; step: StepKey | null; stage: string; title: string; owner: string | null; why: string; todo: string;
+  evidence: string; sar: number | null; confidence: Confidence; rule: string; change: string;
+  steps: Step[];
+  e2e: { now: number; target: number; level: Severity; line: string } | null;
+  losses: { key: OwnerKey; owner: string; sar: number }[];
+  biggest: string | null;
+  trust: { coverage: number | null; confidence: Confidence; line: string };
+  cohort: (Cohort & { line: string }) | null;
+  unlinked: { owner: string; why: string; todo: string } | null;
+  targets: Targets & { cpa: number | null };
+}
+export interface Judge {
+  DEFAULTS: Targets; FIELDS: Field[]; MIN: { clicks: number; leads: number };
+  SEV: Record<Severity, [string, string]>; RANK: Record<Severity, number>;
+  targets(...layers: unknown[]): Targets;
+  cohort(byDay: [string, number][], paid: [string, string | null][], from: string, to: string, asOf: string, maturityDays: number): Cohort;
+  judge(input: Input, targets: Targets, l: Lang, f: Formats): Verdict;
+  pick(l: Lang, x: [string, string]): string;
+}
+declare global { var WELL_JUDGE: Judge }

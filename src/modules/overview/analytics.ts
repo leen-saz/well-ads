@@ -122,6 +122,9 @@ export interface Outcome {
   // The CRM as a whole in the period, whatever the platform filter: every paid closing, and those tied to an ad.
   // A platform's 0 closings only means something when the CRM ties closings to ads at all.
   closingsAll: number; bookedAll: number;
+  // Lead to closing across the whole CRM: every paid closing ÷ the ads' leads and chats. Judged even when the closings
+  // aren't tied to their ads (only the per-ad split is «غير مربوط» then). null with a platform filter: the CRM can't split it.
+  closeRateAll: number | null;
 }
 type CrmData = { rows?: unknown[][]; paid_all?: unknown[][] };
 const ratio = (a: number, b: number): number | null => (b ? a / b : null);
@@ -156,6 +159,7 @@ export function outcome(d: Dash, from: string, to: string, by: CrmBy = 'lead', p
     cpm: impr ? (1000 * spend) / impr : null, cpc: ratio(spend, clicks), ctr: impr ? (100 * clicks) / impr : null, cpl: ratio(ls, ln),
     clickToResult: clicks ? (100 * (leads + conv)) / clicks : null, closeRate: crmLeads ? (100 * booked) / crmLeads : null,
     roas: spend && value ? value / spend : null, mer: ratio(paid, spend), cac: ratio(spend, closings), closingsAll, bookedAll,
+    closeRateAll: !plat && crmData?.paid_all && leads + conv ? (100 * closings) / (leads + conv) : null,
   };
 }
 
@@ -208,7 +212,8 @@ export function journey(a: Outcome, l: Lang = 'ar'): { stages: JStage[]; noCrm: 
       main: st(t('إقفالات مدفوعة', 'Paid closings'), a.crm ? 'closings' : 'booked', 'qty', false, linked),
       sub: [amount, ...(a.crm ? [ad(t('المبيعات من الإعلانات', 'Sales from ads'), 'value', 'sar')] : []), ad(t('إقفالات من الإعلانات', 'Closings from ads'), 'booked', 'qty'),
         ad(t('العائد من الإعلانات', 'Return from ads'), 'roas', 'x'), cac],
-      rate: ad(t('من ليد إلى إقفالة', 'Lead to closing'), 'closeRate', 'pct'), cost: cac, amount },
+      // CRM-wide when the CRM has its paid list (judged even when not tied to ads); else the ad-linked rate or «غير مربوط»
+      rate: a.closeRateAll != null ? st(t('من ليد إلى إقفالة', 'Lead to closing'), 'closeRateAll', 'pct') : ad(t('من ليد إلى إقفالة', 'Lead to closing'), 'closeRate', 'pct'), cost: cac, amount },
   ];
   return { stages: raw.map((s, i) => ({ ...s, width: FUNNEL_WIDTHS[i]!, colour: FUNNEL_COLOURS[i]! })), noCrm: linked ? null : t(NO_CRM, NO_CRM_EN) };
 }
