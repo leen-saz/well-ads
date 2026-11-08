@@ -54,7 +54,7 @@ export const videos = { GET: handle(async (request, e: VEnv) => {
     return json(200, { ...base, project: p, versions });
   }
   const r = await sb<Project[]>(cfg, scoped(`/rest/v1/motion_projects?select=${P_COLS}&order=created_at.desc&limit=30`, user.co), { admin: true });
-  if (missingSchema(r)) return json(200, { ...base, projects: [], setup: notApplied(MIG) });
+  if (missingSchema(r)) return json(200, { ...base, projects: [], setup: notApplied(user, MIG) });
   return json(200, { ...base, projects: rows<Project>(r.data) });
 }) };
 
@@ -105,7 +105,7 @@ export const video = { POST: handle(async (request, e: VEnv) => {
     company_id: user.co, title: String(b.title || headline || 'فيديو').trim().slice(0, 120), headline, script, ratio,
     design_key: b.design_key, design_mime: String(b.design_mime || 'image/png').slice(0, 40), voice_key: b.voice_key, voice_mime: String(b.voice_mime || 'audio/wav').slice(0, 40),
     voice_seconds: seconds, created_by: user.email } });
-  if (missingSchema(ins)) return json(503, { error: notApplied(MIG) });
+  if (missingSchema(ins)) return json(503, { error: notApplied(user, MIG) });
   const p = rows<Project>(ins.data)[0];
   if (!ins.ok || !p) return json(500, { error: 'ما انحفظ الفيديو' });
   const v = await sb<Version[]>(cfg, '/rest/v1/motion_versions', { method: 'POST', admin: true, headers: { Prefer: 'return=representation' },

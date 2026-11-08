@@ -84,21 +84,17 @@ async function listening() {
   let W = [], M = [], days = 30, shown = 15, filt = {};
 
   function setup(d) {
-    $('#setup').innerHTML = d.missing ? `<section class="card pad lx-sql" style="margin:0 0 16px"><h2 style="margin:0 0 6px">خطوة وحدة قبل ما يشتغل الرصد</h2>
-      <p style="margin:0 0 8px">شغّل هالـ SQL مرة وحدة في Supabase (SQL Editor في مشروع Well)، وبعدها ارجع لهالصفحة.</p>
-      <details><summary>اعرض الـ SQL</summary><pre id="sql">${esc(d.sql)}</pre></details>
-      <div class="bar" style="margin-top:8px"><button class="btn secondary" type="button" id="copySql">انسخ الـ SQL</button></div></section>` : '';
+    // Nothing technical here: a normal user is told to ask the owner, the owner is sent to the data-health page
+    $('#setup').innerHTML = d.missing ? `<section class="card pad" style="margin:0 0 16px"><h2 style="margin:0 0 6px">الرصد ما اكتمل تجهيزه</h2>
+      <p style="margin:0">${d.owner ? 'التفاصيل وش ناقص في <a href="/maestro/health/">صحة الداتا</a>.' : 'بلّغ الإدارة عشان تكمل تجهيزه.'}</p></section>` : '';
     const s = d.sources || {};
-    // Off sources say «يحتاج تفعيل»; the key name stays in the tooltip for whoever sets it up
-    const chip = (on, label, need) => `<span class="${on ? '' : 'off'}" title="${on ? 'شغّال' : esc(need)}">${on ? '✓' : '○'} ${esc(label)}${on || !need ? '' : ' · يحتاج تفعيل من الإدارة'}</span>`;
-    $('#src').innerHTML = chip(s.news, 'الأخبار (قوقل، وإذا رفض فـ Bing)', '') + chip(s.reddit, 'ريديت', 'يحتاج REDDIT_CLIENT_ID و REDDIT_CLIENT_SECRET') + chip(s.youtube, 'يوتيوب', 'يحتاج YOUTUBE_API_KEY')
-      + chip(s.x, 'X عن طريق Grok (مدفوع)', 'يحتاج XAI_API_KEY') + chip(s.tiktok, 'تيك توك عن طريق Grok (مدفوع)', 'يحتاج XAI_API_KEY') + chip(s.sentiment, 'تحليل الشعور', 'يحتاج Workers AI');
+    const chip = (on, label, need) => `<span class="${on ? '' : 'off'}">${on ? '✓' : '○'} ${esc(label)}${on || !need ? '' : ' · يحتاج تفعيل من الإدارة'}</span>`;
+    $('#src').innerHTML = chip(s.news, 'الأخبار (قوقل، وإذا رفض فـ Bing)', '') + chip(s.reddit, 'ريديت', 1) + chip(s.youtube, 'يوتيوب', 1)
+      + chip(s.x, 'X عن طريق Grok (مدفوع)', 1) + chip(s.tiktok, 'تيك توك عن طريق Grok (مدفوع)', 1) + chip(s.sentiment, 'تحليل الشعور', 1);
     const miss = d.missing ? [] : missingKeys(s);
     $('#keys').innerHTML = miss.length ? `<section class="card pad lx-keys"><h2 style="margin:0 0 6px">مصادر ما انفعّلت للحين</h2>
-      <p class="muted" style="margin:0 0 8px">الرصد شغّال على الأخبار. كل مصدر هنا يضيف إشارات أكثر أول ما ينحط مفتاحه.</p>
-      <ul>${miss.map(k => `<li><b>${esc(k.label)}</b> (${esc(k.cost)}): ${esc(k.adds)}</li>`).join('')}</ul>
-      <details><summary>للإدارة: وش ينحط ووين</summary><p style="margin:6px 0">أسرار في Cloudflare: Workers ← well-ads ← Settings ← Variables and Secrets ← Add ← Secret.</p>
-        <ul>${miss.map(k => `<li><b>${esc(k.label)}</b>: <code>${esc(k.keys)}</code> · من ${esc(k.where)}</li>`).join('')}</ul></details></section>` : '';
+      <p class="muted" style="margin:0 0 8px">الرصد شغّال على الأخبار. كل مصدر هنا يضيف إشارات أكثر أول ما تفعّله الإدارة.</p>
+      <ul>${miss.map(k => `<li><b>${esc(k.label)}</b> (${esc(k.cost)}): ${esc(k.adds)}</li>`).join('')}</ul>${d.owner ? '<p class="muted" style="margin:8px 0 0">طريقة التفعيل في <a href="/maestro/health/">صحة الداتا</a>.</p>' : ''}</section>` : '';
     $('#refresh').disabled = !!d.missing; $('#wf button[type=submit]').disabled = !!d.missing;
   }
 
@@ -184,10 +180,6 @@ async function listening() {
     drawAll();
   }
 
-  $('#setup').addEventListener('click', async e => {
-    if (!e.target.closest('#copySql')) return;
-    try { await navigator.clipboard.writeText($('#sql').textContent); say($('#lmsg'), 'انسخ الـ SQL.', true); } catch { say($('#lmsg'), 'ما قدرت أنسخ. افتح "اعرض الـ SQL" وانسخه يدوي.'); }
-  });
   $('#wk').addEventListener('change', () => { $('#wl').hidden = $('#wk').value !== 'competitor'; });
   $('#wf').addEventListener('submit', async e => {
     e.preventDefault(); const btn = e.submitter; busy(btn, true);

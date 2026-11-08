@@ -16,7 +16,7 @@ export const list = {
     if (!need) return json(400, { error: 'تاب غير معروف' });
     if (!can(user, need, cfg)) return json(403, { error: 'ما عندك صلاحية' });
     const r = await sb<Row[]>(cfg, scoped(`/rest/v1/lessons?select=id,kind,lesson,evidence,confidence,source,status,decided_by,decided_at,created_at&module=eq.${module}&active=eq.true&status=in.(new,reviewed,approved)&order=created_at.desc&limit=50`, user.co), { admin: true });
-    if (!r.ok) return json(missingSchema(r) ? 503 : 500, { error: missingSchema(r) ? notApplied('migration 014_lessons_by_tab.sql') : 'ما قدرت أقرأ الدروس' });
+    if (!r.ok) return json(missingSchema(r) ? 503 : 500, { error: missingSchema(r) ? notApplied(user, 'migration 014_lessons_by_tab.sql') : 'ما قدرت أقرأ الدروس' });
     return json(200, { lessons: r.data, canDecide: atLeast(user, need, 'approve', cfg) });
   }),
   PATCH: handle(async (request, e) => {
