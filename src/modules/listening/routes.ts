@@ -5,7 +5,7 @@ import { scoped } from '../../lib/tenant';
 import { readAll } from '../../lib/paging';
 import { weekly, type Lead } from './listening';
 import { readJson } from '../../lib/auth';
-import { SQL, adLibraryUrl, cleanWatch, due, missingTable, sources, type Mention, type Watch } from './social';
+import { adLibraryUrl, cleanWatch, due, missingTable, sources, type Mention, type Watch } from './social';
 import { batch, collect, store, type ListenEnv } from './fetcher';
 export { probe } from './probe';
 
@@ -17,15 +17,19 @@ export const demand = { GET: handle(async (request, e) => {
   return json(200, { sources: weekly(out) });
 }) };
 
-// ---- Social listening: watch lists, mentions, refresh. Tables from migration 013; without them the page shows the SQL.
+// What a user is told when the listening tables are not there yet
+const notReady = (user: { role: string }) => (user.role === 'owner' ? 'الرصد ما اكتمل تجهيزه. التفاصيل في صفحة صحة الداتا.' : 'الرصد ما اكتمل تجهيزه، بلّغ الإدارة.');
+
+// ---- Social listening: watch lists, mentions, refresh. Tables from migration 013; without them the page says setup is not finished (details only on the owner's data-health page).
 
 export const watch = {
   GET: handle(async (request, e: ListenEnv) => {
     const { cfg, user } = await requireUser(request, e, 'listening');
     const r = await sb<(Watch & { id: number })[]>(cfg, scoped('/rest/v1/listen_watch?select=id,kind,name,keywords,links,fetched_at&order=kind.asc,name.asc', user.co), { admin: true });
-    if (missingTable(r)) return json(200, { missing: true, sql: SQL, sources: sources(e), watches: [] });
+    // The tables are missing: no SQL goes to the browser. The owner is pointed to the data-health page, everyone else to the owner
+    if (missingTable(r)) return json(200, { missing: true, owner: user.role === 'owner', sources: sources(e), watches: [] });
     const watches = (r.ok && Array.isArray(r.data) ? r.data : []).map(w => ({ ...w, adlibrary: w.kind === 'competitor' ? (w.links?.adlibrary || adLibraryUrl(w.name)) : null }));
-    return json(200, { missing: false, sources: sources(e), watches });
+    return json(200, { missing: false, owner: user.role === 'owner', sources: sources(e), watches });
   }),
   POST: handle(async (request, e: ListenEnv) => {
     const { cfg, user } = await requireUser(request, e, 'listening', { write: true });
@@ -36,7 +40,7 @@ export const watch = {
     const r = id
       ? await sb(cfg, scoped(`/rest/v1/listen_watch?id=eq.${id}`, user.co), { method: 'PATCH', admin: true, headers: { Prefer: 'return=representation' }, body: w })
       : await sb(cfg, '/rest/v1/listen_watch', { method: 'POST', admin: true, headers: { Prefer: 'return=representation' }, body: { ...w, company_id: user.co, created_by: user.email } });
-    if (missingTable(r)) return json(409, { error: 'جداول الرصد ما انضافت للحين. شغّل SQL الرصد في Supabase أول.' });
+    if (missingTable(r)) return json(409, { error: notReady(user) });
     if (!r.ok) return json(502, { error: 'ما انحفظ، جرّب مرة ثانية' });
     return json(200, { ok: true, watch: Array.isArray(r.data) ? r.data[0] : null });
   }),
@@ -64,7 +68,7 @@ export const refresh = { POST: handle(async (request, e: ListenEnv) => {
   const { cfg, user } = await requireUser(request, e, 'listening', { write: true });
   const id = Number((await readJson(request)).id) || 0;
   const r = await sb<(Watch & { id: number })[]>(cfg, scoped(`/rest/v1/listen_watch?select=*${id ? `&id=eq.${id}` : ''}&order=fetched_at.asc.nullsfirst&limit=10`, user.co), { admin: true });
-  if (missingTable(r)) return json(409, { error: 'جداول الرصد ما انضافت للحين. شغّل SQL الرصد في Supabase أول.' });
+  if (missingTable(r)) return json(409, { error: notReady(user) });
   const all = (r.ok && Array.isArray(r.data) ? r.data : []).filter(w => id || due(w));
   const list = id ? all.slice(0, 1) : batch(all);
   if (!list.length) return json(200, { ok: true, ran: 0, added: 0, note: 'كل الكلمات انحدّثت آخر 24 ساعة' });

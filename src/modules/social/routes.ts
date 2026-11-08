@@ -2,7 +2,9 @@
 // Publishing itself runs from the Worker cron (src/modules/social/cron.ts), never from the browser.
 import { sb, json, readJson, handle, requireUser, audit, isOwner, type Cfg } from '../../lib/auth';
 import { scoped, WELL_COMPANY } from '../../lib/tenant';
-import { SOCIAL, readiness, validate, canApprove, cleanApprovers, suggestPrompt, cleanSuggestion, type SocialPlatform } from './social';
+import { SOCIAL, readiness, validate, canApprove, cleanApprovers, suggestPrompt, cleanSuggestion, retryPlan, checkConnection, type SocialPlatform, type Results } from './social';
+import { saveValues } from '../../lib/vault';
+import { META_PENDING, pageValues, type PageCand } from '../../lib/connectors';
 import { check } from '../compliance/compliance';
 import { knowledgeFor, rulesFor, withKnowledge } from '../knowledge/knowledge';
 import { generate, pick, type LlmEnv } from '../../lib/llm';
@@ -28,6 +30,27 @@ async function tokensFor(cfg: Cfg, co: string): Promise<Record<string, string>> 
 // Per platform: '' when it can go out, else why not (no token values leave the server)
 const readyOf = (t: Record<string, string>) => Object.fromEntries((Object.keys(SOCIAL) as SocialPlatform[]).map(p => [p, readiness(p, t)]));
 
+// What each platform did, for the page: a code the page words in plain language. The platform's own message
+// (and the ids and Instagram container, which only matter to the server) go to the owner alone.
+function shownResults(v: unknown, owner: boolean): Results {
+  const out: Results = {};
+  for (const [k, r] of Object.entries((v && typeof v === 'object' ? v : {}) as Results)) {
+    out[k] = { ok: !!r?.ok, ...(r?.code ? { code: r.code } : {}), ...(r?.state ? { state: r.state } : {}), ...(owner && r?.detail ? { detail: r.detail } : {}), ...(r?.ok && r.id ? { id: r.id } : {}) };
+  }
+  return out;
+}
+// The connected Facebook page and Instagram account: names only (never a token). Well's connection today.
+async function accountOf(cfg: Cfg, co: string): Promise<{ page: string | null; instagram: string | null; pick: boolean } | null> {
+  if (co !== WELL_COMPANY) return null;
+  const r = await sb<{ shown?: Record<string, string>; names?: string[] }[]>(cfg, '/rest/v1/connections?platform=eq.meta_pages&select=shown,names', { admin: true });
+  const c = r.ok && Array.isArray(r.data) ? r.data[0] : undefined;
+  if (!c) return { page: null, instagram: null, pick: false };
+  const sh = c.shown || {}, names = c.names || [];
+  const hasPage = names.includes('META_PAGE_ID');
+  return { page: hasPage ? sh.META_PAGE_NAME || (sh.META_PAGE_ID ? `#${sh.META_PAGE_ID}` : null) : null,
+    instagram: names.includes('IG_USER_ID') ? sh.IG_ACCOUNT_NAME || (sh.IG_USER_ID ? `#${sh.IG_USER_ID}` : null) : null, pick: names.includes(META_PENDING) };
+}
+
 export const posts = {
   GET: handle(async (request, e) => {
     const { cfg, user } = await requireUser(request, e, 'social');
@@ -37,7 +60,9 @@ export const posts = {
     if (!r.ok) return json(500, { error: 'ما قدرت أقرأ المنشورات' });
     // Each post carries its compliance notice, so an auto post shows it until it goes out
     const extra = await rulesFor(cfg, user.co);
-    return json(200, { posts: rows(r.data).map(p => ({ ...p, compliance: check(String(p.body || ''), extra) })), platforms: SOCIAL, ready: readyOf(await tokensFor(cfg, user.co)) });
+    const owner = isOwner(user, cfg);
+    return json(200, { posts: rows(r.data).map(p => ({ ...p, results: shownResults(p.results, owner), compliance: check(String(p.body || ''), extra) })), platforms: SOCIAL,
+      ready: readyOf(await tokensFor(cfg, user.co)), account: await accountOf(cfg, user.co) });
   }),
   POST: handle(async (request, e) => {
     const { cfg, user } = await requireUser(request, e, 'social', { write: true });
@@ -59,10 +84,24 @@ export const posts = {
     const body = await readJson(request);
     const id = parseInt(String(body.id), 10);
     const act = String(body.action || '');
-    if (!id || !['approve', 'cancel'].includes(act)) return json(400, { error: 'طلب غير صحيح' });
-    if (act === 'approve') {
+    if (!id || !['approve', 'cancel', 'retry'].includes(act)) return json(400, { error: 'طلب غير صحيح' });
+    if (act === 'approve' || act === 'retry') {
       const list = await approversOf(cfg, user.co);
       if (!canApprove(user.email, list, isOwner(user, cfg))) return json(403, { error: ONLY(list) });
+    }
+    if (act === 'retry') {
+      // One retry, only of the platforms that failed. The retrier is an approver, so the post is approved by them again and goes out at the next run.
+      const cur = await sb<Row[]>(cfg, scoped(`/rest/v1/social_posts?id=eq.${id}&select=status,platforms,results,retried_at`, user.co), { admin: true });
+      const post = cur.ok ? rows(cur.data)[0] : undefined;
+      if (!post) return json(404, { error: 'المنشور مو موجود' });
+      const plan = retryPlan(post as Parameters<typeof retryPlan>[0]);
+      if ('error' in plan) return json(409, { error: { not_failed: 'المنشور مو فاشل', retried: 'انعادت المحاولة مرة. لو تبي تنشر ثاني، سوّ منشور جديد', nothing: 'ما فيه منصة تنعاد لها المحاولة' }[plan.error] });
+      const now = new Date().toISOString();
+      const r = await sb<Row[]>(cfg, scoped(`/rest/v1/social_posts?id=eq.${id}&status=eq.${post.status}&retried_at=is.null`, user.co), { method: 'PATCH', admin: true, headers: { Prefer: 'return=representation' },
+        body: { status: 'scheduled', results: plan.results, retried_at: now, claimed_at: null, approved_by: user.email, approved_at: now } });
+      if (!r.ok || !rows(r.data).length) return json(409, { error: 'المنشور تغيّر. حدّث الصفحة' });
+      await audit(cfg, user, 'social_retried', { target: { id, platforms: (post.platforms as string[]).filter(k => !plan.results[k]) } });
+      return json(200, { ok: true, post: rows(r.data)[0] });
     }
     const patch = act === 'approve' ? { approved_by: user.email, approved_at: new Date().toISOString() } : { status: 'cancelled' };
     const r = await sb<Row[]>(cfg, scoped(`/rest/v1/social_posts?id=eq.${id}&status=eq.scheduled`, user.co), { method: 'PATCH', admin: true, headers: { Prefer: 'return=representation' }, body: patch });
@@ -101,6 +140,43 @@ export const approvers = {
     return json(200, { ok: true, approvers: want });
   }),
 };
+
+// Which Facebook page (and its Instagram account) the Social tab publishes to. Connecting with several pages binds none
+// of them (src/lib/connectors.ts): the owner chooses here. Names only come back; the page tokens stay in the vault.
+async function pendingPages(cfg: Cfg): Promise<PageCand[]> {
+  const v = await sb<{ name: string; value: string }[]>(cfg, '/rest/v1/rpc/connector_env', { method: 'POST', admin: true, body: {} });
+  const raw = (v.ok && Array.isArray(v.data) ? v.data : []).find(x => x.name === META_PENDING)?.value;
+  try {
+    const j = JSON.parse(raw || '') as { at?: number; pages?: PageCand[] };
+    return j.at && Date.now() - j.at < 3600e3 && Array.isArray(j.pages) ? j.pages : []; // a choice left for over an hour is asked again
+  } catch { return []; }
+}
+export const pages = {
+  GET: handle(async (request, e) => {
+    const { cfg, user } = await requireUser(request, e, 'social', { well: true });
+    if (!isOwner(user, cfg)) return json(403, { error: 'اختيار الصفحة للمالك بس' });
+    const list = await pendingPages(cfg);
+    return json(200, { account: await accountOf(cfg, user.co), choices: list.map(p => ({ id: p.id, name: p.name, instagram: p.ig?.name || null })) });
+  }),
+  POST: handle(async (request, e) => {
+    const { cfg, user } = await requireUser(request, e, 'social', { write: true, well: true });
+    if (!isOwner(user, cfg)) return json(403, { error: 'اختيار الصفحة للمالك بس' });
+    const id = String((await readJson(request)).id || '');
+    const page = (await pendingPages(cfg)).find(p => p.id === id);
+    if (!page) return json(409, { error: 'انتهت صلاحية القائمة. اربط ميتا من جديد وبتطلع لك الصفحات' });
+    const got = pageValues(page);
+    try { await saveValues(cfg, user, { id: 'meta_pages' }, 'oauth', got.values, { shown: got.shown, drop: got.drop, checked: 'اختار المالك الصفحة' }); }
+    catch { return json(500, { error: 'ما انحفظت الصفحة' }); }
+    return json(200, { ok: true, account: await accountOf(cfg, user.co) });
+  }),
+};
+
+// "Test post" without posting: reads the page, the Instagram link and the token's permissions, and says what would stop a post.
+export const connection = { GET: handle(async (request, e) => {
+  const { cfg, user } = await requireUser(request, e, 'social', { well: true });
+  if (!isOwner(user, cfg)) return json(403, { error: 'فحص الربط للمالك بس' });
+  return json(200, await checkConnection(await tokensFor(cfg, user.co)));
+}) };
 
 // Upload a photo or video for a post: stored in R2 under social/<company>/<random>.<ext> and served at /m/… (public,
 // unguessable name) so Meta can fetch it when the post goes out. The body is the raw file; its type is the content-type.

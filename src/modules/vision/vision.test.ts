@@ -8,7 +8,7 @@ import { clearSnaps, withWaiter } from '../../lib/usage';
 import { MAX_DATA, cleanUpload, libraryDoc, parseResult, sayings, view, type Result, type Row } from './vision';
 import { ROUTES } from '../routes';
 import { LIVE } from '../registry';
-import migration from '../../../supabase/migrations/024_vision.sql?raw';
+import migration from '../../../supabase/migrations/025_vision.sql?raw';
 
 const CO_A = '11111111-1111-1111-1111-111111111111', CO_B = '22222222-2222-2222-2222-222222222222';
 const E: A.AuthEnv & { GEMINI_API_KEY?: string } = { SUPABASE_URL: 'https://sb.example', SUPABASE_SERVICE_ROLE_KEY: 's', SESSION_SECRET: 'x'.repeat(40), OWNER_EMAIL: 'boss@example.com' };

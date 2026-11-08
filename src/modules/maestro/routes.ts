@@ -150,6 +150,9 @@ export const approval = { POST: handle(async (request, e: Env) => {
 // AI cost: spend per tab and month, the owner's caps, the invoice check (src/modules/maestro/usage.ts)
 export { usage, budgets, reconcile } from './usage';
 
+// «تدقيق القرارات»: the verdict auditor, owner only (src/modules/auditor/owner-routes.ts, named so the route-table glob mounts it only through maestro)
+export { auditRoute as audit, critiqueRoute as critique } from '../auditor/owner-routes';
+
 // The owner's CRM diagnostic: counts, sums and dates only (health.ts), never a name, phone or lead id.
 export const crm = { GET: handle(async (request, e: AuthEnv) => {
   const { cfg, user } = await requireUser(request, e, 'owner');
@@ -168,10 +171,10 @@ export const health = { GET: handle(async (request, e: AuthEnv & { FILES?: R2Buc
 // «الأداء»: the last 24 hours of Core Web Vitals per page (web_vitals, written by /api/vitals/report). Owner only.
 // Paths and numbers only, no user. Rows older than 7 days are removed when the owner opens the card.
 export const vitals = { GET: handle(async (request, e: AuthEnv) => {
-  const { cfg } = await requireUser(request, e, 'owner');
+  const { cfg, user } = await requireUser(request, e, 'owner');
   const since = new Date(Date.now() - 24 * 3600e3).toISOString();
   const r = await sb<VitalRow[]>(cfg, `/rest/v1/web_vitals?at=gte.${encodeURIComponent(since)}&select=path,lcp,inp,cls,ttfb,mobile&order=at.desc&limit=1000`, { admin: true });
-  if (missingSchema(r)) return json(200, { missing: notApplied('022_web_vitals.sql') }, { 'cache-control': 'no-store' });
+  if (missingSchema(r)) return json(200, { missing: notApplied(user, '022_web_vitals.sql') }, { 'cache-control': 'no-store' });
   if (!r.ok || !Array.isArray(r.data)) return json(502, { error: 'ما قدرت أقرأ أرقام الأداء، جرّب بعد شوي' });
   await sb(cfg, `/rest/v1/web_vitals?at=lt.${encodeURIComponent(new Date(Date.now() - 7 * 864e5).toISOString())}`, { method: 'DELETE', admin: true, headers: { Prefer: 'return=minimal' } }).catch(() => {});
   return json(200, { hours: 24, reports: r.data.length, capped: r.data.length >= 1000, targets: TARGETS, pages: summarize(r.data) }, { 'cache-control': 'no-store' });

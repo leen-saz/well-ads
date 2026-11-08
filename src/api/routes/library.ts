@@ -16,7 +16,7 @@ const readable = (u: Session, cfg: Cfg) => TABS.filter(m => can(u, m.key, cfg)).
 const writable = (u: Session, cfg: Cfg) => TABS.filter(m => can(u, m.key, cfg) && atLeast(u, m.key, 'edit', cfg)).map(m => m.key);
 const rows = (d: unknown): Item[] => (Array.isArray(d) ? (d as Item[]) : []);
 const view = (i: Item, stars: Set<number>, uid: string) => { const { created_by_id, ...rest } = i; return { ...rest, starred: stars.has(i.id), mine: !!created_by_id && created_by_id === uid }; };
-const fail = (r: { status: number; data: unknown; ok: boolean }, say: string) => json(missingSchema(r) ? 503 : 500, { error: missingSchema(r) ? notApplied(MIGRATION) : say });
+const fail = (user: Session, r: { status: number; data: unknown; ok: boolean }, say: string) => json(missingSchema(r) ? 503 : 500, { error: missingSchema(r) ? notApplied(user, MIGRATION) : say });
 const safe = (s: string | null, n: number) => (s || '').replace(/[^\p{L}\p{N} _-]/gu, '').slice(0, n);
 
 async function stars(cfg: Cfg, co: string, uid: string): Promise<Set<number>> {
@@ -47,7 +47,7 @@ export const list = {
     const text = safe(q.get('q'), 40); if (text) path += `&or=${encodeURIComponent(`(title.ilike.*${text}*,content.ilike.*${text}*)`)}`;
     if (q.get('starred') === '1') { if (!mine.size) return json(200, { items: [], ...meta }); path += `&id=in.(${[...mine].join(',')})`; }
     const r = await sb<Item[]>(cfg, scoped(path, user.co), { admin: true });
-    if (!r.ok) return fail(r, 'ما قدرت أقرأ المكتبة');
+    if (!r.ok) return fail(user, r, 'ما قدرت أقرأ المكتبة');
     return json(200, { items: rows(r.data).map(i => view(i, mine, user.uid)), ...meta });
   }),
   POST: handle(async (request, e) => {
@@ -59,7 +59,7 @@ export const list = {
     const r = await sb<Item[]>(cfg, '/rest/v1/library_items', { method: 'POST', admin: true, headers: { Prefer: 'return=representation' },
       body: { ...c, company_id: user.co, compliance_result: complianceOf(hits), created_by: user.email, created_by_id: user.uid } });
     const item = rows(r.data)[0];
-    if (!r.ok || !item) return fail(r, 'ما انحفظ');
+    if (!r.ok || !item) return fail(user, r, 'ما انحفظ');
     await audit(cfg, user, 'library_saved', { target: { id: item.id, module: c.module, kind: c.kind } });
     let starred = false;
     if (b.star === true) {
@@ -89,7 +89,7 @@ export const item = { PATCH: handle(async (request, e) => {
   if (reset) Object.assign(patch, { review_status: 'draft', approved_by: null, reviewed_by: null });
   const r = await sb<Item[]>(cfg, scoped(`/rest/v1/library_items?id=eq.${it.id}`, user.co), { method: 'PATCH', admin: true, headers: { Prefer: 'return=representation' }, body: patch });
   const out = rows(r.data)[0];
-  if (!r.ok || !out) return fail(r, 'ما انحفظ التعديل');
+  if (!r.ok || !out) return fail(user, r, 'ما انحفظ التعديل');
   await audit(cfg, user, 'library_edited', { target: { id: it.id, module: it.module, fields: Object.keys(c), reset } });
   return json(200, { ok: true, item: view(out, await stars(cfg, user.co, user.uid), user.uid) });
 }) };
@@ -104,7 +104,7 @@ export const star = { POST: handle(async (request, e) => {
   const r = on
     ? await sb(cfg, '/rest/v1/library_favorites?on_conflict=item_id,user_id', { method: 'POST', admin: true, headers: { Prefer: 'resolution=ignore-duplicates,return=minimal' }, body: { company_id: user.co, item_id: it.id, user_id: user.uid } })
     : await sb(cfg, scoped(`/rest/v1/library_favorites?item_id=eq.${it.id}&user_id=eq.${encodeURIComponent(user.uid)}`, user.co), { method: 'DELETE', admin: true });
-  if (!r.ok) return fail(r, 'ما تغيّرت النجمة');
+  if (!r.ok) return fail(user, r, 'ما تغيّرت النجمة');
   await audit(cfg, user, on ? 'library_starred' : 'library_unstarred', { target: { id: it.id } });
   return json(200, { ok: true, starred: on });
 }) };
@@ -117,7 +117,7 @@ export const approve = { POST: handle(async (request, e) => {
   const r = await sb<Item[]>(cfg, scoped(`/rest/v1/library_items?id=eq.${it.id}`, user.co), { method: 'PATCH', admin: true, headers: { Prefer: 'return=representation' },
     body: { review_status: 'approved', approved_by: user.email, reviewed_by: it.reviewed_by || user.email, updated_at: new Date().toISOString() } });
   const out = rows(r.data)[0];
-  if (!r.ok || !out) return fail(r, 'ما انعمّد');
+  if (!r.ok || !out) return fail(user, r, 'ما انعمّد');
   await audit(cfg, user, 'library_approved', { target: { id: it.id, module: it.module } });
   return json(200, { ok: true, item: view(out, await stars(cfg, user.co, user.uid), user.uid) });
 }) };

@@ -1,6 +1,6 @@
 # Transcribe
 
-Phase 2 of the DaVinci PRD (the idea only: transcription as its own tool with per-provider cost; no DaVinci code or prompts). Code: `src/modules/transcribe/`, `src/lib/gemini.ts` (reached through `src/lib/llm.ts`), migration `supabase/migrations/023_transcribe.sql`.
+Phase 2 of the DaVinci PRD (the idea only: transcription as its own tool with per-provider cost; no DaVinci code or prompts). Code: `src/modules/transcribe/`, `src/lib/gemini.ts` (reached through `src/lib/llm.ts`), migration `supabase/migrations/024_transcribe.sql`.
 
 ## Flow
 1. **Upload** (`POST /api/transcribe/upload`): the file is the request body (type in `Content-Type`, length in `Content-Length`; title, purpose and length in seconds in the query). It is stored in R2 under `transcribe/<company>/<random>` and a job row is created. Limit 95 MB per file (a Worker request body is about 100 MB); a longer recording is split before the upload. Types: mp3, m4a, aac, wav, ogg, flac, webm, mp4, mov. At most 3 open jobs per company.

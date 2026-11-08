@@ -6,6 +6,7 @@ import { Card, CardAction, CardDescription, CardFooter, CardHeader, CardTitle } 
 import { type Dash, canCompare, change, mover, platformName, previous, summarize } from './numbers';
 import { type Bucket, buckets } from './analytics';
 import { pct, qty, sar } from './format';
+import { T } from './lang';
 
 interface Props { data: Dash; from: string; to: string }
 
@@ -31,15 +32,16 @@ export function SectionCards({ data, from, to }: Props) {
     const m = mover(data, from, to, pf, pt, field);
     if (!m) return null;
     const sign = m.delta > 0 ? '+' : '−';
-    return `${m.delta > 0 ? 'أكبر زيادة' : 'أكبر نزول'} من ${platformName(m.platform)}: ${sign}${fmt(Math.abs(m.delta))}`;
+    return m.delta > 0 ? T(`أكبر زيادة من ${platformName(m.platform)}: ${sign}${fmt(Math.abs(m.delta))}`, `Biggest rise from ${platformName(m.platform)}: ${sign}${fmt(Math.abs(m.delta))}`)
+      : T(`أكبر نزول من ${platformName(m.platform)}: ${sign}${fmt(Math.abs(m.delta))}`, `Biggest drop from ${platformName(m.platform)}: ${sign}${fmt(Math.abs(m.delta))}`);
   };
   const bk = buckets(data, from, to);
   const line = (f: (b: Bucket) => number | null) => bk.map(f);
   const cards: { label: string; value: string; d: number | null; lowerIsBetter: boolean | null; note: string; points: (number | null)[]; why?: string | null }[] = [
-    { label: 'الصرف', value: sar(now.spend), d: vs(now.spend, was.spend), lowerIsBetter: null, note: ok ? `قبلها ${sar(was.spend)}` : 'ما فيه مقارنة: الفترة اللي قبلها ناقصة', points: line(b => b.spend), why: why('spend', sar) },
-    { label: 'النتائج', value: qty(now.results), d: vs(now.results, was.results), lowerIsBetter: false, note: 'الليدز والمحادثات', points: line(b => b.results), why: why('res', qty) },
-    { label: 'تكلفة النتيجة', value: sar(now.cpr), d: vs(now.cpr, was.cpr), lowerIsBetter: true, note: ok ? `قبلها ${sar(was.cpr)}` : 'الصرف ÷ الليدز والمحادثات', points: line(b => per(b.spend, b.results)) },
-    { label: 'نسبة النقر', value: pct(now.ctr), d: vs(now.ctr, was.ctr), lowerIsBetter: false, note: `${qty(now.clicks)} نقرة من ${qty(now.impr)} ظهور`, points: line(b => { const r = per(b.clicks, b.impr); return r == null ? null : 100 * r; }) },
+    { label: T('الصرف', 'Spend'), value: sar(now.spend), d: vs(now.spend, was.spend), lowerIsBetter: null, note: ok ? T(`قبلها ${sar(was.spend)}`, `Before: ${sar(was.spend)}`) : T('ما فيه مقارنة: الفترة اللي قبلها ناقصة', 'No comparison: the earlier period is incomplete'), points: line(b => b.spend), why: why('spend', sar) },
+    { label: T('النتائج', 'Results'), value: qty(now.results), d: vs(now.results, was.results), lowerIsBetter: false, note: T('الليدز والمحادثات', 'Leads and conversations'), points: line(b => b.results), why: why('res', qty) },
+    { label: T('تكلفة النتيجة', 'Cost per result'), value: sar(now.cpr), d: vs(now.cpr, was.cpr), lowerIsBetter: true, note: ok ? T(`قبلها ${sar(was.cpr)}`, `Before: ${sar(was.cpr)}`) : T('الصرف ÷ الليدز والمحادثات', 'Spend ÷ leads and conversations'), points: line(b => per(b.spend, b.results)) },
+    { label: T('نسبة النقر', 'Click rate'), value: pct(now.ctr), d: vs(now.ctr, was.ctr), lowerIsBetter: false, note: T(`${qty(now.clicks)} نقرة من ${qty(now.impr)} ظهور`, `${qty(now.clicks)} clicks from ${qty(now.impr)} impressions`), points: line(b => { const r = per(b.clicks, b.impr); return r == null ? null : 100 * r; }) },
   ];
   return (
     <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4 *:data-[slot=card]:bg-gradient-to-t *:data-[slot=card]:from-primary/5 *:data-[slot=card]:to-card *:data-[slot=card]:shadow-xs">

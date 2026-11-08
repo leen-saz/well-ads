@@ -127,7 +127,7 @@ export function diagnose(x: Input): { findings: Finding[]; summary: Record<strin
   if (noUtm.length) out.push({ id: 'utm', level: 'warn', count: noUtm.length, title: `${noUtm.length} إعلان نشط رابطه بدون UTM`,
     detail: `أمثلة: ${noUtm.slice(0, 3).map(a => a.name || a.ad_key).join('، ')}.`, fix: 'أضف utm_source و utm_medium و utm_campaign لرابط الإعلان (أو Tracking template في جوجل).' });
 
-  if (!x.tables.metrics) out.push({ id: 'nodata', level: 'critical', title: 'ما قدرت أقرأ أرقام الإعلانات', detail: 'جدول ad_metrics ما رد.', fix: 'تأكد إن التحديث كل ساعة شغال (Actions → refresh).' });
+  if (!x.tables.metrics) out.push({ id: 'nodata', level: 'critical', title: 'ما قدرت أقرأ أرقام الإعلانات', detail: 'ما وصلتنا الأرقام اليومية للإعلانات.', fix: 'بلّغ الإدارة تتأكد إن التحديث كل ساعة شغال.' });
 
   const rank: Record<Level, number> = { critical: 0, warn: 1, info: 2, ok: 3 };
   out.sort((a, b) => rank[a.level] - rank[b.level]);

@@ -29,6 +29,14 @@ npm run build && npm run test:smoke      # locally, with Chrome installed: PW_CH
   `public/assets/i18n-en.js` fails this test and prints the string. It sees what the fake data draws: empty states, labels, counters, help text.
   A string that only appears with real rows (a number inside a sentence) still needs a pattern in `pat()`: add the page's state to the spec when you add one.
 
+- Plain words (`plain-words.spec.ts`, and `tests/unit/no-tech-text.test.ts` for every API answer): a normal member who may open every tab reads
+  nothing technical on any page, in Arabic and in English, with normal data and with the database tables missing (the fake answers
+  like a table that was never created after `POST :8788/__mode {"missing":true}`). The word list is `tests/shared/tech-words.ts`
+  (Supabase, SQL, Cloudflare, GitHub, API, token, key and secret names, pipeline, migration, dash.json, MCP, Worker, table names).
+  Technical text may live only on the Connectors page and the owner-only pages (data health, admin), which these tests do not visit.
+  A route that needs a setup step uses `notApplied(user, file)` / `notEnabled(user, …)` from `src/lib/auth.ts`: the owner gets the
+  step, everyone else "tell the admin".
+
 ## What it does not cover
 - Real Supabase (RLS, migrations, the real `profiles` shape beyond what the fake returns): the migrations job covers schema only.
 - Anything an AI model, Paperclip, Meta/TikTok/Google, R2 uploads or the Workflow actually does; only the permission gate and the

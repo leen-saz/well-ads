@@ -45,8 +45,8 @@ function renderChips(){
   if(S.camp) c.push(['camp',`${ui('الحملة','Campaign')}: ${S.camp.split('|').slice(1).join('|')}`]);
   if(S.goal) c.push(['goal',`${ui('الهدف','Objective')}: ${goalName(S.goal)}`]);
   if(S.fmt) c.push(['fmt',`${ui('الصيغة','Format')}: ${tr(S.fmt)}`]);
-  if(S.stat==='live') c.push(['stat','النشطة الآن']);
-  if(S.stat==='off') c.push(['stat','متوقف']);
+  if(S.stat==='live') c.push(['stat',ui('النشطة الآن','Active now')]);
+  if(S.stat==='off') c.push(['stat',ui('متوقف','Paused')]);
   if(!S.preset) c.push(['date',`${nice(S.from)} – ${nice(S.to)}`]);
   $('#chips').innerHTML = c.map(([k,l])=>`<span class="chip">${esc(l)}<button type="button" data-k="${k}" aria-label="${esc(ui('إزالة','Remove')+' '+l)}">×</button></span>`).join('')
     + (c.length>1?`<button type="button" class="chip clear" data-k="all">مسح الكل</button>`:'');

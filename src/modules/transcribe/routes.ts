@@ -7,7 +7,7 @@ import { WHY, deleteFile, geminiReady, notReady } from '../../lib/llm';
 import { MAX_BYTES, MAX_OPEN, PURPOSES, TYPES, cleanUpload, stepsFor, view, type Job } from './transcribe';
 import { acquire, stepJob, type TEnv } from './service';
 
-const MIGRATION = 'migration 023_transcribe.sql';
+const MIGRATION = 'migration 024_transcribe.sql';
 type Env = AuthEnv & TEnv;
 const rows = (d: unknown): Job[] => (Array.isArray(d) ? (d as Job[]) : []);
 const COLS = 'id,company_id,created_by,created_by_id,title,purpose,mime,bytes,seconds,r2_key,status,step,steps,attempts,gemini_file,gemini_uri,segments,result,error,locked_until,created_at,updated_at';
@@ -20,7 +20,7 @@ async function one(cfg: Parameters<typeof sb>[0], co: string, id: number): Promi
 export const jobs = { GET: handle(async (request, e: Env) => {
   const { cfg, user } = await requireUser(request, e, 'transcribe');
   const r = await sb<Job[]>(cfg, scoped(`/rest/v1/transcribe_jobs?select=${COLS}&order=created_at.desc&limit=30`, user.co), { admin: true });
-  if (!r.ok) return json(missingSchema(r) ? 503 : 500, { error: missingSchema(r) ? notApplied(MIGRATION) : 'ما قدرت أقرأ الملفات' });
+  if (!r.ok) return json(missingSchema(r) ? 503 : 500, { error: missingSchema(r) ? notApplied(user, MIGRATION) : 'ما قدرت أقرأ الملفات' });
   const ready = geminiReady(e);
   return json(200, { jobs: rows(r.data).map(j => view(j)), ready, why: ready ? '' : notReady(user), purposes: PURPOSES, types: Object.keys(TYPES), max_mb: MAX_BYTES / 1048576 });
 }) };
@@ -42,7 +42,7 @@ export const upload = { POST: handle(async (request, e: Env) => {
   const ctx = usageCtx(cfg, user, 'transcribe');
   if (ctx && await overCap(ctx, 'transcribe')) return json(429, { error: WHY.capped });
   const open = await sb<{ id: number }[]>(cfg, scoped(`/rest/v1/transcribe_jobs?select=id&status=in.(queued,processing)&limit=${MAX_OPEN}`, user.co), { admin: true });
-  if (!open.ok) return json(missingSchema(open) ? 503 : 500, { error: missingSchema(open) ? notApplied(MIGRATION) : 'ما قدرت أبدأ' });
+  if (!open.ok) return json(missingSchema(open) ? 503 : 500, { error: missingSchema(open) ? notApplied(user, MIGRATION) : 'ما قدرت أبدأ' });
   if (Array.isArray(open.data) && open.data.length >= MAX_OPEN) return json(429, { error: 'عندك ملفات قيد التفريغ، انتظر لين تخلص' });
   if (!request.body) return json(400, { error: 'الملف فاضي' });
   const key = keyOf(user.co);
@@ -51,7 +51,7 @@ export const upload = { POST: handle(async (request, e: Env) => {
   const r = await sb<Job[]>(cfg, '/rest/v1/transcribe_jobs', { method: 'POST', admin: true, headers: { Prefer: 'return=representation' }, body: {
     company_id: user.co, created_by: user.email, created_by_id: user.uid, title: c.title, purpose: c.purpose, mime: c.mime, bytes: c.bytes, seconds: c.seconds, r2_key: key, steps: stepsFor(c.seconds) } });
   const made = rows(r.data)[0];
-  if (!r.ok || !made) { await e.FILES.delete(key).catch(() => {}); return json(missingSchema(r) ? 503 : 500, { error: missingSchema(r) ? notApplied(MIGRATION) : 'ما انحفظ الملف' }); }
+  if (!r.ok || !made) { await e.FILES.delete(key).catch(() => {}); return json(missingSchema(r) ? 503 : 500, { error: missingSchema(r) ? notApplied(user, MIGRATION) : 'ما انحفظ الملف' }); }
   await audit(cfg, user, 'transcribe_started', { target: { id: made.id, seconds: c.seconds, bytes: c.bytes, purpose: c.purpose } });
   return json(200, { ok: true, job: view(made) });
 }) };
