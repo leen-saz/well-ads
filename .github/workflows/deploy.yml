@@ -137,4 +137,6 @@ jobs:
       - name: Headers
         env:
           URL: ${{ steps.deploy.outputs.url }}
-        run: curl -fsSI "$URL/robots.txt" | grep -i "^x-robots-tag: noindex"
+        # A block scalar: in a plain one, the ": " inside the grep pattern makes YAML read a nested mapping
+        run: |
+          curl -fsSI "$URL/robots.txt" | grep -i "^x-robots-tag: noindex"
