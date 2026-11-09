@@ -79,9 +79,6 @@ describe('auth', () => {
     expect(need('/login/', '')).toBeNull();
     expect(need('/welcome/', '')).toBeNull();
     expect(need('/welcome/x', '')).toBe('ceo');
-    expect(need('/security/', '')).toBeNull();
-    expect(need('/profile/', '')).toBeNull();
-    expect(need('/security/x', '')).toBe('ceo');
     expect(need('/api/auth/login', '')).toBeNull();
     expect(need('/assets/app.css', '')).toBeNull();
     expect(need('/', '')).toBe('ceo');

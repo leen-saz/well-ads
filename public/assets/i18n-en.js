@@ -1,7 +1,5 @@
 // English strings for i18n.js. Loaded only when the language is English, so Arabic pages never download them.
-import { SITE_EN } from './i18n-en-site.js';
 export const EN = {
-  ...SITE_EN,
   'كلمة أو ادعاء ما ينكتب أبداً. الكلمة تنمسك ككلمة كاملة بس، فاكتب كل صيغة تبي تمنعها (مثل «سر» و«سرها»)': 'A word or claim never to be written. A word is matched as a whole word only, so add each form you want to ban (e.g. «سر» and «سرها»)',
   // التنقل والهيكل
   'التحليلات': 'Analytics', 'ملخص الأداء': 'Performance summary', 'المواد الإعلانية بالتفصيل': 'Creatives in detail', 'الحملات والمنصات': 'Campaigns & platforms', 'ملخص اليوم': 'Today', 'الأداء': 'Performance', 'إنشاء المحتوى': 'Content creation', 'المراجعة والتنفيذ': 'Review & execution', 'إدارة النظام': 'System', 'السجل': 'History', 'الصلاحيات': 'Permissions', 'اليوم': 'Today', 'إغلاق القائمة': 'Close menu', 'المواد الإعلانية': 'Creatives', 'المادة الإعلانية': 'Creative', 'بموافقتي': 'With my approval', 'تنفيذ تلقائي': 'Auto-run', 'التنفيذ التلقائي': 'auto-run', 'لوحة القرارات': 'Decision board', 'الصلاحيات والدخول': 'Access & sign-in', 'السوشال': 'Social', 'صورة أو فيديو': 'Photo or video', 'أو حط رابط': 'Or paste a link', 'يرفع…': 'Uploading…', 'انرفع ✓': 'Uploaded ✓', 'الرحلات والرسائل': 'Journeys', 'المحتوى و SEO': 'Content & SEO', 'المدير': 'Manager', 'الموديولات': 'Modules', 'موديولات الشركة': 'Company modules', 'الإعدادات': 'Settings', 'أساسي': 'Core', 'أساسية لتشغيل النظام': 'Needed to run the system',
