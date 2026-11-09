@@ -1,0 +1,17 @@
+---
+// Header for the public pages: wordmark, page links, language switch, one action. A thin bar under it fills as you scroll.
+import { NAV } from '../../lib/public-site';
+interface Props { current: string; cta: { href: string; label: string }; dark?: boolean }
+const { current, cta, dark = false } = Astro.props;
+---
+<header class:list={['st-top', { dark }]}>
+  <div class="st-wrap">
+    <a class="mark" href="/welcome/" aria-label="Apipeline">Apipeline<i>.</i></a>
+    <nav aria-label="صفحات Apipeline">
+      {NAV.map(n => <a href={n.href} aria-current={n.href === current ? 'page' : undefined}>{n.label}</a>)}
+    </nav>
+    <span id="lang"></span>
+    <a class="btn sm primary" href={cta.href}>{cta.label}</a>
+  </div>
+  <span class="st-progress" data-progress aria-hidden="true"></span>
+</header>

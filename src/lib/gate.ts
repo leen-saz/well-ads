@@ -7,7 +7,7 @@ import { LIVE } from '../modules/registry';
 export type Pass = { pass: true; rewrite?: string };
 export type Decision = Pass | Response;
 
-const PUBLIC = [/^\/login\/?$/, /^\/reset\/?$/, /^\/welcome\/?$/, /^\/api\/auth\//, /^\/api\/health\/?$/, /^\/api\/connectors\/callback\/?$/,
+const PUBLIC = [/^\/login\/?$/, /^\/reset\/?$/, /^\/welcome\/?$/, /^\/security\/?$/, /^\/profile\/?$/, /^\/api\/auth\//, /^\/api\/health\/?$/, /^\/api\/connectors\/callback\/?$/,
   // Listening sources check: open on staging only, the owner elsewhere (src/modules/listening/probe.ts)
   /^\/api\/listening\/probe\/?$/,
   /^\/assets\//, /^\/_astro\//, /^\/m\/[0-9a-f-]{36}\/[0-9a-f]{32}\.(jpg|png|webp|mp4|mov)$/i, /^\/robots\.txt$/, /^\/favicon/];
