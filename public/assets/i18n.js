@@ -41,9 +41,7 @@ function translate(root) {
 }
 if (LANG === 'en') {
   const go = () => {
-    translate(document.body);
-    // Keep the ' · Well' suffix only where the page had it (the public Apipeline pages don't)
-    const well = / · Well$/.test(document.title); document.title = t(document.title.replace(/ · Well$/, '')) + (well ? ' · Well' : '');
+    translate(document.body); document.title = t(document.title.replace(' · Well', '')) + ' · Well';
     OBS.observe(document.body, { childList: true, subtree: true, characterData: true });
   };
   const OBS = new MutationObserver(ms => { for (const m of ms) { if (m.type === 'characterData') { const v = t(m.target.nodeValue); if (v !== m.target.nodeValue) m.target.nodeValue = v; } else m.addedNodes.forEach(n => n.nodeType === 3 ? (n.nodeValue = t(n.nodeValue)) : translate(n)); } });
