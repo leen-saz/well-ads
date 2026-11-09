@@ -278,7 +278,7 @@ function warmAnalytics(app) {
 // تبويبات الإعدادات فوق المحتوى: حسابي للكل، والصلاحيات والدخول للمالكة بس
 export function settingsTabs(current, me) {
   const tabs = [['/account/', 'حسابي', 'user', 'account', true], ['/admin/', 'الصلاحيات والدخول', 'users', 'admin', me.role === 'owner'],
-    ['/admin/modules/', 'الموديولات', 'grid', 'modules', me.role === 'owner']];
+    ['/admin/modules/', 'الموديولات', 'grid', 'modules', me.role === 'owner'], ['/admin/requests/', 'طلبات الموقع', 'inbox', 'requests', me.role === 'owner']];
   const nav = document.createElement('nav');
   nav.className = 'tabs settings-tabs'; nav.setAttribute('aria-label', 'الإعدادات');
   nav.innerHTML = tabs.filter(x => x[4]).map(([h, t, ic, k]) => `<a href="${h}"${k === current ? ' aria-current="page"' : ''}>${icon(ic)}<span>${t}</span></a>`).join('');

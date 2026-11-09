@@ -4,10 +4,9 @@
 // as what findings are mapped to, not as certifications we hold; the terminal is labelled as an illustration.
 import SiteHeader from '../../components/site/SiteHeader.astro';
 import SiteFooter from '../../components/site/SiteFooter.astro';
-import { wa } from '../../lib/public-site';
+import RequestForm from '../../components/site/RequestForm.astro';
 
 const ar = (n: number) => n.toLocaleString('ar-SA');
-const ASK = wa('السلام عليكم، أبي أطلب فحص أمني من Apipeline');
 
 const SCOPE = [
   ['مراجعة الكود', 'نقرا الكود سطر سطر مع أدوات الفحص الثابت، ونركز على المنطق اللي الأدوات ما تشوفه.', ['المصادقة والصلاحيات', 'مفاتيح وأسرار منسية في الكود وتاريخ Git', 'المكتبات القديمة وتراخيصها', 'حقن الأوامر والاستعلامات'], 'M8 6l-6 6 6 6 M16 6l6 6-6 6'],
@@ -55,7 +54,7 @@ const FAQ = [
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <meta name="robots" content="noindex,nofollow">
 <meta name="referrer" content="no-referrer">
-<meta name="theme-color" content="#1D1069">
+<meta name="theme-color" content="#0B1F3A">
 <title>Apipeline · الأمن السيبراني</title>
 <meta name="description" content="فحص أمني للأكواد والمواقع والـ API وتطبيقات الجوال، مع تقرير مرتب حسب الخطورة وإعادة فحص بعد الإصلاح.">
 <link rel="preload" href="/assets/fonts/thmanyahserifdisplay-Black.woff2" as="font" type="font/woff2" crossorigin>
@@ -63,9 +62,9 @@ const FAQ = [
 <link rel="stylesheet" href="/assets/app.css">
 <link rel="stylesheet" href="/assets/site.css">
 </head>
-<body class="st">
+<body class="st st-cyber">
 
-<SiteHeader current="/security/" cta={{ href: ASK, label: 'اطلب فحص' }} />
+<SiteHeader current="/security/" cta={{ href: '#request', label: 'اطلب فحص' }} />
 
 <main>
   <section class="st-wrap st-hero">
@@ -74,7 +73,7 @@ const FAQ = [
       <h1 class="st-h1">نلقى الثغرة <em>قبل لا يلقاها غيرك.</em></h1>
       <p class="st-lead">نفحص الكود والموقع والتطبيق مثل ما يفحصه المهاجم، ونسلّمك كل ثغرة بدليلها ودرجة خطورتها وطريقة إصلاحها. وبعد ما تصلح، نعيد الفحص.</p>
       <div class="st-cta">
-        <a class="btn primary" href={ASK} rel="noopener" target="_blank">اطلب فحص</a>
+        <a class="btn primary" href="#request" data-kind="security">اطلب فحص</a>
         <a class="btn secondary" href="#scope">وش نفحص</a>
       </div>
       <p class="st-note">ما نبدأ أي فحص بدون إذن مكتوب منك.</p>
@@ -182,18 +181,12 @@ const FAQ = [
     </div>
   </section>
 
-  <section class="st-end" id="contact">
-    <div class="st-wrap" data-reveal>
-      <h2>قبل ما تطلق التحديث الجاي، خلنا نفحصه</h2>
-      <p>أرسل لنا وش عندك: موقع، API، تطبيق، أو كود. نرد عليك بالنطاق المقترح والمدة.</p>
-      <div class="st-cta"><a class="btn primary" href={ASK} rel="noopener" target="_blank">اطلب فحص</a><a class="btn secondary" href="/profile/">من نحن</a></div>
-    </div>
-  </section>
+  <RequestForm kind="security" title="قبل ما تطلق التحديث الجاي، خلنا نفحصه" lead="قول لنا وش عندك: موقع، API، تطبيق، أو كود. نرد عليك بالنطاق المقترح والمدة، وما نبدأ شي قبل إذنك المكتوب." />
 </main>
 
 <SiteFooter />
 
 <script is:inline type="module" src="/assets/welcome.js"></script>
-<script>import '../../lib/scroll-story';</script>
+<script>import '../../lib/scroll-story'; import '../../lib/request-form';</script>
 </body>
 </html>

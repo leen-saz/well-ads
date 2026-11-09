@@ -122,7 +122,7 @@ async function exercise(page: Page, seen: Set<string>, lang: Lang) {
 }
 
 // ---- The routes: what the sidebar offers the owner (every module) plus the module sub-pages and the known extras
-const EXTRA = ['/', '/today/', '/control/', '/control/new/', '/connectors/', '/account/', '/admin/', '/admin/modules/', '/library/', '/maestro/health/', '/soon/'];
+const EXTRA = ['/', '/today/', '/control/', '/control/new/', '/connectors/', '/account/', '/admin/', '/admin/modules/', '/admin/requests/', '/library/', '/maestro/health/', '/soon/'];
 const MODULE_PAGES = MODULES.flatMap(m => [`/${m.key}/`, ...(m.pages ?? []).map(p => `/${m.key}/${p.path}/`)]);
 const PUBLIC = ['/login/', '/reset/', '/welcome/', '/security/', '/profile/'];
 // The Performance pages: these must be clean in both languages

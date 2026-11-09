@@ -5,7 +5,7 @@ import { login, addSession } from './helpers';
 import { pageStrings, openTabs, arabicIn } from './page-text';
 
 const PAGES = [
-  '/', '/today/', '/control/', '/control/new/', '/connectors/', '/account/', '/admin/', '/admin/modules/', '/library/', '/maestro/health/', '/maestro/audit/',
+  '/', '/today/', '/control/', '/control/new/', '/connectors/', '/account/', '/admin/', '/admin/modules/', '/admin/requests/', '/library/', '/maestro/health/', '/maestro/audit/',
   '/overview/', '/overview/creative/', '/listening/', '/design/', '/copy/', '/voice/', '/transcribe/', '/vision/', '/voiceover/', '/social/', '/content/', '/journeys/',
   '/compliance/', '/maestro/', '/knowledge/', '/debugger/', '/soon/', '/welcome/',
 ];

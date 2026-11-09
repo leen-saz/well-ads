@@ -143,4 +143,28 @@ export const SITE_EN = {
   'تبي تحسين فعلي، مو تقرير نهاية الشهر': 'You want real improvement, not an end-of-month report',
   'خلنا نبدأ من أرقامك': 'Let\'s start from your numbers', 'نرد على': 'We answer',
   'طلبات اللوحة، وخريطة التسرب، والفحص الأمني': 'Board requests, Leak Map, and security audits',
+  // Request form (src/components/site/RequestForm.astro) and its server messages (src/lib/site-request.ts, src/api/routes/site.ts)
+  'اطلب': 'Request', 'نرد عليك خلال يوم عمل': 'We reply within one working day', 'بياناتك تُستخدم للرد على طلبك بس': 'Your details are used only to answer your request',
+  'تقدر تطلب حذفها متى ما بغيت': 'You can ask us to delete them at any time', 'تفضّل الواتساب؟': 'Prefer WhatsApp?', 'راسلنا مباشرة': 'Message us directly',
+  'وش تحتاج؟': 'What do you need?', 'تجربة لوحة Apipeline': 'An Apipeline board trial', 'خريطة التسرب (تشخيص الإعلانات)': 'The Leak Map (ads diagnosis)',
+  'فحص أمني': 'A security audit', 'استفسار ثاني': 'Something else', 'وش نفحص؟': 'What should we test?', 'الكود': 'Code', 'الموقع والـ API': 'Website and API', 'تطبيق الجوال': 'Mobile app',
+  'الاسم': 'Name', 'الشركة': 'Company', '(اختياري)': '(optional)', 'رقم الجوال': 'Mobile number', 'الإيميل': 'Email', 'وش ودك نعرف؟': 'Anything we should know?',
+  'مثلًا: نصرف على Meta وSnapchat والليدز كثيرة بس المبيعات ما تتحرك': 'e.g. we spend on Meta and Snapchat, leads are plenty but sales don\'t move',
+  'أوافق إن Apipeline تستخدم بياناتي للتواصل معي بخصوص هذا الطلب فقط.': 'I agree that Apipeline may use my details only to contact me about this request.',
+  'أرسل الطلب': 'Send request', 'وصلنا طلبك ✓': 'Request received ✓', 'بنتواصل معك على الرقم اللي كتبته خلال يوم عمل.': 'We\'ll contact you on the number you gave within one working day.',
+  'اطلب تجربة': 'Request a trial',
+  'اكتب لنا وش عندك من منصات وإنفاق، ونجهّز لك تجربة على أرقامك. كل ربط بتسجيل دخول المنصة نفسها، بدون ملفات تصدير وبدون لصق مفاتيح.': 'Tell us your platforms and spend, and we\'ll set up a trial on your own numbers. Every connection is a sign-in on the platform itself: no export files, no pasted keys.',
+  'قول لنا وش عندك: موقع، API، تطبيق، أو كود. نرد عليك بالنطاق المقترح والمدة، وما نبدأ شي قبل إذنك المكتوب.': 'Tell us what you have: a website, API, app or code. We reply with a proposed scope and timeline, and start nothing before your written permission.',
+  'اختر وش تحتاج: تجربة اللوحة، أو خريطة التسرب لإعلاناتك، أو فحص أمني لمنتجك. ونرد عليك خلال يوم عمل.': 'Pick what you need: a board trial, a Leak Map for your ads, or a security audit for your product. We reply within one working day.',
+  'اكتب اسمك': 'Enter your name', 'اكتب رقم جوال صحيح، مثل ٠٥٠١٢٣٤٥٦٧': 'Enter a valid mobile number, e.g. 0501234567', 'اكتب رقم جوال صحيح، مثل 0501234567': 'Enter a valid mobile number, e.g. 0501234567',
+  'الإيميل غير صحيح': 'That email doesn\'t look right', 'نحتاج موافقتك عشان نتواصل معك': 'We need your consent to contact you', 'راجع الحقول المظللة': 'Check the highlighted fields',
+  'الإرسال متوقف مؤقتًا، تواصل معنا واتساب': 'Sending is paused for now; reach us on WhatsApp', 'الطلب غير صالح': 'Invalid request',
+  'وصلنا طلبك قبل شوي. بنتواصل معك قريب': 'We got your request a moment ago. We\'ll be in touch soon',
+  'ما قدرنا نحفظ الطلب الحين، تواصل معنا واتساب': 'We couldn\'t save the request right now; reach us on WhatsApp',
+  'ما وصل الطلب. تأكد من الاتصال وجرّب مرة ثانية': 'The request didn\'t go through. Check your connection and try again',
+
+  // Settings → Website requests (src/pages/admin/requests.astro, public/assets/reqs.js)
+  'طلبات الموقع': 'Website requests', 'الكل': 'All', 'جديد': 'New', 'تواصلنا': 'Contacted', 'مقفل': 'Closed',
+  'اللي وصل من نموذج الطلب في صفحات Apipeline. البيانات تُستخدم للرد بس، وتقدر تحذف أي طلب لو صاحبه طلب.': 'What arrived from the request form on the Apipeline pages. The details are only for replying, and you can delete any request if its sender asks.',
+  'ما قدرنا نقرا الطلبات': 'Couldn\'t read the requests', 'ما انحفظ التعديل': 'The change wasn\'t saved', 'ما انحذف الطلب': 'The request wasn\'t deleted',
 };

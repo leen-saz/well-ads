@@ -4,6 +4,7 @@
 // no testimonials, demo numbers labelled). Motion: src/lib/scroll-story.ts. Styles: /assets/site.css on app.css tokens.
 import SiteHeader from '../../components/site/SiteHeader.astro';
 import SiteFooter from '../../components/site/SiteFooter.astro';
+import RequestForm from '../../components/site/RequestForm.astro';
 
 const ar = (n: number) => n.toLocaleString('ar-SA');
 const LOGOS = ['meta', 'googleads', 'snapchat', 'tiktok', 'googleanalytics', 'x', 'pinterest', 'reddit', 'googlesearchconsole', 'posthog'];
@@ -69,7 +70,7 @@ const FAQ = [
       <p class="st-lead">Apipeline يجمع أرقام منصاتك كل ساعة، ويقترح وش توقف ووش ترفع، ويفحص المراجع كل اقتراح على قواعدك قبل ما يوصلك. توافق، ويتنفّذ بأمان.</p>
       <div class="st-cta">
         <a class="btn primary" href="/login/">ادخل للوحة</a>
-        <a class="btn secondary" href="#how">شوف كيف يشتغل</a>
+        <a class="btn secondary" href="#request" data-kind="board">اطلب تجربة</a>
       </div>
       <p class="st-note">الأرقام في الأمثلة بيانات تجريبية.</p>
     </div>
@@ -214,18 +215,12 @@ const FAQ = [
     </div>
   </section>
 
-  <section class="st-end">
-    <div class="st-wrap" data-reveal>
-      <h2>اربط حساباتك وخل الأرقام تتكلم</h2>
-      <p>كل ربط بتسجيل دخول المنصة نفسها. بدون ملفات تصدير، وبدون لصق مفاتيح.</p>
-      <div class="st-cta"><a class="btn primary" href="/login/">ادخل للوحة</a></div>
-    </div>
-  </section>
+  <RequestForm kind="board" title="اربط حساباتك وخل الأرقام تتكلم" lead="اكتب لنا وش عندك من منصات وإنفاق، ونجهّز لك تجربة على أرقامك. كل ربط بتسجيل دخول المنصة نفسها، بدون ملفات تصدير وبدون لصق مفاتيح." />
 </main>
 
 <SiteFooter />
 
 <script is:inline type="module" src="/assets/welcome.js"></script>
-<script>import '../../lib/scroll-story';</script>
+<script>import '../../lib/scroll-story'; import '../../lib/request-form';</script>
 </body>
 </html>

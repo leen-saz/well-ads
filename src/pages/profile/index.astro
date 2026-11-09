@@ -4,9 +4,8 @@
 // Only facts the product shows: counts of agents, platforms and steps come from the welcome page's lists.
 import SiteHeader from '../../components/site/SiteHeader.astro';
 import SiteFooter from '../../components/site/SiteFooter.astro';
-import { CONTACT, wa } from '../../lib/public-site';
+import RequestForm from '../../components/site/RequestForm.astro';
 
-const ASK = wa('السلام عليكم، قرأت بروفايل Apipeline وأبي أتواصل معكم');
 
 const VALUES = [
   ['الوضوح', 'رقم واحد يفهمه الكل أفضل من عشرين رقم ما أحد يقراها.'],
@@ -71,18 +70,14 @@ const FIT = [
 .pf-how p{font:400 15px/1.8 var(--f-text);color:var(--muted);margin:0}
 .pf-fit{list-style:none;margin:0;padding:0;display:grid;grid-template-columns:1fr 1fr;gap:12px}
 .pf-fit li{padding:18px 20px;border-radius:var(--r-sm);border:1px solid var(--line);font:400 16px/1.7 var(--f-ar)}
-.pf-contact{display:grid;grid-template-columns:1fr auto;gap:24px;align-items:end}
-.pf-contact dl{margin:0;display:grid;grid-template-columns:auto 1fr;gap:10px 24px;font:400 16px/1.6 var(--f-ar)}
-.pf-contact dt{color:var(--muted)}
-.pf-contact dd{margin:0}
-@media (max-width:960px){.pf-vm,.pf-line,.pf-fit,.pf-contact{grid-template-columns:1fr}.pf-how{grid-template-columns:1fr 1fr}}
+@media (max-width:960px){.pf-vm,.pf-line,.pf-fit{grid-template-columns:1fr}.pf-how{grid-template-columns:1fr 1fr}}
 @media (max-width:640px){.pf-how{grid-template-columns:1fr}}
 @media print{.pf-cover{min-height:auto;padding:40mm 0 0}.pf-line li{box-shadow:none;border:1px solid #DDD6F6}}
 </style>
 </head>
 <body class="st">
 
-<SiteHeader current="/profile/" cta={{ href: ASK, label: 'تواصل معنا' }} />
+<SiteHeader current="/profile/" cta={{ href: '#request', label: 'تواصل معنا' }} />
 
 <main>
   <section class="st-wrap pf-cover st-page">
@@ -176,21 +171,7 @@ const FIT = [
     </div>
   </section>
 
-  <section class="st-sec" id="contact" style="padding-top:0">
-    <div class="st-wrap pf-contact" data-reveal>
-      <div>
-        <header class="st-head" style="margin-bottom:28px">
-          <span class="kick">تواصل</span>
-          <h2>خلنا نبدأ من أرقامك</h2>
-        </header>
-        <dl>
-          {CONTACT.whatsapp && <><dt>واتساب</dt><dd><span dir="ltr">{CONTACT.phoneLabel}</span></dd></>}
-          <dt>نرد على</dt><dd>طلبات اللوحة، وخريطة التسرب، والفحص الأمني</dd>
-        </dl>
-      </div>
-      <div class="st-cta"><a class="btn primary" href={ASK} rel="noopener" target="_blank">تواصل معنا</a></div>
-    </div>
-  </section>
+  <div class="st-noprint"><RequestForm kind="board" title="خلنا نبدأ من أرقامك" lead="اختر وش تحتاج: تجربة اللوحة، أو خريطة التسرب لإعلاناتك، أو فحص أمني لمنتجك. ونرد عليك خلال يوم عمل." /></div>
 </main>
 
 <SiteFooter />
@@ -198,6 +179,7 @@ const FIT = [
 <script is:inline type="module" src="/assets/welcome.js"></script>
 <script>
   import '../../lib/scroll-story';
+  import '../../lib/request-form';
   // Print the profile: everything shown first (the reveals may not have run yet below the fold)
   document.querySelector('[data-print]')?.addEventListener('click', () => {
     document.querySelectorAll<HTMLElement>('[data-reveal]').forEach(el => { el.style.opacity = '1'; el.style.visibility = 'visible'; el.style.transform = 'none'; });

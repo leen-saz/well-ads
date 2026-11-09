@@ -1,0 +1,56 @@
+---
+import { ClientRouter } from 'astro:transitions';
+// الإعدادات ← طلبات الموقع (المالكة): الطلبات اللي وصلت من صفحات Apipeline العامة (/api/site/requests).
+---
+<!doctype html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="robots" content="noindex,nofollow">
+<meta name="referrer" content="no-referrer">
+<meta name="theme-color" content="#F6F0E3">
+<title>طلبات الموقع · Well</title>
+<link rel="preload" href="/assets/fonts/thmanyahsans-Regular.woff2" as="font" type="font/woff2" crossorigin>
+<link rel="preload" href="/assets/fonts/playfair-display-900.woff2" as="font" type="font/woff2" crossorigin>
+<link rel="stylesheet" href="/assets/app.css">
+<ClientRouter />
+<style is:global>
+.rq-list{display:grid;gap:10px}
+.rq{border:1px solid var(--line);border-radius:14px;padding:14px 16px;display:grid;gap:8px}
+.rq-head{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+.rq-head b{font:700 16px/1.4 var(--f-ar)}
+.rq-meta{display:flex;gap:6px 16px;flex-wrap:wrap;font-size:14px}
+.rq-meta a{color:var(--accent)}
+.rq-msg{margin:0;font-size:14px;line-height:1.7;white-space:pre-wrap}
+.rq-acts{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+.rq-acts select{width:auto;height:36px}
+.rq[data-status="closed"]{opacity:.6}
+</style>
+</head>
+<body data-page="reqs">
+<div class="app" id="app">
+  <aside class="side" id="side" aria-label="القائمة" transition:persist="side"></aside>
+  <div class="scrim"></div>
+  <div class="main">
+    <header class="topbar" id="top"></header>
+    <main class="content" id="content">
+      <section class="card pad" style="max-width:920px">
+        <div class="bar" style="justify-content:space-between;align-items:center;margin-bottom:12px">
+          <div>
+            <h2 style="margin:0">طلبات الموقع</h2>
+            <p class="muted" style="margin:4px 0 0">اللي وصل من نموذج الطلب في صفحات Apipeline. البيانات تُستخدم للرد بس، وتقدر تحذف أي طلب لو صاحبه طلب.</p>
+          </div>
+          <select id="rq-filter" aria-label="الحالة" style="width:auto">
+            <option value="">الكل</option><option value="new">جديد</option><option value="contacted">تواصلنا</option><option value="closed">مقفل</option>
+          </select>
+        </div>
+        <div id="rq-list" class="rq-list"></div>
+        <div class="msg" id="msg" role="status"></div>
+      </section>
+    </main>
+  </div>
+</div>
+<script is:inline type="module" src="/assets/router.js"></script>
+</body>
+</html>
