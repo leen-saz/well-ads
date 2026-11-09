@@ -1,37 +1,46 @@
 ---
-// Public landing page that explains the system. Open without login (PUBLIC in src/lib/gate.ts).
-// Brand: Apipeline wordmark on the app theme. Copy follows the MOH rules: no superlatives, no testimonials, no claims we can't show.
+// Public landing page for the Apipeline board, told as a scroll story. Open without login (PUBLIC in src/lib/gate.ts).
+// Copy: .claude/skills/apipeline-saudi-voice (Saudi white dialect for titles, light MSA for detail; no superlatives,
+// no testimonials, demo numbers labelled). Motion: src/lib/scroll-story.ts. Styles: /assets/site.css on app.css tokens.
+import SiteHeader from '../../components/site/SiteHeader.astro';
+import SiteFooter from '../../components/site/SiteFooter.astro';
+import RequestForm from '../../components/site/RequestForm.astro';
+
+const ar = (n: number) => n.toLocaleString('ar-SA');
 const LOGOS = ['meta', 'googleads', 'snapchat', 'tiktok', 'googleanalytics', 'x', 'pinterest', 'reddit', 'googlesearchconsole', 'posthog'];
 
-const LOOP = [
-  ['يسحب', 'كل ساعة يجيب أرقام Meta وGoogle وSnapchat وTikTok وGA4 لنفس اللوحة.'],
-  ['يقترح', 'إيقاف إعلان يصرف بلا نتيجة، رفع ميزانية اللي تكلفته تحت الهدف، أو مادة إعلانية جديدة.'],
-  ['يراجع', 'المراجع يفحص كل اقتراح على قواعدك، واللي ما يطابق ما ينقبل.'],
-  ['تعتمد', 'موافقة، تعديل، أو رفض بسبب. ما يتنفّذ شي بدونك.'],
-  ['يتعلّم', 'يقيس نتيجة كل قرار بعد التنفيذ ويطلع منه درس للمرة الجاية.'],
+const STEPS = [
+  ['يسحب', 'كل منصاتك، صورة وحدة', 'كل ساعة يجيب أرقام Meta وGoogle وSnapchat وTikTok وGA4 لنفس اللوحة. بدون ملفات تصدير، وبدون نسخ ولصق.'],
+  ['يقترح', 'الأرقام تتحوّل لقرار', 'إيقاف إعلان يصرف بلا نتيجة، رفع ميزانية اللي تكلفته تحت الهدف، أو مادة إعلانية جديدة.'],
+  ['يراجع', 'قواعدك قبل أي خطوة', 'المراجع يفحص كل اقتراح على قواعدك وحدود ميزانيتك، واللي ما يطابق ما ينتقل للتنفيذ.'],
+  ['تعتمد', 'أنت صاحب القرار', 'موافقة، تعديل، أو رفض بسبب. في وضع الموافقة ما يتنفّذ شي بدونك.'],
+  ['يتعلّم', 'كل نتيجة، درس جديد', 'يقيس نتيجة كل قرار بعد التنفيذ، ويطلع منه درس يستخدمه في الاقتراح الجاي.'],
 ];
 
-const GROUPS = [
-  { title: 'النمو', items: [
-    ['السوشال', 'منشور واحد لكذا منصة، بجدولة وموافقة.'],
-    ['الرحلات والرسائل', 'رحلات واتساب وإيميل تمشي لحالها.'],
-    ['المحتوى و SEO', 'يحلل موقعك ويبني خطة، وتوافق على كل بند.'],
-  ]},
-  { title: 'الإيجنتس', items: [
-    ['المدير', 'يوزّع المهام على الإيجنتس ويجمع موافقاتك في مكان واحد.'],
-    ['التتبع', 'منصة وقفت أرقامها، أو ليدز بدون رقم إعلان. كل مشكلة معها حلها.'],
-    ['الامتثال', 'يفحص النص على قواعد وزارة الصحة والمنصات، وينبّهك بس.'],
-    ['الرصد', 'وش يشد الناس في منشوراتك ومنشورات منافسينك.'],
-    ['التصميم', 'مقاسات جاهزة لكل منصة، والنص دايم طبقة فوق الصورة.'],
-    ['الصوت', 'نص الفويس أوفر بطول الإعلان، وتسمعه بصوت عربي.'],
-  ]},
+const AGENTS = [
+  ['الإيجنتس', 'المدير', 'يوزّع المهام على الإيجنتس ويجمع موافقاتك في مكان واحد.'],
+  ['الإيجنتس', 'التتبع', 'منصة وقفت أرقامها، أو ليدز بدون رقم إعلان. كل مشكلة معها حلها.'],
+  ['الإيجنتس', 'الامتثال', 'يفحص النص على قواعد وزارة الصحة والمنصات، وينبّهك بس.'],
+  ['الإيجنتس', 'الرصد', 'وش يشد الناس في منشوراتك ومنشورات منافسينك.'],
+  ['الإيجنتس', 'التصميم', 'مقاسات جاهزة لكل منصة، والنص دايم طبقة فوق الصورة.'],
+  ['الإيجنتس', 'الصوت', 'نص الفويس أوفر بطول الإعلان، وتسمعه بصوت عربي.'],
+  ['النمو', 'السوشال', 'منشور واحد لكذا منصة، بجدولة وموافقة.'],
+  ['النمو', 'الرحلات والرسائل', 'رحلات واتساب وإيميل تمشي لحالها.'],
+  ['النمو', 'المحتوى و SEO', 'يحلل موقعك ويبني خطة، وتوافق على كل بند.'],
 ];
 
 const RULES = [
-  ['قراءة بس', 'حسابات الإعلانات ما تتعدّل إلا داخل حملات التجربة اللي تحددها أنت.'],
-  ['زر طوارئ', 'ضغطة وحدة توقف كل تنفيذ، وكل خطوة لها إيصال في السجل.'],
-  ['كل شركة لحالها', 'بياناتك معزولة عن غيرك من أول جدول.'],
-  ['تلقائي أو يدوي', 'لكل إيجنت تختار: يمشي لحاله، أو ينتظر موافقتك مع تنبيه.'],
+  ['قراءة بس', 'حسابات الإعلانات ما تتعدّل إلا داخل حملات التجربة اللي تحددها أنت.', 'M2 12s3.6-7 10-7 10 7 10 7-3.6 7-10 7S2 12 2 12Z M12 9a3 3 0 1 0 0 6 3 3 0 0 0 0-6Z'],
+  ['زر طوارئ', 'ضغطة وحدة توقف كل تنفيذ، وكل خطوة لها إيصال في السجل.', 'M12 2v10 M18.4 6.6a9 9 0 1 1-12.8 0'],
+  ['كل شركة لحالها', 'بياناتك معزولة عن غيرك من أول جدول.', 'M5 11h14v10H5z M8 11V7a4 4 0 0 1 8 0v4'],
+  ['تلقائي أو يدوي', 'لكل إيجنت تختار: يمشي لحاله، أو ينتظر موافقتك مع تنبيه.', 'M4 6h10 M18 6h2 M4 12h4 M12 12h8 M4 18h12 M20 18h0 M16 4v4 M10 10v4 M18 16v4'],
+];
+
+const FAQ = [
+  ['هل يتنفّذ شي بدون موافقتي؟', 'لا في وضع الموافقة. كل اقتراح يوصلك مع أرقامه وسبب المراجع، وما يتحرك إلا بعد ما توافق. وتقدر تخلي إيجنت معيّن يمشي تلقائيًا داخل حدود تحددها أنت.'],
+  ['وش المنصات اللي يقرا منها؟', 'Meta وGoogle Ads وSnapchat وTikTok وGA4، مع X وPinterest وReddit وSearch Console. كل ربط يتم بتسجيل الدخول في المنصة نفسها.'],
+  ['وين تنحفظ بياناتي؟', 'بيانات كل شركة معزولة عن غيرها، ومفاتيح الربط محفوظة في خزنة مشفّرة. وتقدر تفك أي ربط بضغطة وتنمسح مفاتيحه.'],
+  ['هل يغني عن فريق التسويق؟', 'لا. يختصر على فريقك جمع الأرقام والمتابعة اليومية، ويخلي وقتهم للقرار والإبداع. القرار الأخير دايم عند شخص.'],
 ];
 ---
 <!doctype html>
@@ -44,229 +53,174 @@ const RULES = [
 <meta name="theme-color" content="#F6F0E3">
 <title>Apipeline · لوحة التسويق</title>
 <meta name="description" content="أرقام كل منصات إعلاناتك في لوحة وحدة، وإيجنتس تقترح وتنفّذ بعد موافقتك.">
-<link rel="preload" href="/assets/fonts/thmanyahserifdisplay-Bold.woff2" as="font" type="font/woff2" crossorigin>
+<link rel="preload" href="/assets/fonts/thmanyahserifdisplay-Black.woff2" as="font" type="font/woff2" crossorigin>
 <link rel="preload" href="/assets/fonts/playfair-display-900.woff2" as="font" type="font/woff2" crossorigin>
 <link rel="stylesheet" href="/assets/app.css">
-<style is:global>
-.lp{--wrap:1120px;--gut:clamp(16px,4vw,40px)}
-.lp-wrap{max-width:var(--wrap);margin:0 auto;padding:0 var(--gut)}
-.lp-top{position:sticky;top:0;z-index:5;background:color-mix(in srgb,var(--bg) 86%,transparent);-webkit-backdrop-filter:blur(12px);backdrop-filter:blur(12px)}
-.lp-top .lp-wrap{display:flex;align-items:center;gap:28px;height:68px}
-.lp-top nav{display:flex;gap:22px;margin-inline-start:auto;font:500 14px/1 var(--f-ar)}
-.lp-top nav a{text-decoration:none;color:var(--muted);transition:color var(--ease)}
-.lp-top nav a:hover{color:var(--text)}
-
-.lp-hero{display:grid;grid-template-columns:1.05fr .95fr;gap:56px;align-items:center;padding-block:72px 88px}
-.lp-eyebrow{font:500 14px/1.4 var(--f-ar);color:var(--accent);margin:0 0 18px}
-.lp-hero h1{font:700 clamp(34px,5vw,56px)/1.18 var(--f-display);letter-spacing:-.01em;margin:0 0 20px;text-wrap:balance}
-.lp-lead{font-size:18px;line-height:1.8;color:var(--muted);margin:0 0 32px;max-width:34em}
-.lp-cta{display:flex;gap:10px;flex-wrap:wrap}
-.lp-cta .btn{--h:50px;padding:0 28px;font-size:16px}
-
-/* Hero: the decision card itself, built in HTML so it reads as the product */
-.lp-board{position:relative;padding:22px;border-radius:var(--r);background:var(--surface);box-shadow:var(--shadow-lg)}
-.lp-board-head{display:flex;align-items:center;justify-content:space-between;margin-bottom:16px;font:500 13px/1 var(--f-ar);color:var(--muted)}
-.lp-stop{display:inline-flex;align-items:center;gap:6px;height:28px;padding:0 12px;border-radius:999px;background:color-mix(in srgb,var(--pulse) 12%,transparent);color:var(--ink);font:500 12px/1 var(--f-ar)}
-.lp-stop::before{content:"";width:7px;height:7px;border-radius:50%;background:var(--pulse)}
-.lp-sug{border:1px solid var(--line);border-radius:var(--r-sm);padding:18px}
-.lp-sug + .lp-sug{margin-top:10px}
-.lp-sug-k{font:500 12px/1 var(--f-ar);color:var(--accent);margin:0 0 8px}
-.lp-sug h3{font:700 16px/1.5 var(--f-ar);margin:0 0 12px}
-.lp-stats{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin:0 0 14px}
-.lp-stats div{background:var(--bg);border-radius:10px;padding:10px 12px}
-.lp-stats dt{font:400 12px/1.3 var(--f-ar);color:var(--muted)}
-.lp-stats dd{margin:4px 0 0;font:500 17px/1 var(--f-num);font-variant-numeric:tabular-nums}
-.lp-check{display:flex;align-items:center;gap:8px;font:400 13px/1.5 var(--f-ar);color:var(--muted);margin:0 0 14px}
-.lp-check svg{color:var(--accent)}
-.lp-acts{display:flex;gap:6px}
-.lp-acts .btn{--h:36px;padding:0 16px;font-size:14px;pointer-events:none}
-.lp-sug.dim{opacity:.55}
-.lp-sug.dim h3{margin:0}
-
-.lp-logos{border-block:1px solid var(--line);padding:26px 0}
-.lp-logos .lp-wrap{display:flex;align-items:center;gap:32px;flex-wrap:wrap}
-.lp-logos p{margin:0;font:500 13px/1 var(--f-ar);color:var(--muted)}
-.lp-logos ul{list-style:none;margin:0;padding:0;display:flex;flex-wrap:wrap;gap:26px;align-items:center}
-.lp-logo{display:block;width:24px;height:24px;background:var(--ink);opacity:.6;-webkit-mask:var(--src) center/contain no-repeat;mask:var(--src) center/contain no-repeat}
-
-.lp-sec{padding:104px 0}
-.lp-sec > .lp-wrap > header{max-width:40em;margin-bottom:52px}
-.lp-sec h2{font:700 clamp(28px,3.6vw,40px)/1.25 var(--f-display);margin:0 0 14px;text-wrap:balance}
-.lp-sec header p{font-size:17px;line-height:1.8;color:var(--muted);margin:0}
-
-.lp-loop{list-style:none;margin:0;padding:0;display:grid;grid-template-columns:repeat(5,1fr);gap:0;counter-reset:s}
-.lp-loop li{counter-increment:s;padding-inline:20px;border-inline-start:1px solid var(--line)}
-.lp-loop li:first-child{border-inline-start:0;padding-inline-start:0}
-.lp-loop li::before{content:counter(s,arabic-indic);display:block;font:900 44px/1 var(--f-display);color:var(--soft);margin-bottom:18px}
-.lp-loop h3{font:700 18px/1.4 var(--f-ar);margin:0 0 8px}
-.lp-loop p{margin:0;font-size:15px;line-height:1.75;color:var(--muted)}
-.lp-loop li:nth-child(4)::before{color:var(--accent)}
-
-.lp-agents{display:grid;grid-template-columns:1fr 2fr;gap:56px}
-.lp-group h3{font:500 13px/1 var(--f-ar);color:var(--accent);margin:0 0 6px;letter-spacing:.02em}
-.lp-group dl{margin:0;display:grid}
-.lp-group.wide dl{grid-template-columns:1fr 1fr;column-gap:40px}
-.lp-group dl div{padding:18px 0;border-bottom:1px solid var(--line)}
-.lp-group dt{font:700 17px/1.4 var(--f-ar);margin:0 0 4px}
-.lp-group dd{margin:0;font-size:15px;line-height:1.7;color:var(--muted)}
-
-.lp-dark{background:var(--deep);color:#FFFFFF}
-.lp-dark h2,.lp-dark h3{color:#FFFFFF}
-.lp-dark header p{color:color-mix(in srgb,#FFFFFF 72%,transparent)}
-.lp-rules{list-style:none;margin:0;padding:0;display:grid;grid-template-columns:repeat(4,1fr);gap:40px}
-.lp-rules h3{font:700 19px/1.4 var(--f-ar);margin:0 0 10px;padding-top:18px;border-top:2px solid var(--soft)}
-.lp-rules p{margin:0;font-size:15px;line-height:1.75;color:color-mix(in srgb,#FFFFFF 72%,transparent)}
-
-.lp-end{text-align:center}
-.lp-end header{margin-inline:auto}
-.lp-end .lp-cta{justify-content:center}
-.lp-foot{border-top:1px solid var(--line);padding:28px 0;font-size:13px;color:var(--muted)}
-.lp-foot .lp-wrap{display:flex;justify-content:space-between;align-items:center;gap:16px}
-.lp-foot .mark{font-size:22px}
-
-@media (max-width:960px){
-  .lp-hero{grid-template-columns:1fr;gap:44px;padding-block:44px 64px}
-  .lp-loop{grid-template-columns:1fr;gap:28px}
-  .lp-loop li,.lp-loop li:first-child{border:0;padding:0;display:grid;grid-template-columns:52px 1fr;column-gap:12px}
-  .lp-loop li::before{grid-row:span 2;font-size:36px;margin:0}
-  .lp-agents{grid-template-columns:1fr;gap:36px}
-  .lp-rules{grid-template-columns:1fr 1fr;gap:32px}
-}
-@media (max-width:640px){
-  .lp-top nav{display:none}
-  .lp-top .btn{margin-inline-start:auto}
-  .lp-top #lang{margin-inline-start:auto}
-  .lp-top #lang + .btn{margin-inline-start:0}
-  .lp-sec{padding:72px 0}
-  .lp-group.wide dl{grid-template-columns:1fr}
-  .lp-rules{grid-template-columns:1fr}
-  .lp-board{padding:16px}
-  .lp-stats dd{font-size:15px}
-  .lp-foot .lp-wrap{flex-direction:column}
-}
-</style>
+<link rel="stylesheet" href="/assets/site.css">
 </head>
-<body class="lp">
+<body class="st">
 
-<header class="lp-top">
-  <div class="lp-wrap">
-    <span class="mark">Apipeline<i>.</i></span>
-    <nav aria-label="الأقسام">
-      <a href="#how">كيف يشتغل</a>
-      <a href="#agents">الإيجنتس</a>
-      <a href="#safety">الأمان</a>
-    </nav>
-    <span id="lang"></span>
-    <a class="btn sm primary" href="/login/">دخول</a>
-  </div>
-</header>
+<SiteHeader current="/welcome/" cta={{ href: '/login/', label: 'دخول' }} />
 
 <main>
-  <section class="lp-wrap lp-hero">
+  <section class="st-wrap st-hero">
     <div>
-      <p class="lp-eyebrow">لوحة تسويق بإيجنتس، والقرار الأخير لك</p>
-      <h1>كل أرقام إعلاناتك في لوحة وحدة، وقرارات جاهزة تنتظر موافقتك.</h1>
-      <p class="lp-lead">Apipeline يجمع أرقام منصاتك كل ساعة، ويقترح وش توقف ووش ترفع، ويفحص المراجع كل اقتراح على قواعدك قبل ما يوصلك. توافق، ويتنفّذ بأمان.</p>
-      <div class="lp-cta">
+      <p class="st-eyebrow">لوحة تسويق بإيجنتس، والقرار الأخير لك</p>
+      <h1 class="st-h1">الأرقام تتكلم. <em>والقرار لك.</em></h1>
+      <p class="st-lead">Apipeline يجمع أرقام منصاتك كل ساعة، ويقترح وش توقف ووش ترفع، ويفحص المراجع كل اقتراح على قواعدك قبل ما يوصلك. توافق، ويتنفّذ بأمان.</p>
+      <div class="st-cta">
         <a class="btn primary" href="/login/">ادخل للوحة</a>
-        <a class="btn secondary" href="#how">شوف كيف يشتغل</a>
+        <a class="btn secondary" href="#request" data-kind="board">اطلب تجربة</a>
       </div>
+      <p class="st-note">الأرقام في الأمثلة بيانات تجريبية.</p>
     </div>
 
-    <div class="lp-board" aria-label="مثال من لوحة القرارات" role="img">
-      <div class="lp-board-head"><span>لوحة القرارات · اليوم</span><span class="lp-stop">زر الطوارئ</span></div>
-      <article class="lp-sug">
-        <p class="lp-sug-k">اقتراح · Meta</p>
+    <div class="st-stack" role="img" aria-label="مثال من لوحة القرارات">
+      <article class="st-card" style="inset-inline-start:0;top:24px;width:min(100%,430px);z-index:3" data-depth="0.08">
+        <span class="k">اقتراح · Meta</span>
         <h3>إيقاف إعلان يصرف ٣ أيام بدون ولا ليد</h3>
-        <dl class="lp-stats">
+        <dl class="st-stats">
           <div><dt>الصرف</dt><dd>٨٤٠ ر.س</dd></div>
           <div><dt>الليدز</dt><dd>٠</dd></div>
           <div><dt>نسبة النقر</dt><dd>٠٫٤٪</dd></div>
         </dl>
-        <p class="lp-check"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M20 6 9 17l-5-5"/></svg>المراجع: مطابق لقواعدك، وداخل حملة تجربة</p>
-        <div class="lp-acts">
-          <span class="btn primary">موافقة</span>
-          <span class="btn secondary">تعديل</span>
-          <span class="btn ghost">رفض</span>
-        </div>
+        <div class="st-acts"><span class="btn primary">موافقة</span><span class="btn secondary">تعديل</span><span class="btn ghost">رفض</span></div>
       </article>
-      <article class="lp-sug dim">
-        <p class="lp-sug-k">اقتراح · Snapchat</p>
+      <article class="st-card" style="inset-inline-end:0;top:250px;width:min(88%,360px);z-index:2" data-depth="0.22">
+        <span class="k">اقتراح · Snapchat</span>
         <h3>رفع ميزانية مجموعة تكلفتها تحت الهدف بـ ٣٢٪</h3>
+        <span class="st-chip ok">المراجع: مطابق لقواعدك</span>
+      </article>
+      <article class="st-card" style="inset-inline-start:6%;top:410px;z-index:4;padding:12px 14px" data-depth="0.4">
+        <span class="st-chip hot">زر الطوارئ</span>
       </article>
     </div>
   </section>
 
-  <section class="lp-logos" aria-label="المنصات">
-    <div class="lp-wrap">
-      <p>يقرا من منصاتك</p>
-      <ul>
-        {LOGOS.map(l => <li><span class="lp-logo" style={`--src:url(/assets/logos/${l}.svg)`} role="img" aria-label={l}></span></li>)}
-      </ul>
+  <section class="st-logos" aria-label="المنصات">
+    <p>يقرا من منصاتك</p>
+    <div class="st-marquee" aria-hidden="true">
+      {[...LOGOS, ...LOGOS].map(l => <span style={`--src:url(/assets/logos/${l}.svg)`}></span>)}
     </div>
   </section>
 
-  <section class="lp-sec" id="how">
-    <div class="lp-wrap">
-      <header>
+  <section class="st-words-sec">
+    <div class="st-wrap">
+      <p class="st-words" data-words>الصرف في Meta، والليدز في ملف إكسل، والمبيعات في واتساب. كل منصة تقول قصة، وما أحد يقول لك وش تسوي بكرة الصبح. Apipeline يجمعها في لوحة وحدة، ويحط القرار قدامك.</p>
+    </div>
+  </section>
+
+  <section class="st-sec" id="how" style="padding-top:0">
+    <div class="st-wrap">
+      <header class="st-head" data-reveal>
+        <span class="kick">كيف يشتغل</span>
         <h2>دورة وحدة تمشي كل ساعة</h2>
         <p>من الرقم للقرار للدرس، وأنت في النص. كل خطوة مسجلة وتقدر ترجع عنها.</p>
       </header>
-      <ol class="lp-loop">
-        {LOOP.map(([t, d]) => <li><h3>{t}</h3><p>{d}</p></li>)}
-      </ol>
-    </div>
-  </section>
-
-  <section class="lp-sec" id="agents" style="padding-top:0">
-    <div class="lp-wrap">
-      <header>
-        <h2>تسع تابات، كل وحدة إيجنت بشغلة واضحة</h2>
-        <p>كلها تصب في لوحة القرارات نفسها، والمدير يديرها.</p>
-      </header>
-      <div class="lp-agents">
-        {GROUPS.map((g, i) => (
-          <div class:list={['lp-group', { wide: i === 1 }]}>
-            <h3>{g.title}</h3>
-            <dl>{g.items.map(([n, d]) => <div><dt>{n}</dt><dd>{d}</dd></div>)}</dl>
+      <div class="st-steps" data-steps>
+        <div class="st-steps-visual" data-steps-visual aria-hidden="true">
+          <div class="st-panel">
+            <span class="k st-chip">آخر مزامنة الآن</span>
+            <ul>
+              <li>Meta Ads<b>١٢:٠٠</b></li><li>Google Ads<b>١٢:٠٠</b></li><li>Snapchat<b>١٢:٠٠</b></li><li>TikTok<b>١٢:٠٠</b></li><li>GA4<b>١٢:٠٠</b></li>
+            </ul>
           </div>
-        ))}
+          <div class="st-panel">
+            <span class="k" style="color:var(--accent);font:500 12px/1 var(--f-ar)">اقتراح · Meta</span>
+            <h3 style="font:700 20px/1.5 var(--f-ar);margin:0">إيقاف إعلان يصرف ٣ أيام بدون ولا ليد</h3>
+            <dl class="st-stats"><div><dt>الصرف</dt><dd>٨٤٠ ر.س</dd></div><div><dt>الليدز</dt><dd>٠</dd></div><div><dt>نسبة النقر</dt><dd>٠٫٤٪</dd></div></dl>
+          </div>
+          <div class="st-panel">
+            <ul>
+              <li>داخل حملة تجربة<b>✓</b></li><li>داخل حدود الميزانية<b>✓</b></li><li>مطابق لقواعد المنصة<b>✓</b></li><li>بدون كلمات ممنوعة<b>✓</b></li>
+            </ul>
+            <span class="st-chip ok">اجتاز المراجعة</span>
+          </div>
+          <div class="st-panel">
+            <span class="st-chip">بانتظار موافقتك</span>
+            <h3 style="font:700 20px/1.5 var(--f-ar);margin:0">إيقاف إعلان يصرف ٣ أيام بدون ولا ليد</h3>
+            <div class="st-acts"><span class="btn primary">موافقة</span><span class="btn secondary">تعديل</span><span class="btn ghost">رفض</span></div>
+          </div>
+          <div class="st-panel">
+            <span class="big">درس محفوظ</span>
+            <p style="margin:0;color:var(--muted);font:400 16px/1.8 var(--f-text)">بعد التنفيذ يقيس الأثر ويحفظ النتيجة، عشان الاقتراح الجاي يبدأ من اللي تعلّمه.</p>
+          </div>
+        </div>
+        <div class="st-steps-list">
+          <span class="st-steps-line" data-steps-line aria-hidden="true"></span>
+          <ol style="list-style:none;margin:0;padding:0">
+            {STEPS.map(([n, h, p], i) => <li class="st-step" data-step><p class="n">{`${ar(0)}${ar(i + 1)} · ${n}`}</p><h3>{h}</h3><p>{p}</p></li>)}
+          </ol>
+        </div>
       </div>
     </div>
   </section>
 
-  <section class="lp-sec lp-dark" id="safety">
-    <div class="lp-wrap">
-      <header>
+  <section class="st-hs" id="agents" data-hscroll>
+    <div class="st-hs-in">
+      <div class="st-wrap">
+        <header class="st-head">
+          <span class="kick">الإيجنتس</span>
+          <h2>تسع تابات، كل وحدة إيجنت بشغلة واضحة</h2>
+          <p>كلها تصب في لوحة القرارات نفسها، والمدير يديرها.</p>
+        </header>
+      </div>
+      <div class="st-track" data-track>
+        {AGENTS.map(([g, n, d], i) => <article class="st-agent"><span class="g">{g}</span><h3>{n}</h3><p>{d}</p><span class="ix" aria-hidden="true">{`${ar(0)}${ar(i + 1)}`}</span></article>)}
+      </div>
+    </div>
+  </section>
+
+  <section class="st-sec st-dark" id="safety">
+    <div class="st-wrap">
+      <header class="st-head" data-reveal>
+        <span class="kick">الأمان</span>
         <h2>قواعد ما تنكسر</h2>
         <p>النظام يقترح وينفّذ، بس داخل حدود أنت ترسمها.</p>
       </header>
-      <ul class="lp-rules">
-        {RULES.map(([t, d]) => <li><h3>{t}</h3><p>{d}</p></li>)}
-      </ul>
-    </div>
-  </section>
-
-  <section class="lp-sec lp-end">
-    <div class="lp-wrap">
-      <header>
-        <h2>اربط حساباتك وخل الأرقام تتكلم</h2>
-        <p>كل ربط بتسجيل دخول المنصة نفسها. بدون ملفات تصدير، وبدون لصق مفاتيح.</p>
-      </header>
-      <div class="lp-cta">
-        <a class="btn primary" href="/login/">ادخل للوحة</a>
+      <div class="st-grid four">
+        {RULES.map(([t, d, p]) => <article class="st-tile" data-reveal><span class="ic"><svg viewBox="0 0 24 24" aria-hidden="true"><path d={p}/></svg></span><h3>{t}</h3><p>{d}</p></article>)}
       </div>
     </div>
   </section>
+
+  <section class="st-sec">
+    <div class="st-wrap">
+      <header class="st-head" data-reveal>
+        <span class="kick">من Apipeline</span>
+        <h2>نفس الدقة، على أمن منتجاتك</h2>
+        <p>نفحص أكوادك ومواقعك وتطبيقاتك، ونسلّمك كل ثغرة مع طريقة إصلاحها.</p>
+      </header>
+      <div class="st-grid two">
+        <a class="st-tile" href="/security/" style="text-decoration:none" data-reveal>
+          <span class="st-chip">الأمن السيبراني</span>
+          <h3>فحص أمني للأكواد والمواقع والتطبيقات</h3>
+          <p>مراجعة كود، اختبار اختراق للويب والجوال، وتقرير مرتب حسب الخطورة مع إعادة فحص بعد الإصلاح.</p>
+        </a>
+        <a class="st-tile" href="/profile/" style="text-decoration:none" data-reveal>
+          <span class="st-chip">من نحن</span>
+          <h3>بروفايل Apipeline</h3>
+          <p>من نحن، وش نقدّم، وكيف نشتغل. وتقدر تحفظه PDF من المتصفح.</p>
+        </a>
+      </div>
+    </div>
+  </section>
+
+  <section class="st-sec" style="padding-top:0">
+    <div class="st-wrap">
+      <header class="st-head" data-reveal><span class="kick">أسئلة</span><h2>قبل ما تبدأ</h2></header>
+      <div class="st-faq">
+        {FAQ.map(([q, a]) => <details data-reveal><summary>{q}</summary><p>{a}</p></details>)}
+      </div>
+    </div>
+  </section>
+
+  <RequestForm kind="board" title="اربط حساباتك وخل الأرقام تتكلم" lead="اكتب لنا وش عندك من منصات وإنفاق، ونجهّز لك تجربة على أرقامك. كل ربط بتسجيل دخول المنصة نفسها، بدون ملفات تصدير وبدون لصق مفاتيح." />
 </main>
 
-<footer class="lp-foot">
-  <div class="lp-wrap">
-    <span class="mark">Apipeline<i>.</i></span>
-    <span>© Apipeline</span>
-  </div>
-</footer>
+<SiteFooter />
 
 <script is:inline type="module" src="/assets/welcome.js"></script>
+<script>import '../../lib/scroll-story'; import '../../lib/request-form';</script>
 </body>
 </html>

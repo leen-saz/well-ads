@@ -1,0 +1,76 @@
+---
+// The request form on the public pages. Posts to /api/site/request (src/api/routes/site.ts) via src/lib/request-form.ts;
+// without JS it does nothing harmful (no action, the WhatsApp link stays). One per page, anchored at #request.
+import { CONTACT, wa } from '../../lib/public-site';
+interface Props { kind: 'board' | 'leakmap' | 'security'; title: string; lead: string }
+const { kind, title, lead } = Astro.props;
+const KINDS = [['board', 'تجربة لوحة Apipeline'], ['leakmap', 'خريطة التسرب (تشخيص الإعلانات)'], ['security', 'فحص أمني'], ['other', 'استفسار ثاني']];
+const SCOPES = [['code', 'الكود'], ['web', 'الموقع والـ API'], ['mobile', 'تطبيق الجوال'], ['cloud', 'السحابة والإعدادات']];
+---
+<section class="st-sec st-req" id="request">
+  <div class="st-wrap st-req-in">
+    <div class="st-req-intro" data-reveal>
+      <span class="kick">اطلب</span>
+      <h2>{title}</h2>
+      <p>{lead}</p>
+      <ul class="st-req-points">
+        <li>نرد عليك خلال يوم عمل</li>
+        <li>بياناتك تُستخدم للرد على طلبك بس</li>
+        <li>تقدر تطلب حذفها متى ما بغيت</li>
+      </ul>
+      {CONTACT.whatsapp && <p class="st-note">تفضّل الواتساب؟ <a href={wa('السلام عليكم، أبي أعرف أكثر عن Apipeline')} rel="noopener" target="_blank">راسلنا مباشرة</a></p>}
+    </div>
+
+    <form class="st-tile st-form" data-request-form novalidate data-reveal>
+      <div class="st-fields">
+        <div class="fld">
+          <label for="rq-kind">وش تحتاج؟</label>
+          <select id="rq-kind" name="kind">
+            {KINDS.map(([v, t]) => <option value={v} selected={v === kind}>{t}</option>)}
+          </select>
+        </div>
+        <fieldset class="fld st-scope" data-scope hidden={kind !== 'security'}>
+          <legend>وش نفحص؟</legend>
+          <div class="checks">
+            {SCOPES.map(([v, t]) => <label><input type="checkbox" name="scope" value={v}>{t}</label>)}
+          </div>
+        </fieldset>
+        <div class="fld">
+          <label for="rq-name">الاسم</label>
+          <input id="rq-name" name="name" type="text" autocomplete="name" maxlength="80" required>
+          <small class="st-err" data-err="name"></small>
+        </div>
+        <div class="fld">
+          <label for="rq-company">الشركة <span class="muted">(اختياري)</span></label>
+          <input id="rq-company" name="company" type="text" autocomplete="organization" maxlength="120">
+        </div>
+        <div class="fld">
+          <label for="rq-phone">رقم الجوال</label>
+          <input id="rq-phone" name="phone" class="field" type="tel" inputmode="tel" autocomplete="tel" placeholder="05XXXXXXXX" dir="ltr" maxlength="20" required>
+          <small class="st-err" data-err="phone"></small>
+        </div>
+        <div class="fld">
+          <label for="rq-email">الإيميل <span class="muted">(اختياري)</span></label>
+          <input id="rq-email" name="email" type="email" autocomplete="email" dir="ltr" maxlength="254">
+          <small class="st-err" data-err="email"></small>
+        </div>
+        <div class="fld st-wide">
+          <label for="rq-message">وش ودك نعرف؟ <span class="muted">(اختياري)</span></label>
+          <textarea id="rq-message" name="message" maxlength="1500" rows="3" placeholder="مثلًا: نصرف على Meta وSnapchat والليدز كثيرة بس المبيعات ما تتحرك"></textarea>
+        </div>
+        <!-- People never see this field; scripts that fill every box do -->
+        <div class="st-hp" aria-hidden="true"><label for="rq-website">Website</label><input id="rq-website" name="website" type="text" tabindex="-1" autocomplete="off"></div>
+        <label class="st-consent st-wide"><input type="checkbox" name="consent" required><span>أوافق إن Apipeline تستخدم بياناتي للتواصل معي بخصوص هذا الطلب فقط.</span></label>
+        <small class="st-err st-wide" data-err="consent"></small>
+      </div>
+      <div class="st-form-bar">
+        <button class="btn primary" type="submit">أرسل الطلب</button>
+        <p class="st-form-msg" role="status" aria-live="polite" data-msg></p>
+      </div>
+      <div class="st-done" data-done hidden>
+        <b>وصلنا طلبك ✓</b>
+        <p>بنتواصل معك على الرقم اللي كتبته خلال يوم عمل.</p>
+      </div>
+    </form>
+  </div>
+</section>

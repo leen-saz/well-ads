@@ -7,7 +7,7 @@ import { LIVE } from '../modules/registry';
 export type Pass = { pass: true; rewrite?: string };
 export type Decision = Pass | Response;
 
-const PUBLIC = [/^\/login\/?$/, /^\/reset\/?$/, /^\/welcome\/?$/, /^\/api\/auth\//, /^\/api\/health\/?$/, /^\/api\/connectors\/callback\/?$/,
+const PUBLIC = [/^\/login\/?$/, /^\/reset\/?$/, /^\/welcome\/?$/, /^\/security\/?$/, /^\/profile\/?$/, /^\/api\/auth\//, /^\/api\/health\/?$/, /^\/api\/site\/request\/?$/, /^\/api\/connectors\/callback\/?$/,
   // Listening sources check: open on staging only, the owner elsewhere (src/modules/listening/probe.ts)
   /^\/api\/listening\/probe\/?$/,
   /^\/assets\//, /^\/_astro\//, /^\/m\/[0-9a-f-]{36}\/[0-9a-f]{32}\.(jpg|png|webp|mp4|mov)$/i, /^\/robots\.txt$/, /^\/favicon/];
@@ -49,6 +49,8 @@ export function need(pathname: string, search: string): Need | null {
   if (/^\/(api\/)?account(\/|$)/.test(pathname)) return 'any';
   // Web Vitals reports: every signed-in user sends them, not only those with analytics
   if (/^\/api\/vitals\//.test(pathname)) return 'any';
+  // Website requests (the Apipeline request form): sending is public (PUBLIC above), reading them is the owner's
+  if (/^\/api\/site\//.test(pathname)) return 'owner';
   if (/^\/settings\/?$/.test(pathname)) return 'any';
   if (/^\/soon\/?$/.test(pathname)) return 'any';
   if (/^\/creative\/?$/.test(pathname)) return 'creative';
