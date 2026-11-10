@@ -46,9 +46,17 @@ app.use(async (c, next) => {
   if (d.rewrite) {
     const req = new Request(d.rewrite, c.req.raw);
     REWRITTEN.add(req);
-    return app.fetch(req, c.env, c.executionCtx);
+    const res = await app.fetch(req, c.env, c.executionCtx);
+    if (!d.cookie) return res;
+    const h = new Headers(res.headers); h.append('set-cookie', d.cookie);
+    return new Response(res.body, { status: res.status, statusText: res.statusText, headers: h });
   }
-  return next();
+  await next();
+  if (d.cookie) {
+    const h = new Headers(c.res.headers); h.append('set-cookie', d.cookie);
+    c.res = new Response(c.res.body, { status: c.res.status, statusText: c.res.statusText, headers: h });
+  }
+  return;
 });
 app.route('/', api);
 // Dashboards built by the pipeline, from R2 (phase 4.1)

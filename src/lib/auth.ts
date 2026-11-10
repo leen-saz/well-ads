@@ -216,6 +216,19 @@ export async function loadProfile(cfg: Cfg, uid: string): Promise<Profile | null
   return plain.ok && Array.isArray(plain.data) ? plain.data[0] || null : null;
 }
 
+// Re-reads the user's permissions and issues the renewed cookie (renewing never extends the session). Shared by
+// /api/auth/refresh and the page gate, which renews in place instead of redirecting there and back.
+export type Renewed = { kind: 'ok'; session: Session; cookie: string } | { kind: 'login' } | { kind: 'expired' };
+export async function renew(cfg: Cfg, s: Session): Promise<Renewed> {
+  const profile = await loadProfile(cfg, s.uid);
+  if (!profile || profile.active === false) return { kind: 'login' };
+  const fresh = sessionFor(profile, cfg);
+  fresh.exp = s.exp;
+  const left = Math.max(0, Math.floor((s.exp - Date.now()) / 1000));
+  if (!left) return { kind: 'expired' };
+  return { kind: 'ok', session: fresh, cookie: setCookie(await sign(fresh, cfg.secret), left) };
+}
+
 // What a visitor typed in the email box, for the audit log: only something shaped like an email and of sane length.
 // People type passwords there, and anyone without a session can write these rows, so nothing else is stored.
 export const auditEmail = (v: unknown): string | null => { const s = String(v ?? '').trim().toLowerCase(); return s.length <= 254 && /^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(s) ? s : null; };

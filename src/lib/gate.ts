@@ -1,10 +1,10 @@
 // Port of well-ads-dashboard web/middleware.js: nothing opens without login, and each user sees
 // only the dashboards Leen picked. Returns a Response (redirect / refusal) or a pass decision.
-import { env, verify, readCookie, SESSION, can, home, html, json, type AuthEnv, type Cfg, type Need, locked, LOCKED, WELL_ONLY } from './auth';
+import { env, verify, renew, clearCookie, readCookie, SESSION, can, home, html, json, type AuthEnv, type Cfg, type Need, locked, LOCKED, WELL_ONLY } from './auth';
 import { WELL_COMPANY } from './tenant';
 import { LIVE, MODULES } from '../modules/registry';
 
-export type Pass = { pass: true; rewrite?: string };
+export type Pass = { pass: true; rewrite?: string; cookie?: string };
 export type Decision = Pass | Response;
 
 const PUBLIC = [/^\/login\/?$/, /^\/reset\/?$/, /^\/welcome\/?$/, /^\/api\/auth\//, /^\/api\/health\/?$/, /^\/api\/connectors\/callback\/?$/,
@@ -68,7 +68,17 @@ export function need(pathname: string, search: string): Need | null {
 
 const redirect = (to: string) => new Response(null, { status: 302, headers: { location: to, 'cache-control': 'no-store' } });
 
+// A page opened after the 10-minute recheck renews the session right here (one profile read) and sets the new cookie
+// on its own answer. It used to redirect to /api/auth/refresh and back: two more round trips for the browser.
 export async function gate(request: Request, e: AuthEnv): Promise<Decision> {
+  const renewed: { cookie?: string } = {};
+  const d = await decide(request, e, renewed);
+  if (!renewed.cookie) return d;
+  if (d instanceof Response) { const h = new Headers(d.headers); h.append('set-cookie', renewed.cookie); return new Response(d.body, { status: d.status, statusText: d.statusText, headers: h }); }
+  return { ...d, cookie: renewed.cookie };
+}
+
+async function decide(request: Request, e: AuthEnv, renewed: { cookie?: string }): Promise<Decision> {
   const url = new URL(request.url);
   const want = need(url.pathname, url.search);
   if (!want) return { pass: true };
@@ -77,7 +87,7 @@ export async function gate(request: Request, e: AuthEnv): Promise<Decision> {
   try { cfg = env(e); } catch {
     return api ? json(503, { error: 'الإعداد غير مكتمل' }) : html(503, 'الإعداد غير مكتمل. تواصل مع مسؤولة اللوحة.');
   }
-  const s = await verify(readCookie(request, SESSION), cfg.secret);
+  let s = await verify(readCookie(request, SESSION), cfg.secret);
   const back = url.pathname + url.search;
   if (!s) {
     if (api) return json(401, { error: 'سجّل الدخول' });
@@ -87,9 +97,12 @@ export async function gate(request: Request, e: AuthEnv): Promise<Decision> {
   }
   // The API re-reads permissions from the DB itself. Pages re-check every 10 minutes.
   if (s.stale && !api) {
-    const r = new URL('/api/auth/refresh', url.origin);
-    r.searchParams.set('next', back);
-    return redirect(r.toString());
+    let r: Awaited<ReturnType<typeof renew>> | null = null;
+    try { r = await renew(cfg, s); } catch { /* Supabase unreachable: take the old way, which answers with its own error */ }
+    if (!r) return redirect(new URL('/api/auth/refresh?next=' + encodeURIComponent(back), url.origin).toString());
+    if (r.kind === 'login') return new Response(null, { status: 302, headers: { location: new URL('/login/', url.origin).toString(), 'set-cookie': clearCookie(), 'cache-control': 'no-store' } });
+    if (r.kind === 'expired') return html(401, 'انتهت الجلسة.');
+    s = r.session; renewed.cookie = r.cookie;
   }
   const alias = ALIAS[url.pathname.replace(/\/$/, '')];
   if (alias) {

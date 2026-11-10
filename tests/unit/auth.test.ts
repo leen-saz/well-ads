@@ -131,7 +131,36 @@ describe('auth', () => {
     expect(passed(await M(req('/today/', c)))).toBe(true);
   });
 
-  it('gate: stale session re-checks permissions', async () => {
+  it('gate: stale session re-checks permissions in place, one profile read, no redirect', async () => {
+    let calls = 0;
+    vi.stubGlobal('fetch', async () => { calls++; return new Response(JSON.stringify([{ ...member, dashboards: ['creative', 'ceo'] }]), { status: 200 }); });
+    const stale = await cookieFor(member, Date.now() - 11 * 60e3);
+    const d = await M(req('/?view=creative', stale));
+    expect(calls).toBe(1);
+    expect(d instanceof Response).toBe(false);
+    const ck = (d as { cookie?: string }).cookie ?? '';
+    expect(ck).toContain(A.SESSION + '=');
+    // The renewed cookie carries the fresh permissions and is no longer stale
+    const fresh = await A.verify(decodeURIComponent(ck.split(';')[0]!.slice(A.SESSION.length + 1)), cfg.secret);
+    expect(fresh?.stale).toBe(false);
+    expect(fresh?.dash).toContain('ceo');
+    // Permissions come from the fresh read: a dashboard taken away is refused on this very request
+    vi.stubGlobal('fetch', async () => new Response(JSON.stringify([{ ...member, dashboards: ['creative'] }]), { status: 200 }));
+    const r = await M(req('/control/', stale));
+    expect(r instanceof Response && r.status).toBe(302);
+    expect((r as Response).headers.get('set-cookie')).toContain(A.SESSION + '=');
+  });
+
+  it('gate: stale session of a disabled account goes to login and loses its cookie', async () => {
+    vi.stubGlobal('fetch', async () => new Response(JSON.stringify([{ ...member, active: false }]), { status: 200 }));
+    const r = await M(req('/control/', await cookieFor(member, Date.now() - 11 * 60e3)));
+    expect(status(r)).toBe(302);
+    expect(new URL(location(r)).pathname).toBe('/login/');
+    expect((r as Response).headers.get('set-cookie')).toContain('Max-Age=0');
+  });
+
+  it('gate: stale session with Supabase unreachable falls back to /api/auth/refresh', async () => {
+    vi.stubGlobal('fetch', async () => { throw new Error('down'); });
     const r = await M(req('/?view=creative', await cookieFor(member, Date.now() - 11 * 60e3)));
     expect(status(r)).toBe(302);
     expect(location(r)).toMatch(/\/api\/auth\/refresh\?next=/);
