@@ -3,7 +3,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import * as A from '../../src/lib/auth';
 import { generate, stream, type LlmEnv, type StreamEvent } from '../../src/lib/llm';
-import { cost, monthStart, record, clearSnaps, levelOf, reconcile, withWaiter, USD_SAR, type UsageCtx } from '../../src/lib/usage';
+import { DEFAULT_CAP_USD, cost, monthStart, record, clearSnaps, levelOf, reconcile, withWaiter, USD_SAR, type UsageCtx } from '../../src/lib/usage';
 import { priceOf } from '../../src/lib/prices';
 import { ROUTES } from '../../src/modules/routes';
 
@@ -114,7 +114,7 @@ describe('recording', () => {
     });
   });
   it('never breaks the call: a failing insert or a thrown error is swallowed, and nothing is recorded without a context', async () => {
-    vi.stubGlobal('fetch', vi.fn(async (url: string) => { if (url.includes('api.openai.com')) return new Response(JSON.stringify({ output_text: 'ok' })); throw new Error('db down'); }));
+    vi.stubGlobal('fetch', vi.fn(async (url: string) => { if (url.includes('api.openai.com')) return new Response(JSON.stringify({ output_text: 'ok' })); if (url.includes('/ai_usage')) throw new Error('db down'); return new Response('[]'); }));
     expect((await settle(() => generate(withKey, 'copy', IN, undefined, ctx()))) as { response: string }).toMatchObject({ response: 'ok' });
     vi.stubGlobal('fetch', vi.fn(async (url: string) => { calls.push({ url, method: 'x', body: null }); return new Response(JSON.stringify({ output_text: 'ok' })); }));
     calls = []; await generate(withKey, 'copy', IN);
@@ -143,15 +143,24 @@ describe('monthly cap', () => {
   });
   it('another tab with its own spend, or a cap on another tab, does not switch this one', async () => {
     caps = [{ module: 'social', monthly_cap_usd: 1, alert_at_pct: 80 }];
-    spend = [{ module: 'social', cost_usd: 5 }, { module: 'copy', cost_usd: 5 }];
+    spend = [{ module: 'social', cost_usd: 5 }, { module: 'copy', cost_usd: 4 }];   // 4 is under the default cap
     const out = await settle(() => generate({ ...withKey, AI: workersAi() }, 'copy', IN, undefined, ctx())) as { engine: string };
     expect(out.engine).toBe('openai');
   });
-  it('empty means no cap: a row with a null cap never switches, and no row means no limit', async () => {
+  it('empty means no limit only when the owner saved it: a row with a null cap never switches', async () => {
     caps = [{ module: 'copy', monthly_cap_usd: null, alert_at_pct: 80 }];
     spend = [{ module: 'copy', cost_usd: 1e6 }];
     expect(((await settle(() => generate({ ...withKey, AI: workersAi() }, 'copy', IN, undefined, ctx()))) as { engine: string }).engine).toBe('openai');
     expect(levelOf(1e6, undefined)).toBe('ok');
+  });
+  it('no row at all is NOT unlimited: the default cap applies until the owner sets one', async () => {
+    spend = [{ module: 'copy', cost_usd: DEFAULT_CAP_USD - 0.01 }];
+    expect(((await settle(() => generate({ ...withKey, AI: workersAi() }, 'copy', IN, undefined, ctx()))) as { engine: string }).engine).toBe('openai');
+    clearSnaps(); spend = [{ module: 'copy', cost_usd: DEFAULT_CAP_USD }];
+    expect(((await settle(() => generate({ ...withKey, AI: workersAi() }, 'copy', IN, undefined, ctx()))) as { engine: string }).engine).toBe('workers');
+    // and the owner raises it with a row
+    clearSnaps(); caps = [{ module: 'copy', monthly_cap_usd: DEFAULT_CAP_USD * 10, alert_at_pct: 80 }];
+    expect(((await settle(() => generate({ ...withKey, AI: workersAi() }, 'copy', IN, undefined, ctx()))) as { engine: string }).engine).toBe('openai');
   });
   it('without Workers AI a spent tab stops (cap_reached) instead of spending more; streaming says the same', async () => {
     caps = [{ module: 'copy', monthly_cap_usd: 1, alert_at_pct: 80 }]; spend = [{ module: 'copy', cost_usd: 2 }];
@@ -167,9 +176,12 @@ describe('monthly cap', () => {
     await settle(() => generate(withKey, 'copy', IN, undefined, ctx(CO_B)));   // another company reads its own
     expect(calls.filter(c => c.url.includes('/rpc/ai_spend')).length).toBe(2);
   });
-  it('a missing table or a failed read means no cap is enforced, and the call still works', async () => {
+  it('a missing table or a failed read fails closed: the paid provider is not called (Workers AI answers, or it stops)', async () => {
     vi.stubGlobal('fetch', vi.fn(async (url: string) => url.includes('api.openai.com') ? new Response(JSON.stringify({ output_text: 'ok' })) : new Response(JSON.stringify({ code: '42P01' }), { status: 404 })));
-    expect(((await settle(() => generate({ ...withKey, AI: workersAi() }, 'copy', IN, undefined, ctx()))) as { engine: string }).engine).toBe('openai');
+    expect(((await settle(() => generate({ ...withKey, AI: workersAi() }, 'copy', IN, undefined, ctx()))) as { engine: string }).engine).toBe('workers');
+    clearSnaps();
+    vi.stubGlobal('fetch', vi.fn(async (url: string) => { if (url.includes('api.openai.com')) return new Response(JSON.stringify({ output_text: 'ok' })); throw new Error('db down'); }));
+    await expect(generate(withKey, 'copy', IN, undefined, ctx())).rejects.toThrow('cap_reached');
   });
   it('alert level: ok below the alert, alert from 80%, capped from 100%', () => {
     const cap = { usd: 10, pct: 80 };
@@ -229,7 +241,7 @@ describe('owner-only routes', () => {
     expect(j.rate).toBe(3.75);
     expect(j.total).toEqual({ usd: 3, sar: 11.25 });
     expect(j.tabs.find(t => t.tab === 'copy')).toMatchObject({ usd: 2, sar: 7.5, cap_sar: 9.38, level: 'alert' });
-    expect(j.tabs.find(t => t.tab === 'social')).toMatchObject({ usd: 1, cap_sar: null, level: 'ok' });
+    expect(j.tabs.find(t => t.tab === 'social')).toMatchObject({ usd: 1, cap_sar: 18.75, level: 'ok' });   // no row: the default cap, shown so the owner can raise it
     expect(calls.find(c => c.url.includes('/rpc/ai_spend'))!.body).toMatchObject({ p_company: CO_B });
     expect(calls.find(c => c.url.includes('/ai_budgets'))!.url).toContain(`company_id=eq.${CO_B}`);
   });

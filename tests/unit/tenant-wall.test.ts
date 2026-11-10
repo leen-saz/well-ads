@@ -72,7 +72,7 @@ describe("handlers refuse another company's users themselves (the gate is not th
     const env = { ...E, META_APP_ID: 'app', META_APP_SECRET: 'sec' };
     async function callback(co: string) {
       const p = profile(co);
-      const state = await A.sign({ uid: p.id, p: 'meta', n: 'n1', exp: Date.now() + 60_000 }, cfg.secret);
+      const state = await A.sign({ uid: p.id, p: 'meta', n: 'n1', exp: Date.now() + 60_000 }, cfg.secret, 'oauth');
       const calls: string[] = [];
       vi.stubGlobal('fetch', vi.fn(async (url: string) => { calls.push(String(url)); return new Response(JSON.stringify(String(url).includes('/profiles?id=eq.') ? [p] : { error: 'x' }), { status: String(url).includes('/profiles?id=eq.') ? 200 : 400 }); }));
       const res = await api.request(`https://x.test/api/connectors/callback?state=${encodeURIComponent(state)}&code=c`, { headers: { cookie: '__Secure-well_oauth=n1' } }, env);

@@ -3,6 +3,7 @@
 // The organic analysis itself runs in the browser (public/modules/listening/analyze.js). Read-only.
 import { sb, json, handle, requireUser } from '../../lib/auth';
 import { scoped } from '../../lib/tenant';
+import { usageCtx } from '../../lib/usage';
 import { readAll } from '../../lib/paging';
 import { weekly, type Lead } from './listening';
 import { readJson } from '../../lib/auth';
@@ -86,7 +87,7 @@ export const refresh = { POST: handle(async (request, e: ListenEnv) => {
   let added = 0, scored = 0;
   const report: Record<string, Record<string, number | string>> = {};
   for (const w of list) {
-    const got = await collect(w, e);
+    const got = await collect(w, e, fetch, usageCtx(cfg, user));
     const s = await store(cfg, user.co, w, got.found, e);
     added += s.added; scored += s.scored; report[w.name] = got.bySource;
   }

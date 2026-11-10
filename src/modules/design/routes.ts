@@ -5,7 +5,7 @@ import { scoped } from '../../lib/tenant';
 import { readAll } from '../../lib/paging';
 import { type AiRun } from '../content/content';
 import { generate, openaiImage, pick, type LlmEnv } from '../../lib/llm';
-import { usageCtx } from '../../lib/usage';
+import { overCap, usageCtx } from '../../lib/usage';
 import { knowledgeFor, withKnowledge } from '../knowledge/knowledge';
 import { brandFor, serveFile } from '../knowledge/brand';
 import { SIZES, TYPES, VISION_MODEL, VISION_PROMPT, backgroundPrompt, images, productPhoto, variantsFrom, prompt, stylePrompt, templates, winners, type AdIn, type MetIn } from './design';
@@ -54,7 +54,10 @@ export const brief = { POST: handle(async (request, e: AiEnv & Parameters<typeof
   // ChatGPT draws the picture (OpenAI Images, PAID per image) while the text is written: the product photo put in a
   // new scene when one is given, else a new background
   const hd = productPhoto(b.product);
-  const drawing = e.OPENAI_API_KEY ? openaiImage(e, backgroundPrompt(input, brand.colors, style, !!hd), fetch, hd ?? undefined) : Promise.resolve(null);
+  // under the Design tab's monthly cap (src/lib/usage.ts): a spent cap skips the paid picture and says so in plain words
+  const ctx = usageCtx(cfg, user);
+  const capped = !!(e.OPENAI_API_KEY && ctx && await overCap(ctx, 'design'));
+  const drawing = e.OPENAI_API_KEY && !capped ? openaiImage(e, backgroundPrompt(input, brand.colors, style, !!hd), fetch, hd ?? undefined, ctx) : Promise.resolve(null);
   if (pick(e, 'design')) {
     try {
       const out = await generate(e, 'design', { messages: withKnowledge([{ role: 'user', content: prompt(input, ref.hooks, looks) }], await knowledgeFor(cfg, user.co, 'design')), max_tokens: 700 }, fetch, usageCtx(cfg, user));
@@ -64,7 +67,7 @@ export const brief = { POST: handle(async (request, e: AiEnv & Parameters<typeof
     } catch { /* templates stay */ }
   }
   const image = await drawing;
-  return json(200, { input, reference: ref, variants, engine, sizes: SIZES, style, image, images: { product: looks.product.length, refs: looks.refs.length, sent: pics.length } });
+  return json(200, { input, reference: ref, variants, engine, sizes: SIZES, style, image, ...(capped ? { notice: 'وصل الصرف الشهري لهالتاب، فما انرسمت صورة. النصوص جاهزة، وبلّغ الإدارة إذا تبي ترفع السقف.' } : {}), images: { product: looks.product.length, refs: looks.refs.length, sent: pics.length } });
 }) };
 
 // «موشن جرافيك»: the video projects of this tab (src/modules/design/video.ts)
