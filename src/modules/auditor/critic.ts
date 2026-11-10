@@ -6,8 +6,9 @@
 import Anthropic from '@anthropic-ai/sdk';
 import type { Claim, Finding } from './contract';
 import { record, type UsageCtx } from '../../lib/usage';
+import { generate, viaOpenRouter, withoutFallback, type LlmEnv } from '../../lib/llm';
 
-export interface CriticEnv { ANTHROPIC_API_KEY?: string; ANTHROPIC_MODEL?: string }
+export interface CriticEnv extends LlmEnv { ANTHROPIC_API_KEY?: string; ANTHROPIC_MODEL?: string }
 export const CRITIC_MODEL = 'claude-sonnet-5-5';
 export const CRITERIA = ['evidence', 'alternatives', 'attribution', 'actionable'] as const;
 export type Criterion = (typeof CRITERIA)[number];
@@ -42,16 +43,27 @@ export function criticPrompt(c: Claim, fs: Finding[]): string {
 }
 
 export async function critique(e: CriticEnv, c: Claim, fs: Finding[], f?: typeof fetch, ctx?: UsageCtx): Promise<Critique> {
-  if (!e.ANTHROPIC_API_KEY) throw new Error('no_key');
-  const client = new Anthropic({ apiKey: e.ANTHROPIC_API_KEY, maxRetries: 1, ...(f ? { fetch: f } : {}) });
-  const model = (e.ANTHROPIC_MODEL || '').replace(/[^a-z0-9.\-_]/gi, '') || CRITIC_MODEL;
-  const r = await client.beta.messages.create({
-    model, max_tokens: 1500, betas: ['server-side-fallback-2026-07-01'], fallbacks: 'default', output_config: { effort: 'medium' }, system: SYSTEM,
-    messages: [{ role: 'user', content: criticPrompt(c, fs) }],
-  });
-  record(ctx, 'overview', { provider: 'anthropic', model: r.model, usage: { in: r.usage?.input_tokens ?? 0, out: r.usage?.output_tokens ?? 0 } });
-  if (r.stop_reason === 'refusal') throw new Error('refused');
-  const text = r.content.flatMap(b => (b.type === 'text' ? [b.text] : [])).join('');
+  // Routed to OpenRouter by the owner (src/lib/ai-routes.ts)? Try it first; on a failure Claude answers when its key is there.
+  let text = '', used = '';
+  if (ctx && await viaOpenRouter(e, 'overview', ctx)) {
+    try {
+      const o = await generate(withoutFallback(e), 'overview', { messages: [{ role: 'system', content: SYSTEM }, { role: 'user', content: criticPrompt(c, fs) }], max_tokens: 1500 }, f ?? fetch, ctx);
+      text = o.response; used = o.model;
+    } catch (err) { console.warn('critic_openrouter_failed', (err as Error).message); if (!e.ANTHROPIC_API_KEY) throw err; }
+  }
+  if (!used) {
+    if (!e.ANTHROPIC_API_KEY) throw new Error('no_key');
+    const client = new Anthropic({ apiKey: e.ANTHROPIC_API_KEY, maxRetries: 1, ...(f ? { fetch: f } : {}) });
+    const model = (e.ANTHROPIC_MODEL || '').replace(/[^a-z0-9.\-_]/gi, '') || CRITIC_MODEL;
+    const r = await client.beta.messages.create({
+      model, max_tokens: 1500, betas: ['server-side-fallback-2026-07-01'], fallbacks: 'default', output_config: { effort: 'medium' }, system: SYSTEM,
+      messages: [{ role: 'user', content: criticPrompt(c, fs) }],
+    });
+    record(ctx, 'overview', { provider: 'anthropic', model: r.model, usage: { in: r.usage?.input_tokens ?? 0, out: r.usage?.output_tokens ?? 0 } });
+    if (r.stop_reason === 'refusal') throw new Error('refused');
+    text = r.content.flatMap(b => (b.type === 'text' ? [b.text] : [])).join('');
+    used = r.model;
+  }
   const m = text.match(/\{[\s\S]*\}/);
   if (!m) throw new Error('empty');
   let j: { scores?: { criterion?: string; reason?: string; score?: number }[]; summary?: string };
@@ -60,5 +72,5 @@ export async function critique(e: CriticEnv, c: Claim, fs: Finding[], f?: typeof
     const s = j.scores?.find(x => x.criterion === k);
     return { criterion: k, reason: String(s?.reason ?? '').slice(0, 400), score: Math.max(1, Math.min(5, Math.round(Number(s?.score) || 3))) };
   });
-  return { draft: true, model: r.model, scores, overall: Math.round((10 * scores.reduce((a, s) => a + s.score, 0)) / scores.length) / 10, summary: String(j.summary ?? '').slice(0, 300) };
+  return { draft: true, model: used, scores, overall: Math.round((10 * scores.reduce((a, s) => a + s.score, 0)) / scores.length) / 10, summary: String(j.summary ?? '').slice(0, 300) };
 }

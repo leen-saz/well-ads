@@ -13,6 +13,8 @@ Recording is best effort: it runs after the answer (`waitUntil` through `withWai
 
 Gemini (audio, video, images, speech: `src/lib/gemini.ts`, through the same adapter) is recorded the same way as provider `gemini`, with audio and video input at the audio rate. It has no free fallback, so a tab that reaches its cap stops with a plain message instead of moving to Workers AI.
 
+OpenRouter calls are recorded as provider `openrouter` with the **cost OpenRouter returned** (`usage.cost`, asked for with `usage: { include: true }`), not from the price table; a call that comes back without a cost is recorded as «بدون سعر». The same monthly caps apply (see `docs/ai-providers.md`).
+
 Not recorded yet: the Debugger's Claude calls (own SDK, `src/modules/debugger/explain.ts`), Grok live search (`grokSearch`, per-search fees), and images (`openaiImage`). Callers without a user, such as cron jobs, are recorded with a null user (Listening passes its company).
 
 ## Prices

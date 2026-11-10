@@ -92,7 +92,7 @@ import { ClientRouter } from 'astro:transitions';
         <div id="spendBody"></div>
         <details style="margin-top:14px"><summary>طابق الصرف مع الفاتورة</summary>
           <form id="recForm" novalidate class="sp-rec">
-            <div><label for="recProv">الفاتورة</label><select id="recProv"><option value="openai">مزوّد الكتابة والتصميم</option><option value="xai">مزوّد السوشال والرصد والمدير</option><option value="gemini">مزوّد التفريغ والصوت والصور</option></select></div>
+            <div><label for="recProv">الفاتورة</label><select id="recProv"><option value="openai">مزوّد الكتابة والتصميم</option><option value="xai">مزوّد السوشال والرصد والمدير</option><option value="gemini">مزوّد التفريغ والصوت والصور</option><option value="openrouter">OpenRouter</option></select></div>
             <div><label for="recMonth">الشهر</label><select id="recMonth"></select></div>
             <div><label for="recUsd">مبلغ الفاتورة بالدولار</label><input type="number" id="recUsd" inputmode="decimal" min="0" step="0.01" dir="ltr"></div>
             <div class="bar" style="align-self:end"><button class="btn secondary" type="submit">قارن</button></div>
@@ -100,6 +100,13 @@ import { ClientRouter } from 'astro:transitions';
           <div id="recOut" role="status"></div>
         </details>
         <div class="msg" id="spendMsg" role="status"></div>
+      </section>
+      <section class="card pad" id="models" hidden aria-labelledby="modelsH">
+        <h2 id="modelsH" style="margin:0 0 4px">موديلات الذكاء الاصطناعي لكل مهمة</h2>
+        <p class="so-note">كل مهمة تشتغل على مزوّدها الحالي لين تختار غيره هنا. للمالكة بس. لو المزوّد غير مفعّل ترجع المهمة لمزوّدها الحالي.</p>
+        <div id="modelsProv" class="bar" style="flex-wrap:wrap;gap:8px"></div>
+        <div id="modelsBody"></div>
+        <div class="msg" id="modelsMsg" role="status"></div>
       </section>
       <div id="setup"></div>
       <div id="board" hidden>

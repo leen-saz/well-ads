@@ -244,5 +244,30 @@ export default async function mount() {
     busy(b, false);
   });
 
-  shell({ active: 'maestro', title: 'المدير', tools: '' }).then(me => { if (me.role === 'owner') { $('#healthLink')?.removeAttribute('hidden'); $('#auditLink')?.removeAttribute('hidden'); } mountSpend(); return load(); }).catch(pageFailure);
+  // ---- which provider and model each AI task runs on (owner only, like the spend above)
+  const PNAME = { openai: 'OpenAI', xai: 'Grok', openrouter: 'OpenRouter', workers: 'المجاني', anthropic: 'Claude' };   // the free one is Cloudflare's Workers AI
+  async function mountModels() {
+    let d;
+    try { d = await api('/api/maestro/models'); }
+    catch (err) { if (/الجدول ناقص/.test(err.message)) { $('#models').hidden = false; $('#modelsBody').innerHTML = `<p class="muted">${esc(err.message)}</p>`; } return; }
+    $('#models').hidden = false;
+    $('#modelsProv').innerHTML = d.providers.map(p => `<span class="sp-flag${p.on ? '' : ' bad'}"><span>${esc(PNAME[p.key] || p.ar)}</span> <span>${p.on ? 'مفعّل' : 'غير مفعّل'}</span></span>`).join('');
+    const opt = (v, label, on = true, sel = '') => `<option value="${esc(v)}"${sel === v ? ' selected' : ''}${on ? '' : ' disabled'}>${esc(label)}</option>`;
+    $('#modelsBody').innerHTML = `<div class="sp-tab sp-hd"><span>المهمة</span><span>المزوّد</span><span>الموديل</span><span>يشتغل الحين</span><span></span></div>` + d.tasks.map(t => `<form class="sp-tab" data-task="${esc(t.task)}" novalidate>
+      <b>${esc(t.ar)}</b>
+      <select name="provider" aria-label="مزوّد ${esc(t.ar)}">${opt('', 'الحالي (بدون تغيير)', true, t.route?.provider || '')}${d.providers.map(p => opt(p.key, PNAME[p.key] || p.ar, p.on, t.route?.provider || '')).join('')}</select>
+      <input type="text" name="model" dir="ltr" autocomplete="off" data-user-text aria-label="موديل ${esc(t.ar)}" value="${esc(t.route?.model || '')}">
+      <span class="muted"><span>${t.using ? esc(PNAME[t.using] || '') : 'غير متصل'}</span>${t.model ? ` <span dir="ltr" data-user-text>${esc(t.model)}</span>` : ''}</span>
+      <button class="btn sm secondary" type="submit">احفظ</button></form>`).join('');
+  }
+  $('#modelsBody').addEventListener('submit', async e => {
+    e.preventDefault();
+    const f = e.target.closest('[data-task]'); if (!f) return;
+    const b = e.submitter; busy(b, true);
+    try { await api('/api/maestro/models', { method: 'POST', body: { task: f.dataset.task, provider: f.elements.provider.value, model: f.elements.model.value } }); say($('#modelsMsg'), f.elements.provider.value ? 'انحفظ الاختيار' : 'رجعت المهمة لمزوّدها الحالي', true); await mountModels(); }
+    catch (err) { say($('#modelsMsg'), err.message); }
+    busy(b, false);
+  });
+
+  shell({ active: 'maestro', title: 'المدير', tools: '' }).then(me => { if (me.role === 'owner') { $('#healthLink')?.removeAttribute('hidden'); $('#auditLink')?.removeAttribute('hidden'); mountModels(); } mountSpend(); return load(); }).catch(pageFailure);
 }

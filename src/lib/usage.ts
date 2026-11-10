@@ -69,12 +69,13 @@ export async function overCap(ctx: UsageCtx, module: string): Promise<boolean> {
   return !!c && c.usd > 0 && (s.spent.get(tabOf(module, ctx)) || 0) >= c.usd;
 }
 
-export interface Used { provider: Billed; model: string; usage?: { in: number; out: number; audioIn?: number } | undefined; estimated?: boolean }
+// `costUsd`: the cost the provider itself reported (OpenRouter returns it), used instead of the price table
+export interface Used { provider: Billed; model: string; usage?: { in: number; out: number; audioIn?: number } | undefined; estimated?: boolean; costUsd?: number }
 
 export function record(ctx: UsageCtx | undefined, module: string, u: Used): void {
   if (!ctx) return;
   const tab = tabOf(module, ctx), tin = Math.max(0, Math.round(u.usage?.in ?? 0)), tout = Math.max(0, Math.round(u.usage?.out ?? 0));
-  const c = cost(u.provider, u.model, tin, tout, u.usage?.audioIn ?? 0);
+  const c = typeof u.costUsd === 'number' && isFinite(u.costUsd) && u.costUsd >= 0 ? { usd: r6(u.costUsd), sar: r6(u.costUsd * USD_SAR), priced: true } : cost(u.provider, u.model, tin, tout, u.usage?.audioIn ?? 0);
   const job = (async () => {
     const r = await sb(ctx.cfg, '/rest/v1/ai_usage', { method: 'POST', admin: true, headers: { Prefer: 'return=minimal' },
       body: { company_id: ctx.co, user_id: ctx.uid ?? null, module: tab, provider: u.provider, model: u.model, tokens_in: tin, tokens_out: tout, cost_usd: c.usd, cost_sar: c.sar, usd_sar: USD_SAR, priced: c.priced, estimated: !!u.estimated } });
