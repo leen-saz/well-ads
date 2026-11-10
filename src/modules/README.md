@@ -13,6 +13,9 @@
 | `src/modules/<key>/<key>.test.ts` | التستات |
 | `supabase/migrations/NNN_<key>.sql` | جداول الموديول، وكل جدول فيه `company_id` |
 
+## موديول يظهر داخل تاب ثاني
+`into: '<key>'` في `module.ts` يخلي الموديول قسماً داخل تاب ثاني بدل مدخل في القائمة (الفويس أوفر داخل الصوت، والكوبي رايتر داخل المحتوى). الرابط `/<into>/?tab=<key>`، والصلاحية والقفل وAPI تبقى للموديول نفسه، والرابط القديم `/<key>/` يحوّل للقسم.
+
 ## موديول جديد
 1. مجلد `src/modules/<key>/` فيه `module.ts` بحالة `soon`، وسطر في `src/modules/registry.ts`.
 2. لما يجهز: `status: 'live'`، و`routes.ts`، وسطر في `src/modules/routes.ts`، والصفحة والسكربت.

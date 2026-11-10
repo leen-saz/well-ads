@@ -1,5 +1,7 @@
 ---
-// The page lives in its module: src/modules/voice/Page.astro
+// One tab, two sections: ?tab=voiceover shows the voiceover module's page (its own access and lock are checked in src/lib/gate.ts)
 import Page from '../../modules/voice/Page.astro';
+import Section from '../../modules/voiceover/Page.astro';
+const section = Astro.url.searchParams.get('tab') === 'voiceover';
 ---
-<Page />
+{section ? <Section /> : <Page />}

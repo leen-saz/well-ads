@@ -1,5 +1,5 @@
 // الصوت: دليل صوت العلامة، فاحص النص، مدة الفويس أوفر، إعادة كتابة بالذكاء الاصطناعي، وتوليد صوت بلهجة سعودية من .
-import { $, $$, api, say, esc, shell, busy, fmt } from '/assets/common.js';
+import { $, $$, api, say, esc, shell, busy, fmt, sectionTabs } from '/assets/common.js';
 
 const DIALECT = { saudi: 'سعودي', msa: 'فصحى', mixed: 'خليط', neutral: 'محايد' };
 
@@ -76,7 +76,7 @@ export default async function mount() {
     busy(btn, false);
   });
 
-  await shell({ active: 'voice', title: 'الصوت' });
+  sectionTabs(await shell({ active: 'voice', title: 'الصوت' }), 'voice', 'voice', ['فحص النص والصوت', 'Text & voice']);
   try {
     const g = await api('/api/voice/guide');
     const t = g.tts || { voices: [], accents: {}, tones: {} };

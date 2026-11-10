@@ -1,5 +1,5 @@
 // الكوبي رايتر: مشروع (إعداد + منافسين)، وبطاقة نمط لكل منافس من نصوصه، ونوع الطلب (المهارة) بمدخلاته، ونسخ مفحوصة.
-import { $, $$, api, apiStream, liveText, say, esc, shell, busy, pageFailure } from '/assets/common.js';
+import { $, $$, api, apiStream, liveText, say, esc, shell, busy, pageFailure, sectionTabs } from '/assets/common.js';
 
 // Runs on every visit of this page (assets/router.js calls it after each ClientRouter navigation).
 export default async function mount() {
@@ -164,5 +164,5 @@ export default async function mount() {
     busy(b, false);
   });
 
-  shell({ active: 'copy', title: 'الكوبي رايتر' }).then(() => load()).catch(pageFailure);
+  shell({ active: 'content', section: 'copy', title: 'المحتوى و SEO' }).then(me => { sectionTabs(me, 'content', 'copy', ['المحتوى و SEO', 'Content & SEO']); return load(); }).catch(pageFailure);
 }

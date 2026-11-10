@@ -179,7 +179,7 @@ function drawSide(side, me, active) {
   const initials = (me.name || me.email || '·').trim().split(/\s+/).map(w => w[0]).join('').slice(0, 2).toUpperCase();
   // كل الأقسام تطلع للكل: اللي ما له صلاحية عليه أو مقفل لشركته يطلع بقفل
   // Quick create (shadcn dashboard-01 'Quick Create'): only what this user can open
-  const NEW = [['control', '/control/new/', 'قرار جديد', 'gavel'], ['social', '/social/', 'منشور جديد', 'calendar'], ['design', '/design/', 'تصميم جديد', 'image'], ['copy', '/copy/', 'نص إعلان جديد', 'pen']];
+  const NEW = [['control', '/control/new/', 'قرار جديد', 'gavel'], ['social', '/social/', 'منشور جديد', 'calendar'], ['design', '/design/', 'تصميم جديد', 'image'], ['copy', '/content/?tab=copy', 'نص إعلان جديد', 'pen']];
   const can = new Set(sections(me, L).flatMap(sec => sec.items).filter(it => it.state === 'ok').map(it => it.key));
   const quick = NEW.filter(([k]) => can.has(k));
   side.innerHTML = `<div class="side-top"><a class="brand mark" href="/today/" aria-label="Well">Well<i>.</i></a><button type="button" class="btn icon ghost side-fold" id="sideFold" aria-label="${L('طي القائمة', 'Collapse menu')}" aria-pressed="false">${icon('panel')}</button><button class="btn icon ghost side-x" type="button" data-close-side aria-label="${L('إغلاق القائمة', 'Close menu')}">${icon('x')}</button></div>
@@ -219,7 +219,7 @@ function bindMe() {
 }
 
 // الهيكل: قائمة جانبية بأيقونات + شريط علوي. tools = HTML لأدوات الشريط.
-export async function shell({ active, title, badge = '', tools = '' }) {
+export async function shell({ active, title, badge = '', tools = '', section = active }) {
   const app = $('#app'), side = $('#side', app);
   // The title bar needs nothing from the server: it goes up before the user is known
   $('#top', app).innerHTML = `<div class="t"><button class="btn icon ghost burger" id="burger" aria-label="القائمة" aria-controls="side" aria-expanded="false">${icon('menu')}</button><h1>${esc(title)}</h1>${badge}</div><div class="tools"><span id="tools">${tools}</span>${langSwitch()}</div>`;
@@ -239,7 +239,7 @@ export async function shell({ active, title, badge = '', tools = '' }) {
   warmAnalytics(app);
   import('./vitals.js').then(m => m.measure()).catch(() => {});
   // Every live tab ends with its lessons card (learning loop, docs/learning-loops.md)
-  if ((me.modules || []).some(m => m.key === active && m.status === 'live' && m.ok && !m.locked)) import('./lessons.js').then(m => m.lessonsCard(active)).catch(() => {});
+  if ((me.modules || []).some(m => m.key === section && m.status === 'live' && m.ok && !m.locked)) import('./lessons.js').then(m => m.lessonsCard(section)).catch(() => {});
   return me;
 }
 
@@ -283,4 +283,22 @@ export function settingsTabs(current, me) {
   nav.className = 'tabs settings-tabs'; nav.setAttribute('aria-label', 'الإعدادات');
   nav.innerHTML = tabs.filter(x => x[4]).map(([h, t, ic, k]) => `<a href="${h}"${k === current ? ' aria-current="page"' : ''}>${icon(ic)}<span>${t}</span></a>`).join('');
   $('#content').prepend(nav);
+}
+
+// One tab with sections (voice: text and voiceover, content: content and copywriter): a switch at the top of the page.
+// The sections come from the server's module list (modules with `into`); a section this user cannot open, or that is locked
+// for the company, shows with its lock like the sidebar does. Each section is its own page, so a click is a navigation.
+export function sectionTabs(me, host, active, first) {
+  const el = $('#tabsw'); if (!el) return;
+  const L = (ar, en) => (LANG === 'en' ? en : ar);
+  const mods = me.modules || [];
+  const self = mods.find(m => m.key === host);
+  const kids = mods.filter(m => m.into === host && m.status === 'live');
+  if (!self || !kids.length) { el.hidden = true; return; }
+  const items = [{ key: host, href: `/${host}/`, text: L(first[0], first[1]), on: !self.locked && self.ok, why: self.locked ? 'locked' : 'noaccess' },
+    ...kids.map(k => ({ key: k.key, href: `/${host}/?tab=${k.key}`, text: L(k.ar, k.en), on: !k.locked && k.ok, why: k.locked ? 'locked' : 'noaccess' }))];
+  el.innerHTML = items.map(it => it.on
+    ? `<a class="sec-tab" href="${it.href}"${it.key === active ? ' aria-current="page"' : ''}>${esc(it.text)}</a>`
+    : `<span class="sec-tab locked" aria-disabled="true" title="${esc(L(...TIP[it.why]))}">${esc(it.text)}</span>`).join('');
+  el.hidden = false;
 }

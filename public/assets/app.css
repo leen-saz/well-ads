@@ -395,3 +395,9 @@ body{background:
 .pf-wrap .pf-apply:disabled{opacity:.5;cursor:default}
 .pf-wrap .pf-cancel{background:transparent;border:1px solid var(--line);color:var(--text)}
 @media (max-width:640px){.pf-wrap .pf-pop{position:fixed;inset-inline:16px;top:auto;bottom:16px;width:auto;max-width:none;z-index:400}.pf-wrap .pf-fields label{min-width:100%}.pf-wrap .pf{display:flex}.pf-wrap .pf button{flex:1 1 auto;justify-content:center;padding:0 10px}}
+/* Sections of one tab (voice, content): a switch of links at the top of the page */
+.sec-tabs{display:inline-flex;padding:4px;gap:2px;background:var(--tint);border-radius:999px;margin:0 0 14px;max-width:100%;flex-wrap:wrap}
+.sec-tabs[hidden]{display:none}
+.sec-tab{height:32px;padding:0 16px;border-radius:999px;color:var(--muted);font:600 13px var(--f-ar);display:inline-flex;align-items:center;text-decoration:none}
+.sec-tab[aria-current="page"]{background:var(--surface);color:var(--text);box-shadow:var(--shadow)}
+.sec-tab.locked{opacity:.45;cursor:not-allowed}

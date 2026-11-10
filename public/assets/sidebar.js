@@ -20,7 +20,14 @@ export function sections(me, L) {
     state: m.locked ? 'locked' : m.status === 'soon' ? 'soon' : m.ok ? 'ok' : 'noaccess' });
   // A live module's extra pages sit right under it, with the module's own access
   const sub = m => m.status === 'soon' ? [] : (m.pages || []).map(p => ({ ...mod(m), href: `/${m.key}/${p.path}/`, text: L(p.ar, p.en), svg: p.icon, key: `${m.key}:${p.path}` }));
-  const mods = (g, keep = () => true) => (me.modules || []).filter(m => m.group === g && keep(m)).flatMap(m => [mod(m), ...sub(m)]);
+  // A tab shown as a section of another (voiceover in voice, copy in content) has no entry of its own. When the user
+  // may open only the section, the tab's entry opens it.
+  const kids = k => (me.modules || []).filter(m => m.into === k);
+  const host = m => {
+    const e = mod(m), c = kids(m.key).find(x => x.ok && !x.locked && x.status === 'live');
+    return e.state === 'noaccess' && c ? { ...e, href: `/${m.key}/?tab=${c.key}`, state: 'ok' } : e;
+  };
+  const mods = (g, keep = () => true) => (me.modules || []).filter(m => m.group === g && !m.into && keep(m)).flatMap(m => [host(m), ...sub(m)]);
   // One entry per place. The performance summary and the creatives exist twice (the Overview module's new pages and
   // the dashboard's): the entry opens the new page when Overview is on for this company and this user may open it,
   // else the dashboard. Overview's other numbers are reached from its own page, not from a second sidebar entry.

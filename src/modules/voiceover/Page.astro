@@ -10,7 +10,7 @@ import { ClientRouter } from 'astro:transitions';
 <meta name="robots" content="noindex,nofollow">
 <meta name="referrer" content="no-referrer">
 <meta name="theme-color" content="#F6F0E3">
-<title>الفويس أوفر · Well</title>
+<title>الصوت · Well</title>
 <link rel="preload" href="/assets/fonts/thmanyahsans-Regular.woff2" as="font" type="font/woff2" crossorigin>
 <link rel="preload" href="/assets/fonts/playfair-display-900.woff2" as="font" type="font/woff2" crossorigin>
 <link rel="stylesheet" href="/assets/app.css">
@@ -36,6 +36,7 @@ import { ClientRouter } from 'astro:transitions';
   <div class="main">
     <header class="topbar" id="top"></header>
     <main class="content" id="content">
+      <div class="sec-tabs" id="tabsw" hidden></div>
       <p class="muted" style="margin:0 0 14px">اكتب النص ويتحول لصوت عربي بلهجة سعودية أو خليجية. تسمعه قبل ما تنزّله، وصوت العلامة تحفظه مرة وينطبق على كل مرة.</p>
       <div class="so-note" id="notready" hidden role="status"></div>
       <div class="vo-grid">

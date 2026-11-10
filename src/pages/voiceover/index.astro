@@ -1,5 +1,4 @@
 ---
-// The page lives in its module: src/modules/voiceover/Page.astro
-import Page from '../../modules/voiceover/Page.astro';
+// Moved into voice: the old address opens its section (the gate redirects first, this is the fallback)
+return Astro.redirect('/voice/?tab=voiceover');
 ---
-<Page />
