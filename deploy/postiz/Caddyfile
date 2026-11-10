@@ -1,0 +1,20 @@
+# Automatic HTTPS (Let's Encrypt) for the domain in .env (POSTIZ_DOMAIN, e.g. social.example.com).
+# The domain's DNS A record must point at this server BEFORE you start Caddy, and ports 80 and 443 must be open.
+{
+	email {$ACME_EMAIL}
+}
+
+{$POSTIZ_DOMAIN} {
+	encode zstd gzip
+
+	# TikTok domain verification by file (only if you pick the "file" method instead of the DNS TXT record).
+	# TikTok gives you a file name and its one-line content; fill them in, uncomment, then `docker compose restart caddy`.
+	# (Not tested: we had no TikTok app. The DNS TXT method needs none of this.)
+	# handle /tiktokXXXXXXXXXXXXXXXX.txt {
+	#	respond "tiktok-developers-site-verification=XXXXXXXXXXXXXXXX" 200
+	# }
+
+	# Postiz serves the web app, /api and /uploads on one internal port (5000), so one rule is enough.
+	# TikTok pulls media from https://<domain>/uploads/... so this address must stay public.
+	reverse_proxy postiz:5000
+}
