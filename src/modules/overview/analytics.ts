@@ -1,7 +1,7 @@
 // The rest of the analytics overview page, for the overview tab: each platform's share, the month's pace and forecast,
 // cost per lead by weekday, and departments. Pure functions over /dash.json, same rules as pipeline/template.html
 // (renderBI, renderPace, renderDeptMini). rows = [key, day, spend, impr, clicks, leads, conv]
-import { type Ad, type Dash, DEP_AR, DEP_EN, HIDDEN, addDays, family, holes, platformName } from './numbers';
+import { type Ad, type Dash, DEP_AR, DEP_EN, HIDDEN, addDays, countsAsLead, family, holes, platformName } from './numbers';
 import { type Lang, T, pageLang, pick } from './lang';
 
 const num = (v: unknown): number => (typeof v === 'number' && Number.isFinite(v) ? v : 0);
@@ -40,7 +40,7 @@ export interface Heat { platform: string; cpl: (number | null)[] }
 export function heat(d: Dash, from: string, to: string): { rows: Heat[]; lo: number; hi: number } {
   const by = new Map<string, { s: number; l: number }[]>();
   for (const x of rows(d, from, to)) {
-    if (x.ad.goal !== 'lead') continue;
+    if (!countsAsLead(x.ad)) continue;
     const w = new Date(x.day + 'T00:00:00Z').getUTCDay();
     const days = by.get(x.ad.platform) ?? Array.from({ length: 7 }, () => ({ s: 0, l: 0 }));
     days[w]!.s += x.spend; days[w]!.l += x.leads;
@@ -104,7 +104,7 @@ export function depts(d: Dash, from: string, to: string): Dept[] {
   for (const x of rows(d, from, to)) {
     const k = x.ad.dept || 'brand', o = by.get(k) ?? { spend: 0, leads: 0, ls: 0, ln: 0 };
     o.spend += x.spend; o.leads += x.leads;
-    if (x.ad.goal === 'lead') { o.ls += x.spend; o.ln += x.leads; }
+    if (countsAsLead(x.ad)) { o.ls += x.spend; o.ln += x.leads; }
     by.set(k, o);
   }
   return keys.map(k => { const o = by.get(k) ?? { spend: 0, leads: 0, ls: 0, ln: 0 }; return { key: k, name: (pageLang() === 'en' ? DEP_EN[k] : undefined) ?? names[k]!.ar ?? DEP_AR[k] ?? k, spend: o.spend, leads: o.leads, cpl: o.ln ? o.ls / o.ln : null }; });
@@ -137,7 +137,7 @@ export function outcome(d: Dash, from: string, to: string, by: CrmBy = 'lead', p
     if (day < from || day > to || !d.ads?.[String(r[0])] || (plat && d.ads[String(r[0])]!.platform !== plat)) continue;
     const s = num(r[2]), l = num(r[5]);
     spend += s; impr += num(r[3]); clicks += num(r[4]); leads += l; conv += num(r[6]);
-    if (d.ads[String(r[0])]!.goal === 'lead') { ls += s; ln += l; }
+    if (countsAsLead(d.ads[String(r[0])]!)) { ls += s; ln += l; }
   }
   const crmData = (d as { crm?: CrmData }).crm;
   let crmLeads = 0, booked = 0, value = 0, closings = 0, paid = 0, bookedAll = 0, closingsAll = 0;
@@ -234,7 +234,7 @@ const cplOf = (o: Sum) => (o.ln ? o.ls / o.ln : null);
 function sums(d: Dash, from: string, to: string) {
   const tot = blank(), plat = new Map<string, Sum>(), dept = new Map<string, Sum>(), idea = new Map<string, Sum & { name: string }>(), day = new Map<string, number>(), ads = new Set<string>();
   for (const x of rows(d, from, to)) {
-    const lead = x.ad.goal === 'lead';
+    const lead = countsAsLead(x.ad);
     for (const o of [tot, plat.get(x.ad.platform) ?? (plat.set(x.ad.platform, blank()), plat.get(x.ad.platform)!), dept.get(x.ad.dept || 'brand') ?? (dept.set(x.ad.dept || 'brand', blank()), dept.get(x.ad.dept || 'brand')!)]) {
       o.spend += x.spend; o.leads += x.leads; o.conv += x.conv; if (lead) { o.ls += x.spend; o.ln += x.leads; }
     }
@@ -323,7 +323,7 @@ export function buckets(d: Dash, from: string, to: string, g: Gran = 'auto'): Bu
     b.spend += x.spend; b.results += x.leads + x.conv; b.leads += x.leads; b.impr += x.impr; b.clicks += x.clicks;
     const p = x.ad.platform;
     if (!HIDDEN.has(p)) { const o = (b.plat[p] ??= { spend: 0, results: 0, leads: 0 }); o.spend += x.spend; o.results += x.leads + x.conv; o.leads += x.leads; }
-    if (x.ad.goal === 'lead' && !HIDDEN.has(p)) { b.ls[p] = (b.ls[p] ?? 0) + x.spend; b.ln[p] = (b.ln[p] ?? 0) + x.leads; }
+    if (countsAsLead(x.ad) && !HIDDEN.has(p)) { b.ls[p] = (b.ls[p] ?? 0) + x.spend; b.ln[p] = (b.ln[p] ?? 0) + x.leads; }
   }
   return [...out.values()].map(({ ls, ln, ...b }) => ({ ...b, cpl: Object.fromEntries(Object.keys(ls).map(p => [p, ln[p] && ls[p]! > 0 ? ls[p]! / ln[p]! : null])) }));
 }

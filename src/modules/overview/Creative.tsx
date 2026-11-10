@@ -10,7 +10,7 @@ import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle } from '@/components/ui/sheet';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { type Dash, DEP_AR, DEP_EN, goalName as goalOf, lastDay, platformName } from './numbers';
+import { type Dash, DEP_AR, DEP_EN, goalName as goalOf, countsAsLead, isWhatsappDest, lastDay, platformName } from './numbers';
 import { ALL, type CreativeAd, type Dir, type Filters, type Idea, type Metrics, type Sort, best, cplDiffers, ideas, media, options, sortIdeas } from './creatives';
 import { useDash } from './useDash';
 import { PeriodFilter, type Period } from './PeriodFilter';
@@ -253,7 +253,7 @@ function IdeaDetail({ data, idea }: { data: Dash; idea: Idea }) {
                     <TableCell><Badge variant={x.ad.live ? 'default' : 'outline'}>{x.ad.live ? T('شغّال', 'Running') : T('متوقف', 'Paused')}</Badge></TableCell>
                     <TableCell className="tabular-nums">{sar(x.spend)}</TableCell>
                     <TableCell className="tabular-nums">{qty(x.results)}</TableCell>
-                    <TableCell className="tabular-nums">{x.ad.goal === 'lead' ? sar(x.cpl) : '—'}</TableCell>
+                    <TableCell className="tabular-nums">{countsAsLead(x.ad) ? (x.ad.dest === 'unknown' ? <>{sar(x.cpl)}<div className="text-xs text-muted-foreground">{T('وجهة غير معروفة', 'Destination unknown')}</div></> : sar(x.cpl)) : isWhatsappDest(x.ad) ? <span className="text-xs text-muted-foreground">{T('واتساب، الليدز ما تنقاس من المنصة', 'WhatsApp, leads are not measured by the platform')}</span> : '—'}</TableCell>
                     <TableCell className="tabular-nums">{pct(x.ctr)}</TableCell>
                   </TableRow>
                 ))}

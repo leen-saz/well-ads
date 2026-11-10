@@ -198,10 +198,19 @@ export function outcomeOf(platforms: string[], results: Results): Outcome {
 export async function publishPost(post: Draft, t: Tokens, f: typeof fetch = fetch, prev: Results = {}, o: Omit<Ctx, 'save'> & { save?: (r: Results) => Promise<void> } = {}): Promise<{ status: Outcome; results: Results }> {
   const results: Results = { ...prev };
   for (const p of post.platforms) {
-    if (results[p]?.ok) continue;
+    // 'unsaved' = it went out but the result could not be saved: it is never sent again, a person checks it
+    if (results[p]?.ok || results[p]?.code === 'unsaved') continue;
     const save = async (r: Result) => { results[p] = r; await o.save?.(results); };
     try { results[p] = await publishOne(p, post, t, f, results[p], { ...o, save }); } catch { results[p] = { ok: false, code: 'network' }; }
-    await o.save?.(results);
+    try { await o.save?.(results); }
+    catch {
+      // The platform answered but the database did not take the result. Mark it so a recovery run never publishes it again;
+      // try to store that mark too (the next save of this run usually works), and carry on with the other platforms.
+      if (results[p]?.ok) {
+        results[p] = { ...results[p], ok: false, code: 'unsaved' };
+        try { await o.save?.(results); } catch { /* the in-memory mark still reaches the final patch of cron.ts */ }
+      }
+    }
   }
   return { status: outcomeOf(post.platforms, results), results };
 }
@@ -219,7 +228,7 @@ export function retryPlan(p: { status: string; platforms: string[]; results?: Re
   let any = false;
   for (const k of p.platforms) {
     const r = results[k];
-    if (!r || r.ok || r.code === 'unsupported' || !SOCIAL[k as SocialPlatform]?.live) continue;
+    if (!r || r.ok || r.code === 'unsupported' || r.code === 'unsaved' || !SOCIAL[k as SocialPlatform]?.live) continue;
     delete results[k]; any = true;
   }
   return any ? { results } : { error: 'nothing' };

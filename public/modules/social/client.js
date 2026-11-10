@@ -17,6 +17,7 @@ export default async function mount() {
     media_rejected: 'المنصة ما قبلت الصورة أو الفيديو. جرّب ملف ثاني',
     video_failed: 'المنصة ما قدرت تعالج الفيديو. جرّب فيديو ثاني بصيغة MP4',
     video_timeout: 'الفيديو تأخر كثير في المعالجة عند المنصة',
+    unsaved: 'المنشور اننشر على المنصة، بس ما قدرنا نحفظ النتيجة عندنا. لا تعيد المحاولة: افتح الصفحة وتأكد',
     unconfirmed: 'ما وصلنا رد من المنصة وممكن يكون المنشور اننشر. افتح الصفحة وتأكد قبل ما تعيد المحاولة',
     network: 'تعذر الاتصال بالمنصة',
     platform: 'المنصة ما قبلت المنشور',
@@ -59,8 +60,8 @@ export default async function mount() {
     const at = new Date(p.publish_at);
     const waiting = p.status === 'scheduled' && !p.approved_at;
     const bad = Object.entries(p.results || {}).filter(([, r]) => !r.ok && r.code);
-    const retryable = ['failed', 'partial'].includes(p.status) && !p.retried_at && bad.some(([, r]) => r.code !== 'unsupported');
-    const unsure = bad.some(([, r]) => r.code === 'unconfirmed');
+    const retryable = ['failed', 'partial'].includes(p.status) && !p.retried_at && bad.some(([, r]) => r.code !== 'unsupported' && r.code !== 'unsaved');
+    const unsure = bad.some(([, r]) => r.code === 'unconfirmed' || r.code === 'unsaved');
     const failBox = bad.length && ['failed', 'partial'].includes(p.status) ? `<div class="so-note so-fail" role="alert">
         <strong>${p.status === 'partial' ? 'انتشر على بعض المنصات بس' : 'المنشور ما انتشر'}</strong>
         <ul>${bad.map(([k, r]) => `<li><span>${esc(PLATS[k]?.name || k)}</span>: <span>${esc(WHY[r.code] || WHY.platform)}</span>${APPR.owner && r.detail ? `<details class="so-more"><summary>تفاصيل للمالك</summary><code>${esc(r.detail)}</code></details>` : ''}</li>`).join('')}</ul>

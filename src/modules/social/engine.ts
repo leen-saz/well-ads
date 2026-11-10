@@ -30,7 +30,7 @@ export type Tokens = Record<string, string | undefined>;
 
 // ---- Results. One per platform, kept on the post (social_posts.results) so a crash or a retry knows what already went out.
 // code = the plain reason the page shows (the client has its words); detail = the platform's own message, for the owner only.
-export type Code = 'not_connected' | 'no_media' | 'token' | 'permission' | 'busy' | 'media_rejected' | 'video_failed' | 'video_timeout' | 'unconfirmed' | 'network' | 'platform' | 'unsupported' | 'invalid' | 'many_accounts';
+export type Code = 'not_connected' | 'no_media' | 'token' | 'permission' | 'busy' | 'media_rejected' | 'video_failed' | 'video_timeout' | 'unconfirmed' | 'unsaved' | 'network' | 'platform' | 'unsupported' | 'invalid' | 'many_accounts';
 export interface Result {
   ok: boolean; id?: string; code?: Code; detail?: string;
   // sending = the call that posts was started (a crash here leaves it unknown); processing = the platform is still preparing

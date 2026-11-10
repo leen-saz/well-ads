@@ -169,7 +169,7 @@ async function listening() {
     const [from, to] = range ? rangeMs(range.from, range.to) : [0, Infinity];
     const list = filterMentions(M, filt).filter(m => { const t = Date.parse(m.published_at || m.fetched_at || '') || 0; return t >= from && t < to; });
     const name = new Map(W.map(w => [w.id, w.name]));
-    $('#ments').innerHTML = list.slice(0, shown).map(m => `<article class="lx-m"><a href="${esc(m.url)}" target="_blank" rel="noopener" dir="auto">${esc(m.title || m.url)}</a>
+    $('#ments').innerHTML = list.slice(0, shown).map(m => `<article class="lx-m">${/^https:\/\//i.test(String(m.url || '').trim()) ? `<a href="${esc(m.url)}" target="_blank" rel="noopener noreferrer" dir="auto">${esc(m.title || m.url)}</a>` : `<span dir="auto">${esc(m.title || '')}</span>`}
         ${m.snippet ? `<p class="muted" style="margin:0;font-size:14px" dir="auto">${esc(m.snippet.slice(0, 220))}</p>` : ''}
         <div class="lx-meta"><span class="lx-s ${m.sentiment || 'unscored'}">${SENT[m.sentiment || 'unscored']}</span>${m.reason ? `<span>${esc(m.reason)}</span>` : ''}
           <span>· ${esc(SOURCE[m.source] || m.source)}</span>${m.author ? `<span>· ${esc(m.author)}</span>` : ''}<span>· ${esc(name.get(m.watch_id) || '')}</span><span>· ${day(m.published_at)}</span></div></article>`).join('')

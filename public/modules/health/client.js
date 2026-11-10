@@ -1,4 +1,5 @@
 // صحة الداتا (للمالكة): بطاقات قراءة فقط. كل بطاقة تجيب أرقامها من /api/maestro/<اسمها>.
+import { ownerText } from '/assets/freshness.js';
 import { $, api, say, esc, fmt, shell, failure, pageFailure, when } from '/assets/common.js';
 
 const STATUS = { paid: 'مدفوع', unpaid: 'غير مدفوع', pending: 'معلّق', partial: 'مدفوع جزئي', refunded: 'مسترجع', '(empty)': 'فاضي', other: 'قيمة ثانية' };
@@ -45,6 +46,8 @@ const attribution = A => !A || !A.paid ? '' : `<h3>وين راحت الإقفا�
 
 export function healthCards(h) {
   const f = h.freshness, J = h.joins;
+  const warn = (h.data_status ? ownerText(h.data_status) : []).map(t => `<p class="dh-find bad">${esc(t)}</p>`).join('');
+  const fresh = h.data_status && h.data_status.level === 'ok' ? '<p class="dh-find ok">الأرقام محدّثة والتحديث الساعي يشتغل.</p>' : '';
   const plat = table(['المنصة', 'إعلانات', 'آخر تحديث للإعلانات', 'آخر يوم أرقام', 'انتهاء الربط'], f.platforms.map(p => [esc(PLAT[p.platform] || p.platform), fmt(p.ads), cell(age(p.newest_ad_update)), cell(dayAge(p.newest_metric_day)), p.token_expires_at ? when(p.token_expires_at) : '—']));
   const other = table(['المصدر', 'آخر مرة'], [
     ['مزامنة الـ CRM (آخر تشغيل)', cell(age(f.crm?.last_run_at))], ['أحدث تحديث وصل من الـ CRM', cell(age(f.crm?.last_updated_at))],
@@ -60,7 +63,7 @@ export function healthCards(h) {
     ? `<p class="dh-find bad">مايقريشنات ما انطبقت (بالترتيب): ${[...new Set(h.migrations_missing.map(m => m.migration))].map(m => `<code>${esc(m)}</code>`).join('، ')}</p>` + table(['المايقريشن', 'الجدول', 'ناقص'], h.migrations_missing.map(m => [esc(m.migration), esc(m.table), m.reason === 'table' ? 'الجدول كله' : esc(m.columns.join(', '))]))
     : '<p class="dh-find ok">كل الجداول والأعمدة اللي يقراها الكود موجودة.</p>';
   const sec = (t, body, note = '') => `<section class="card pad dh-sec"><h2>${t}</h2>${note ? `<p class="muted" style="margin:0 0 8px">${note}</p>` : ''}${body}</section>`;
-  return sec('حداثة المصادر', plat + other, 'آخر مرة وصلتنا بيانات كل منصة. الأحمر = أقدم من يومين.') + sec('الربط بين الليدز والإعلانات', joins + attr, 'من آخر ملف أرقام انرفع.')
+  return (warn || fresh ? sec('حالة التحديث', warn + fresh, 'عمر الأرقام، وهل بدأ التحديث الساعي. ما يلمس الداتابيس.') : '') + sec('حداثة المصادر', plat + other, 'آخر مرة وصلتنا بيانات كل منصة. الأحمر = أقدم من يومين.') + sec('الربط بين الليدز والإعلانات', joins + attr, 'من آخر ملف أرقام انرفع.')
     + sec('المكرر', dups) + sec('اليتيم', orph, 'صفوف تشير إلى شركة ما عاد لها وجود.') + sec('عدد الصفوف', counts) + sec('المايقريشنات', miss);
 }
 

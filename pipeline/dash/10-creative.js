@@ -204,7 +204,7 @@ function renderCards(c){
     title:esc(x.a.name),
     sub:`${x.idea?'':campTag(x.a)+' '+tiredTag(x.k)} ${depCell(x.a.dept)} ${goalPill(x.a.goal)} ${esc(x.a.campaign)} · ${esc(x.a.group)}${x.a.format?` · <span>${esc(tr(x.a.format))}</span>`:''}`,
     stats:statCell('الصرف',sar(x.spend))+resultCells(x)+statCell('الظهور',fmt(x.impr))+statCell(family(x.a.platform)==='meta'&&x.a.goal==='lead'?'محادثات':'النقرات', family(x.a.platform)==='meta'&&x.a.goal==='lead'?fmt(x.conv):fmt(x.clicks))+statCell('نسبة النقر',pct(x.ctr)),
-    flag:(x.a.dest==='whatsapp'?`<span class="pill wa-dest">${ui('توجيه للواتساب، الليدز ما تنقاس من المنصة','Sent to WhatsApp, leads are not measured by the platform')}</span>`:x.a.goal==='lead'&&x.leads===0&&x.conv===0&&x.spend>=50&&family(x.a.platform)!=='google'?`<span class="flag">${ui(`صرف ${sar(x.spend)} ${money()} بدون ليد أو محادثة`,`Spend ${sar(x.spend)} ${money()} with no lead or conversation`)}</span>`:''),
+    flag:(x.a.dest==='whatsapp'?`<span class="pill wa-dest">${ui('توجيه للواتساب، الليدز ما تنقاس من المنصة','Sent to WhatsApp, leads are not measured by the platform')}</span>`:x.a.dest==='unknown'?`<span class="pill wa-dest">${ui('وجهة غير معروفة','Destination unknown')}</span>`:x.a.goal==='lead'&&x.leads===0&&x.conv===0&&x.spend>=50&&family(x.a.platform)!=='google'?`<span class="flag">${ui(`صرف ${sar(x.spend)} ${money()} بدون ليد أو محادثة`,`Spend ${sar(x.spend)} ${money()} with no lead or conversation`)}</span>`:''),
     view:hookRow(x.idea?sumVid(x.members.map(m=>m.a)):x.a.vid)+viewControl(x.a)+cmpBox(x.k),
   })).join('') : '<div class="empty">لا توجد مادة إعلانية تطابق الفلاتر في هذه الفترة.</div>';
   $('#more').hidden = list.length<=S.shown;

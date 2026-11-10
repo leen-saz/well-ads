@@ -14,9 +14,15 @@ type Row = Draft & { id: number; company_id: string; status: string; claimed_at?
 
 async function work(cfg: Cfg, p: Row, tokens: Record<string, string>, f: typeof fetch, now: number): Promise<void> {
   const patch = (body: Record<string, unknown>) => sb(cfg, `/rest/v1/social_posts?id=eq.${p.id}`, { method: 'PATCH', admin: true, body });
-  const out = await publishPost(p, p.company_id === WELL_COMPANY ? tokens : {}, f, p.results || {}, { now, save: async results => { await patch({ results }); } });
+  // A save that the database refused must throw: before a platform is called, progress that was not stored means the call
+  // is not made (nothing goes out that recovery could not see); after it, the platform is marked 'unsaved' (social.ts)
+  const out = await publishPost(p, p.company_id === WELL_COMPANY ? tokens : {}, f, p.results || {}, { now, save: async results => { if (!(await patch({ results })).ok) throw new Error('save'); } });
   // pending = Instagram is still preparing a video: back to 'scheduled' (still approved, still due) and the next run goes on
-  await patch({ status: out.status === 'pending' ? 'scheduled' : out.status, results: out.results, claimed_at: null });
+  const final = { status: out.status === 'pending' ? 'scheduled' : out.status, results: out.results, claimed_at: null };
+  if (!(await patch(final)).ok && !(await patch(final)).ok) {
+    // Still refused: the row stays 'publishing' and is recovered later from what was stored; the 'unsaved' mark keeps it from going out twice
+    console.error('social: could not save the result of a post', p.id);
+  }
 }
 
 // One run never takes more than this: a Worker invocation may make only 50 subrequests on the free plan (1000 on Paid), and
@@ -49,7 +55,7 @@ export async function runSocial(e: AuthEnv, now = Date.now(), f: typeof fetch = 
   const started = clock();
   for (const p of batch) {
     if (done && clock() - started > TICK_MS) break;
-    const claim = await sb<Row[]>(cfg, `/rest/v1/social_posts?id=eq.${p.id}&status=eq.scheduled`, { method: 'PATCH', admin: true, headers: { Prefer: 'return=representation' }, body: { status: 'publishing', claimed_at: iso } });
+    const claim = await sb<Row[]>(cfg, `/rest/v1/social_posts?id=eq.${p.id}&status=eq.scheduled&approved_at=not.is.null`, { method: 'PATCH', admin: true, headers: { Prefer: 'return=representation' }, body: { status: 'publishing', claimed_at: iso } });
     if (!claim.ok || !Array.isArray(claim.data) || !claim.data.length) continue;
     await work(cfg, p, wellTokens, f, now);
     done++;
@@ -57,7 +63,7 @@ export async function runSocial(e: AuthEnv, now = Date.now(), f: typeof fetch = 
   for (const p of (stuck.ok && Array.isArray(stuck.data) ? stuck.data : []).filter(x => stale(x, now)).slice(0, STUCK_MAX)) {
     if (done && clock() - started > TICK_MS) break;
     const old = p.claimed_at ? `claimed_at=eq.${encodeURIComponent(p.claimed_at)}` : 'claimed_at=is.null';
-    const claim = await sb<Row[]>(cfg, `/rest/v1/social_posts?id=eq.${p.id}&status=eq.publishing&${old}`, { method: 'PATCH', admin: true, headers: { Prefer: 'return=representation' }, body: { claimed_at: iso } });
+    const claim = await sb<Row[]>(cfg, `/rest/v1/social_posts?id=eq.${p.id}&status=eq.publishing&approved_at=not.is.null&${old}`, { method: 'PATCH', admin: true, headers: { Prefer: 'return=representation' }, body: { claimed_at: iso } });
     if (!claim.ok || !Array.isArray(claim.data) || !claim.data.length) continue;
     // Whatever path got a post here, it was approved when it was claimed; a row without an approval is never sent to any engine
     if (!p.approved_at) { console.error('social: a post in publishing without an approval was not sent', p.id); continue; }
