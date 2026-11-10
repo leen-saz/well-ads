@@ -31,6 +31,12 @@ class DashTemplateTests(unittest.TestCase):
         self.assertIn("النتايج (ليدز ومحادثات)", html)
         self.assertNotIn("فالعمر داخل كل جنس تقريبي", html)
 
+    def test_personas_section_is_hidden_but_kept(self):
+        # Leen asked to hide the audience personas on /creative; the code and data stay so it can come back.
+        html = template()
+        self.assertRegex(html, r'<section[^>]*id="personas"[^>]*data-off hidden>')
+        self.assertIn("renderPersonas", html)
+
 
 if __name__ == "__main__":
     unittest.main()
