@@ -11,6 +11,9 @@ import listenPage from '../../src/modules/listening/Page.astro?raw';
 import maestroPage from '../../src/modules/maestro/Page.astro?raw';
 import listenJs from '../../public/modules/listening/client.js?raw';
 import maestroJs from '../../public/modules/maestro/client.js?raw';
+import creative from '../../src/modules/overview/Creative.tsx?raw';
+import adminPage from '../../src/pages/admin/index.astro?raw';
+import adminJs from '../../public/assets/admin.js?raw';
 import { addDays, clampRange, daysWord, diffDays, isDay, MAX_SPAN, parseRangeParams, pick, PRESETS, rangeMs, resolvePreset, riyadhToday } from '../../public/assets/period.js';
 
 // "now" is 2026-11-10 01:30 in Riyadh = 2026-11-09 22:30 UTC: the Riyadh day is already the 10th
@@ -223,5 +226,33 @@ describe('the pages follow the period', () => {
     expect(maestroPage).toContain('id="perfPeriod"');
     for (const old of ['data-ld', 'data-days', 'perfDays', '7 أيام', '30 يوم', '90 يوم']) for (const src of [listenPage, maestroPage, listenJs, maestroJs, overview]) expect(src).not.toContain(old);
     for (const js of [listenJs, maestroJs]) expect(js).toContain("from '/assets/period.js'");
+  });
+  it('the creative page and the activity log use it too', () => {
+    expect(creative).toContain('PeriodFilter'); expect(creative).not.toMatch(/RANGES|ToggleGroup/);
+    expect(adminPage).toContain('id="logPeriod"'); expect(adminPage).not.toMatch(/logFrom|logTo/);
+    expect(adminJs).toContain("from './period.js'"); expect(adminJs).not.toMatch(/logFrom|logTo/);
+  });
+});
+
+describe('activity log range', () => {
+  const owner: A.Profile = { id: '11111111-1111-1111-1111-111111111111', email: 'owner@example.com', role: 'owner', active: true };
+  async function log(q: string) {
+    const urls: string[] = [];
+    vi.stubGlobal('fetch', vi.fn(async (url: string) => { urls.push(String(url)); return new Response(JSON.stringify(String(url).includes('/profiles?') ? [owner] : [])); }));
+    const cookie = `${A.SESSION}=${encodeURIComponent(await A.sign(A.sessionFor(owner, cfg), cfg.secret))}`;
+    const res = await api.request('https://well.example/api/admin/log' + q, { headers: { cookie } }, E);
+    return { status: res.status, q: decodeURIComponent(urls.find(u => u.includes('audit_log')) ?? '') };
+  }
+  it('reads the Riyadh days asked for, and cuts a huge span to a year', async () => {
+    const a = await log('?from=2026-10-01&to=2026-10-02');
+    expect(a.status).toBe(200);
+    expect(a.q).toContain('at=gte.2026-09-30T21:00:00.000Z');
+    expect(a.q).toContain('at=lt.2026-10-02T21:00:00.000Z');
+    const b = await log('?from=2000-01-01&to=2026-10-02');
+    expect(Date.parse('2026-10-02') - Date.parse(b.q.match(/at=gte\.([^&]+)/)![1]!)).toBeLessThan((MAX_SPAN + 1) * 864e5);
+  });
+  it('ignores a bad day as before, and with no dates reads the latest rows', async () => {
+    expect((await log('?from=nope&to=2026-10-02')).q).not.toContain('at=gte.');
+    expect((await log('')).q).not.toContain('at=gte.');
   });
 });

@@ -653,7 +653,7 @@ export const EN = {
   "الربط بين الليدز والإعلانات": "Linking leads to ads",
   "الرصد شغّال على الأخبار. كل مصدر هنا يضيف إشارات أكثر أول ما ينحط مفتاحه.": "Listening runs on the news. Each source here adds more mentions as soon as its key is set.",
   "الرياض، نساء 25-45": "Riyadh, women 25-45",
-  "السجل ما ينعدّل ولا ينحذف. بدون تاريخ: آخر 200 فعل.": "The log is never edited or deleted. Without a date: the last 200 actions.",
+  "السجل ما ينعدّل ولا ينحذف. كل الفترة: آخر 200 فعل.": "The log is never edited or deleted. All time: the last 200 actions.",
   "السعر بالريال": "Price in riyals",
   "السقف الشهري (ر.س)": "Monthly cap (SAR)",
   "السقف الشهري لتاب الامتثال": "Monthly cap for the Compliance tab",

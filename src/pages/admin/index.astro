@@ -17,8 +17,8 @@ import { ClientRouter } from 'astro:transitions';
 <ClientRouter />
 <style is:global>
 .log-f{gap:10px;flex-wrap:wrap;align-items:flex-end;margin:0 0 14px}
-.log-f label{display:grid;gap:4px;font-size:13px;color:var(--muted);min-width:150px}
-.log-f .log-q{flex:1;min-width:220px}
+.log-f>label{display:grid;gap:4px;font-size:13px;color:var(--muted);min-width:150px}
+.log-f>.log-q{flex:1;min-width:220px}
 .log-f input{height:40px}
 .acc{display:grid;grid-template-columns:repeat(auto-fill,minmax(230px,1fr));gap:8px;margin:6px 0 0}
 .acc-row{display:flex;align-items:center;gap:8px;padding:6px 10px;border:1px solid var(--line);border-radius:12px}
@@ -51,10 +51,9 @@ import { ClientRouter } from 'astro:transitions';
         </form>
       </section>
       <section class="card" style="margin-top:16px"><div class="pad" style="padding-bottom:0"><h2>المستخدمون وصلاحياتهم</h2></div><div class="tbl" id="users"></div><div class="pad" style="padding-top:0"><div class="msg" id="usersMsg" role="status"></div></div></section>
-      <section class="card" style="margin-top:16px"><div class="pad" style="padding-bottom:0"><h2>سجل الدخول والنشاط</h2><p class="muted" style="margin:0 0 12px">السجل ما ينعدّل ولا ينحذف. بدون تاريخ: آخر 200 فعل.</p>
+      <section class="card" style="margin-top:16px"><div class="pad" style="padding-bottom:0"><h2>سجل الدخول والنشاط</h2><p class="muted" style="margin:0 0 12px">السجل ما ينعدّل ولا ينحذف. كل الفترة: آخر 200 فعل.</p>
         <div class="bar log-f" role="search">
-          <label>من <input type="date" id="logFrom"></label>
-          <label>إلى <input type="date" id="logTo"></label>
+          <div id="logPeriod"></div>
           <label class="log-q">بحث <input type="search" id="logQ" placeholder="إيميل، فعل، أو هدف"></label>
           <span class="muted" id="logN" aria-live="polite"></span>
         </div></div><div class="tbl" id="log"></div></section>

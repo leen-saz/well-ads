@@ -1,4 +1,5 @@
 import { $, $$, api, say, esc, shell, when, busy, settingsTabs, pageSignal } from './common.js';
+import { mountPeriod } from './period.js';
 
 // Runs on every visit of this page (assets/router.js calls it after each ClientRouter navigation).
 export default async function mount() {
@@ -41,9 +42,10 @@ export default async function mount() {
   }
   // Dates go to the server (whole Riyadh days, up to 500 rows); the search box filters what came back, so it also
   // matches the Arabic action names shown in the table
-  let LOG = [];
+  let LOG = [], logRange = null, logReady = false;
   async function loadLog() {
-    const from = $('#logFrom').value, to = $('#logTo').value;
+    // «كل الفترة» = no dates: the latest 200 actions
+    const dated = logRange && logRange.key !== 'all', from = dated ? logRange.from : '', to = dated ? logRange.to : '';
     const qs = new URLSearchParams({ limit: from || to ? '500' : '200', ...(from ? { from } : {}), ...(to ? { to } : {}) });
     LOG = (await api('/api/admin/log?' + qs)).log;
     showLog();
@@ -55,10 +57,10 @@ export default async function mount() {
     const r = { log: q ? LOG.filter(x => [x.email, nameOf[String(x.email || '').toLowerCase()], x.action, ACT[x.action], JSON.stringify(x.target || {}), x.note].join(' ').toLowerCase().includes(q)) : LOG };
     $('#logN').textContent = `${r.log.length} فعل`;
     $('#log').innerHTML = r.log.length ? `<table><thead><tr><th>الوقت</th><th>مين</th><th>الفعل</th><th>على</th><th>ملاحظة</th></tr></thead><tbody>${r.log.map(x => `
-      <tr style="cursor:default"><td class="num">${esc(when(x.at))}</td><td>${esc(x.email || '')}</td><td>${esc(ACT[x.action] || x.action)}</td><td>${esc(x.target ? (x.target.target_name || x.target.email || x.target.platform || '') : '')}</td><td>${esc(x.note || '')}</td></tr>`).join('')}</tbody></table>` : `<div class="empty">${LOG.length ? 'ما فيه نتايج لهالبحث' : $('#logFrom').value || $('#logTo').value ? 'ما فيه أفعال في هالفترة' : 'ما فيه أفعال لين الحين'}</div>`;
+      <tr style="cursor:default"><td class="num">${esc(when(x.at))}</td><td>${esc(x.email || '')}</td><td>${esc(ACT[x.action] || x.action)}</td><td>${esc(x.target ? (x.target.target_name || x.target.email || x.target.platform || '') : '')}</td><td>${esc(x.note || '')}</td></tr>`).join('')}</tbody></table>` : `<div class="empty">${LOG.length ? 'ما فيه نتايج لهالبحث' : logRange && logRange.key !== 'all' ? 'ما فيه أفعال في هالفترة' : 'ما فيه أفعال لين الحين'}</div>`;
   }
-  $('#logFrom').addEventListener('change', () => loadLog().catch(err => say($('#usersMsg'), err.message)));
-  $('#logTo').addEventListener('change', () => loadLog().catch(err => say($('#usersMsg'), err.message)));
+  // The same period bar as the other pages (saved in this browser); a change reloads the log
+  mountPeriod($('#logPeriod'), { id: 'admin-log', def: 'all', url: false, onChange: r => { logRange = r; if (logReady) loadLog().catch(err => say($('#usersMsg'), err.message)); } });
   $('#logQ').addEventListener('input', showLog);
   $('#add').addEventListener('submit', async e => {
     e.preventDefault();
@@ -87,5 +89,5 @@ export default async function mount() {
     try { await api('/api/admin/users', { method: 'PATCH', body }); say($('#usersMsg'), 'انحفظ.', true); await loadUsers(); await loadLog(); }
     catch (err) { say($('#usersMsg'), err.message); busy(b, false); }
   });
-  shell({ active: 'settings', title: 'الإعدادات' }).then(me => settingsTabs('admin', me)).then(loadUsers).then(loadLog).catch(err => say($('#usersMsg'), err.message));
+  shell({ active: 'settings', title: 'الإعدادات' }).then(me => settingsTabs('admin', me)).then(loadUsers).then(loadLog).then(() => { logReady = true; }).catch(err => say($('#usersMsg'), err.message));
 }

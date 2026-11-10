@@ -1,6 +1,7 @@
 // /api/admin/*: users and log (Leen only). Port of web/lib/routes/admin/*.js.
 import { sb, json, readJson, handle, requireUser, audit, levelsOf, DASHBOARDS, DEPTS, LEVELS, type Level, type Profile } from '../../lib/auth';
 import { logRange } from '../../lib/logrange';
+import { isDay, parseRangeParams } from '../../../public/assets/period.js';
 import { MODULES, isModule } from '../../modules/registry';
 import { scoped } from '../../lib/tenant';
 
@@ -21,7 +22,10 @@ export const log = { GET: handle(async (request, e) => {
   const url = new URL(request.url);
   const limit = Math.min(500, Math.max(1, parseInt(url.searchParams.get('limit') || '200', 10) || 200));
   // ?from=YYYY-MM-DD&to=YYYY-MM-DD: whole days in Riyadh time (UTC+3), both ends included
-  const range = logRange(url.searchParams.get('from'), url.searchParams.get('to'));
+  let from = url.searchParams.get('from'), to = url.searchParams.get('to');
+  // a real range is put in order and cut to a year; anything else is ignored, as before
+  if (isDay(from) && isDay(to)) { const r = parseRangeParams(k => (k === 'from' ? from : to)); if (!('error' in r)) { from = r.from; to = r.to; } }
+  const range = logRange(from, to);
   const r = await sb(cfg, scoped(`/rest/v1/audit_log?select=*${range}&order=at.desc&limit=${limit}`, user.co), { admin: true });
   return json(r.ok ? 200 : 500, r.ok ? { log: r.data } : { error: 'ما قدرت أقرأ السجل' });
 }) };
