@@ -109,7 +109,7 @@ export const connect = { POST: handle(async (request, e: Env) => {
   let made: Record<string, unknown> = {};
   try { made = await pc.createCompany(c.name); } catch (err) { console.error('maestro_connect_failed', (err as Error).message); return json(502, { error: 'ما قدرنا نجهز مساحة شركتك، جرّب بعد شوي' }); }
   const id = String(made.id || '');
-  if (!id) return json(502, { error: 'ما قدرنا نجهز مساحة شركتك، جرّب بعد شوي' });
+  if (!id) { console.error('maestro_connect_failed', 'the engine answered without a company id'); return json(502, { error: 'ما قدرنا نجهز مساحة شركتك، جرّب بعد شوي' }); }
   const r = await sb(cfg, `/rest/v1/companies?id=eq.${user.co}&paperclip_company_id=is.null`, { method: 'PATCH', admin: true, body: { paperclip_company_id: id } });
   if (!r.ok) return json(500, { error: 'ما انحفظ الربط' });
   await audit(cfg, user, 'maestro_connected', { target: { paperclip_company_id: id } });
