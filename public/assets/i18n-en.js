@@ -30,6 +30,18 @@ export const EN = {
   'دخول فاشل': 'Failed sign-in', 'دخول مرفوض (حساب موقوف)': 'Sign-in blocked (disabled)', 'غيّر الباسوورد': 'Changed password', 'حدد باسوورد جديد': 'Set a new password',
   'طلب استعادة الباسوورد': 'Requested password reset', 'أضاف مستخدم': 'Added user', 'عدّل صلاحيات مستخدم': 'Changed user access', 'غيّر الوضع': 'Changed mode',
   'وافق على اقتراح': 'Approved a suggestion', 'رفض اقتراح': 'Rejected a suggestion',
+  // إضافة مستخدم مباشرة
+  'إضافة مستخدم مباشرة': 'Add a user directly',
+  'بدون إيميل: تكتب له باسوورد مؤقت وتعطيه إياه بنفسك، وهو يغيّره بعد أول دخول من حسابه. استخدمها لو الدعوة ما وصلت.': 'No email: you type a temporary password and hand it over yourself, and they change it after first sign-in from their account. Use it when the invite didn\'t arrive.',
+  'باسوورد مؤقت': 'Temporary password', 'ولّد باسوورد قوي': 'Generate a strong password', 'انسخه الحين وسلّمه له. ما ينعرض مرة ثانية.': 'Copy it now and hand it over. It won\'t be shown again.',
+  'أضف المستخدم': 'Add user', 'انضاف المستخدم. سلّمه الباسوورد المؤقت.': 'User added. Hand over the temporary password.',
+  'حسابات بدون صلاحيات': 'Accounts without access', 'حسابات تقدر تدخل بس ما لها ملف في اللوحة، فما تطلع في القائمة فوق. أعطها صلاحيات من هنا.': 'Accounts that can sign in but have no profile in the dashboard, so they don\'t appear in the list above. Give them access from here.',
+  'أعطه صلاحيات': 'Give access', 'انضاف للقائمة.': 'Added to the list.', 'عيّن باسوورد جديد': 'Set a new password', 'احفظ الباسوورد': 'Save password',
+  'الباسوورد طويل زيادة (أقصاه 72)': 'The password is too long (72 characters at most)', 'ما انضاف المستخدم، جرّب مرة ثانية': 'The user wasn\'t added, try again',
+  'ما انحفظ الملف، جرّب مرة ثانية': 'The profile wasn\'t saved, try again', 'ما قدرت أقرأ الحسابات': 'Couldn\'t read the accounts', 'حساب غير معروف': 'Unknown account', 'الحساب له ملف من قبل': 'The account already has a profile',
+  'وصلنا حد الإيميلات، أضفه مباشرة': 'The email limit was reached, add them directly', 'ما انرسلت الدعوة. أضفه مباشرة بباسوورد مؤقت': 'The invite wasn\'t sent. Add them directly with a temporary password',
+  'ما تغيّر الباسوورد، جرّب مرة ثانية': 'Password not changed, try again',
+  'أضاف مستخدم مباشرة': 'Added a user directly', 'أعطى حساب موجود ملف وصلاحيات': 'Gave an existing account a profile and access', 'حدد باسوورد لمستخدم': 'Set a user\'s password',
   // لوحة القرارات
   'التنفيذ يدوي في المنصات': 'Applied by hand in the platforms', 'التنفيذ مقفل · اختر حملة تجربة': 'Execution off · pick a trial campaign', 'حملات التجربة': 'Trial campaigns', 'تراجع': 'Undo', 'تراجع عن الإيقاف؟': 'Undo the pause?', 'وافق · ينتظر التنفيذ': 'Approved · waiting to run', 'تشغيل (تراجع)': 'Turn on (undo)', 'يفتح بعد ما ينجح التنفيذ في حملات التجربة': 'Opens once execution works in the trial campaigns', 'الموافقة تنحفظ في السجل، والميديا باير ينفّذها بيده في المنصة. التنفيذ التلقائي جاي في المرحلة الجاية': 'Approvals are logged; the media buyer applies them by hand in the platform. Automatic execution comes next phase',
   'آخر سحب للأرقام من المنصات': 'Last pull from the ad platforms', 'الكتابة مقفلة': 'Writes locked', 'ما ينرسل أي تعديل لحسابات الإعلانات': 'No change is sent to the ad accounts',

@@ -40,6 +40,16 @@ export function startFake(port, keys) {
       }
       if (url.pathname === '/__mode') { try { missing = !!JSON.parse(raw || '{}').missing; } catch { missing = false; } return send(res, 200, { missing }); }
       if (missing && url.pathname.startsWith('/rest/v1/') && url.pathname !== '/rest/v1/profiles') return send(res, 404, { code: 'PGRST205', message: 'Could not find the table in the schema cache' });
+      // Owner tools: one auth account without a profile (made by hand), creating a login, and a profile insert that echoes the row
+      const ORPHAN = { id: uuid(900), email: `by-hand@${DOMAIN}`, user_metadata: { name: 'Made By Hand' } };
+      if (url.pathname === '/auth/v1/admin/users' && req.method === 'GET') return send(res, 200, { users: [ORPHAN] });
+      if (url.pathname === '/auth/v1/admin/users' && req.method === 'POST') {
+        let b = {}; try { b = JSON.parse(raw || '{}'); } catch { /* bad body */ }
+        if (b.email === `taken@${DOMAIN}`) return send(res, 422, { error_code: 'email_exists' });
+        return send(res, 200, { id: uuid(901), email: b.email });
+      }
+      if (url.pathname === `/auth/v1/admin/users/${ORPHAN.id}` && req.method === 'GET') return send(res, 200, ORPHAN);
+      if (url.pathname === '/rest/v1/profiles' && req.method === 'POST') { let b = {}; try { b = JSON.parse(raw || '{}'); } catch { /* bad body */ } return send(res, 201, [b]); }
       if (url.pathname === '/rest/v1/profiles' && req.method === 'GET') {
         const id = (url.searchParams.get('id') || '').replace(/^eq\./, '');
         return send(res, 200, profiles.filter(p => p.id === id));
