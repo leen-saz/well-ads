@@ -36,6 +36,25 @@ import { ClientRouter } from 'astro:transitions';
 .so-ck .block{color:#C0392B;font-weight:600}.so-ck .warn{color:var(--deep);font-weight:600}.so-ck .ok{color:inherit}
 .so-pick{display:grid;gap:8px;margin:10px 0}.so-pick label{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
 .so-fail{border:1px solid #C0392B55;background:#C0392B0F}.so-fail ul{margin:6px 0 0;padding-inline-start:18px}
+/* platform chips: the whole chip is the checkbox; the badge says the status in words, the line under them says why */
+.so-plats{display:flex;flex-wrap:wrap;gap:8px;margin:2px 0 0}
+.so-pl{position:relative;display:inline-flex;align-items:center;gap:8px;min-height:44px;margin:0;padding-block:6px;padding-inline:14px 8px;border:1.5px solid var(--line);border-radius:999px;background:var(--surface);cursor:pointer;transition:border-color .15s,background .15s}
+.so-pl input{position:absolute;opacity:0;inset:0;width:100%;height:100%;margin:0;cursor:pointer}
+.so-pl:has(input:checked){border-color:var(--accent);background:var(--tint-2)}
+.so-pl:has(input:checked) .so-pn::before{content:"✓ ";color:var(--accent)}
+.so-pl:has(input:focus-visible){box-shadow:0 0 0 3px var(--focus)}
+.so-pn{font-weight:600;font-size:14px}
+.so-bd{font-size:12px;line-height:1.5;padding:2px 10px;border-radius:999px;white-space:nowrap;background:var(--tint)}
+.so-bd.ok{background:color-mix(in srgb,#2e9e6b 16%,transparent);color:#17603f}
+.so-bd.warn{background:color-mix(in srgb,#d98a00 18%,transparent);color:#7a4d00}
+.so-bd.off,.so-bd.soon{background:var(--tint-2);color:var(--muted)}
+.so-why{display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin:10px 0 0;font-size:13px;padding:8px 12px;border-radius:12px;background:var(--tint)}.so-why[hidden]{display:none}
+/* a post's real state, in words */
+.so-state{margin:0;font-size:14px;font-weight:600;display:flex;gap:6px;flex-wrap:wrap;align-items:baseline}
+.so-state.wait{color:#7a4d00}.so-state.ok,.so-state.done{color:#17603f}.so-state.go{color:var(--accent)}.so-state.bad{color:#C0392B}.so-state.warn{color:#7a4d00}
+.so-res{list-style:none;margin:0;padding:0;display:grid;gap:4px;font-size:13px}.so-res li{display:flex;gap:8px;align-items:baseline}
+.so-res .ok{color:#17603f}.so-res .bad{color:#C0392B}.so-res .go,.so-res .wait{color:var(--muted)}.so-res .so-rn{font-weight:600}
+.so-res a{color:var(--accent);text-decoration:underline}
 .so-more{margin:6px 0 0;font-size:12px}.so-more summary{cursor:pointer}.so-more code{direction:ltr;unicode-bidi:plaintext;display:block;white-space:pre-wrap;word-break:break-word}
 </style>
 </head>
@@ -50,7 +69,8 @@ import { ClientRouter } from 'astro:transitions';
         <section class="card pad">
           <h2>منشور جديد</h2>
           <form id="f" novalidate>
-            <label>المنصات</label><div class="checks" id="plats"></div>
+            <label id="platsL">المنصات</label><div class="so-plats" id="plats" role="group" aria-labelledby="platsL"></div>
+            <p class="so-why" id="platWhy" role="status" hidden></p>
             <label for="body">النص</label><textarea id="body" rows="6"></textarea>
             <p class="so-cnt muted" id="cnt"></p>
             <div class="bar"><button class="btn sm secondary" type="button" id="suggest">اكتب لي نص من الفكرة</button></div>
@@ -93,6 +113,7 @@ import { ClientRouter } from 'astro:transitions';
             <div class="bar" style="margin-top:12px"><button class="btn sm primary" type="button" id="apprSave">احفظ</button><span class="msg" id="apprMsg" role="status"></span></div>
           </section>
           <div class="bar" style="justify-content:space-between"><h2 style="margin:0">التقويم</h2><span class="muted" id="range"></span></div>
+          <p class="so-note" id="chk"></p>
           <div id="list"></div>
         </section>
       </div>
