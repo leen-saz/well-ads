@@ -159,11 +159,11 @@ describe('auth', () => {
     expect((r as Response).headers.get('set-cookie')).toContain('Max-Age=0');
   });
 
-  it('gate: stale session with Supabase unreachable falls back to /api/auth/refresh', async () => {
+  it('gate: stale session with Supabase unreachable keeps the session (no logout, no cookie cleared)', async () => {
     vi.stubGlobal('fetch', async () => { throw new Error('down'); });
     const r = await M(req('/?view=creative', await cookieFor(member, Date.now() - 11 * 60e3)));
-    expect(status(r)).toBe(302);
-    expect(location(r)).toMatch(/\/api\/auth\/refresh\?next=/);
+    expect(status(r)).toBe(200);
+    expect((r as Response).headers?.get?.('set-cookie') ?? '').not.toContain('Max-Age=0');
   });
 
   it('safePath blocks redirects to other sites', () => {

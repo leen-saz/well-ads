@@ -18,9 +18,9 @@ const req = (path: string, cookie: string, method = 'GET', body?: unknown) => ne
 type Call = { url: string; method: string; body?: Record<string, unknown> };
 // In-memory Supabase: auth users, profiles, audit rows. `inviteStatus` makes the invite answer like a failure.
 function fake(opts: { inviteStatus?: number; inviteCode?: string; failProfile?: boolean } = {}) {
-  const authUsers = new Map<string, { id: string; email: string; user_metadata?: { name?: string } }>([
+  const authUsers = new Map<string, { id: string; email: string; user_metadata?: { name?: string; company_id?: string } }>([
     [owner.id, { id: owner.id, email: owner.email! }], [memberP.id, { id: memberP.id, email: memberP.email! }],
-    [STRANGER, { id: STRANGER, email: 'by-hand@acme.example', user_metadata: { name: 'By Hand' } }],
+    [STRANGER, { id: STRANGER, email: 'by-hand@acme.example', user_metadata: { name: 'By Hand', company_id: ACME } }],
   ]);
   const profiles = new Map<string, Record<string, unknown>>([[owner.id, owner as never], [memberP.id, memberP as never]]);
   const calls: Call[] = [];

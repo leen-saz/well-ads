@@ -7,7 +7,7 @@
 // only when the owner picks it for that task (src/lib/ai-routes.ts, docs/ai-providers.md). Without its key a task keeps its current provider.
 // Model ids from the providers' model pages (2026-11-03); change them with OPENAI_MODEL / XAI_MODEL, no code change.
 import { AI_MODEL, type AiRun } from '../modules/content/content';
-import { overCap, record, tabOf, type UsageCtx } from './usage';
+import { cost, overCap, record, tabOf, type UsageCtx } from './usage';
 import { cleanModel, OR_DEFAULT, OR_MODEL, routesOf, type Route } from './ai-routes';
 
 // Audio, video, image and speech calls (Gemini) live in gemini.ts and are reached through this adapter too
@@ -301,21 +301,33 @@ export const aiFor = (e: LlmEnv, module: string, ctx?: UsageCtx): AiRun | undefi
 
 // Grok with live search (Listening). PAID: tokens, plus $5 per 1,000 web searches and X billed per post fetched (xAI pricing).
 // Never falls back: a model without search would make the posts up.
-export async function grokSearch(e: LlmEnv, messages: Msg[], sources: ('web' | 'x')[], max_tokens: number, f: typeof fetch = fetch): Promise<string | null> {
+// `ctx` puts the call under the tab's monthly cap and records it; a spent cap answers null without calling xAI. The search fee
+// is not in the token counts, so a flat estimate per call is added and the row is marked estimated.
+export const GROK_SEARCH_USD = 0.02;
+export async function grokSearch(e: LlmEnv, messages: Msg[], sources: ('web' | 'x')[], max_tokens: number, f: typeof fetch = fetch, ctx?: UsageCtx): Promise<string | null> {
   if (!e.XAI_API_KEY) return null;
+  if (ctx && await overCap(ctx, 'listening')) { console.warn('grok_search_capped'); return null; }
   try {
     const r = await f(URL_OF.xai, { method: 'POST', headers: { authorization: `Bearer ${e.XAI_API_KEY}`, 'content-type': 'application/json' },
       body: JSON.stringify(body('xai', clean(e.XAI_MODEL) || DEFAULTS.xai, { messages, max_tokens, search: sources })) });
     if (!r.ok) { console.warn('grok_search_failed', r.status); return null; }
-    return textOf(await r.json());
+    const j = await r.json();
+    const u = (j as { usage?: { input_tokens?: number; output_tokens?: number } })?.usage, model = clean(e.XAI_MODEL) || DEFAULTS.xai;
+    const t = cost('xai', model, num(u?.input_tokens), num(u?.output_tokens));
+    record(ctx, 'listening', { provider: 'xai', model, usage: u ? { in: num(u.input_tokens), out: num(u.output_tokens) } : undefined, estimated: true, costUsd: t.usd + GROK_SEARCH_USD });
+    return textOf(j);
   } catch (err) { console.warn('grok_search_failed', (err as Error).message); return null; }
 }
 
 // Images from OpenAI's Images API (the design tab). PAID per image (more for higher quality and size).
 // With a product photo it is an edit: the product kept, a new scene around it. Without one, a new background.
 // No fallback: Workers AI has no image model we use. Returns a data: URL, or null with the reason logged.
-export async function openaiImage(e: LlmEnv, prompt: string, f: typeof fetch = fetch, product?: { bytes: Uint8Array<ArrayBuffer>; mime: string }): Promise<string | null> {
+// `ctx` puts it under the Design tab's monthly cap (a spent cap answers null, no call) and records it. The Images API returns no
+// price, so a flat estimate per image is recorded and marked estimated.
+export const IMAGE_USD = 0.07;
+export async function openaiImage(e: LlmEnv, prompt: string, f: typeof fetch = fetch, product?: { bytes: Uint8Array<ArrayBuffer>; mime: string }, ctx?: UsageCtx): Promise<string | null> {
   if (!e.OPENAI_API_KEY) return null;
+  if (ctx && await overCap(ctx, 'design')) { console.warn('image_capped'); return null; }
   const model = clean(e.OPENAI_IMAGE_MODEL) || DEFAULTS.image, opts = { size: '1024x1536', quality: 'medium', output_format: 'jpeg' };
   try {
     let r: Response;
@@ -331,6 +343,7 @@ export async function openaiImage(e: LlmEnv, prompt: string, f: typeof fetch = f
     }
     if (!r.ok) { console.warn('image_failed', product ? 'edit' : 'new', r.status); return null; }
     const b64 = ((await r.json()) as { data?: { b64_json?: string }[] })?.data?.[0]?.b64_json;
+    if (b64) record(ctx, 'design', { provider: 'openai', model, estimated: true, costUsd: IMAGE_USD });
     return b64 ? `data:image/jpeg;base64,${b64}` : null;
   } catch (err) { console.warn('image_failed', (err as Error).message); return null; }
 }

@@ -4,7 +4,7 @@ import { sb, json, readJson, handle, requireUser, audit, missingSchema, notAppli
 import { scoped } from '../../lib/tenant';
 import { MODULES } from '../registry';
 import { PRICES } from '../../lib/prices';
-import { USD_SAR, DEFAULT_ALERT_PCT, clearSnaps, levelOf, monthStart, reconcile as compare, type Row } from '../../lib/usage';
+import { USD_SAR, DEFAULT_ALERT_PCT, defaultCap, clearSnaps, levelOf, monthStart, reconcile as compare, type Row } from '../../lib/usage';
 
 const MIGRATION = 'migration 019_ai_usage.sql';
 // the home assistant (task `ahlam`) is not a module but is billed and capped like a tab
@@ -32,7 +32,8 @@ export const usage = { GET: handle(async (request, e) => {
   const byTab = new Map(here.map(r => [r.module, r]));
   const tabs = TABS.map(t => {
     const r = byTab.get(t.key), c = caps.get(t.key), spent = num(r?.cost_usd);
-    const cap = c && c.monthly_cap_usd != null ? { usd: num(c.monthly_cap_usd), pct: num(c.alert_at_pct) || DEFAULT_ALERT_PCT } : undefined;
+    // no row = the default cap (usage.ts); a row with an empty cap = the owner chose no limit
+    const cap = !c ? defaultCap() : c.monthly_cap_usd != null ? { usd: num(c.monthly_cap_usd), pct: num(c.alert_at_pct) || DEFAULT_ALERT_PCT } : undefined;
     return {
       tab: t.key, ar: t.ar, calls: num(r?.calls), tokens_in: num(r?.tokens_in), tokens_out: num(r?.tokens_out), usd: num(r?.cost_usd), sar: r2(num(r?.cost_sar)), unpriced: num(r?.unpriced),
       cap_sar: cap ? r2(cap.usd * USD_SAR) : null, alert_pct: cap?.pct ?? DEFAULT_ALERT_PCT,

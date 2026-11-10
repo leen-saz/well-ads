@@ -135,7 +135,7 @@ async function instagram(post: Draft, t: Tokens, f: typeof fetch, prev: Result |
   }
   // A video (and a carousel) is prepared on Meta's side: publish only once the container says FINISHED
   if (video || imgs.length > 1) {
-    const wait = ctx.wait ?? sleep, polls = ctx.polls ?? 3;
+    const wait = ctx.wait ?? sleep, polls = ctx.polls ?? 2;   // two looks per run (2 subrequests); the cron run five minutes later looks again, so no run ever waits long
     let st = '';
     for (let i = 0; i < polls; i++) {
       st = String((await call(f, 'GET', cid, { fields: 'status_code', access_token: token })).data.status_code || '');

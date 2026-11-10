@@ -3,7 +3,7 @@ import { sb, json, readJson, handle, requireUser, audit, levelsOf, DASHBOARDS, D
 import { logRange } from '../../lib/logrange';
 import { isDay, parseRangeParams } from '../../../public/assets/period.js';
 import { MODULES, isModule } from '../../modules/registry';
-import { scoped } from '../../lib/tenant';
+import { scoped, WELL_COMPANY } from '../../lib/tenant';
 
 type Row = Record<string, unknown> & { email?: string };
 const cleanDash = (d: unknown) => [...new Set((Array.isArray(d) ? d : []).filter((x): x is string => typeof x === 'string' && x in DASHBOARDS))];
@@ -28,7 +28,14 @@ function inviteFailure(r: { status: number; data: unknown }): string {
 }
 const pwError = (pw: string) => (pw.length < PASSWORD_MIN ? `الباسوورد لازم ${PASSWORD_MIN} أحرف أو أكثر` : pw.length > 72 ? 'الباسوورد طويل زيادة (أقصاه 72)' : null);
 const UUID36 = /^[0-9a-f-]{36}$/i;
-type AuthUser = { id?: string; email?: string; created_at?: string; user_metadata?: { name?: unknown } };
+type AuthUser = { id?: string; email?: string; created_at?: string; user_metadata?: { name?: unknown; company_id?: unknown } };
+// Every account the dashboard creates (invite, direct) is stamped with the company that made it. An account with no profile
+// belongs to that company only: another company's owner neither sees it in the list nor can give it a profile. An unstamped
+// account (made by hand in Supabase) is the platform's: only Well's owner sees it.
+const mine = (u: AuthUser, co: string): boolean => {
+  const c = u.user_metadata?.company_id;
+  return typeof c === 'string' && c ? c === co : co === WELL_COMPANY;
+};
 
 // Auth accounts that have no profile row in any company (made by hand in Supabase, or an invite that half-worked)
 async function withoutProfile(cfg: Cfg): Promise<AuthUser[]> {
@@ -81,11 +88,17 @@ export const users = {
     if (!dashboards.length) return json(400, { error: 'اختر لوحة وحدة على الأقل' });
     // The invite email has a link where the user sets their own password
     const to = new URL('/reset/', request.url).toString();
-    const inv = await sb<{ id?: string }>(cfg, `/auth/v1/invite?redirect_to=${encodeURIComponent(to)}`, { method: 'POST', admin: true, body: { email, data: { name } } });
+    const inv = await sb<{ id?: string }>(cfg, `/auth/v1/invite?redirect_to=${encodeURIComponent(to)}`, { method: 'POST', admin: true, body: { email, data: { name, company_id: user.co } } });
     if (!inv.ok || !inv.data || !inv.data.id) return json(inv.status === 422 ? 400 : 502, { error: inviteFailure(inv) });
-    const p = await sb<Row[]>(cfg, '/rest/v1/profiles', { method: 'POST', admin: true, headers: { Prefer: 'return=representation,resolution=merge-duplicates' },
+    // The id Supabase answered with must not already have a profile, in this company or any other: an insert that fails on
+    // conflict, never a merge that would rewrite someone else's company, role or access
+    const has = await sb<unknown[]>(cfg, `/rest/v1/profiles?id=eq.${encodeURIComponent(inv.data.id)}&select=id`, { admin: true });
+    if (!has.ok || !Array.isArray(has.data)) return json(500, { error: 'ما قدرت أقرأ المستخدمين' });
+    if (has.data.length) return json(409, { error: 'الإيميل مسجّل من قبل' });
+    const p = await sb<Row[]>(cfg, '/rest/v1/profiles', { method: 'POST', admin: true, headers: { Prefer: 'return=representation' },
       body: { id: inv.data.id, email, name, role: 'member', dashboards, access, departments, active: true, company_id: user.co } });
-    if (!p.ok) return json(500, { error: 'انرسلت الدعوة بس ما انحفظ الملف' });
+    if (p.status === 409) return json(409, { error: 'الإيميل مسجّل من قبل' });
+    if (!p.ok || !Array.isArray(p.data) || !p.data.length) return json(500, { error: 'انرسلت الدعوة بس ما انحفظ الملف' });
     await audit(cfg, user, 'user_invited', { target: { email, access, departments } });
     return json(200, { ok: true, user: p.data[0] });
   }),
@@ -128,7 +141,7 @@ export const direct = {
     const bad = pwError(password);
     if (bad) return json(400, { error: bad });
     if (!dashboards.length) return json(400, { error: 'اختر لوحة وحدة على الأقل' });
-    const made = await sb<{ id?: string }>(cfg, '/auth/v1/admin/users', { method: 'POST', admin: true, body: { email, password, email_confirm: true, user_metadata: { name } } });
+    const made = await sb<{ id?: string }>(cfg, '/auth/v1/admin/users', { method: 'POST', admin: true, body: { email, password, email_confirm: true, user_metadata: { name, company_id: user.co } } });
     if (!made.ok || !made.data || !made.data.id) return json(made.status === 422 ? 400 : 502, { error: made.status === 422 ? 'الإيميل مسجّل من قبل' : 'ما انضاف المستخدم، جرّب مرة ثانية' });
     const p = await sb<Row[]>(cfg, '/rest/v1/profiles', { method: 'POST', admin: true, headers: { Prefer: 'return=representation' },
       body: { id: made.data.id, email, name, role: 'member', dashboards, access, departments, active: true, company_id: user.co } });
@@ -145,9 +158,9 @@ export const direct = {
 // Accounts that can sign in but have no profile yet: listed, and given a profile and levels from here
 export const orphans = {
   GET: handle(async (request, e) => {
-    const { cfg } = await requireUser(request, e, 'owner');
+    const { cfg, user } = await requireUser(request, e, 'owner');
     try {
-      const list = await withoutProfile(cfg);
+      const list = (await withoutProfile(cfg)).filter(u => mine(u, user.co));
       return json(200, { accounts: list.map(u => ({ id: u.id, email: u.email, name: typeof u.user_metadata?.name === 'string' ? u.user_metadata.name : '', created_at: u.created_at ?? null })) });
     } catch { return json(500, { error: 'ما قدرت أقرأ الحسابات' }); }
   }),
@@ -160,7 +173,7 @@ export const orphans = {
     const dashboards = Object.keys(access);
     if (!dashboards.length) return json(400, { error: 'اختر لوحة وحدة على الأقل' });
     const au = await sb<AuthUser>(cfg, `/auth/v1/admin/users/${id}`, { admin: true });
-    if (!au.ok || !au.data || au.data.id !== id || !au.data.email) return json(404, { error: 'حساب غير معروف' });
+    if (!au.ok || !au.data || au.data.id !== id || !au.data.email || !mine(au.data, user.co)) return json(404, { error: 'حساب غير معروف' });
     const has = await sb<unknown[]>(cfg, `/rest/v1/profiles?id=eq.${id}&select=id`, { admin: true });
     if (!has.ok) return json(500, { error: 'ما قدرت أقرأ المستخدمين' });
     if (has.data.length) return json(409, { error: 'الحساب له ملف من قبل' });
