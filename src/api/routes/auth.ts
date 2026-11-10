@@ -1,6 +1,6 @@
 // /api/auth/*: login, logout, refresh, forgot, reset. Port of web/lib/routes/auth/*.js.
 import {
-  env, sb, loadProfile, sessionFor, sign, verify, readCookie, setCookie, clearCookie, safePath, home, audit, html, json,
+  env, sb, loadProfile, sessionFor, sign, renew, verify, readCookie, setCookie, clearCookie, safePath, home, audit, html, json,
   sameOrigin, readJson, handle, keyKind, auditEmail, SESSION, SESSION_HOURS, PASSWORD_MIN, type Profile,
 } from '../../lib/auth';
 
@@ -58,13 +58,10 @@ export const refresh = { GET: handle(async (request, e) => {
   const s = await verify(readCookie(request, SESSION), cfg.secret);
   const out = (to: string, cookie: string) => new Response(null, { status: 302, headers: { location: to, 'set-cookie': cookie, 'cache-control': 'no-store' } });
   if (!s) return out('/login/', clearCookie());
-  const profile = await loadProfile(cfg, s.uid);
-  if (!profile || profile.active === false) return out('/login/', clearCookie());
-  const fresh = sessionFor(profile, cfg);
-  fresh.exp = s.exp; // renewing never extends the session
-  const left = Math.max(0, Math.floor((s.exp - Date.now()) / 1000));
-  if (!left) return html(401, 'انتهت الجلسة.');
-  return out(safePath(url.searchParams.get('next')) || home(), setCookie(await sign(fresh, cfg.secret), left));
+  const r = await renew(cfg, s);
+  if (r.kind === 'login') return out('/login/', clearCookie());
+  if (r.kind === 'expired') return html(401, 'انتهت الجلسة.');
+  return out(safePath(url.searchParams.get('next')) || home(), r.cookie);
 }) };
 
 // Sends a reset link. Same reply every time so nobody learns whether an email is registered.
