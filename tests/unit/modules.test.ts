@@ -71,3 +71,35 @@ describe('locked modules', () => {
     expect(saved).toEqual({ disabled_modules: ['journeys', 'voice'] });
   });
 });
+
+describe('tabs with sections (voiceover in voice, copy in content)', () => {
+  const dest = (r: unknown) => (r instanceof Response ? r.headers.get('location') : null);
+  it('the section is picked with ?tab= and keeps its own access, on pages only', () => {
+    expect(need('/voice/', '?tab=voiceover')).toBe('voiceover');
+    expect(need('/content/', '?tab=copy')).toBe('copy');
+    expect(need('/voice/', '?tab=copy')).toBe('voice');            // a section of another tab: not this one's
+    expect(need('/api/voice/guide', '?tab=voiceover')).toBe('voice');
+    expect(need('/api/voiceover/guide', '')).toBe('voiceover'); expect(need('/api/copy/projects', '')).toBe('copy');
+  });
+  it('the old addresses open the section inside the tab', async () => {
+    const cookie = await cookieFor({ ...leen, company: { disabled_modules: [] } });
+    expect(dest(await gate(req('/voiceover/', cookie), E))).toBe('https://well.example/voice/?tab=voiceover');
+    expect(dest(await gate(req('/copy/', cookie), E))).toBe('https://well.example/content/?tab=copy');
+  });
+  it('a locked section stays locked, at the old address and inside the tab', async () => {
+    const cookie = await cookieFor({ ...leen, company: { disabled_modules: ['voiceover'] } });
+    for (const p of ['/voiceover/', '/voice/?tab=voiceover']) { const r = await gate(req(p, cookie), E); expect(r instanceof Response && r.status).toBe(403); }
+    expect(await gate(req('/voice/', cookie), E)).toEqual({ pass: true });
+  });
+  it('the sections have no sidebar entry; the tab opens its only section for a user who has just that', async () => {
+    const { sections } = await import('../../public/assets/sidebar.js');
+    const all = (m: unknown) => (sections(m, (ar: string) => ar) as { items: { href: string; key: string; state: string }[] }[]).flatMap(s => s.items);
+    const base = (ok: (k: string) => boolean) => ({ role: 'member', email: 'x@x', dashboards: [], modules: MODULES.map(m => ({ ...m, ok: ok(m.key), locked: false })) });
+    const full = all(base(() => true));
+    expect(full.map(i => i.key)).not.toContain('voiceover'); expect(full.map(i => i.key)).not.toContain('copy');
+    expect(full.find(i => i.key === 'voice')?.href).toBe('/voice/');
+    const only = all(base(k => k === 'voiceover' || k === 'copy'));
+    expect(only.find(i => i.key === 'voice')).toMatchObject({ href: '/voice/?tab=voiceover', state: 'ok' });
+    expect(only.find(i => i.key === 'content')).toMatchObject({ href: '/content/?tab=copy', state: 'ok' });
+  });
+});

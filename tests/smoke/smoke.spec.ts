@@ -2,7 +2,7 @@
 import { test, expect } from '@playwright/test';
 import { login, addSession, emailFor } from './helpers';
 import { CORE_KEYS, MODULE_KEYS } from './keys';
-import { LIVE } from '../../src/modules/registry';
+import { LIVE, MODULES } from '../../src/modules/registry';
 
 const BASE = `http://localhost:${process.env['SMOKE_PORT'] || 8787}`;
 // Each live tab: its page and its main read-only API
@@ -10,11 +10,11 @@ const TABS: { key: string; page: string; api: string }[] = [
   { key: 'overview', page: '/overview/', api: '/api/overview/data' },
   { key: 'listening', page: '/listening/', api: '/api/listening/demand' },
   { key: 'design', page: '/design/', api: '/api/design/options' },
-  { key: 'copy', page: '/copy/', api: '/api/copy/projects' },
+  { key: 'copy', page: '/content/?tab=copy', api: '/api/copy/projects' },
   { key: 'voice', page: '/voice/', api: '/api/voice/guide' },
   { key: 'transcribe', page: '/transcribe/', api: '/api/transcribe/jobs' },
   { key: 'vision', page: '/vision/', api: '/api/vision/recent' },
-  { key: 'voiceover', page: '/voiceover/', api: '/api/voiceover/guide' },
+  { key: 'voiceover', page: '/voice/?tab=voiceover', api: '/api/voiceover/guide' },
   { key: 'social', page: '/social/', api: '/api/social/posts' },
   { key: 'content', page: '/content/', api: '/api/content/plans' },
   { key: 'journeys', page: '/journeys/', api: '/api/journeys/list' },
@@ -28,6 +28,15 @@ const hasArabic = (s: string) => /[؀-ۿ]/.test(s);
 test('the suite covers every live module', () => {
   expect([...MODULE_KEYS].sort()).toEqual([...LIVE].sort());
   expect(TABS.map(t => t.key).sort()).toEqual([...LIVE].sort());
+});
+
+test('the old addresses of voiceover and copy open their sections inside Voice and Content', async ({ request }) => {
+  const cookie = (await login(request, 'owner')).header;
+  for (const [old, now] of [['/voiceover/', '/voice/?tab=voiceover'], ['/copy/', '/content/?tab=copy']]) {
+    const r = await request.get(old, { headers: { cookie }, maxRedirects: 0 });
+    expect(r.status(), old).toBe(302);
+    expect(r.headers()['location'], old).toContain(now);
+  }
 });
 
 test.describe('health and sign-in', () => {
@@ -180,7 +189,9 @@ test.describe('sidebar and language (browser)', () => {
   test('the owner sees every live tab and the permissions page', async ({ page, context, request }) => {
     await addSession(context, await login(request, 'owner'));
     await page.goto('/today/');
-    for (const k of LIVE) await expect(page.locator(`a.navi[data-k="${k}"]`).first(), k).toBeVisible();
+    // voiceover and copy are sections inside Voice and Content, not entries of their own
+    for (const k of LIVE.filter(k => !MODULES.find(m => m.key === k)?.into)) await expect(page.locator(`a.navi[data-k="${k}"]`).first(), k).toBeVisible();
+    for (const k of ['voiceover', 'copy']) await expect(page.locator(`a.navi[data-k="${k}"]`), k).toHaveCount(0);
     await expect(page.locator('a.navi[data-k="admin"]')).toBeVisible();
   });
   test('the language switch flips the page to English, left to right, and back', async ({ page, context, request }) => {

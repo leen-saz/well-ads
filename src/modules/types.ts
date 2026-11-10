@@ -10,6 +10,8 @@ export interface ModuleMeta {
   status: 'live' | 'soon';
   does: string[];
   doesEn: string[];
+  // Shown as a section inside another tab (its key) instead of its own sidebar entry: /<into>/?tab=<key>. Access, lock and API stay this module's own
+  into?: string;
   // More pages of the same module, under it in the sidebar: /<key>/<path>/ (same access as the module)
   pages?: { path: string; ar: string; en: string; icon: string }[];
 }

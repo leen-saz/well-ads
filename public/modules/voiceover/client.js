@@ -1,5 +1,5 @@
 // الفويس أوفر: النص + الصوت واللهجة والنبرة والإيقاع (الافتراضي صوت العلامة)، فحص الامتثال، توليد، سماع، تنزيل WAV، وحفظ النص في المكتبة.
-import { $, api, say, esc, shell, busy, failure } from '/assets/common.js';
+import { $, api, say, esc, shell, busy, failure, sectionTabs } from '/assets/common.js';
 
 // The speech model answers with 16-bit mono PCM (24 kHz) as base64: wrapped in a WAV header it plays and downloads
 function wav(b64, mime) {
@@ -74,5 +74,5 @@ export default async function mount() {
     busy(e.target, false);
   });
 
-  shell({ active: 'voiceover', title: 'الفويس أوفر' }).then(load).catch(err => say($('#msg'), err.message));
+  shell({ active: 'voice', section: 'voiceover', title: 'الصوت' }).then(me => { sectionTabs(me, 'voice', 'voiceover', ['فحص النص والصوت', 'Text & voice']); return load(); }).catch(err => say($('#msg'), err.message));
 }

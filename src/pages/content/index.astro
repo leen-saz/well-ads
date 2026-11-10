@@ -1,5 +1,7 @@
 ---
-// The page lives in its module: src/modules/content/Page.astro
+// One tab, two sections: ?tab=copy shows the copy module's page (its own access and lock are checked in src/lib/gate.ts)
 import Page from '../../modules/content/Page.astro';
+import Section from '../../modules/copy/Page.astro';
+const section = Astro.url.searchParams.get('tab') === 'copy';
 ---
-<Page />
+{section ? <Section /> : <Page />}

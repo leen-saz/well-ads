@@ -2,7 +2,7 @@
 // only the dashboards Leen picked. Returns a Response (redirect / refusal) or a pass decision.
 import { env, verify, readCookie, SESSION, can, home, html, json, type AuthEnv, type Cfg, type Need, locked, LOCKED, WELL_ONLY } from './auth';
 import { WELL_COMPANY } from './tenant';
-import { LIVE } from '../modules/registry';
+import { LIVE, MODULES } from '../modules/registry';
 
 export type Pass = { pass: true; rewrite?: string };
 export type Decision = Pass | Response;
@@ -16,7 +16,7 @@ const PUBLIC = [/^\/login\/?$/, /^\/reset\/?$/, /^\/welcome\/?$/, /^\/api\/auth\
 // the first tool of the destination this user may open, in sidebar order, and /today/ when none.
 export const HUBS: Record<string, [Need, string][]> = {
   performance: [['ceo', '/'], ['creative', '/?view=creative'], ['listening', '/listening/']],
-  create: [['design', '/design/'], ['copy', '/copy/'], ['voice', '/voice/'], ['social', '/social/'], ['content', '/content/'], ['journeys', '/journeys/']],
+  create: [['design', '/design/'], ['voice', '/voice/'], ['voiceover', '/voice/?tab=voiceover'], ['social', '/social/'], ['content', '/content/'], ['copy', '/content/?tab=copy'], ['journeys', '/journeys/']],
   review: [['control', '/control/'], ['compliance', '/compliance/'], ['maestro', '/maestro/']],
   system: [['connectors', '/connectors/'], ['knowledge', '/knowledge/'], ['debugger', '/debugger/']],
 };
@@ -28,6 +28,9 @@ const HUB = /^\/(performance|create|review|system)\/?$/;
 const ALIAS: Record<string, string> = { '/analytics': '/', '/home': '/today/', '/start': '/today/', '/history': '/control/?tab=log', '/review/history': '/control/?tab=log', '/permissions': '/admin/',
   // Motion graphics moved from Maestro into Design, then from /design/video/ into Design's type switch; ?id= rides along
   '/maestro/video': '/design/?type=motion', '/design/video': '/design/?type=motion' };
+
+// Tabs shown as a section of another tab: /voiceover/ is /voice/?tab=voiceover, /copy/ is /content/?tab=copy (same access as before)
+const intoOf = (key: string): string | undefined => MODULES.find(m => m.key === key)?.into;
 
 export function need(pathname: string, search: string): Need | null {
   if (PUBLIC.some(r => r.test(pathname))) return null;
@@ -45,7 +48,11 @@ export function need(pathname: string, search: string): Need | null {
   if (/^\/(api\/)?library(\/|$)/.test(pathname)) return 'any';
   // Live modules: /<key>/ and /api/<key>/* need the module's own dashboard
   const mod = pathname.match(/^\/(?:api\/)?([a-z]+)(?:\/|$)/)?.[1];
-  if (mod && LIVE.includes(mod)) return mod;
+  if (mod && LIVE.includes(mod)) {
+    // The section picked with ?tab= is the child module's: its own access and lock
+    const tab = !pathname.startsWith('/api/') ? new URLSearchParams(search).get('tab') : null;
+    return tab && intoOf(tab) === mod ? tab : mod;
+  }
   if (/^\/(api\/)?account(\/|$)/.test(pathname)) return 'any';
   // Web Vitals reports: every signed-in user sends them, not only those with analytics
   if (/^\/api\/vitals\//.test(pathname)) return 'any';
@@ -97,6 +104,9 @@ export async function gate(request: Request, e: AuthEnv): Promise<Decision> {
   if (want === 'media') return (s.dash || []).length || s.role === 'owner' ? { pass: true } : html(403, 'ما عندك صلاحية');
   if (locked(s, want)) return api ? json(403, { error: LOCKED }) : html(403, LOCKED);
   if (can(s, want, cfg)) {
+    // The old address of a section: its place inside the tab it moved into
+    const host = !api ? intoOf(want) : undefined;
+    if (host && url.pathname.replace(/\/$/, '') === '/' + want) return redirect(new URL(`/${host}/?tab=${want}`, url.origin).toString());
     // Department manager: analytics and creative open from their department copy only
     const scope: string[] = Array.isArray(s.depts) ? s.depts : [];
     const m = url.pathname.match(/^\/dept\/([a-z]+)\/?/);

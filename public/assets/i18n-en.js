@@ -516,7 +516,7 @@ export const EN = {
   'يجهز تفاصيل التصميم…': 'Preparing the design details…', 'جاهز. عدّل النص أو اختر خيار ثاني، والمعاينة تتحدث.': 'Ready. Edit the copy or pick another option, and the preview updates.',
   'ما فيه إعلانات ليدز بثلاث ليدز أو أكثر آخر 30 يوم، فالنصوص من القوالب.': 'No lead ads with three or more leads in the last 30 days, so the copy comes from templates.',
   // الصوت (voice)
-  'الصوت': 'Voice', 'الصوت · Well': 'Voice · Well',
+  'الصوت': 'Voice', 'الصوت · Well': 'Voice · Well', 'فحص النص والصوت': 'Text & voice',
   'يفحص النص على صوت علامة Well، ويحسب مدته كفويس أوفر، ويعيد كتابته بصوت العلامة، وتسمعه بصوت عربي من جهازك.': "Checks copy against Well's brand voice, times it as a voice-over, rewrites it in the brand voice, and plays it in an Arabic voice from your device.",
   'النص أو سكربت الفويس أوفر': 'Text or voice-over script', 'مثال: تعبان من الدوام؟ فريقنا الطبي يجيك البيت. احجز جلستك': 'Example: Tired after work? Our medical team comes to your home. Book your session',
   'مدة الإعلان': 'Ad length', '15 ثانية': '15 seconds', '30 ثانية': '30 seconds', '60 ثانية': '60 seconds', 'اكتبه بصوت العلامة': 'Write it in the brand voice',
