@@ -13,8 +13,8 @@ from tiktok.fetch import (
 
 FIXTURE = json.load(open(os.path.join(ROOT, "tests", "fixtures", "tiktok_api.json"), encoding="utf-8"))
 TOKEN = "super-secret-token-value"
-WELL = "7532842350553514000"
-ROSE = "6948010864247046146"
+WELL = "7000000000000000001"
+ROSE = "7000000000000000002"
 RIYADH = timezone(timedelta(hours=3))
 NOW = datetime(2026, 10, 18, 21, 5, tzinfo=RIYADH)
 START = datetime(2026, 10, 1, tzinfo=RIYADH)
@@ -282,9 +282,9 @@ class IngestTests(unittest.TestCase):
                     ["t9", "2026-10-12", 80, 9, 1, 0, 0],
                 ],
             }, open(path, "w", encoding="utf-8"))
-            # ملف فيه إعلان زهرة الربيع يُسقَط كما في المسار القديم.
+            # ملف فيه إعلان شركة العرض التجريبي يُسقَط كما في المسار القديم.
             blob = json.load(open(path, encoding="utf-8"))
-            blob["ads"]["t9"] = {"platform": "tiktok", "name": "Rose install", "campaign": "SR | iOS14 | AppInstall", "group": "", "text": ""}
+            blob["ads"]["t9"] = {"platform": "tiktok", "name": "Rose install", "campaign": "Demo | ad_demo_x1 | AppInstall", "group": "", "text": ""}
             json.dump(blob, open(path, "w", encoding="utf-8"))
 
             def boom(*_a, **_k):
@@ -386,3 +386,61 @@ class WhatsAppDestination(unittest.TestCase):
         # no link, no group info, nothing listed: unknown, so False (never guessed)
         self.assertFalse(whatsapp_dest({"campaign_name": "Promo whatsapp"}, config=none))
         self.assertFalse(whatsapp_dest({"landing_page_url": "https://example.com/offer"}, config=none))
+
+
+class DestinationUnknownAndRecomputed(unittest.TestCase):
+    def test_no_evidence_is_unknown_for_lead_ads_only(self):
+        from tiktok.merge import destination, dest_for
+        none = {}
+        self.assertEqual(destination({}, config=none), "unknown")
+        self.assertEqual(destination({"landing_page_url": "https://example.com/offer"}, config=none), None)
+        self.assertEqual(destination({}, {"messaging_app_type": "MESSENGER"}, config=none), None)
+        self.assertEqual(dest_for({}, goal="lead", config=none), "unknown")
+        self.assertIsNone(dest_for({}, goal="traffic", config=none))
+        self.assertEqual(dest_for({"deeplink": "https://wa.me/1"}, goal="traffic", config=none), "whatsapp")
+        self.assertIsNone(dest_for({"landing_page_url": "https://example.com"}, goal="lead", config=none))
+
+    def test_whatsapp_tag_is_not_sticky(self):
+        # a previous run tagged the ad WhatsApp; today its link is a web page, so the tag must go
+        import subprocess, tempfile, shutil
+        from tiktok.merge import GOAL
+        tmp = tempfile.mkdtemp()
+        try:
+            out = os.path.join(tmp, "t.json")
+            json.dump({"ads": {"t1": {"platform": "tiktok", "dest": "whatsapp", "goal": "lead"}}, "rows": [], "objectives": {}}, open(out, "w"))
+            ad = {"ad_id": "1", "ad_name": "x", "campaign_id": "c1", "campaign_name": "y", "adgroup_name": "g", "operation_status": "ENABLE",
+                  "secondary_status": "AD_STATUS_DELIVERY_OK", "landing_page_url": "https://example.com/offer", "advertiser_id": WELL}
+            ads = os.path.join(tmp, "a.json"); json.dump({"list": [ad]}, open(ads, "w"))
+            days = os.path.join(tmp, "d.json")
+            json.dump({"page_info": {"total_page": 1}, "list": [{"dimensions": {"ad_id": "1", "stat_time_day": "2026-10-01 00:00:00"}, "metrics": {"spend": "5", "impressions": "100", "clicks": "3", "leads": "0"}}]}, open(days, "w"))
+            obj = os.path.join(tmp, "o.json"); json.dump({"c1": "LEAD_GENERATION"}, open(obj, "w"))
+            subprocess.check_call([sys.executable, os.path.join(ROOT, "tiktok", "merge.py"), out, "--ads", ads, "--days", days, "--objectives", obj],
+                                  stdout=subprocess.DEVNULL, env={**os.environ, "PYTHONPATH": ROOT})
+            got = json.load(open(out))["ads"]["t1"]
+            self.assertNotIn("dest", got)
+            # and with no link at all it becomes unknown, not whatsapp
+            del ad["landing_page_url"]; json.dump({"list": [ad]}, open(ads, "w"))
+            subprocess.check_call([sys.executable, os.path.join(ROOT, "tiktok", "merge.py"), out, "--ads", ads, "--days", days, "--objectives", obj],
+                                  stdout=subprocess.DEVNULL, env={**os.environ, "PYTHONPATH": ROOT})
+            self.assertEqual(json.load(open(out))["ads"]["t1"]["dest"], "unknown")
+        finally:
+            shutil.rmtree(tmp)
+
+    def test_exclusion_comes_from_the_environment(self):
+        from tiktok import merge
+        old = {k: os.environ.pop(k, None) for k in ("TIKTOK_EXCLUDED_ADVERTISER_IDS", "TIKTOK_EXCLUDED_MARKERS")}
+        try:
+            self.assertFalse(merge.exclusions_configured())
+            self.assertFalse(merge.is_spring_rose_account("7999999999999999999", "Other Co"))
+            os.environ["TIKTOK_EXCLUDED_ADVERTISER_IDS"] = "7999999999999999999, 7888888888888888888"
+            os.environ["TIKTOK_EXCLUDED_MARKERS"] = "other co;zz_marker"
+            self.assertTrue(merge.exclusions_configured())
+            self.assertTrue(merge.is_spring_rose_account("7888888888888888888", ""))
+            self.assertTrue(merge.is_spring_rose_account("", "The OTHER CO account"))
+            self.assertTrue(merge.is_spring_rose_ad({"platform": "tiktok", "campaign": "ZZ_Marker | x"}))
+            self.assertFalse(merge.is_spring_rose_account("7000000000000000001", "Well"))
+        finally:
+            for k, v in old.items():
+                os.environ.pop(k, None)
+                if v is not None:
+                    os.environ[k] = v

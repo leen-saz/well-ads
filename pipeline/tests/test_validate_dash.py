@@ -90,6 +90,13 @@ class ValidateTests(unittest.TestCase):
         m, _, _ = split(good()); del m["rows_cols"]
         self.assertEqual(v.validate(m), ["missing required key 'rows'"])
 
+    def test_missing_crm_block_warns_but_does_not_fail(self):
+        d = good(); self.assertEqual(v.warnings(d), [])
+        del d["crm"]
+        self.assertEqual(v.validate(d), [])
+        self.assertEqual(len(v.warnings(d)), 1)
+        self.assertEqual(len(v.warnings({**d, "crm": {}})), 1)
+
     def test_crm_block(self):
         d = good(); d["crm"]["rows"][0][4] = -5
         self.assertIn("some crm rows are malformed or have a negative amount", v.validate(d))

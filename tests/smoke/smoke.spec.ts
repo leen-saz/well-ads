@@ -44,7 +44,9 @@ test.describe('health and sign-in', () => {
     const r = await request.get('/api/health');
     expect(r.status()).toBe(200);
     const h = await r.json();
-    expect(h).toEqual({ ok: true, version: 'smoke-build', env: 'local', checks: { supabase: 'up', storage: 'up', ai: 'unset' } });
+    expect(h).toMatchObject({ ok: true, version: 'smoke-build', env: 'local', checks: { supabase: 'up', storage: 'up', ai: 'unset' } });
+    // The age of the numbers is reported as codes only (no bucket data in the smoke setup, so it is simply not claimed)
+    expect(['ok', 'warn', 'stale', 'unknown']).toContain(h.data.level);
   });
   test('signed out: pages go to the login page, the API answers 401 JSON', async ({ request }) => {
     const p = await request.get('/overview/', { maxRedirects: 0 });

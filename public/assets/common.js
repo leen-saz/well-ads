@@ -237,6 +237,8 @@ export async function shell({ active, title, badge = '', tools = '', section = a
   drawer(app, side);
   restoreDraft();
   warmAnalytics(app);
+  // Old numbers are said out loud on every page, in plain words (public/assets/freshness.js)
+  import('./freshness.js').then(m => m.staleBanner($('#content', app))).catch(() => {});
   import('./vitals.js').then(m => m.measure()).catch(() => {});
   // Every live tab ends with its lessons card (learning loop, docs/learning-loops.md)
   if ((me.modules || []).some(m => m.key === section && m.status === 'live' && m.ok && !m.locked)) import('./lessons.js').then(m => m.lessonsCard(section)).catch(() => {});

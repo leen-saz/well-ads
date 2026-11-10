@@ -341,12 +341,12 @@ class BillingTests(unittest.TestCase):
 class SpringRoseTests(unittest.TestCase):
     def test_account_and_named_ads_drop_out_of_spend(self):
         from tiktok.merge import is_spring_rose_account, without_spring_rose
-        self.assertTrue(is_spring_rose_account("6948010864247046146", "Spring Rose0406"))
-        self.assertTrue(is_spring_rose_account("", "شركة زهرة الربيع"))
-        self.assertFalse(is_spring_rose_account("7532842350553514000", "Well"))
+        self.assertTrue(is_spring_rose_account("7000000000000000002", "ACME Demo Co"))
+        self.assertTrue(is_spring_rose_account("", "شركة العرض التجريبي"))
+        self.assertFalse(is_spring_rose_account("7000000000000000001", "Well"))
         blob = {
             "ads": {
-                "t1": {"platform": "tiktok", "name": "Rose install", "campaign": "SR | iOS14 | AppInstall", "group": "", "text": ""},
+                "t1": {"platform": "tiktok", "name": "Rose install", "campaign": "Demo | ad_demo_x1 | AppInstall", "group": "", "text": ""},
                 "t2": {"platform": "tiktok", "name": "Well lead", "campaign": r"Tiktok_Leads_WELL_iv_20\8", "group": "", "text": ""},
                 "m1": {"platform": "facebook", "name": "قابلة", "campaign": "IV", "group": "", "text": ""},
             },
@@ -361,8 +361,8 @@ class SpringRoseTests(unittest.TestCase):
         self.assertEqual([r[0] for r in out["rows"]], ["t2", "m1"])
         self.assertAlmostEqual(sum(r[2] for r in out["rows"]), 13.0)
         whole = without_spring_rose({
-            "advertiser_id": "6948010864247046146",
-            "advertiser_name": "Spring Rose0406",
+            "advertiser_id": "7000000000000000002",
+            "advertiser_name": "ACME Demo Co",
             "ads": {"t9": {"platform": "tiktok", "name": "plain", "campaign": "purchase", "group": "", "text": ""}},
             "rows": [["t9", "2026-10-01", 99, 1, 0, 0, 0]],
         })
@@ -372,9 +372,9 @@ class SpringRoseTests(unittest.TestCase):
     def test_merge_keeps_well_and_skips_spring_rose_pull(self):
         import tempfile
         rose_ads = {"data": {"list": [{
-            "ad_id": "9", "advertiser_id": "6948010864247046146", "advertiser_name": "Spring Rose0406",
-            "ad_name": "install", "campaign_name": "ZR_ND96_TT_iOS_Purchase", "adgroup_name": "g",
-            "operation_status": "ENABLE", "secondary_status": "AD_STATUS_DELIVERY_OK", "ad_text": "زهرة الربيع",
+            "ad_id": "9", "advertiser_id": "7000000000000000002", "advertiser_name": "ACME Demo Co",
+            "ad_name": "install", "campaign_name": "AD_DEMO_X1_TT_iOS_Purchase", "adgroup_name": "g",
+            "operation_status": "ENABLE", "secondary_status": "AD_STATUS_DELIVERY_OK", "ad_text": "شركة العرض التجريبي",
         }]}}
         days = {"data": {"page_info": {"total_page": 1}, "list": [{
             "dimensions": {"ad_id": "9", "stat_time_day": "2026-10-01 00:00:00"},

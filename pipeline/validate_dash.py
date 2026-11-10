@@ -112,6 +112,16 @@ def validate(data, min_ads=MIN_ADS, min_rows=MIN_ROWS):
     return errs
 
 
+def warnings(data):
+    """Things that do not stop the upload but must not pass silently: a dash.json built without the CRM block (the join
+    failed or CRM is not connected) would otherwise look fine while closings quietly vanish from every page."""
+    out = []
+    crm = data.get("crm") if isinstance(data, dict) else None
+    if not isinstance(crm, dict) or not crm:
+        out.append("dash.json has no CRM block: closings and CRM cost are missing from every page (the site shows a notice)")
+    return out
+
+
 def check_audience_files(directory):
     """The per-audience files (data/*.json, data/dept/*.json) must at least be valid JSON objects with ads and rows
     (as 'rows', or column-wise as 'rows_cols')."""
@@ -146,6 +156,8 @@ def main(argv):
         for e in errs:
             print(" -", e)
         return 1
+    for w in warnings(data):
+        print(f"::warning title=dash.json::{w}")
     print("dash.json check: ok")
     return 0
 

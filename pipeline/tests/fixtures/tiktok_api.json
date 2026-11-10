@@ -5,7 +5,7 @@
     "data": {
       "list": [
         {
-          "advertiser_id": "7532842350553514000",
+          "advertiser_id": "7000000000000000001",
           "name": "Well",
           "currency": "SAR",
           "timezone": "Asia/Riyadh",
@@ -20,14 +20,14 @@
     "data": {
       "list": [
         {
-          "campaign_id": "1875496154242098",
+          "campaign_id": "1000000000000001",
           "campaign_name": "Tiktok_Leads_WELL_iv",
           "objective_type": "LEAD_GENERATION",
           "operation_status": "ENABLE"
         },
         {
           "campaign_id": "99",
-          "campaign_name": "SR | iOS14 | AppInstall",
+          "campaign_name": "Demo | ad_demo_x1 | AppInstall",
           "objective_type": "TRAFFIC",
           "operation_status": "ENABLE"
         }
@@ -53,10 +53,10 @@
     "data": {
       "list": [
         {
-          "advertiser_id": "7532842350553514000",
+          "advertiser_id": "7000000000000000001",
           "ad_id": "1878109843378193",
           "ad_name": "Well lead video",
-          "campaign_id": "1875496154242098",
+          "campaign_id": "1000000000000001",
           "campaign_name": "Tiktok_Leads_WELL_iv",
           "adgroup_id": "22",
           "adgroup_name": "Female2",
@@ -66,10 +66,10 @@
           "ad_text": "فيتامينات وريدية"
         },
         {
-          "advertiser_id": "7532842350553514000",
+          "advertiser_id": "7000000000000000001",
           "ad_id": "555",
           "ad_name": "Old group",
-          "campaign_id": "1875496154242098",
+          "campaign_id": "1000000000000001",
           "campaign_name": "Tiktok_Leads_WELL_iv",
           "adgroup_id": "23",
           "adgroup_name": "Paused group",
@@ -78,10 +78,10 @@
           "ad_text": ""
         },
         {
-          "advertiser_id": "7532842350553514000",
+          "advertiser_id": "7000000000000000001",
           "ad_id": "556",
           "ad_name": "Looks delivering",
-          "campaign_id": "1875496154242098",
+          "campaign_id": "1000000000000001",
           "campaign_name": "Tiktok_Leads_WELL_iv",
           "adgroup_id": "25",
           "adgroup_name": "Parent off",
@@ -90,16 +90,16 @@
           "ad_text": ""
         },
         {
-          "advertiser_id": "7532842350553514000",
+          "advertiser_id": "7000000000000000001",
           "ad_id": "9",
           "ad_name": "Rose install",
           "campaign_id": "99",
-          "campaign_name": "SR | iOS14 | AppInstall",
+          "campaign_name": "Demo | ad_demo_x1 | AppInstall",
           "adgroup_id": "22",
           "adgroup_name": "g",
           "operation_status": "ENABLE",
           "secondary_status": "AD_STATUS_DELIVERY_OK",
-          "ad_text": "زهرة الربيع"
+          "ad_text": "شركة العرض التجريبي"
         }
       ],
       "page_info": {"page": 1, "page_size": 1000, "total_number": 4, "total_page": 1}
@@ -122,7 +122,7 @@
             "ad_name": "Well lead video",
             "campaign_name": "Tiktok_Leads_WELL_iv",
             "adgroup_name": "Female2",
-            "campaign_id": "1875496154242098"
+            "campaign_id": "1000000000000001"
           }
         },
         {
@@ -163,7 +163,7 @@
             "impressions": "999",
             "clicks": "40",
             "conversion": "7",
-            "campaign_name": "SR | iOS14 | AppInstall",
+            "campaign_name": "Demo | ad_demo_x1 | AppInstall",
             "ad_name": "Rose install"
           }
         }
@@ -186,7 +186,7 @@
             "ad_name": "Deleted creative",
             "campaign_name": "Tiktok_Leads_WELL_iv",
             "adgroup_name": "Archive",
-            "campaign_id": "1875496154242098"
+            "campaign_id": "1000000000000001"
           }
         }
       ],
@@ -204,7 +204,7 @@
     "data": {
       "list": [
         {
-          "advertiser_id": "7532842350553514000",
+          "advertiser_id": "7000000000000000001",
           "name": "Well",
           "currency": "USD",
           "timezone": "Asia/Riyadh"
@@ -231,7 +231,7 @@
     "data": {
       "list": [
         {
-          "advertiser_id": "7532842350553514000",
+          "advertiser_id": "7000000000000000001",
           "name": "Well",
           "currency": "EUR",
           "timezone": "Asia/Riyadh"
@@ -245,8 +245,8 @@
     "data": {
       "list": [
         {
-          "advertiser_id": "7532842350553514000",
-          "name": "Spring Rose0406",
+          "advertiser_id": "7000000000000000001",
+          "name": "ACME Demo Co",
           "currency": "SAR",
           "timezone": "Asia/Riyadh"
         }

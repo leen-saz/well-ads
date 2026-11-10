@@ -4,6 +4,7 @@
 import { missingSchema, sb, type Cfg } from '../../lib/auth';
 import { scoped } from '../../lib/tenant';
 import { readAll } from './health';
+import { dataStatus } from '../../lib/datastatus';
 import { SCHEMA } from './schema';
 
 const PLATFORMS = ['meta', 'snap', 'tiktok', 'google'];
@@ -102,6 +103,7 @@ async function sources(cfg: Cfg, company: string, files?: R2Bucket) {           
     freshness: { platforms: freshness(ads.rows, metrics.rows, conns.rows),
       crm: state ? { last_run_at: state.last_run_at, last_updated_at: state.last_updated_at, rows_last_run: state.rows_last_run } : null,
       listening_last_fetch: watches.rows.reduce<string | null>((a, w) => newest(a, w.fetched_at), null), dash_json_uploaded: dashUploaded },
+    data_status: await dataStatus(files),
     joins: dash ? joinRates(dash.crm) : null,
     duplicates: { ads: surplus(ads.rows, a => (a.name ? key(a.platform, a.name, a.campaign) : null)) },
   };
