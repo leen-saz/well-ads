@@ -4,7 +4,7 @@
 import { env as authEnv, sb, type AuthEnv, type Cfg } from '../../lib/auth';
 import { type AiRun } from '../content/content';
 import { generate, grokSearch, pick } from '../../lib/llm';
-import { usageCtx } from '../../lib/usage';
+import { usageCtx, type UsageCtx } from '../../lib/usage';
 import {
   dedupe, due, parseBing, parseNews, parseReddit, parseSentiment, parseTikTok, parseX, parseYouTube, query, sentimentPrompt,
   terms, type Mention, type Watch,
@@ -49,7 +49,7 @@ export function batch<T extends Watch>(list: T[], budget = BUDGET): T[] {
 }
 
 // One watch: each source on its own; a failing source never stops the others. Returns what each source gave.
-export async function collect(w: Watch & { id: number }, e: ListenEnv, f: typeof fetch = fetch): Promise<{ found: Mention[]; bySource: Record<string, number | string> }> {
+export async function collect(w: Watch & { id: number }, e: ListenEnv, f: typeof fetch = fetch, ctx?: UsageCtx): Promise<{ found: Mention[]; bySource: Record<string, number | string> }> {
   const q = query(w), found: Mention[] = [], bySource: Record<string, number | string> = {};
   const add = (src: string, list: Mention[]) => { bySource[src] = list.length; found.push(...list); };
   const jobs: Promise<void>[] = [];
@@ -84,12 +84,12 @@ export async function collect(w: Watch & { id: number }, e: ListenEnv, f: typeof
   })());
   // Grok (optional, PAID per use) with its live X search tool: lists the posts it found as JSON. parseX keeps x.com links only.
   if (e.XAI_API_KEY) jobs.push((async () => {
-    const text = await grokSearch(e, [{ role: 'user', content: `ابحث في X (تويتر) عن آخر التغريدات اللي تذكر: ${q}. رد JSON فقط: [{"url":"https://x.com/...","text":"","author":"","date":"YYYY-MM-DD"}]` }], ['x'], 2000, f);
+    const text = await grokSearch(e, [{ role: 'user', content: `ابحث في X (تويتر) عن آخر التغريدات اللي تذكر: ${q}. رد JSON فقط: [{"url":"https://x.com/...","text":"","author":"","date":"YYYY-MM-DD"}]` }], ['x'], 2000, f, ctx);
     if (text !== null) add('x', parseX(text, w.id)); else bySource.x = 'Grok ما رد';
   })());
   // TikTok has no open search API: Grok's web search over tiktok.com (same key, PAID per search). parseTikTok keeps tiktok.com links only.
   if (e.XAI_API_KEY) jobs.push((async () => {
-    const text = await grokSearch(e, [{ role: 'user', content: `ابحث في tiktok.com عن آخر الفيديوهات اللي تذكر: ${q}. رد JSON فقط: [{"url":"https://www.tiktok.com/@.../video/...","text":"وصف الفيديو","author":"","date":"YYYY-MM-DD"}]` }], ['web'], 2000, f);
+    const text = await grokSearch(e, [{ role: 'user', content: `ابحث في tiktok.com عن آخر الفيديوهات اللي تذكر: ${q}. رد JSON فقط: [{"url":"https://www.tiktok.com/@.../video/...","text":"وصف الفيديو","author":"","date":"YYYY-MM-DD"}]` }], ['web'], 2000, f, ctx);
     if (text !== null) add('tiktok', parseTikTok(text, w.id)); else bySource.tiktok = 'Grok ما رد';
   })());
   await Promise.all(jobs);
@@ -133,6 +133,6 @@ export async function runListening(e: ListenEnv, now = Date.now(), f: typeof fet
   const r = await sb<(Watch & { id: number; company_id: string })[]>(cfg, '/rest/v1/listen_watch?select=*&order=fetched_at.asc.nullsfirst&limit=1', { admin: true });
   const w = r.ok && Array.isArray(r.data) ? r.data[0] : undefined; // table missing or empty: nothing to do
   if (!w || !due(w, now)) return 0;
-  const { found } = await collect(w, e, f);
+  const { found } = await collect(w, e, f, usageCtx(cfg, { co: w.company_id }));
   return (await store(cfg, w.company_id, w, found, e)).added;
 }

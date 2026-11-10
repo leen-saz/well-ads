@@ -104,7 +104,8 @@ async function decide(request: Request, e: AuthEnv, renewed: { cookie?: string }
     if (!r) return redirect(new URL('/api/auth/refresh?next=' + encodeURIComponent(back), url.origin).toString());
     if (r.kind === 'login') return new Response(null, { status: 302, headers: { location: new URL('/login/', url.origin).toString(), 'set-cookie': clearCookie(), 'cache-control': 'no-store' } });
     if (r.kind === 'expired') return html(401, 'انتهت الجلسة.');
-    s = r.session; renewed.cookie = r.cookie;
+    // Supabase hiccup (5xx / 429): keep the session as it is, the next page tries again, nobody is logged out
+    if (r.kind === 'ok') { s = r.session; renewed.cookie = r.cookie; }
   }
   const alias = ALIAS[url.pathname.replace(/\/$/, '')];
   if (alias) {

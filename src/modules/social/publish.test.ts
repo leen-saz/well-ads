@@ -2,7 +2,7 @@
 // the wait for a video, double runs, recovery of a post that lost its Worker, the retry of failed platforms, and the dry-run check.
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { publishPost, publishOne, retryPlan, checkConnection, validate, stale, VIDEO_WAIT_MS, type Draft, type Results } from './social';
-import { runSocial } from './cron';
+import { runSocial, FRESH_MAX, PENDING_MAX, TICK_MS } from './cron';
 import { WELL_COMPANY } from '../../lib/tenant';
 import { graphMock } from './graph-mock';
 
@@ -267,6 +267,42 @@ describe('runSocial: claiming, pending videos, recovery', () => {
     expect(rows[2]!.status).toBe('failed');                  // the Facebook call may have gone out: unconfirmed, for a person to decide
     expect((rows[2]!.results as Results).facebook?.code).toBe('unconfirmed');
     expect(g.st.fbPosts).toHaveLength(0);
+  });
+  it('one run handles a bounded number of posts: waiting videos and fresh posts have their own slots, the rest wait for the next run', async () => {
+    const g = graphMock();
+    const proc = { instagram: { ok: false, state: 'processing', creation_id: 'c', since: new Date(NOW).toISOString() } };
+    const rows: Record<string, unknown>[] = [
+      // 5 videos still being prepared, due earlier than the 6 fresh posts: they must not take every slot
+      ...[1, 2, 3, 4, 5].map(id => ({ ...base, id, status: 'scheduled', publish_at: `2026-11-01T10:0${id}:00Z`, results: proc })),
+      ...[6, 7, 8, 9, 10, 11].map(id => ({ ...base, id, platforms: ['facebook'], media: [], status: 'scheduled', publish_at: `2026-11-01T11:0${id - 6}:00Z`, results: {} })),
+    ];
+    db(rows);
+    vi.useFakeTimers();
+    const p = runSocial(ENV, NOW, g.f); await vi.runAllTimersAsync();
+    expect(await p).toBe(PENDING_MAX + FRESH_MAX);
+    expect(g.st.fbPosts).toHaveLength(FRESH_MAX);                       // fresh posts got their slots despite the waiting videos
+    expect(rows.filter(r => r.status === 'publishing')).toHaveLength(0);
+    expect(rows.filter(r => r.status === 'scheduled' && !r.claimed_at && Object.keys(r.results as object).length === 0)).toHaveLength(4); // 4 fresh ones untouched: next run
+    vi.useRealTimers();
+  });
+  it('30 posts due at once: one run stays under the free plan\'s 50 subrequests', async () => {
+    const g = graphMock();
+    const rows: Record<string, unknown>[] = Array.from({ length: 30 }, (_, i) => ({ ...base, id: i + 1, platforms: ['facebook', 'instagram'], media: [img(i)], status: 'scheduled', results: {} }));
+    db(rows);
+    const sb = (globalThis.fetch as unknown as { mock: { calls: unknown[] } }).mock;
+    const done = await runSocial(ENV, NOW, g.f);
+    const subrequests = sb.calls.length + g.st.calls.length;     // Supabase calls + Graph calls
+    expect(done).toBe(FRESH_MAX);
+    expect(subrequests).toBeLessThanOrEqual(50);
+    expect(rows.filter(r => r.status === 'scheduled')).toHaveLength(30 - FRESH_MAX);
+  });
+  it('stops starting new posts once the run has used its time', async () => {
+    const g = graphMock();
+    const rows: Record<string, unknown>[] = [6, 7].map(id => ({ ...base, id, platforms: ['facebook'], media: [], status: 'scheduled', publish_at: '2026-11-01T11:00:00Z', results: {} }));
+    db(rows);
+    let t = 0;
+    expect(await runSocial(ENV, NOW, g.f, () => (t += TICK_MS + 1))).toBe(1);
+    expect(g.st.fbPosts).toHaveLength(1);
   });
   it('two overlapping runs recover a stuck post once', async () => {
     const g = graphMock();
