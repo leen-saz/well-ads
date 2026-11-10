@@ -3,12 +3,12 @@
 // PAID: OpenAI and Grok (xAI) bill every call; so does the Debugger's Claude (Anthropic SDK, src/modules/debugger/explain.ts).
 // Workers AI is free within Cloudflare's daily limit and stays the fallback when a key is missing or the provider fails.
 // Keys are Worker secrets Leen adds herself: OPENAI_API_KEY, XAI_API_KEY, OPENROUTER_API_KEY (docs/secrets/worker.env.example).
-// OpenRouter (PAID per call, billed by OpenRouter) is never a default: a task uses it only when the owner picks it for that task
-// (src/lib/ai-routes.ts, docs/ai-providers.md). Without its key a task keeps its current provider.
+// OpenRouter (PAID per call, billed by OpenRouter) is a default only for the home assistant «احلم» (task `ahlam`); every other task uses it
+// only when the owner picks it for that task (src/lib/ai-routes.ts, docs/ai-providers.md). Without its key a task keeps its current provider.
 // Model ids from the providers' model pages (2026-11-03); change them with OPENAI_MODEL / XAI_MODEL, no code change.
 import { AI_MODEL, type AiRun } from '../modules/content/content';
 import { overCap, record, tabOf, type UsageCtx } from './usage';
-import { cleanModel, OR_MODEL, routesOf, type Route } from './ai-routes';
+import { cleanModel, OR_DEFAULT, OR_MODEL, routesOf, type Route } from './ai-routes';
 
 // Audio, video, image and speech calls (Gemini) live in gemini.ts and are reached through this adapter too
 export * from './gemini';
@@ -20,7 +20,7 @@ export interface LlmInput { messages: Msg[]; max_tokens: number; response_format
 export interface LlmOut { response: string; engine: Provider; model: string }
 
 export const DEFAULTS = { openai: 'gpt-6.1-sol', xai: 'grok-4.7', image: 'gpt-image-2' } as const;
-export const PROVIDER: Record<string, Provider> = { content: 'openai', design: 'openai', copy: 'openai', motion: 'openai', social: 'xai', maestro: 'xai', listening: 'xai' };
+export const PROVIDER: Record<string, Provider> = { content: 'openai', design: 'openai', copy: 'openai', motion: 'openai', social: 'xai', maestro: 'xai', listening: 'xai', ahlam: 'openrouter' };
 const URL_OF = { openai: 'https://api.openai.com/v1/responses', xai: 'https://api.x.ai/v1/responses' } as const;
 export const OR_URL = 'https://openrouter.ai/api/v1/chat/completions';
 export const OR_TIMEOUT_MS = 60_000, OR_STREAM_MS = 120_000;
@@ -40,6 +40,8 @@ export function pick(e: LlmEnv, module: string, spent = false, route?: Route): {
   const p = spent ? 'workers' : PROVIDER[module] || 'workers';
   if (p === 'openai' && e.OPENAI_API_KEY) return { provider: 'openai', model: clean(e.OPENAI_MODEL) || DEFAULTS.openai };
   if (p === 'xai' && e.XAI_API_KEY) return { provider: 'xai', model: clean(e.XAI_MODEL) || DEFAULTS.xai };
+  // a task whose default is OpenRouter (the home assistant): only with the key, else Workers AI like the others
+  if (p === 'openrouter' && e.OPENROUTER_API_KEY && OR_DEFAULT[module]) return { provider: 'openrouter', model: OR_DEFAULT[module]! };
   return e.AI ? { provider: 'workers', model: AI_MODEL } : null;
 }
 

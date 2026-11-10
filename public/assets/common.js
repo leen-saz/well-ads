@@ -56,7 +56,7 @@ export async function apiStream(path, body, { onText = () => {}, signal } = {}) 
     return data;
   }
   const reader = res.body.getReader(), dec = new TextDecoder();
-  let buf = '', text = '', result = null, failed = false;
+  let buf = '', text = '', result = null, failed = false, why = '';
   const take = block => {
     const line = block.split('\n').find(l => l.startsWith('data:'));
     if (!line) return;
@@ -64,7 +64,7 @@ export async function apiStream(path, body, { onText = () => {}, signal } = {}) 
     if (ev.type === 'delta') { text += ev.text; onText(text); }
     else if (ev.type === 'reset') { text = ''; onText(text); }
     else if (ev.type === 'result') result = ev;
-    else if (ev.type === 'error') failed = true;
+    else if (ev.type === 'error') { failed = true; if (/[\u0600-\u06FF]/.test(ev.message || '')) why = ev.message; }   // an Arabic sentence is for the user; a code is not
   };
   try {
     for (;;) {
@@ -75,7 +75,7 @@ export async function apiStream(path, body, { onText = () => {}, signal } = {}) 
     }
   } catch (err) { if (signal?.aborted) return null; throw err; }
   if (signal?.aborted) return null;
-  if (failed || !result) throw new Error('ما طلع جواب أقدر أقراه، جرّب مرة ثانية');
+  if (failed || !result) throw new Error(why || 'ما طلع جواب أقدر أقراه، جرّب مرة ثانية');
   return result;
 }
 // The readable part of a JSON answer still being written: its string values, one per line, keys left out
