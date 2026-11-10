@@ -51,6 +51,7 @@ import { ClientRouter } from 'astro:transitions';
 
 /* Social listening */
 .lx-tabs{margin:0 0 16px}
+.lx-period{margin:0 0 14px}
 .lx-head{display:flex;flex-wrap:wrap;gap:10px;align-items:center;justify-content:space-between;margin:0 0 14px}
 .lx-src{display:flex;flex-wrap:wrap;gap:6px}
 .lx-src span{font-size:13px;padding:4px 10px;border-radius:999px;background:var(--tint)}
@@ -124,10 +125,10 @@ import { ClientRouter } from 'astro:transitions';
         <div class="lx-head">
           <div class="lx-src" id="src" aria-label="المصادر"></div>
           <div class="bar">
-            <div class="seg" role="group" aria-label="الفترة"><button type="button" data-ld="7" aria-pressed="false">7 أيام</button><button type="button" data-ld="30" aria-pressed="true">30 يوم</button><button type="button" data-ld="90" aria-pressed="false">90 يوم</button></div>
             <button class="btn primary" type="button" id="refresh">حدّث الحين</button>
           </div>
         </div>
+        <div class="lx-period" id="lxPeriod"></div>
         <div class="msg" id="lmsg" role="status"></div>
         <div class="lx-alerts" id="alerts"></div>
         <section class="card lx-voice" aria-labelledby="voiceH"><h2 id="voiceH" style="margin:0">حصة الظهور في الإشارات</h2>
@@ -144,7 +145,7 @@ import { ClientRouter } from 'astro:transitions';
             <div class="bar" style="margin-top:10px"><button class="btn secondary" type="button" id="more" hidden>اعرض أكثر</button></div>
           </section>
           <div class="ls-out">
-            <section class="card pad" aria-labelledby="tH"><h2 id="tH" style="margin:0">شعور الناس عننا آخر 8 أسابيع</h2><div id="trend"></div></section>
+            <section class="card pad" aria-labelledby="tH"><h2 id="tH" style="margin:0">شعور الناس عننا في الفترة</h2><div id="trend"></div></section>
             <section class="card pad" aria-labelledby="wH"><h2 id="wH" style="margin:0 0 6px">اللي نراقبه</h2><div class="lx-w" id="watch"></div>
               <form class="lx-form" id="wf" novalidate>
                 <label for="wk">النوع</label><select id="wk"><option value="brand">علامتنا</option><option value="competitor">منافس</option><option value="alert">كلمة تنبيه</option></select>
@@ -164,8 +165,8 @@ import { ClientRouter } from 'astro:transitions';
         <p class="muted" style="margin:0 0 14px">وش يشد الناس في منشوراتنا على فيسبوك وانستقرام وتيك توك، والكلمات اللي تتابعها، وتغيّر الطلب من مصادر الليدز. قراءة بس.</p>
       <div class="bar" style="justify-content:space-between;margin:0 0 12px">
         <form id="addKw" class="bar" novalidate><label for="kwIn" class="muted">تابع كلمة</label><input id="kwIn" type="text" placeholder="مثال: فيتامين سي"><button class="btn sm secondary" type="submit">أضف</button></form>
-        <div class="seg" role="group" aria-label="الفترة"><button type="button" data-days="30" aria-pressed="false">30 يوم</button><button type="button" data-days="90" aria-pressed="true">90 يوم</button></div>
       </div>
+      <div class="lx-period" id="orgPeriod"></div>
       <div class="ls-kw" id="kw"></div>
       <div class="dg-sum" id="sumO"></div>
       <section class="card pad" style="margin:0 0 16px"><h2>الطلب من الـ CRM</h2><div id="demand"><p class="muted">يحسب…</p></div></section>

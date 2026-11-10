@@ -49,10 +49,10 @@ export function client(e: PcEnv, f: typeof fetch = fetch) {
     },
     // An agent's performance inputs. heartbeat-runs and costs?from= are in Paperclip's code but not its docs: a source
     // that fails comes back null and the card shows what it has.
-    agentInputs: async (c: string, agentId: string, from: string) => {
+    agentInputs: async (c: string, agentId: string, from: string, to?: string) => {
       if (!ID.test(agentId)) throw new Error('bad agent');
       const q = (p: string) => call('GET', p).catch(() => null);
-      const [costs, runs, done] = await Promise.all([q(`${co(c)}/costs/by-agent?from=${encodeURIComponent(from)}`), q(`${co(c)}/heartbeat-runs?agentId=${agentId}&limit=100`), q(`${co(c)}/issues?assigneeAgentId=${agentId}&status=done&limit=100`)]);
+      const [costs, runs, done] = await Promise.all([q(`${co(c)}/costs/by-agent?from=${encodeURIComponent(from)}${to ? `&to=${encodeURIComponent(to)}` : ''}`), q(`${co(c)}/heartbeat-runs?agentId=${agentId}&limit=100`), q(`${co(c)}/issues?assigneeAgentId=${agentId}&status=done&limit=100`)]);
       return { cost: costs === null ? null : items(costs).find(r => r.agentId === agentId) || {}, runs: runs === null ? null : items(runs), done: done === null ? null : items(done) };
     },
     // The chat with «المدير»: one standing issue assigned to the CEO agent; a message is a comment on it, which wakes the
@@ -100,11 +100,12 @@ export const budget = (b: Json | null | undefined) => {
 
 // An agent's card for a period: tasks done, spend, run success rate, average task time, last error. Numbers only.
 const at = (x: Json, ...ks: string[]) => { for (const k of ks) { const t = Date.parse(String(x[k] ?? '')); if (t) return t; } return 0; };
-export function performance(inp: { cost: Json | null; runs: Json[] | null; done: Json[] | null }, since: number) {
-  const runs = inp.runs?.filter(r => at(r, 'startedAt', 'createdAt', 'started_at') >= since) ?? null;
+export function performance(inp: { cost: Json | null; runs: Json[] | null; done: Json[] | null }, since: number, until = Infinity) {
+  const inside = (t: number) => t >= since && t < until;
+  const runs = inp.runs?.filter(r => inside(at(r, 'startedAt', 'createdAt', 'started_at'))) ?? null;
   const ended = runs?.filter(r => !['queued', 'scheduled_retry', 'running'].includes(String(r.status))) ?? [];
   const ok = ended.filter(r => r.status === 'succeeded').length;
-  const done = inp.done?.filter(i => at(i, 'completedAt', 'completed_at', 'updatedAt') >= since) ?? null;
+  const done = inp.done?.filter(i => inside(at(i, 'completedAt', 'completed_at', 'updatedAt'))) ?? null;
   const spans = (done || []).map(i => at(i, 'completedAt', 'completed_at') - at(i, 'startedAt', 'started_at')).filter(ms => ms > 0);
   const failed = ended.filter(r => r.status === 'failed' || r.status === 'timed_out').sort((a, b) => at(b, 'finishedAt', 'startedAt') - at(a, 'finishedAt', 'startedAt'))[0];
   return {

@@ -1,6 +1,7 @@
 // المدير: تبويبات (لوحة، الوارد، المهام، الإيجنتس، المحادثة) بالرابط، قائمة أو لوحة، فلاتر، بحث، ومهمة جديدة في نافذة.
 // اختصارات: C مهمة جديدة، / بحث، 1-5 التبويبات.
 import { $, $$, api, say, esc, fmt, shell, busy, pageSignal, failure, pageFailure, when } from '/assets/common.js';
+import { mountPeriod } from '/assets/period.js';
 
 // Runs on every visit of this page (assets/router.js calls it after each ClientRouter navigation).
 export default async function mount() {
@@ -166,22 +167,25 @@ export default async function mount() {
     catch (err) { say($('#msg'), err.message); busy(b, false); }
   });
   // ---- an agent's performance card (/api/maestro/agent): tasks done, spend, success rate, task time, last error
-  let perfAgent = null, perfDays = 30;
+  let perfAgent = null, perfRange = null, perfBar = null, perfSeq = 0;
   const n = (v, unit = '') => v == null ? '—' : `${fmt(v)}${unit}`;
   async function perf() {
-    const a = (S.agents || []).find(x => x.id === perfAgent); if (!a) return;
+    const a = (S.agents || []).find(x => x.id === perfAgent); if (!a || !perfRange) return;
     $('#perfName').textContent = a.name + (a.title || a.role ? ' · ' + (a.title || a.role) : '');
-    $$('#perfDays [data-days]').forEach(b => b.setAttribute('aria-pressed', String(Number(b.dataset.days) === perfDays)));
     $('#perfBody').innerHTML = '<p class="muted">يحمّل…</p>';
+    const mine = ++perfSeq; // a slower answer for an earlier period must not overwrite the newer one
     try {
-      const p = await api(`/api/maestro/agent?id=${encodeURIComponent(a.id)}&days=${perfDays}`);
+      const p = await api(`/api/maestro/agent?id=${encodeURIComponent(a.id)}&from=${perfRange.from}&to=${perfRange.to}`);
+      if (mine !== perfSeq) return;
       const k = [[n(p.done), 'مهام خلصت'], [p.spentCents == null ? '—' : usd(p.spentCents), 'الصرف'], [n(p.successRate, '%'), `نجاح التشغيلات (${n(p.runs)})`], [n(p.avgTaskMinutes, ' د'), 'متوسط وقت المهمة']];
       $('#perfBody').innerHTML = `<div class="mx-kpis">${k.map(([v, t]) => `<div class="card mx-kpi"><b>${esc(v)}</b><span>${t}</span></div>`).join('')}</div>
         ${spend(a)}<p class="muted">آخر تشغيل: ${p.lastRunAt ? esc(when(p.lastRunAt)) : '—'}</p>${p.lastError ? `<p class="so-note">آخر خطأ: ${esc(p.lastError)}</p>` : ''}`;
-    } catch (err) { failure($('#perfBody'), err, perf); }
+    } catch (err) { if (mine === perfSeq) failure($('#perfBody'), err, perf); }
   }
-  $('#view').addEventListener('click', e => { const b = e.target.closest('[data-perf]'); if (!b) return; perfAgent = b.closest('[data-agent]').dataset.agent; $('#pdlg').showModal(); perf(); });
-  $('#perfDays').addEventListener('click', e => { const b = e.target.closest('[data-days]'); if (b) { perfDays = Number(b.dataset.days); perf(); } });
+  $('#view').addEventListener('click', e => { const b = e.target.closest('[data-perf]'); if (!b) return; perfAgent = b.closest('[data-agent]').dataset.agent;
+    // the same period bar as the other pages, made the first time the card opens; changing it reloads the card
+    perfBar ||= mountPeriod($('#perfPeriod'), { id: 'maestro-agent', def: '30', url: false, onChange: r => { perfRange = r; if ($('#pdlg').open) perf(); } });
+    $('#pdlg').showModal(); perf(); });
   $('#perfClose').onclick = () => $('#pdlg').close();
   $('#cancel').onclick = () => $('#dlg').close();
   $('#f').addEventListener('submit', async e => {

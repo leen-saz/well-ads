@@ -1,20 +1,26 @@
-// /api/listening/demand: leads per source this week vs last week (CRM), a demand signal next to the organic analysis.
+// /api/listening/demand: leads per source in the chosen period (?from=&to=, Riyadh days; default the last 14 days read as 7 against 7)
+// against the same length before it (CRM), a demand signal next to the organic analysis.
 // The organic analysis itself runs in the browser (public/modules/listening/analyze.js). Read-only.
 import { sb, json, handle, requireUser } from '../../lib/auth';
 import { scoped } from '../../lib/tenant';
 import { readAll } from '../../lib/paging';
 import { weekly, type Lead } from './listening';
 import { readJson } from '../../lib/auth';
+import { parseRangeParams, rangeMs, MAX_SPAN } from '../../../public/assets/period.js';
 import { adLibraryUrl, cleanWatch, due, missingTable, sources, type Mention, type Watch } from './social';
 import { batch, collect, store, type ListenEnv } from './fetcher';
 export { probe } from './probe';
 
 export const demand = { GET: handle(async (request, e) => {
   const { cfg, user } = await requireUser(request, e, 'listening');
-  const since = new Date(Date.now() - 14 * 864e5).toISOString();
+  const u = new URL(request.url);
+  const r = parseRangeParams(k => u.searchParams.get(k), Date.now(), { days: 7 });
+  if ('error' in r) return json(400, { error: 'الفترة مو صحيحة' });
+  const [fromMs, toMs] = rangeMs(r.from, r.to), span = r.days;
+  const since = new Date(fromMs - span * 864e5).toISOString(), until = new Date(toMs).toISOString();
   // no CRM table yet: the page still shows the organic side
-  const { rows: out } = await readAll<Lead>(cfg, scoped(`/rest/v1/crm_leads?select=source_platform,created_at&created_at=gte.${since}`, user.co), 'lead_id.asc', 10);
-  return json(200, { sources: weekly(out) });
+  const { rows: out } = await readAll<Lead>(cfg, scoped(`/rest/v1/crm_leads?select=source_platform,created_at&created_at=gte.${since}&created_at=lt.${until}`, user.co), 'lead_id.asc', 10);
+  return json(200, { sources: weekly(out, toMs, span) });
 }) };
 
 // What a user is told when the listening tables are not there yet
@@ -54,11 +60,16 @@ export const unwatch = { POST: handle(async (request, e: ListenEnv) => {
   return r.ok ? json(200, { ok: true }) : json(502, { error: 'ما انحذف، جرّب مرة ثانية' });
 }) };
 
-// Mentions of the last 90 days (newest first, at most 600). The page computes share of voice, trends and alerts.
+// Mentions in the chosen period (?from=&to=, Riyadh days, at most a year; default the last 90 days), newest first, at most 600.
+// The page computes share of voice, trends and alerts. Mentions with no date come along: the page dates them by when they were found.
 export const mentions = { GET: handle(async (request, e: ListenEnv) => {
   const { cfg, user } = await requireUser(request, e, 'listening');
-  const since = new Date(Date.now() - 90 * 864e5).toISOString();
-  const r = await sb<Mention[]>(cfg, scoped(`/rest/v1/listen_mentions?select=id,watch_id,source,url,title,snippet,author,published_at,sentiment,reason,fetched_at&or=(published_at.gte.${since},published_at.is.null)&order=published_at.desc.nullslast&limit=600`, user.co), { admin: true });
+  const u = new URL(request.url);
+  const range = parseRangeParams(k => u.searchParams.get(k), Date.now(), { days: 90, maxDays: MAX_SPAN });
+  if ('error' in range) return json(400, { error: 'الفترة مو صحيحة' });
+  const [fromMs, toMs] = rangeMs(range.from, range.to);
+  const since = new Date(fromMs).toISOString(), until = new Date(toMs).toISOString();
+  const r = await sb<Mention[]>(cfg, scoped(`/rest/v1/listen_mentions?select=id,watch_id,source,url,title,snippet,author,published_at,sentiment,reason,fetched_at&or=(and(published_at.gte.${since},published_at.lt.${until}),published_at.is.null)&order=published_at.desc.nullslast&limit=600`, user.co), { admin: true });
   if (missingTable(r)) return json(200, { missing: true, mentions: [] });
   return json(200, { missing: false, mentions: r.ok && Array.isArray(r.data) ? r.data : [] });
 }) };

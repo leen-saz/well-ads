@@ -2,9 +2,9 @@
 // البيانات من /api/overview/data (نفس /dash.json)، والحساب كله في numbers.ts.
 import * as React from 'react';
 import { Direction } from 'radix-ui';
-import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group';
 import { Skeleton } from '@/components/ui/skeleton';
-import { addDays, lastDay } from './numbers';
+import { lastDay } from './numbers';
+import { PeriodFilter, type Period } from './PeriodFilter';
 import { useDash } from './useDash';
 import { T, pageLang } from './lang';
 import { SectionCards } from './SectionCards';
@@ -34,18 +34,18 @@ function WhenNear({ minHeight, children }: { minHeight: number; children: React.
   return near ? <React.Suspense fallback={box}>{children}</React.Suspense> : <div ref={ref}>{box}</div>;
 }
 
-const RANGES = [['7', '7 أيام', '7 days'], ['30', '30 يوم', '30 days'], ['90', '90 يوم', '90 days']] as const;
-type Range = (typeof RANGES)[number][0];
-
 export default function Overview() {
   const { data, error } = useDash();
-  const [range, setRange] = React.useState<Range>('30');
+  const [period, setPeriod] = React.useState<Period | null>(null);
 
   if (error) return <p className="ui text-destructive">{error}</p>;
   if (!data) return <OverviewSkeleton />;
   const to = lastDay(data);
   if (!to) return <p className="ui text-muted-foreground">{T('ما فيه أرقام للحين.', 'No numbers yet.')}</p>;
-  const from = addDays(to, -(Number(range) - 1));
+  // Days are the data's own (Riyadh) days: today, the last full day (range.end) and the first day the data has
+  const ctx = { today: data.range?.today || to, last: to, min: data.range?.start || to };
+  const from = period?.from ?? to;
+  const end = period?.to ?? to;
 
   return (
     // Radix menus, selects and the sheet open in their own layer: tell them the page direction (Arabic RTL, English LTR)
@@ -53,26 +53,26 @@ export default function Overview() {
     {/* min-w-0: a wide table or chart scrolls inside its card instead of widening the page on a phone */}
     <div className="ui grid gap-4 [&>*]:min-w-0 [&>.grid>*]:min-w-0">
       <div className="flex flex-wrap items-center justify-between gap-3">
-        <p className="text-sm text-muted-foreground">{T(`من ${longDay(from)} إلى ${longDay(to)}، مقارنة بنفس المدة اللي قبلها`, `${longDay(from)} to ${longDay(to)}, compared with the same length before`)}</p>
-        <ToggleGroup type="single" variant="outline" value={range} onValueChange={v => v && setRange(v as Range)} aria-label={T('الفترة', 'Period')}>
-          {RANGES.map(([v, ar, en]) => <ToggleGroupItem key={v} value={v} className="px-4">{T(ar, en)}</ToggleGroupItem>)}
-        </ToggleGroup>
+        <p className="text-sm text-muted-foreground">{period ? T(`من ${longDay(from)} إلى ${longDay(end)}، مقارنة بنفس المدة اللي قبلها`, `${longDay(from)} to ${longDay(end)}, compared with the same length before`) : ''}</p>
+        <PeriodFilter id="overview" def="30" ctx={ctx} onChange={setPeriod} />
       </div>
-      <SectionCards data={data} from={from} to={to} />
-      <OutcomeCards data={data} from={from} to={to} />
-      <React.Suspense fallback={<Skeleton className="h-[640px] rounded-xl" />}><TrendChart data={data} from={from} to={to} /></React.Suspense>
+      {period && <>
+      <SectionCards data={data} from={from} to={end} />
+      <OutcomeCards data={data} from={from} to={end} />
+      <React.Suspense fallback={<Skeleton className="h-[640px] rounded-xl" />}><TrendChart data={data} from={from} to={end} /></React.Suspense>
       <div className="grid gap-4 lg:grid-cols-2">
-        <ShareCard data={data} from={from} to={to} />
-        <PaceCard data={data} from={from} to={to} />
+        <ShareCard data={data} from={from} to={end} />
+        <PaceCard data={data} from={from} to={end} />
       </div>
       <div className="grid gap-4 lg:grid-cols-2">
-        <WinsCard data={data} from={from} to={to} />
-        <DeptsCard data={data} from={from} to={to} />
+        <WinsCard data={data} from={from} to={end} />
+        <DeptsCard data={data} from={from} to={end} />
       </div>
       <div className="grid gap-4">
-        <HeatCard data={data} from={from} to={to} />
+        <HeatCard data={data} from={from} to={end} />
       </div>
-      <WhenNear minHeight={1040}><AdsTable data={data} from={from} to={to} /></WhenNear>
+      <WhenNear minHeight={1040}><AdsTable data={data} from={from} to={end} /></WhenNear>
+      </>}
     </div>
     </Direction.Provider>
   );

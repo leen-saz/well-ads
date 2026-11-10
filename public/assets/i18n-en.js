@@ -448,6 +448,7 @@ export const EN = {
   'أخبار': 'News',
   'اعرض أكثر': 'Show more',
   'شعور الناس عننا آخر 8 أسابيع': 'How people felt about us, last 8 weeks',
+  'شعور الناس عننا في الفترة': 'How people felt about us, over the period',
   'اللي نراقبه': 'What we watch',
   'علامتنا': 'Our brand',
   'منافس': 'Competitor',
