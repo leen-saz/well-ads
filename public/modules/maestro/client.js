@@ -255,8 +255,8 @@ export default async function mount() {
     const opt = (v, label, on = true, sel = '') => `<option value="${esc(v)}"${sel === v ? ' selected' : ''}${on ? '' : ' disabled'}>${esc(label)}</option>`;
     $('#modelsBody').innerHTML = `<div class="sp-tab sp-hd"><span>المهمة</span><span>المزوّد</span><span>الموديل</span><span>يشتغل الحين</span><span></span></div>` + d.tasks.map(t => `<form class="sp-tab" data-task="${esc(t.task)}" novalidate>
       <b>${esc(t.ar)}</b>
-      <select name="provider" aria-label="مزوّد ${esc(t.ar)}">${opt('', 'الحالي (بدون تغيير)', true, t.route?.provider || '')}${d.providers.map(p => opt(p.key, PNAME[p.key] || p.ar, p.on, t.route?.provider || '')).join('')}</select>
-      <input type="text" name="model" dir="ltr" autocomplete="off" data-user-text aria-label="موديل ${esc(t.ar)}" value="${esc(t.route?.model || '')}">
+      <select name="provider" aria-label="${esc(t.ar)}">${opt('', 'الحالي (بدون تغيير)', true, t.route?.provider || '')}${d.providers.map(p => opt(p.key, PNAME[p.key] || p.ar, p.on, t.route?.provider || '')).join('')}</select>
+      <input type="text" name="model" dir="ltr" autocomplete="off" data-user-text aria-label="${esc(t.ar)}" value="${esc(t.route?.model || '')}">
       <span class="muted"><span>${t.using ? esc(PNAME[t.using] || '') : 'غير متصل'}</span>${t.model ? ` <span dir="ltr" data-user-text>${esc(t.model)}</span>` : ''}</span>
       <button class="btn sm secondary" type="submit">احفظ</button></form>`).join('');
   }
