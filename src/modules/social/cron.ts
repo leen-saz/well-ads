@@ -7,7 +7,7 @@
 //  - a retry of the failed platforms (routes.ts) goes through the same path with the failed entries cleared.
 import { env, sb, type AuthEnv, type Cfg } from '../../lib/auth';
 import { WELL_COMPANY } from '../../lib/tenant';
-import { due, publishPost, stale, type Draft, type Results } from './social';
+import { due, pending, publishPost, stale, type Draft, type Results } from './social';
 import { withEngineSecrets } from './postiz';
 
 type Row = Draft & { id: number; company_id: string; status: string; claimed_at?: string | null; results?: Results | null; approved_at?: string | null; approved_by?: string | null; company?: { social_approvers?: string[] | null } | null };
@@ -19,7 +19,18 @@ async function work(cfg: Cfg, p: Row, tokens: Record<string, string>, f: typeof 
   await patch({ status: out.status === 'pending' ? 'scheduled' : out.status, results: out.results, claimed_at: null });
 }
 
-export async function runSocial(e: AuthEnv, now = Date.now(), f: typeof fetch = fetch): Promise<number> {
+// One run never takes more than this: a Worker invocation may make only 50 subrequests on the free plan (1000 on Paid), and
+// one post costs about 10-15 of them (claim, a save per step, the platform calls, the final write). So a run starts at most
+// FRESH_MAX new posts and PENDING_MAX posts that are only waiting for Instagram to finish a video (those cost ~4 each: claim,
+// poll, write), and stops starting more once TICK_MS has passed. Whatever is left is simply due again five minutes later.
+// Fresh and waiting posts have separate slots, so a few slow videos can never starve a post that is due, nor the reverse.
+export const FRESH_MAX = 2;
+export const PENDING_MAX = 3;
+export const STUCK_MAX = 2;
+export const TICK_MS = 3 * 60_000;
+const waiting = (p: Row) => Object.values(p.results || {}).some(r => pending(r));
+
+export async function runSocial(e: AuthEnv, now = Date.now(), f: typeof fetch = fetch, clock: () => number = Date.now): Promise<number> {
   let cfg;
   try { cfg = env(e); } catch { console.error('social: setup incomplete'); return 0; }
   const iso = new Date(now).toISOString();
@@ -32,13 +43,19 @@ export async function runSocial(e: AuthEnv, now = Date.now(), f: typeof fetch = 
   const vault = await sb<{ name: string; value: string }[]>(cfg, '/rest/v1/rpc/connector_env', { method: 'POST', admin: true, body: {} });
   const wellTokens = withEngineSecrets(Object.fromEntries((vault.ok && Array.isArray(vault.data) ? vault.data : []).map(x => [x.name, x.value])), e);
   let done = 0;
-  for (const p of list.data.filter(x => due(x, x.company?.social_approvers || [], now))) {
+  const dueNow = list.data.filter(x => due(x, x.company?.social_approvers || [], now));
+  // waiting videos and fresh posts each take their own slots, oldest first
+  const batch = [...dueNow.filter(waiting).slice(0, PENDING_MAX), ...dueNow.filter(x => !waiting(x)).slice(0, FRESH_MAX)];
+  const started = clock();
+  for (const p of batch) {
+    if (done && clock() - started > TICK_MS) break;
     const claim = await sb<Row[]>(cfg, `/rest/v1/social_posts?id=eq.${p.id}&status=eq.scheduled`, { method: 'PATCH', admin: true, headers: { Prefer: 'return=representation' }, body: { status: 'publishing', claimed_at: iso } });
     if (!claim.ok || !Array.isArray(claim.data) || !claim.data.length) continue;
     await work(cfg, p, wellTokens, f, now);
     done++;
   }
-  for (const p of (stuck.ok && Array.isArray(stuck.data) ? stuck.data : []).filter(x => stale(x, now))) {
+  for (const p of (stuck.ok && Array.isArray(stuck.data) ? stuck.data : []).filter(x => stale(x, now)).slice(0, STUCK_MAX)) {
+    if (done && clock() - started > TICK_MS) break;
     const old = p.claimed_at ? `claimed_at=eq.${encodeURIComponent(p.claimed_at)}` : 'claimed_at=is.null';
     const claim = await sb<Row[]>(cfg, `/rest/v1/social_posts?id=eq.${p.id}&status=eq.publishing&${old}`, { method: 'PATCH', admin: true, headers: { Prefer: 'return=representation' }, body: { claimed_at: iso } });
     if (!claim.ok || !Array.isArray(claim.data) || !claim.data.length) continue;

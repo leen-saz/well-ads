@@ -83,16 +83,32 @@ export function kept(bucket: R2Bucket, key: string, now = Date.now(), wait?: Wai
 }
 const etagIn = (header: string | null, etag: string) => !!header && header.split(',').some(t => t.trim().replace(/^W\//, '') === etag.replace(/^W\//, ''));
 
+// Post media, streamed from R2 (never buffered) with Range support: a browser or Meta asking for a video in pieces gets 206 and
+// only those bytes, so previewing a 60 MB video does not pull all of it through the Worker. The name never changes the content.
+export async function serveMedia(request: Request, bucket: R2Bucket, key: string): Promise<Response> {
+  const head = request.method === 'HEAD';
+  const range = request.headers.get('range');
+  const obj = head ? await bucket.head(key) : await bucket.get(key, range ? { range: request.headers } : undefined);
+  if (!obj) return new Response('غير موجود', { status: 404, headers: { 'content-type': 'text/plain; charset=utf-8' } });
+  const h = new Headers({ 'content-type': obj.httpMetadata?.contentType || 'application/octet-stream', 'cache-control': 'public, max-age=31536000, immutable', etag: obj.httpEtag, 'accept-ranges': 'bytes' });
+  const size = obj.size;
+  const r = !head && range && 'range' in obj ? (obj.range as { offset?: number; length?: number; suffix?: number } | undefined) : undefined;
+  if (r && typeof size === 'number') {
+    const offset = r.offset ?? Math.max(0, size - (r.suffix ?? 0)), length = r.length ?? size - offset;
+    h.set('content-range', `bytes ${offset}-${offset + length - 1}/${size}`); h.set('content-length', String(length));
+    return new Response((obj as R2ObjectBody).body, { status: 206, headers: h });
+  }
+  if (typeof size === 'number') h.set('content-length', String(size));
+  return new Response(head ? null : (obj as R2ObjectBody).body, { status: 200, headers: h });
+}
+
 export async function serveSite(request: Request, bucket: R2Bucket, wait?: Wait): Promise<Response | null> {
   if (request.method !== 'GET' && request.method !== 'HEAD') return null;
   const url = new URL(request.url);
   // Post media (public, unguessable name): Meta fetches it from here when the post is published
   const media = mediaPath(url.pathname);
   if (media) {
-    const obj = await bucket.get(media);
-    if (!obj) return new Response('غير موجود', { status: 404, headers: { 'content-type': 'text/plain; charset=utf-8' } });
-    const h = new Headers({ 'content-type': obj.httpMetadata?.contentType || 'application/octet-stream', 'cache-control': 'public, max-age=31536000, immutable', etag: obj.httpEtag });
-    return new Response(request.method === 'HEAD' ? null : obj.body, { headers: h });
+    return serveMedia(request, bucket, media);
   }
   const to = siteRedirect(url.pathname);
   if (to) return new Response(null, { status: 302, headers: { location: to, 'cache-control': 'no-store' } });
