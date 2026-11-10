@@ -10,16 +10,14 @@ import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle } from '@/components/ui/sheet';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group';
-import { type Dash, DEP_AR, DEP_EN, addDays, goalName as goalOf, lastDay, platformName } from './numbers';
+import { type Dash, DEP_AR, DEP_EN, goalName as goalOf, lastDay, platformName } from './numbers';
 import { ALL, type CreativeAd, type Dir, type Filters, type Idea, type Metrics, type Sort, best, cplDiffers, ideas, media, options, sortIdeas } from './creatives';
 import { useDash } from './useDash';
+import { PeriodFilter, type Period } from './PeriodFilter';
 import { CreativeSkeleton } from './Skeletons';
 import { longDay, pct, qty, sar } from './format';
 import { T, pageLang } from './lang';
 
-const RANGES = [['7', '7 أيام', '7 days'], ['30', '30 يوم', '30 days'], ['90', '90 يوم', '90 days'], ['all', 'كل البيانات', 'All data']] as const;
-type Range = (typeof RANGES)[number][0];
 const SORTS: [Sort, string, string][] = [['spend', 'الأعلى صرف', 'Highest spend'], ['results', 'الأكثر نتائج', 'Most results'], ['cpl', 'الأرخص تكلفة ليد', 'Cheapest cost per lead'], ['ctr', 'الأعلى نسبة نقر', 'Highest click rate'], ['hook', 'الأعلى وقفوا يشوفون', 'Most stopped to watch']];
 const PAGE = 24;
 
@@ -35,21 +33,24 @@ const formatName = (v: string) => (pageLang() === 'en' ? FORMAT_EN[v] ?? v : v);
 
 export default function Creative() {
   const { data, error } = useDash();
-  const [range, setRange] = React.useState<Range>('30');
+  const [period, setPeriod] = React.useState<Period | null>(null);
   const [f, setF] = React.useState<Filters>(ALL);
   const [sort, setSort] = React.useState<Sort>('spend');
   const [shown, setShown] = React.useState(PAGE);
   const [open, setOpen] = React.useState<Idea | null>(null);
 
-  const to = data ? lastDay(data) : null;
-  const from = !data || !to ? '' : range === 'all' ? data.range?.start || '0000-00-00' : addDays(to, -(Number(range) - 1));
+  // The shared period bar; days are the data's own (Riyadh) days: today, the last full day and the first day with data
+  const last = data ? lastDay(data) : null;
+  const ctx = last ? { today: data?.range?.today || last, last, min: data?.range?.start || last } : null;
+  const to = last && period ? period.to : null;
+  const from = !last || !period ? '' : period.from;
   const list = React.useMemo(() => (data && to ? sortIdeas(ideas(data, from, to, f), sort) : []), [data, from, to, f, sort]);
   const opts = React.useMemo(() => (data ? options(data) : null), [data]);
   React.useEffect(() => setShown(PAGE), [from, f, sort]);
 
   if (error) return <p className="ui text-destructive">{error}</p>;
   if (!data || !opts) return <CreativeSkeleton />;
-  if (!to) return <p className="ui text-muted-foreground">{T('ما فيه أرقام للحين.', 'No numbers yet.')}</p>;
+  if (!last) return <p className="ui text-muted-foreground">{T('ما فيه أرقام للحين.', 'No numbers yet.')}</p>;
   const set = (k: keyof Filters) => (v: string) => setF(o => ({ ...o, [k]: v }));
   const pick = (k: keyof Filters, label: string, all: string, values: string[], name: (v: string) => string) => (
     <Select value={f[k]} onValueChange={set(k)}>
@@ -66,10 +67,8 @@ export default function Creative() {
     <Direction.Provider dir={pageLang() === 'en' ? 'ltr' : 'rtl'}>
     <div className="ui grid gap-4">
       <div className="flex flex-wrap items-center justify-between gap-3">
-        <p className="text-sm text-muted-foreground">{T(`من ${longDay(from)} إلى ${longDay(to)}`, `${longDay(from)} to ${longDay(to)}`)}</p>
-        <ToggleGroup type="single" variant="outline" value={range} onValueChange={v => v && setRange(v as Range)} aria-label={T('الفترة', 'Period')} className="w-full sm:w-auto">
-          {RANGES.map(([v, ar, en]) => <ToggleGroupItem key={v} value={v} className="flex-1 px-2 whitespace-nowrap sm:flex-none sm:px-4">{T(ar, en)}</ToggleGroupItem>)}
-        </ToggleGroup>
+        <p className="text-sm text-muted-foreground">{to ? T(`من ${longDay(from)} إلى ${longDay(to)}`, `${longDay(from)} to ${longDay(to)}`) : ''}</p>
+        {ctx && <PeriodFilter id="creative" def="30" ctx={ctx} onChange={setPeriod} />}
       </div>
       <div className="grid grid-cols-2 gap-2 sm:flex sm:flex-wrap sm:items-center">
         <Input value={f.q} onChange={e => set('q')(e.target.value)} placeholder={T('ابحث بالاسم أو الحملة أو النص', 'Search by name, campaign or text')} className="col-span-2 h-9 sm:max-w-72" aria-label={T('بحث', 'Search')} />
@@ -86,7 +85,7 @@ export default function Creative() {
         {T(`${qty(list.length)} فكرة في ${qty(ads)} إعلان. الفكرة الوحدة = نفس المادة الإعلانية في أكثر من مجموعة أو منصة أو نسخة. اضغط على أي فكرة تشوف نسخها جنب بعض.`,
           `${qty(list.length)} ideas in ${qty(ads)} ads. One idea = the same creative in more than one ad set, platform or version. Click any idea to see its versions side by side.`)}
       </p>
-      {list.length ? (
+      {!to ? null : list.length ? (
         <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
           {list.slice(0, shown).map(x => <IdeaCard key={x.key} idea={x} onOpen={() => setOpen(x)} />)}
         </div>

@@ -122,6 +122,32 @@ for (const lang of ['ar', 'en'] as const) {
       await expect(page.locator('main')).not.toContainText(/7 أيام|30 يوم|90 يوم|7 days|90 days/);
     });
 
+    test('المواد الإعلانية: the same bar, and every idea follows it', async ({ page }) => {
+      await page.route('**/api/overview/data*', r => r.fulfill({ status: 200, contentType: 'application/json', body: fixture }));
+      await page.goto(`/overview/creative/${q}`);
+      const root = await bar(page, lang, '.pf');
+      await expect(pressed(root)).toHaveText(labels[3]!);
+      const label = page.locator('p.text-muted-foreground').first();
+      await expect(label).toContainText(lang === 'en' ? 'September 22 to October 21' : '22 سبتمبر');
+      await root.locator('button').nth(5).click();
+      await expect(label).toContainText(lang === 'en' ? 'August 23' : '23 أغسطس');
+      await expect(page).toHaveURL(/range=all/);
+      await page.reload();
+      await expect(pressed(page.locator('.pf'))).toHaveText(labels[5]!);
+      await expect(page.locator('main')).not.toContainText(/7 أيام|30 يوم|90 يوم|7 days|90 days|كل البيانات|All data/);
+    });
+
+    test('الإعدادات: the activity log uses the bar and asks for those days', async ({ page }) => {
+      const asked: string[] = [];
+      await page.route('**/api/admin/log*', r => { asked.push(new URL(r.request().url()).search); return r.fulfill(json({ log: [] })); });
+      await page.goto(`/admin/${q}`);
+      const root = await bar(page, lang, '#logPeriod .pf');
+      await expect(pressed(root)).toHaveText(labels[5]!);                                    // all time = the latest 200, no dates
+      await expect.poll(() => asked.at(-1)).toBe('?limit=200');
+      await root.locator('button').nth(2).click();
+      await expect.poll(() => asked.at(-1)).toBe(`?limit=500&from=${ago(6)}&to=${TODAY}`);
+    });
+
     test('المدير: the agent card uses the same bar', async ({ page }) => {
       const asked: string[] = [];
       await page.route('**/api/maestro/state*', r => r.fulfill(json({ connected: true, owner: true, canApprove: true, canEdit: true, statuses: { todo: 'جديدة', done: 'خلصت' }, budget: { cap: 0, spent: 0, pct: null }, tabs: [], projectTabs: {},
