@@ -198,7 +198,7 @@ test.describe('sidebar and language (browser)', () => {
     await addSession(context, await login(request, 'owner'));
     await page.goto('/today/');
     const heads = page.locator('.side-h[data-g]');
-    await expect(heads).toHaveText(['الرئيسية', 'التخطيط والمعرفة', 'الإنتاج', 'النشر والتوزيع', 'القياس والتحليل', 'التحسين والقرارات', 'الحوكمة', 'النظام']);
+    await expect(heads).toHaveText(['الرئيسية', 'الإنتاج', 'النشر والتوزيع', 'القياس والتحليل', 'التحسين والقرارات', 'الحوكمة', 'النظام']);
     const design = page.locator('a.navi[data-k="design"]');
     await expect(design).toBeVisible();
     await page.locator('.side-h[data-g="produce"]').click();
@@ -209,8 +209,6 @@ test.describe('sidebar and language (browser)', () => {
     // Opening a page of the folded group shows it again, with its highlight
     await page.goto('/design/');
     await expect(page.locator('a.navi[data-k="design"][aria-current="page"]')).toBeVisible();
-    await page.locator('.side-h[data-g="produce"]').click(); // fold is a user choice only while the page is elsewhere: this toggles the open group shut
-    await page.locator('.side-h[data-g="produce"]').click();
     await expect(page.locator('a.navi[data-k="design"]')).toBeVisible();
   });
   test('the language switch flips the page to English, left to right, and back', async ({ page, context, request }) => {

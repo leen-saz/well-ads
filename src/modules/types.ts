@@ -1,12 +1,12 @@
 // One tab = one module. A module owns its folder (src/modules/<key>/) and its script (public/modules/<key>/client.js).
-// status: live = built; soon = shows "قريباً" with what it will do. group = which of the eight sidebar groups it sits under
+// status: live = built; soon = shows "قريباً" with what it will do. group = which of the seven sidebar groups it sits under
 // (public/assets/sidebar.js GROUPS).
 export interface ModuleMeta {
   key: string;
   ar: string;
   en: string;
   icon: string;          // Lucide SVG paths (stroke 1.75)
-  group: 'home' | 'plan' | 'produce' | 'distribute' | 'measure' | 'optimize' | 'govern' | 'system';
+  group: 'home' | 'produce' | 'distribute' | 'measure' | 'optimize' | 'govern' | 'system';
   status: 'live' | 'soon';
   does: string[];
   doesEn: string[];

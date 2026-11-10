@@ -4,7 +4,7 @@ import { summarize, TARGETS, type VitalRow } from '../../lib/vitals';
 import { sb, json, missingSchema, notApplied, readJson, handle, requireUser, audit, isOwner, atLeast, notEnabled, type AuthEnv, type Cfg } from '../../lib/auth';
 import { budget, chatLines, client, cleanTask, items, performance, STATUS, tabOf, withBrief, type PcEnv } from './paperclip';
 import { parseRangeParams, rangeMs } from '../../../public/assets/period.js';
-import { MODULES } from '../registry';
+import { MODULES, GROUPS } from '../registry';
 import { knowledgeFor } from '../knowledge/knowledge';
 import { crmFor } from './health';
 import { dataHealth, PARTS, type Part } from './datahealth';
@@ -17,7 +17,7 @@ async function companyOf(cfg: Cfg, co: string): Promise<Co | null> {
   return r.ok && Array.isArray(r.data) ? r.data[0] || null : null;
 }
 // The tabs a task can be sent to (every live tab but this one), and which Paperclip project belongs to which tab
-const TABS = MODULES.filter(m => m.status === 'live' && m.key !== 'maestro').map(m => ({ key: m.key, ar: m.ar }));
+const TABS = MODULES.filter(m => m.status === 'live' && m.key !== 'maestro').map(m => ({ key: m.key, ar: m.ar, group: m.group }));
 const projectTabs = (projects: Record<string, unknown>[]) => Object.fromEntries(projects.map(p => [String(p.id), tabOf(p.name)]).filter(([, k]) => k));
 const notSet = (user?: { role: string }) => json(503, { error: notEnabled(user, 'المدير', 'PAPERCLIP_URL و PAPERCLIP_TOKEN'), setup: true });
 
@@ -30,7 +30,7 @@ export const state = { GET: handle(async (request, e: Env) => {
   let agents: unknown[] = [], issues: unknown[] = [], approvals: unknown[] = [], company: Record<string, unknown> = {}, projects: Record<string, unknown>[] = [];
   try { [agents, issues, approvals, company, projects] = await Promise.all([pc.agents(c.paperclip_company_id), pc.issues(c.paperclip_company_id), pc.approvals(c.paperclip_company_id), pc.company(c.paperclip_company_id), pc.projects(c.paperclip_company_id)]); }
   catch (err) { console.error('maestro_state_failed', (err as Error).message); return json(502, { error: 'المدير مو متاح الحين، جرّب بعد شوي' }); }
-  return json(200, { connected: true, owner: isOwner(user, cfg), canApprove: atLeast(user, 'maestro', 'approve', cfg), canEdit: atLeast(user, 'maestro', 'edit', cfg), statuses: STATUS, budget: budget(company), tabs: TABS, projectTabs: projectTabs(projects), agents, issues, approvals });
+  return json(200, { connected: true, owner: isOwner(user, cfg), canApprove: atLeast(user, 'maestro', 'approve', cfg), canEdit: atLeast(user, 'maestro', 'edit', cfg), statuses: STATUS, budget: budget(company), tabs: TABS, groups: GROUPS, projectTabs: projectTabs(projects), agents, issues, approvals });
 }) };
 
 // One agent's performance card for a period: ?from=&to= (Riyadh days, at most a year) or the old ?days=7|30

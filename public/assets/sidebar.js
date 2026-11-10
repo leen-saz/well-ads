@@ -1,5 +1,5 @@
 // أقسام القائمة الجانبية، نفسها في common.js (صفحات Astro) و nav.js (لوحات التحليلات والمواد الإعلانية).
-// ثمانية أقسام على ترتيب التسويق: الرئيسية ← التخطيط ← الإنتاج ← النشر ← القياس ← التحسين ← الحوكمة ← النظام. تحت كل قسم أدواته. الموديولات تجي من السيرفر (me.modules ← src/modules/registry.ts)
+// سبعة أقسام على ترتيب التسويق: الرئيسية ← الإنتاج ← النشر ← القياس ← التحسين ← الحوكمة ← النظام. تحت كل قسم أدواته. الموديولات تجي من السيرفر (me.modules ← src/modules/registry.ts)
 // وكل موديول يحدد قسمه بـ group. HUBS (src/lib/gate.ts) تبقى للروابط القديمة /performance و/create و/review و/system.
 // state: ok = يفتح، noaccess = ما عندك صلاحية، locked = مقفل لشركتك، soon = قريباً.
 const SUN = '<circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/>';
@@ -7,7 +7,6 @@ const SHIELD = '<path d="M20 13c0 5-3.5 7.5-7.7 9a1 1 0 0 1-.6 0C7.5 20.5 4 18 4
 
 export const GROUPS = [
   ['home', 'الرئيسية', 'Home'],
-  ['plan', 'التخطيط والمعرفة', 'Plan & knowledge'],
   ['produce', 'الإنتاج', 'Create'],
   ['distribute', 'النشر والتوزيع', 'Publish & distribute'],
   ['measure', 'القياس والتحليل', 'Measure & analyze'],
@@ -57,10 +56,9 @@ export function sections(me, L) {
   const one = (useNew, newer, older) => (useNew ? newer : older);
   const items = {
     home: [core('/today/', 'ملخص اليوم', 'Today', SUN, 'today', true), ...mods('home')],
-    plan: mods('plan'),
     produce: mods('produce'),
     distribute: mods('distribute'),
-    // ملخص الأداء (موديول overview وصفحاته) أول، بعده المواد الإعلانية، بعدها أدوات القياس (التتبع)
+    // ملخص الأداء (موديول overview وصفحاته) أول، بعده المواد الإعلانية، بعدها الرصد
     measure: [
       one(ov, core('/overview/', 'ملخص الأداء', 'Performance summary', 'chart', 'overview', true), core('/', 'ملخص الأداء', 'Performance summary', 'chart', 'ceo')),
       one(ov, core('/overview/creative/', 'المواد الإعلانية', 'Creatives', 'image', 'overview:creative', true), core('/?view=creative', 'المواد الإعلانية', 'Creatives', 'image', 'creative')),

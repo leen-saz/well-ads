@@ -5,7 +5,7 @@
 ## ملفات الموديول
 | المكان | وش فيه |
 |---|---|
-| `src/modules/<key>/module.ts` | الاسم بالعربي والإنجليزي، الأيقونة، الوجهة في القائمة (`group`: home / plan / produce / distribute / measure / optimize / govern / system، بترتيب القائمة)، الحالة (`live` / `soon`)، ووش يسوي |
+| `src/modules/<key>/module.ts` | الاسم بالعربي والإنجليزي، الأيقونة، الوجهة في القائمة (`group`: home / produce / distribute / measure / optimize / govern / system، بترتيب القائمة)، الحالة (`live` / `soon`)، ووش يسوي |
 | `src/modules/<key>/routes.ts` | الـ API: `/api/<key>/<action>` |
 | `src/modules/<key>/*.ts` | منطق الموديول |
 | `src/modules/<key>/Page.astro` | الصفحة (`/<key>/`)، و`src/pages/<key>/index.astro` سطرين يستوردها بس |
