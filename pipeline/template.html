@@ -195,6 +195,15 @@ input[type=search]{width:min(240px,100%)}
 .tile.feature .spark{fill:#fff}
 .kpis.kout{grid-template-columns:repeat(auto-fit,minmax(min(100%,160px),1fr))}
 .kout .kpi.hero .v{font-size:1.6rem}
+.payer{display:grid;grid-template-columns:minmax(0,2fr) minmax(0,1fr);gap:14px;padding:16px 18px;border:1px solid var(--ink);border-radius:14px;background:var(--glass-bg,#fff);align-items:center}
+@media (max-width:700px){.payer{grid-template-columns:1fr}}
+.payer .l{display:block;color:var(--muted);font-size:.85rem}
+.payer-main .v{display:inline-block;font-size:2.4rem;font-weight:800;line-height:1.15;margin-inline-end:10px}
+.payer-side .v{display:block;font-size:1.5rem;font-weight:700}
+.payer-note{display:block;margin-top:4px}
+.payer.watch .payer-main .v{color:#B7791F}.payer.bad .payer-main .v{color:#C0392B}.payer.off .payer-main .v{color:var(--muted)}
+.pill.wa-dest{background:var(--glass-bg,#fff);color:var(--muted);border:1px dashed var(--line)}
+.payrank-na{margin:0;padding:10px 12px;border:1px dashed var(--line);border-radius:10px}
 /* The customer journey: a horizontal pipe that narrows with the numbers (pipeline/dash/05-render.js, funnelHTML) */
 .ffun2{display:grid;grid-template-columns:minmax(0,1fr) 17rem;gap:14px;align-items:start}
 @media (max-width:1000px){.ffun2{grid-template-columns:1fr}}

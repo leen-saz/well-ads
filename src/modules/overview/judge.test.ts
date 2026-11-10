@@ -204,3 +204,45 @@ describe('judge: input from dash.json (Overview)', () => {
     expect(J.judge(i, T, 'ar', f).e2e).not.toBeNull();
   });
 });
+
+describe('cost per paying customer: the headline', () => {
+  // Made-up numbers: 60,000 spend ÷ 120 closings = 500 a paying customer
+  it('is spend ÷ paid closings, against costShare × what a closing brings (2,000 × 0.33 = 660)', () => {
+    const p = run(healthy).payer;
+    expect(p.value).toBe(500);
+    expect(p.target).toBeCloseTo(660);
+    expect(p.level).toBe('fine');
+  });
+  it('an explicit costPerPayer target in targets.json wins', () => {
+    const p = run(healthy, 'ar', J.targets({ costPerPayer: 250 })).payer;
+    expect(p.target).toBe(250);
+    expect(p.level).toBe('problem');   // 250 ÷ 500 = 0.5 of target
+  });
+  it('is «غير مربوط», never zero, when the CRM is missing or nothing paid is linked', () => {
+    const none = run({ ...healthy, sale: { ...healthy.sale, crm: false } }).payer;
+    expect(none).toMatchObject({ value: null, level: 'na', text: 'غير مربوط' });
+    const zero = run({ ...healthy, sale: { ...healthy.sale, closings: 0 } }, 'en').payer;
+    expect(zero).toMatchObject({ value: null, text: 'Not linked' });
+  });
+});
+
+describe('WhatsApp-destination ads: zero platform leads is not a failure', () => {
+  const wa = { waSpend: 8_000, waClicks: 4_000 };
+  it('they leave the click-to-lead math: the same leads over only the clicks of ads that can report leads', () => {
+    const s = step({ ...healthy, top: { ...healthy.top, ...wa, leadClicks: 8_000 } }, 'lead');
+    expect(s.now).toBeCloseTo((100 * 1200) / 8_000);
+  });
+  it('are judged on clicks and cost per click, with the line saying so', () => {
+    const v = run({ ...healthy, top: { ...healthy.top, ...wa, leadClicks: 8_000 } });
+    expect(v.wa).toMatchObject({ cpc: 2, only: false });
+    expect(v.wa!.line).toContain('توجيه للواتساب، الليدز ما تنقاس من المنصة');
+  });
+  it('when every ad opens WhatsApp the lead and cost-per-lead steps are not judged at all, and never «كارثة»', () => {
+    const v = run({ ...healthy, top: { ...healthy.top, results: 0, cpl: null, waSpend: 60_000, waClicks: 12_000, leadClicks: 0 } });
+    for (const k of ['lead', 'cpl']) {
+      const s = v.steps.find(x => x.key === k)!;
+      expect(s.level).toBe('na');
+      expect(s.line).toContain('توجيه للواتساب، الليدز ما تنقاس من المنصة');
+    }
+  });
+});

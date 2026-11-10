@@ -372,3 +372,17 @@ class IngestTests(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class WhatsAppDestination(unittest.TestCase):
+    def test_detected_only_from_evidence(self):
+        from tiktok.merge import whatsapp_dest
+        none = {}
+        self.assertTrue(whatsapp_dest({"deeplink": "https://wa.me/966500000000"}, config=none))
+        self.assertTrue(whatsapp_dest({"landing_page_url": "whatsapp://send?phone=1"}, config=none))
+        self.assertTrue(whatsapp_dest({}, {"messaging_app_type": "WHATSAPP"}, config=none))
+        self.assertTrue(whatsapp_dest({"campaign_id": "9"}, config={"campaign_ids": [9]}))
+        self.assertTrue(whatsapp_dest({"campaign_name": "Promo WhatsApp"}, config={"campaign_name_words": ["whatsapp"]}))
+        # no link, no group info, nothing listed: unknown, so False (never guessed)
+        self.assertFalse(whatsapp_dest({"campaign_name": "Promo whatsapp"}, config=none))
+        self.assertFalse(whatsapp_dest({"landing_page_url": "https://example.com/offer"}, config=none))
