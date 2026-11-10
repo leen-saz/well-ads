@@ -83,7 +83,6 @@ function renderKpis(now,prev){
   const ratio = (x,y) => x!=null && y ? x/y : null;
   const allN = a.allPaidN||0, allP = a.allPaid||0;
   const mer = ratio(allP, a.spend), merB = ratio(b.allPaid, b.spend);
-  const cac = allN ? a.spend/allN : null, cacB = b.allPaidN ? b.spend/b.allPaidN : null;
   const crm = !!(D.crm && D.crm.paid_all);
   // 1) Outcome
   const toggle = D.crm ? `<span class="seg seg-sm" role="group" aria-label="${tr('الاقفالات حسب')}">`
@@ -111,15 +110,47 @@ function renderKpis(now,prev){
       tile('الاقفالات',fmt(allN),'',delta(allN,b.allPaidN,false),'closings',keys.map(k=>paidIn(k,false)),'feature'),
       tile('المدفوع',sar(allP),money(),delta(allP,b.allPaid,false),'paid',keys.map(k=>paidIn(k,true))),
       tile('العائد على الصرف',mer==null?'—':fmt(mer,2)+'×','',delta(mer,merB,false),'ret',null),
-      tile('تكلفة العميل',sar(cac),money(),delta(cac,cacB,true),'cac',null),
     ] : []),
   ].join('');
   // 2) The customer journey: a horizontal pipe that narrows with the numbers, with its analysis (funnelHTML, below)
-  $('#kpis').innerHTML =
-    `<div class="kgroup"><div class="khead"><h3>النتيجة</h3>${toggle}</div><div class="kpis kout">${outcome}</div>`
+  $('#kpis').innerHTML = payerHTML(a,now)
+    + `<div class="kgroup"><div class="khead"><h3>النتيجة</h3>${toggle}</div><div class="kpis kout">${outcome}</div>`
     + (crm ? `<p class="knote">${tr('الاقفالات والمدفوع من كل المصادر في نظام العملاء (مدفوعات ميسّر). العائد على الصرف = المدفوع ÷ الصرف. تكلفة العميل = الصرف ÷ الاقفالات.')}</p>` : '') + `</div>`
     + `<div class="kgroup"><div class="khead"><h3>رحلة العميل</h3></div>${funnelHTML(a,b)}`
-    + (D.crm ? '' : `<p class="knote">${tr('مرحلة البيع فاضية لأن أرقام نظام العملاء ما وصلت لهالنسخة من اللوحة. أول ما توصل تطلع الاقفالات هنا.')}</p>`) + `</div>`;
+    + (D.crm ? '' : `<p class="knote">${tr('مرحلة البيع فاضية لأن أرقام نظام العملاء ما وصلت لهالنسخة من اللوحة. أول ما توصل تطلع الاقفالات هنا.')}</p>`) + `</div>`
+    + payRankHTML(a,now);
+}
+
+// The headline: what one paying customer costs (spend ÷ paid closings) against its target, beside the cost per lead.
+// Not linked is shown as «غير مربوط», never 0. The target is targets.json «costPerPayer» when set, else costShare × what a closing brings.
+function payerHTML(a,now){
+  const v = funJudge(a), p = v.payer, lvl = {fine:'',watch:'watch',problem:'bad',disaster:'bad dis',na:'off'}[p.level];
+  const T = funTargets().t, sev = p.level==='na' ? '' : `<span class="fv-badge">${ui(...JUDGE.SEV[p.level])}</span>`;
+  const res = (a.leads||0)+(a.conv||0);
+  const detail = p.value==null ? p.note
+    : `${p.note} · ${ui(`${qty(p.closings)} عميل دافع`,`${qty(p.closings)} paying customers`)}${res?ui(` من ${qty(res)} ليد`,` from ${qty(res)} leads`):''}${funSliced()?` · ${ui('من كل نظام العملاء، مو بس الفلتر','across the whole CRM, not only the filter')}`:''}`;
+  const cplText = a.cpl==null ? '—' : funFmt.sar(a.cpl);
+  const wa = v.wa ? `<p class="m">${v.wa.line}</p>` : '';
+  return `<div class="kgroup"><div class="payer ${lvl}"><div class="payer-main"><span class="l">${ui('تكلفة العميل الدافع','Cost per paying customer')}</span>`
+    + `<span class="v">${p.text}</span>${sev}<span class="payer-note m">${detail}</span></div>`
+    + `<div class="payer-side"><span class="l">${ui('تكلفة الليد','Cost per lead')}</span><span class="v">${cplText}</span>`
+    + `<span class="payer-note m">${ui('الهدف','Target')} ${funFmt.sar(T.cpl)}</span>${wa}</div></div></div>`;
+}
+
+// Campaigns ranked by the paying customers that are linked to their ads, with how many sales are not linked to any ad
+function payRankHTML(a,now){
+  if(!(D.crm && D.crm.paid_all)) return '';
+  const m = {};
+  for(const [k,o] of Object.entries(now.byAd)){ const ad = ADS[k]; if(!ad || !o.booked) continue; const key = ad.platform+'|'+ad.campaign;
+    const c = m[key] ||= {p:ad.platform, name:ad.campaign, n:0, value:0, spend:0}; c.n += o.booked; c.value += o.value||0; }
+  for(const [k,o] of Object.entries(now.byAd)){ const ad = ADS[k]; const c = ad && m[ad.platform+'|'+ad.campaign]; if(c) c.spend += o.spend||0; }
+  const rows = Object.values(m).sort((x,y)=>y.n-x.n || (x.spend/x.n)-(y.spend/y.n)).slice(0,8);
+  const total = a.allPaidN||0, unlinked = Math.max(0,total-(a.booked||0));
+  const note = total ? ui(`${qty(unlinked)} من ${qty(total)} إقفالة غير مربوطة بإعلان، وما تدخل في الترتيب. ما نخمّن ربطها.`, `${qty(unlinked)} of ${qty(total)} closings are not linked to an ad and are left out of this ranking. We do not guess links.`) : '';
+  const body = rows.length ? `<div class="tbl"><table><thead><tr><th>${ui('الحملة','Campaign')}</th><th>${ui('المنصة','Platform')}</th><th class="n">${ui('عملاء دافعين','Paying customers')}</th><th class="n">${ui('تكلفة العميل الدافع','Cost per paying customer')}</th><th class="n">${ui('المدفوع','Paid')}</th></tr></thead><tbody>`
+      + rows.map(r=>`<tr><td class="name">${esc(r.name)}</td><td>${platCell(r.p)}</td><td class="n">${fmt(r.n)}</td><td class="n">${r.spend?`${sar(r.spend/r.n)} ${money()}`:'—'}</td><td class="n">${sar(r.value)} ${money()}</td></tr>`).join('') + `</tbody></table></div>`
+    : `<p class="payrank-na"><b>${ui('غير مربوط','Not linked')}</b> ${ui('ما فيه إقفالة مربوطة بإعلانها في هالفترة، فما نقدر نرتّب الحملات بالعملاء الدافعين.','No closing is linked to its ad in this period, so campaigns cannot be ranked by paying customers.')}</p>`;
+  return `<div class="kgroup"><div class="khead"><h3>${ui('الحملات حسب العملاء الدافعين','Campaigns by paying customers')}</h3></div>${body}<p class="knote">${note}</p></div>`;
 }
 
 function noteCard(title, line, alert){
@@ -157,7 +188,8 @@ function funJudge(a){
   const paid = all ? D.crm.paid_all.map(r=>[r[0],r[1]||null]) : ((D.crm&&D.crm.rows)||[]).filter(r=>r[3]).map(r=>[r[1],r[2]||null]);
   const cohort = D.crm ? JUDGE.cohort(Object.entries(w.byDay), paid, S.from, S.to, MAX, T.maturityDays) : null;
   return JUDGE.judge({
-    top:{impr:a.impr||0, clicks:a.clicks||0, results:(a.leads||0)+(a.conv||0), spend:a.spend||0, cpl:a.cpl},
+    top:{impr:a.impr||0, clicks:a.clicks||0, results:(a.leads||0)+(a.conv||0), spend:a.spend||0, cpl:a.cpl,
+      waSpend:a.waSpend||0, waClicks:a.waClicks||0, leadClicks:(a.clicks||0)-(a.waClicks||0)},
     sale:{crm:!!D.crm, results:w.results, spend:w.spend, closings:all?(a.allPaidN||0):w.booked, paid:all?(a.allPaid||0):w.value, adClosings:w.booked, adLeads:w.crmLeads, wide:funSliced()},
     cohort }, T, LANG, funFmt);
 }

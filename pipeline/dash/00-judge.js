@@ -65,6 +65,8 @@ const JUDGE = (function(){
   // Targets: the defaults, then targets.json, then the viewer's own edits; anything not a positive number is ignored
   function targets(...layers){
     const out = { ...DEFAULTS };
+    // costPerPayer (SAR) is optional: left out, the most a paying customer may cost comes from costShare × what a closing brings
+    for(const t of layers) if(t && typeof t === 'object') { const c = Number(t.costPerPayer); if(t.costPerPayer != null && t.costPerPayer !== '' && isFinite(c) && c > 0) out.costPerPayer = c; }
     for(const t of layers) if(t && typeof t === 'object') for(const k of Object.keys(DEFAULTS)) { const v = Number(t[k]); if(t[k] != null && t[k] !== '' && isFinite(v) && v > 0) out[k] = v; }
     return out;
   }
@@ -90,21 +92,25 @@ const JUDGE = (function(){
     const t = (ar, en) => (l === 'en' ? en : ar);
     const top = inp.top || {}, sale = inp.sale || {}, co = inp.cohort || null;
     const avg = sale.closings ? sale.paid / sale.closings : null;
-    const tgt = { ...T, cpa: avg != null ? avg * T.costShare : null };
+    const tgt = { ...T, cpa: T.costPerPayer > 0 ? T.costPerPayer : avg != null ? avg * T.costShare : null };
     const coverage = sale.crm && sale.results ? Math.min(1, (sale.adLeads || 0) / sale.results) : null;
     const allRate = sale.crm && sale.results ? 100 * (sale.closings || 0) / sale.results : null;
     // Lead to closing on the leads old enough to have closed, when there are enough of them; else the whole period, said so
     const matureOk = co && co.mature >= MIN.leads;
     const early = !!(co && !matureOk && co.young > 0);
+    const lc = fin(top.leadClicks) ? top.leadClicks : top.clicks;
     const now = {
       click: top.impr ? 100 * top.clicks / top.impr : null,
-      lead: top.clicks ? 100 * top.results / top.clicks : null,
+      lead: lc ? 100 * top.results / lc : null,
       sale: !sale.crm ? null : matureOk ? 100 * co.matureClosings / co.mature : allRate,
       cpl: fin(top.cpl) ? top.cpl : top.results ? top.spend / top.results : null,
       cpa: sale.crm && sale.closings ? sale.spend / sale.closings : null,
       roas: sale.crm && sale.spend ? (sale.paid || 0) / sale.spend : null,
     };
-    const size = { clicks: top.clicks || 0, leads: (r) => (r.scope === 'sale' ? sale.results : top.results) || 0 };
+    // TikTok ads that open WhatsApp never report leads on the platform: they leave the click-to-lead and cost-per-lead math
+    const waSpend = top.waSpend || 0, waOnly = waSpend > 0 && !(top.leadClicks > 0) && !(top.results > 0);
+    const WA_NOTE = t('توجيه للواتساب، الليدز ما تنقاس من المنصة', 'Sent to WhatsApp, leads are not measured by the platform');
+    const size = { clicks: top.clicks || 0, leadClicks: lc || 0, leads: (r) => (r.scope === 'sale' ? sale.results : top.results) || 0 };
     const fmtOf = r => (r.kind === 'rate' ? f.pct : r.kind === 'cost' ? f.sar : f.x);
     const rLead = fin(now.lead) ? now.lead : T.clickToLead, rSale = fin(now.sale) ? now.sale : T.leadToClose;
 
@@ -117,17 +123,19 @@ const JUDGE = (function(){
         return { ...base, level:'na', score:null, ratio:null, small:false, sar:null, confidence:'low', unattributed: r.key === 'sale', owner:pick(l, o.who), fix:pick(l, o.fix),
           line:`${label}: ${t('ما ينحكم، نظام العملاء مو موصول بهالأرقام.', 'cannot be judged, the CRM is not connected to these numbers.')}`, evidence:'', rule:'', change:'', range:null };
       }
+      if(waOnly && (r.key === 'lead' || r.key === 'cpl')) return { ...base, level:'na', score:null, ratio:null, small:false, sar:null, confidence:'low', waDest:true,
+        line:`${label}: ${WA_NOTE}.`, evidence:'', rule:'', change:'', range:null };
       if(!fin(v) || !fin(target)) return { ...base, level:'na', score:null, ratio:null, small:false, sar:null, confidence:'low',
         line:`${label}: ${t('ما فيه أرقام كفاية.', 'not enough numbers.')}`, evidence:'', rule:'', change:'', range:null };
       const ratio = r.kind === 'cost' ? (v > 0 ? target / v : Infinity) : v / target;
-      const n = r.sample === 'clicks' ? size.clicks : size.leads(r), need = MIN[r.sample], small = n < need;
+      const n = r.sample === 'clicks' ? (r.key === 'lead' ? size.leadClicks : size.clicks) : size.leads(r), need = MIN[r.sample], small = n < need;
       let level = band(ratio);
       if(small && RANK[level] < RANK.watch) level = 'watch';
       // SAR at stake: what the gap to target costs, in closings × what a closing brings, or in overspend for a cost
       let sar = null;
       if(level !== 'fine'){
         if(r.key === 'click' && avg != null) sar = (target - v) / 100 * top.impr * rLead / 100 * rSale / 100 * avg;
-        else if(r.key === 'lead' && avg != null) sar = (target - v) / 100 * top.clicks * rSale / 100 * avg;
+        else if(r.key === 'lead' && avg != null) sar = (target - v) / 100 * lc * rSale / 100 * avg;
         else if(r.key === 'sale' && avg != null) sar = (target - v) / 100 * sale.results * avg;
         else if(r.key === 'cpl') sar = (v - target) * (top.results || 0);
         else if(r.key === 'cpa') sar = (v - target) * (sale.closings || 0);
@@ -197,7 +205,12 @@ const JUDGE = (function(){
     // The verdict: the worst severity; among equals the most SAR at stake, then the furthest under target
     const judged = steps.filter(s => s.level !== 'na');
     const top1 = [...judged].sort((a, b) => RANK[a.level] - RANK[b.level] || (b.sar ?? -1) - (a.sar ?? -1) || a.ratio - b.ratio)[0];
-    const common = { steps, e2e, losses, biggest, trust, cohort: coh, unlinked, targets: tgt };
+    // The WhatsApp-destination ads: judged on clicks and cost per click, said plainly
+    const wa = waSpend > 0 ? { spend: waSpend, clicks: top.waClicks || 0, cpc: top.waClicks ? waSpend / top.waClicks : null, only: waOnly,
+      line: `${WA_NOTE}${top.waClicks ? t(`: نحكم عليها بالنقرات (${f.qty(top.waClicks)}) وتكلفة النقرة (${f.sar(waSpend / top.waClicks)})`, `: judged on clicks (${f.qty(top.waClicks)}) and cost per click (${f.sar(waSpend / top.waClicks)})`) : ''}.` } : null;
+    // The headline: what one paying customer costs (spend ÷ paid closings) against its target. Not linked is not zero.
+    const head = payer(sale, tgt.cpa, l, f);
+    const common = { steps, e2e, losses, biggest, trust, cohort: coh, unlinked, targets: tgt, wa, payer: head };
     if(!top1) return { ...common, level:'na', step:null, stage:'', title:t('ما فيه أرقام كفاية للتحليل', 'Not enough numbers to judge'), owner:null, why:'', todo:'', evidence:'', sar:null, confidence:'low', rule:'', change:'' };
     if(top1.level === 'fine') return { ...common, level:'fine', step:null, stage:'', title:t('لا توجد مشكلة', 'No problem'), owner:null,
       why:t('كل خطوة على هدفها أو أحسن.', 'Every step meets its target.'), todo:t('كمّل على نفس الخطة.', 'Keep the plan.'), evidence:'', sar:null,
@@ -207,6 +220,18 @@ const JUDGE = (function(){
       evidence:top1.evidence, sar:top1.sar, confidence:top1.confidence, rule:top1.rule, change:top1.change };
   }
 
-  return { DEFAULTS, FIELDS, MIN, BANDS, RULES, OWNERS, SEV, RANK, targets, cohort, judge, pick };
+  // Cost per paying customer = spend ÷ paid closings. No CRM, or no paid closing yet: «غير مربوط», never 0 or a made-up number.
+  function payer(sale, target, l, f){
+    const t = (ar, en) => (l === 'en' ? en : ar);
+    const NA = t('غير مربوط', 'Not linked');
+    if(!sale || !sale.crm || !(sale.closings > 0) || !(sale.spend > 0))
+      return { value:null, target: fin(target) ? target : null, level:'na', text:NA, closings: sale && sale.closings || 0,
+        note: !sale || !sale.crm ? t('نظام العملاء مو موصول بهالأرقام.', 'The CRM is not connected to these numbers.') : t('ما فيه إقفالات مدفوعة مربوطة في هالفترة.', 'No linked paid closings in this period.') };
+    const v = sale.spend / sale.closings, ok = fin(target);
+    const level = ok ? band(v > 0 ? target / v : Infinity) : 'na';
+    return { value:v, target: ok ? target : null, level, text:f.sar(v), closings:sale.closings,
+      note: ok ? `${t('الهدف', 'Target')} ${f.sar(target)}` : t('ما فيه هدف للتكلفة بعد.', 'No cost target yet.') };
+  }
+  return { payer, DEFAULTS, FIELDS, MIN, BANDS, RULES, OWNERS, SEV, RANK, targets, cohort, judge, pick };
 })();
 if(typeof globalThis !== 'undefined') globalThis.WELL_JUDGE = JUDGE;

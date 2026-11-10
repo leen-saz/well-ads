@@ -17,7 +17,7 @@ function cardsList(c){
     for(const [k,a] of Object.entries(ADS)) if(!have.has(k) && matchesSlice(a)) list.push({k,...derive({spend:0,impr:0,clicks:0,leads:0,conv:0,leadSpend:0}),a});
   }
   if(S.q){ const q=S.q.toLowerCase(); list=list.filter(x=>(x.a.name+' '+x.a.campaign+' '+x.a.group+' '+(x.a.text||'')).toLowerCase().includes(q)); }
-  const key={spend:x=>-x.spend,leads:x=>-(x.leads+x.conv),cpl:x=>(x.a.goal==='lead'?x.cpl:null)??1e12,ctr:x=>-(x.ctr??-1),impr:x=>-x.impr}[S.sort];
+  const key={spend:x=>-x.spend,leads:x=>-(x.leads+x.conv),cpl:x=>(x.a.goal==='lead'&&x.a.dest!=='whatsapp'?x.cpl:null)??1e12,ctr:x=>-(x.ctr??-1),impr:x=>-x.impr}[S.sort];
   return list.sort((x,y)=>key(x)-key(y));
 }
 // Winner: the ad got 30+ leads in its first 3 days (launch day = its first day with spend or impressions).
@@ -91,7 +91,7 @@ function cmpItem(k){
 }
 function openCompare(){
   const items=[...CMP].map(cmpItem).filter(Boolean); if(items.length<2) return;
-  const metrics=[[ui('الصرف','Spend'),i=>i.x.spend,0],[ui('الليدز','Leads'),i=>i.x.leads,1],[ui('تكلفة الليد','CPL'),i=>i.a.goal==='lead'?i.x.cpl:null,-1],[ui('نسبة النقر','CTR'),i=>i.x.ctr,1],[ui('الظهور','Impressions'),i=>i.x.impr,0],[ui('وقفوا يشوفون','Hook'),i=>hookRate(i.vid),1],[ui('كمّلوا للنهاية','Watched to end'),i=>holdRate(i.vid),1]];
+  const metrics=[[ui('الصرف','Spend'),i=>i.x.spend,0],[ui('الليدز','Leads'),i=>i.x.leads,1],[ui('تكلفة الليد','CPL'),i=>i.a.goal==='lead'&&i.a.dest!=='whatsapp'?i.x.cpl:null,-1],[ui('نسبة النقر','CTR'),i=>i.x.ctr,1],[ui('الظهور','Impressions'),i=>i.x.impr,0],[ui('وقفوا يشوفون','Hook'),i=>hookRate(i.vid),1],[ui('كمّلوا للنهاية','Watched to end'),i=>holdRate(i.vid),1]];
   const best=metrics.map(([,f,dir])=>{ if(!dir) return null; const v=items.map(f).filter(x=>x!=null&&isFinite(x)); if(v.length<2) return null; return dir>0?Math.max(...v):Math.min(...v); });
   const show=(j,v)=> j===0||j===2? sar(v) : j===1? qty(v) : j===4? fmt(v) : pct(v);
   $('#dlgBody').innerHTML = `<div class="panel-h"><h2 id="dlgTitle">${ui('مقارنة','Compare')}</h2><button type="button" class="btn" id="dlgClose">إغلاق</button></div>
@@ -103,7 +103,7 @@ function openCompare(){
   const dlg=$('#dlg'); if(!dlg.open) dlg.showModal(); $('#dlgClose').onclick=()=>dlg.close(); $('#dlgBody').onclick=null; localize();
 }
 function resultCells(x){
-  const g=x.a.goal;
+  const g=x.a.dest==='whatsapp'?'traffic':x.a.goal;   // opens WhatsApp: no platform leads, so clicks and cost per click
   // Cost per lead counts only the spend of lead-goal ads; say so when the card's spend has more in it
   if(g==='lead'){ const ls=x.leadSpend??x.spend, ln=x.leadN??x.leads, part=Math.round(ls)<Math.round(x.spend)||ln!==x.leads;
     return statCell('الليدز',qty(x.leads))+statCell('تكلفة الليد',sar(x.cpl),part?`${sar(ls)} ${ui('صرف إعلانات الليدز','spend of lead ads')} ÷ ${qty(ln)} ${ui('ليد منها','of their leads')}`:''); }
@@ -196,7 +196,7 @@ function wallCard({key, wall, label, thumb, badges, title, sub, stats, flag, vie
 }
 function renderCards(c){
   let list = cardsList(c);
-  { list=ideaList(list); const key={spend:x=>-x.spend,leads:x=>-(x.leads+x.conv),cpl:x=>(x.a.goal==='lead'?x.cpl:null)??1e12,ctr:x=>-(x.ctr??-1),impr:x=>-x.impr}[S.sort]; list.sort((p,q)=>key(p)-key(q)); IDEAS={}; list.forEach(x=>IDEAS[x.k]=x); }
+  { list=ideaList(list); const key={spend:x=>-x.spend,leads:x=>-(x.leads+x.conv),cpl:x=>(x.a.goal==='lead'&&x.a.dest!=='whatsapp'?x.cpl:null)??1e12,ctr:x=>-(x.ctr??-1),impr:x=>-x.impr}[S.sort]; list.sort((p,q)=>key(p)-key(q)); IDEAS={}; list.forEach(x=>IDEAS[x.k]=x); }
   const show = list.slice(0,S.shown);
   $('#cards').innerHTML = show.length ? show.map(x=>wallCard({
     key:x.k, wall:'ad', label:ui('تفاصيل ','Details: ')+x.a.name, thumb:thumbHTML(x.a),
@@ -204,7 +204,7 @@ function renderCards(c){
     title:esc(x.a.name),
     sub:`${x.idea?'':campTag(x.a)+' '+tiredTag(x.k)} ${depCell(x.a.dept)} ${goalPill(x.a.goal)} ${esc(x.a.campaign)} · ${esc(x.a.group)}${x.a.format?` · <span>${esc(tr(x.a.format))}</span>`:''}`,
     stats:statCell('الصرف',sar(x.spend))+resultCells(x)+statCell('الظهور',fmt(x.impr))+statCell(family(x.a.platform)==='meta'&&x.a.goal==='lead'?'محادثات':'النقرات', family(x.a.platform)==='meta'&&x.a.goal==='lead'?fmt(x.conv):fmt(x.clicks))+statCell('نسبة النقر',pct(x.ctr)),
-    flag:(x.a.goal==='lead'&&x.leads===0&&x.conv===0&&x.spend>=50&&family(x.a.platform)!=='google'?`<span class="flag">${ui(`صرف ${sar(x.spend)} ${money()} بدون ليد أو محادثة`,`Spend ${sar(x.spend)} ${money()} with no lead or conversation`)}</span>`:''),
+    flag:(x.a.dest==='whatsapp'?`<span class="pill wa-dest">${ui('توجيه للواتساب، الليدز ما تنقاس من المنصة','Sent to WhatsApp, leads are not measured by the platform')}</span>`:x.a.goal==='lead'&&x.leads===0&&x.conv===0&&x.spend>=50&&family(x.a.platform)!=='google'?`<span class="flag">${ui(`صرف ${sar(x.spend)} ${money()} بدون ليد أو محادثة`,`Spend ${sar(x.spend)} ${money()} with no lead or conversation`)}</span>`:''),
     view:hookRow(x.idea?sumVid(x.members.map(m=>m.a)):x.a.vid)+viewControl(x.a)+cmpBox(x.k),
   })).join('') : '<div class="empty">لا توجد مادة إعلانية تطابق الفلاتر في هذه الفترة.</div>';
   $('#more').hidden = list.length<=S.shown;

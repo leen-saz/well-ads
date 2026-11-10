@@ -102,3 +102,25 @@ class Sync(unittest.TestCase):
         db = FakeDb([{"id": 7, "platform": "snap", "target_id": "1", "kind": "pause", "digest": s["digest"], "revision": 1}])
         self.assertEqual(sync([s], db), (0, 0, 1, 0))
         self.assertFalse([c for c in db.calls if c[0] == "PATCH"])
+
+
+class WhatsAppDestination(unittest.TestCase):
+    """TikTok ads that open WhatsApp report no leads on the platform: zero leads is not a pause."""
+    ADS = {"t0": {"platform": "tiktok", "goal": "lead", "live": False, "name": "old", "campaign": "C"}}
+    BASE = [["t0", "2026-10-10", 100.0, 1000, 10, 20.0, 0]]
+
+    def kinds(self, rows, ad):
+        out = suggest.build(data(self.BASE + rows, {**self.ADS, "t1": ad}))
+        return {(s["target_id"], s["kind"]) for s in out}
+
+    def test_zero_leads_pauses_a_plain_lead_ad(self):
+        ad = {"platform": "tiktok", "goal": "lead", "live": True, "name": "a", "campaign": "C"}
+        self.assertIn(("1", "pause"), self.kinds([["t1", "2026-10-25", 12.0, 500, 5, 0.0, 0]], ad))
+
+    def test_zero_leads_does_not_pause_a_whatsapp_ad_that_gets_clicks(self):
+        ad = {"platform": "tiktok", "goal": "lead", "live": True, "name": "a", "campaign": "C", "dest": "whatsapp"}
+        self.assertNotIn(("1", "pause"), self.kinds([["t1", "2026-10-25", 12.0, 500, 5, 0.0, 0]], ad))
+
+    def test_a_whatsapp_ad_with_no_clicks_at_all_still_pauses(self):
+        ad = {"platform": "tiktok", "goal": "lead", "live": True, "name": "a", "campaign": "C", "dest": "whatsapp"}
+        self.assertIn(("1", "pause"), self.kinds([["t1", "2026-10-25", 12.0, 500, 0, 0.0, 0]], ad))

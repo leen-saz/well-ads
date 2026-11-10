@@ -175,7 +175,11 @@ def pull(m, today=None):
     last = max((r[1] for r in snap.get("rows") or []), default="")
     start = (datetime.fromisoformat(last).date() - timedelta(days=3)) if last else today - timedelta(days=90)
     start = max(start, today - timedelta(days=120))
-    ads = pages(m, "ad_get", {"advertiser_id": adv, "fields": AD_FIELDS, "filtering": {"primary_status": "STATUS_ALL"}})
+    try:  # where the ad opens (link fields) is optional: without it the destination comes from config/destinations.json
+        ads = pages(m, "ad_get", {"advertiser_id": adv, "fields": AD_FIELDS + ["landing_page_url", "deeplink"], "filtering": {"primary_status": "STATUS_ALL"}})
+    except Exception as ex:  # noqa: BLE001
+        print("tiktok-mcp: destination fields skipped —", str(ex)[:120])
+        ads = pages(m, "ad_get", {"advertiser_id": adv, "fields": AD_FIELDS, "filtering": {"primary_status": "STATUS_ALL"}})
     camps = pages(m, "campaign_get", {"advertiser_id": adv, "fields": ["campaign_id", "objective_type"], "filtering": {"primary_status": "STATUS_ALL"}})
     reports = []
     for a, b in windows(start, today):

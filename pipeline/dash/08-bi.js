@@ -138,7 +138,7 @@ function renderPace(){
 function renderMonths(){
   const m={}, plats=orderNow();
   for(const [k,date,sp,im,cl,ld,cv=0] of D.rows){ const a=ADS[k]; if(date<S.from||date>S.to || !matchesSlice(a)) continue;
-    const ym=date.slice(0,7), o=(m[ym] ||= {})[a.platform] ||= {s:0,l:0,ls:0,ln:0,c:0}; o.s+=sp; o.l+=ld; o.c+=cv; if(a.goal==='lead'){ o.ls+=sp; o.ln+=ld; } }
+    const ym=date.slice(0,7), o=(m[ym] ||= {})[a.platform] ||= {s:0,l:0,ls:0,ln:0,c:0}; o.s+=sp; o.l+=ld; o.c+=cv; if(a.goal==='lead'&&a.dest!=='whatsapp'){ o.ls+=sp; o.ln+=ld; } }
   const months=Object.keys(m).sort().reverse(), used=plats.filter(p=>months.some(ym=>m[ym][p]));
   if(!months.length){ $('#tMonth').innerHTML='<tbody><tr><td class="empty">لا توجد بيانات.</td></tr></tbody>'; return; }
   const cpls=[]; months.forEach(ym=>used.forEach(p=>{const o=m[ym][p]; if(o&&o.ln) cpls.push(o.ls/o.ln);})); const lo=Math.min(...cpls), hi=Math.max(...cpls);
