@@ -2,7 +2,7 @@
 export const EN = {
   'كلمة أو ادعاء ما ينكتب أبداً. الكلمة تنمسك ككلمة كاملة بس، فاكتب كل صيغة تبي تمنعها (مثل «سر» و«سرها»)': 'A word or claim never to be written. A word is matched as a whole word only, so add each form you want to ban (e.g. «سر» and «سرها»)',
   // التنقل والهيكل
-  'التحليلات': 'Analytics', 'ملخص الأداء': 'Performance summary', 'المواد الإعلانية بالتفصيل': 'Creatives in detail', 'الحملات والمنصات': 'Campaigns & platforms', 'ملخص اليوم': 'Today', 'الأداء': 'Performance', 'إنشاء المحتوى': 'Content creation', 'المراجعة والتنفيذ': 'Review & execution', 'إدارة النظام': 'System', 'السجل': 'History', 'الصلاحيات': 'Permissions', 'اليوم': 'Today', 'إغلاق القائمة': 'Close menu', 'المواد الإعلانية': 'Creatives', 'المادة الإعلانية': 'Creative', 'بموافقتي': 'With my approval', 'تنفيذ تلقائي': 'Auto-run', 'التنفيذ التلقائي': 'auto-run', 'لوحة القرارات': 'Decision board', 'الصلاحيات والدخول': 'Access & sign-in', 'السوشال': 'Social', 'صورة أو فيديو': 'Photo or video', 'أو حط رابط': 'Or paste a link', 'يرفع…': 'Uploading…', 'انرفع ✓': 'Uploaded ✓', 'الرحلات والرسائل': 'Journeys', 'المحتوى و SEO': 'Content & SEO', 'المدير': 'Manager', 'الموديولات': 'Modules', 'موديولات الشركة': 'Company modules', 'الإعدادات': 'Settings', 'أساسي': 'Core', 'أساسية لتشغيل النظام': 'Needed to run the system',
+  'التحليلات': 'Analytics', 'ملخص الأداء': 'Performance summary', 'المواد الإعلانية بالتفصيل': 'Creatives in detail', 'الحملات والمنصات': 'Campaigns & platforms', 'ملخص اليوم': 'Today summary', 'احلم': 'Ahlam', 'الأداء': 'Performance', 'إنشاء المحتوى': 'Content creation', 'المراجعة والتنفيذ': 'Review & execution', 'إدارة النظام': 'System', 'السجل': 'History', 'الصلاحيات': 'Permissions', 'اليوم': 'Today', 'إغلاق القائمة': 'Close menu', 'المواد الإعلانية': 'Creatives', 'المادة الإعلانية': 'Creative', 'بموافقتي': 'With my approval', 'تنفيذ تلقائي': 'Auto-run', 'التنفيذ التلقائي': 'auto-run', 'لوحة القرارات': 'Decision board', 'الصلاحيات والدخول': 'Access & sign-in', 'السوشال': 'Social', 'صورة أو فيديو': 'Photo or video', 'أو حط رابط': 'Or paste a link', 'يرفع…': 'Uploading…', 'انرفع ✓': 'Uploaded ✓', 'الرحلات والرسائل': 'Journeys', 'المحتوى و SEO': 'Content & SEO', 'المدير': 'Manager', 'الموديولات': 'Modules', 'موديولات الشركة': 'Company modules', 'الإعدادات': 'Settings', 'أساسي': 'Core', 'أساسية لتشغيل النظام': 'Needed to run the system',
   'حسابي': 'My account', 'خروج': 'Sign out', 'المالكة': 'Owner', 'عضو': 'Member', 'القائمة': 'Menu', 'التنقل': 'Navigation',
   'عربي': 'عربي', 'English': 'English', 'اللغة': 'Language',
   // الدخول
@@ -668,6 +668,8 @@ export const EN = {
   "السجل ما ينعدّل ولا ينحذف. كل الفترة: آخر 200 فعل.": "The log is never edited or deleted. All time: the last 200 actions.",
   "السعر بالريال": "Price in riyals",
   "السقف الشهري (ر.س)": "Monthly cap (SAR)",
+  "السقف الشهري لتاب احلم": "Monthly cap for the Ahlam tab",
+  "احلم (الصفحة الرئيسية)": "Ahlam (home page)",
   "السقف الشهري لتاب الامتثال": "Monthly cap for the Compliance tab",
   "السقف الشهري لتاب التتبع": "Monthly cap for the Tracking tab",
   "السقف الشهري لتاب التصميم": "Monthly cap for the Design tab",

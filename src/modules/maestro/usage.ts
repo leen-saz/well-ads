@@ -7,7 +7,8 @@ import { PRICES } from '../../lib/prices';
 import { USD_SAR, DEFAULT_ALERT_PCT, defaultCap, clearSnaps, levelOf, monthStart, reconcile as compare, type Row } from '../../lib/usage';
 
 const MIGRATION = 'migration 019_ai_usage.sql';
-const TABS = MODULES.filter(m => m.status === 'live').map(m => ({ key: m.key, ar: m.ar }));
+// the home assistant (task `ahlam`) is not a module but is billed and capped like a tab
+const TABS = [...MODULES.filter(m => m.status === 'live').map(m => ({ key: m.key, ar: m.ar })), { key: 'ahlam', ar: 'احلم' }];
 const TAB_KEYS = new Set(TABS.map(t => t.key));
 const MONTH = /^(\d{4})-(0[1-9]|1[0-2])$/;
 const r2 = (n: number) => Math.round(n * 100) / 100;

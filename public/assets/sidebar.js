@@ -34,7 +34,7 @@ export function sections(me, L) {
   const ov = (me.modules || []).find(m => m.key === 'overview' && m.status === 'live' && m.ok && !m.locked);
   const one = (useNew, newer, older) => (useNew ? newer : older);
   const items = {
-    today: [core('/today/', 'ملخص اليوم', 'Today', SUN, 'today', true), ...mods('today')],
+    today: [core('/today/', 'احلم', 'Ahlam', SUN, 'today', true), ...mods('today')],
     // ملخص الأداء (موديول overview وصفحاته) أول، بعده اللوحة الكاملة بتبويباتها، بعدها المواد الإعلانية والرصد
     performance: [
       one(ov, core('/overview/', 'ملخص الأداء', 'Performance summary', 'chart', 'overview', true), core('/', 'ملخص الأداء', 'Performance summary', 'chart', 'ceo')),
