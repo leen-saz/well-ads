@@ -1,6 +1,6 @@
 // نفس القائمة الجانبية حق لوحة القرارات، فوق اللوحات (/ و/creative): موقع واحد.
 // كل الأقسام تطلع للكل، واللي ما له صلاحية عليه يطلع مقفل. في الجوال: زر قائمة يفتح درج.
-import { sections, TIP } from './sidebar.js';
+import { sections, TIP, startsShut, wireGroups } from './sidebar.js';
 import { ME_KEY, FRESH, readMe, slim } from './me-cache.js';
 const EN = (() => { try { return new URLSearchParams(location.search).get('lang') === 'en' || localStorage.getItem('well-ads-lang') === 'en'; } catch { return false; } })();
 const L = (ar, en) => EN ? en : ar;
@@ -17,6 +17,7 @@ const P = {
   star: '<path d="M12 3l1.9 5.8L20 11l-6.1 2.2L12 19l-1.9-5.8L4 11l6.1-2.2Z"/>',
   user: '<circle cx="12" cy="8" r="4"/><path d="M20 21a8 8 0 0 0-16 0"/>',
   out: '<path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><path d="m16 17 5-5-5-5"/><path d="M21 12H9"/>',
+  chev: '<path d="m6 9 6 6 6-6"/>',
   lock: '<rect x="4" y="11" width="16" height="10" rx="2"/><path d="M8 11V7a4 4 0 0 1 8 0v4"/>',
   menu: '<path d="M4 6h16M4 12h16M4 18h16"/>',
   clock: '<circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/>',
@@ -73,7 +74,7 @@ body{padding-inline-start:256px}
 .wl-tag{margin-inline-start:auto;flex:none;font:500 11px/1 "Thmanyah Sans",system-ui,sans-serif;padding:4px 8px;border-radius:999px;background:rgba(126,87,253,.12);color:#1D1069}
 .wl-grow{flex:1}
 .wl-sec{display:flex;flex-direction:column;gap:2px;margin:0 0 10px}
-.wl-h{font:500 11px/1 "Thmanyah Sans",system-ui,sans-serif;letter-spacing:.04em;color:rgba(29,16,105,.45);padding:6px 16px 6px}
+.wl-h{display:flex;align-items:center;justify-content:space-between;width:100%;border:0;background:transparent;cursor:pointer;font:500 11px/1 "Thmanyah Sans",system-ui,sans-serif;letter-spacing:.04em;color:rgba(29,16,105,.55);padding:8px 16px 6px}.wl-h:hover{color:#1D1069}.wl-h .wl-i{width:14px;height:14px;transition:transform .15s}.wl-sec.shut .wl-h .wl-i{transform:rotate(-90deg)}[dir=rtl] .wl-sec.shut .wl-h .wl-i{transform:rotate(90deg)}.wl-items{display:flex;flex-direction:column;gap:2px}.wl-sec.shut .wl-items{display:none}
 .wl-me{display:flex;align-items:center;gap:10px;padding:10px 8px 0;border-top:1px solid rgba(172,166,225,.35);margin-top:6px}
 .wl-me b{display:block;font-size:14px;font-weight:700;max-width:170px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.wl-me small{color:rgba(29,16,105,.62);font-size:12px}
 .wl-av{width:34px;height:34px;border-radius:50%;background:#1D1069;color:#FFFFFF;display:grid;place-items:center;font-size:13px;font-weight:700;flex:none}
@@ -109,15 +110,16 @@ function draw(me) {
   const initials = (me.name || me.email || '·').trim().split(/\s+/).map(w => w[0]).join('').slice(0, 2).toUpperCase();
   const role = owner ? L('المالكة', 'Owner') : (me.departments || []).length ? L('مدير قسم', 'Department manager') : L('عضو', 'Member');
   side.innerHTML = `<div class="wl-top"><a class="wl-mark" href="/today/">Well<i>.</i></a><button type="button" class="wl-x" aria-label="${L('إغلاق القائمة', 'Close menu')}">${I('x')}</button></div>
-    ${sections(me, L).map(sec => `<div class="wl-sec"><small class="wl-h">${esc(sec.label)}</small>${sec.items.map(it => {
+    ${sections(me, L).map(sec => `<div class="wl-sec${startsShut(sec, here) ? ' shut' : ''}"><button type="button" class="wl-h" data-g="${sec.key}" aria-expanded="${!startsShut(sec, here)}" aria-controls="sg-${sec.key}"><span>${esc(sec.label)}</span>${I('chev')}</button><div class="wl-items" id="sg-${sec.key}">${sec.items.map(it => {
       const ic = it.svg ? `<svg class="wl-i" viewBox="0 0 24 24" aria-hidden="true">${it.svg}</svg>` : I(it.ic);
       if (it.state === 'ok' || it.state === 'soon') return `<a class="wl-navi${it.state === 'soon' ? ' wl-soon' : ''}" href="${it.href}"${it.key === here ? ' aria-current="page"' : ''}>${ic}<span>${esc(it.text)}</span>${it.state === 'soon' ? `<small class="wl-tag">${L('قريباً', 'Soon')}</small>` : ''}</a>`;
       return `<span class="wl-navi wl-locked" aria-disabled="true" title="${L(...TIP[it.state])}">${ic}<span>${esc(it.text)}</span>${I('lock')}</span>`;
-    }).join('')}</div>`).join('')}
+    }).join('')}</div></div>`).join('')}
     <div class="wl-grow"></div>
     <a class="wl-navi" href="/settings/">${I('settings')}<span>${L('الإعدادات', 'Settings')}</span></a>
     <form method="post" action="/api/auth/logout" class="wl-out"><button type="submit" class="wl-navi">${I('out')}<span>${L('خروج', 'Sign out')}</span></button></form>
     <div class="wl-me"><span class="wl-av">${esc(initials)}</span><span><b>${esc(me.name || me.email || '')}</b><small>${role}</small></span></div>`;
+  wireGroups(side);
   side.querySelector('.wl-out')?.addEventListener('submit', () => { try { localStorage.removeItem(ME_KEY); } catch { /* storage blocked */ } });
 }
 

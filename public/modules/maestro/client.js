@@ -1,6 +1,6 @@
 // المدير: تبويبات (لوحة، الوارد، المهام، الإيجنتس، المحادثة) بالرابط، قائمة أو لوحة، فلاتر، بحث، ومهمة جديدة في نافذة.
 // اختصارات: C مهمة جديدة، / بحث، 1-5 التبويبات.
-import { $, $$, api, say, esc, fmt, shell, busy, pageSignal, failure, pageFailure, when, icon } from '/assets/common.js';
+import { LANG, $, $$, api, say, esc, fmt, shell, busy, pageSignal, failure, pageFailure, when, icon } from '/assets/common.js';
 import { t } from '/assets/i18n.js';
 import { mountPeriod } from '/assets/period.js';
 
@@ -37,6 +37,18 @@ export default async function mount() {
   const working = id => (S.issues || []).find(i => i.assigneeAgentId === id && i.status === 'in_progress');
   const matches = (...xs) => { const q = $('#q').value.trim().toLowerCase(); return !q || xs.some(x => String(x || '').toLowerCase().includes(q)); };
 
+  // The same groups as the sidebar (S.groups, from the server): lists and the task picker are grouped by them
+  const GEN = ['general', 'عام', 'General'];
+  const glabel = g => (LANG === 'en' ? g.en : g.ar);
+  const tabGroup = k => (S.tabs || []).find(t => t.key === k)?.group || GEN[0];
+  const issueGroup = i => tabGroup((S.projectTabs || {})[i.projectId]);
+  const agentGroup = id => issueGroup((S.issues || []).find(i => i.assigneeAgentId === id && (S.projectTabs || {})[i.projectId]) || {});
+  const grouped = (items, keyOf, render) => {
+    const gs = [...(S.groups || []), { key: GEN[0], ar: GEN[1], en: GEN[2] }];
+    return gs.map(g => { const xs = items.filter(x => (gs.some(y => y.key === keyOf(x)) ? keyOf(x) : GEN[0]) === g.key);
+      return xs.length ? `<section class="mx-grp"><h3 class="mx-gh">${esc(glabel(g))} <span class="muted">${xs.length}</span></h3><div class="mx-list">${xs.map(render).join('')}</div></section>` : ''; }).join('');
+  };
+
   // ---- the views
   const taskRow = i => `<article class="card mx-item"><span class="mx-dot ${esc(i.status)}" title="${esc(S.statuses[i.status] || i.status)}"></span><span class="mx-id">${esc(i.identifier || '')}</span>
     <b>${esc(i.title || '')}</b>${tabName(i) ? `<span class="so-chip mx-tab">${esc(tabName(i))}</span>` : ''}<span class="muted">${esc(names()[i.assigneeAgentId] || '')}</span><span class="so-chip">${esc(S.statuses[i.status] || i.status)}</span></article>`;
@@ -60,7 +72,7 @@ export default async function mount() {
   function tasks() {
     const is = (S.issues || []).filter(i => (filter === 'all' || i.status === filter) && matches(i.title, i.identifier, names()[i.assigneeAgentId], tabName(i)));
     if (!is.length) return empty('tasks', 'ما فيه مهام تطابق الفلتر أو البحث.', 'أنشئ مهمة');
-    if (layout === 'list') return `<div class="mx-list">${is.map(taskRow).join('')}</div>`;
+    if (layout === 'list') return grouped(is, issueGroup, taskRow);
     return `<div class="mx-cols">${COLS.map(c => { const col = is.filter(i => i.status === c || (c === 'todo' && i.status === 'backlog'));
       return `<section class="mx-col"><h3><span class="mx-dot ${c}"></span>${esc(S.statuses[c] || c)} <span class="muted">${col.length}</span></h3>${col.map(taskRow).join('')}</section>`; }).join('')}</div>`;
   }
@@ -71,7 +83,7 @@ export default async function mount() {
     const card = a => `<article class="card mx-item" data-agent="${esc(a.id)}"><span class="mx-dot ${a.status === 'running' ? 'in_progress' : a.status === 'error' ? 'blocked' : a.status === 'paused' ? 'cancelled' : 'done'}"></span>
       <b>${esc(a.name)}</b><span class="muted">${esc(a.title || a.role || '')}</span><span class="so-chip">${AG[a.status] || esc(a.status)}</span>
       ${spend(a)}${tabsOf(a.id).length ? `<span class="muted">التابات: ${esc(tabsOf(a.id).join('، '))}</span>` : ''}${working(a.id) ? `<span class="mx-now">يشتغل على: ${esc(working(a.id).identifier || '')} ${esc(working(a.id).title || '')}</span>` : ''}<button type="button" class="btn sm ghost" data-perf>الأداء</button></article>`;
-    if (layout === 'list') return `<div class="mx-list">${as.map(card).join('')}</div>`;
+    if (layout === 'list') return grouped(as, a => agentGroup(a.id), card);
     // Org chart: who reports to whom
     const ids = new Set(as.map(a => a.id));
     const tree = parent => { const kids = as.filter(a => (a.reportsTo && ids.has(a.reportsTo) ? a.reportsTo : null) === parent);
@@ -155,7 +167,7 @@ export default async function mount() {
     }
     $('#setup').innerHTML = ''; $('#board').hidden = false;
     if (!$('#agent').dataset.done) { $('#agent').insertAdjacentHTML('beforeend', (S.agents || []).map(a => `<option value="${esc(a.id)}">${esc(a.name)}${a.title ? ' · ' + esc(a.title) : ''}</option>`).join('')); $('#agent').dataset.done = '1'; }
-    if (!$('#tab').dataset.done) { $('#tab').insertAdjacentHTML('beforeend', (S.tabs || []).map(t => `<option value="${esc(t.key)}">${esc(t.ar)}</option>`).join('')); $('#tab').dataset.done = '1'; }
+    if (!$('#tab').dataset.done) { $('#tab').insertAdjacentHTML('beforeend', (S.groups || []).map(g => { const ts = (S.tabs || []).filter(t => t.group === g.key); return ts.length ? `<optgroup label="${esc(glabel(g))}">${ts.map(t => `<option value="${esc(t.key)}">${esc(t.ar)}</option>`).join('')}</optgroup>` : ''; }).join('')); $('#tab').dataset.done = '1'; }
     draw();
   }
 
