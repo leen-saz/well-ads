@@ -19,6 +19,8 @@ const ANTHROPIC = 'docs.anthropic.com/en/docs/about-claude/pricing';
 // Longest `match` that the model id starts with wins, so a dated or versioned id still finds its family
 export const PRICES: Price[] = [
   { provider: 'openai', match: 'gpt-6.1', inUsd: 2.5, outUsd: 10, source: OPENAI, date: '2026-11-06', verified: false },
+  { provider: 'openai', match: 'gpt-4.1-mini', inUsd: 0.4, outUsd: 1.6, source: OPENAI, date: '2026-11-10', verified: false },
+  { provider: 'openai', match: 'gpt-4.1', inUsd: 2, outUsd: 8, source: OPENAI, date: '2026-11-10', verified: false },
   { provider: 'xai', match: 'grok-4', inUsd: 3, outUsd: 15, source: XAI, date: '2026-11-06', verified: false },
   // Gemini: audio and video input cost more per token than text; the speech model bills its output as audio tokens
   { provider: 'gemini', match: 'gemini-3-flash', inUsd: 0.3, outUsd: 2.5, audioInUsd: 1, source: GEMINI, date: '2026-11-08', verified: false },

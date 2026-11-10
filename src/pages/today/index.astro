@@ -36,6 +36,14 @@ import { ClientRouter } from 'astro:transitions';
 .ah{display:grid;gap:14px;max-width:860px}
 .ah-card{padding:18px 20px;display:grid;gap:14px}
 .ah-note{margin:0;font-size:13px}
+.cm-head{display:flex;gap:12px;align-items:center;justify-content:space-between;flex-wrap:wrap}
+.cm-list{list-style:none;margin:0;padding:0;display:grid;gap:8px}
+.cm-list button{width:100%;display:flex;justify-content:space-between;gap:12px;flex-wrap:wrap;text-align:start;padding:12px 14px;border:1px solid var(--line);border-radius:12px;background:transparent;color:inherit;font:inherit;cursor:pointer}
+.cm-list button:hover{background:var(--tint)}.cm-h{margin:0;font-size:20px}
+.cm-form{display:grid;gap:12px}.cm-f{display:grid;gap:4px;border:0;padding:0;margin:0}.cm-f>span,.cm-f>legend{font-size:13px;color:var(--muted)}
+.cm-f textarea,.cm-f select{padding:10px 12px;border-radius:12px;border:1px solid var(--line);background:var(--surface);color:inherit;font:inherit;font-size:15px}
+.cm-c{display:inline-flex;gap:6px;align-items:center;margin-inline-end:14px;font-size:14px}
+.cm-actions{display:flex;gap:8px;flex-wrap:wrap}.cm-tasks{display:grid;gap:10px;padding-inline-start:20px}.cm-cost{padding:12px 14px;border-radius:12px;background:var(--tint)}
 .ah-chips{display:flex;flex-wrap:wrap;gap:8px}
 .ah-chips button{min-height:36px;padding:0 14px;border-radius:999px;border:1px solid var(--line);background:transparent;color:inherit;font:inherit;font-size:14px;cursor:pointer}
 .ah-chips button:hover{background:var(--tint)}.ah-chips button:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
@@ -61,6 +69,7 @@ import { ClientRouter } from 'astro:transitions';
       <p class="muted td-hello" id="hello"></p>
       <div class="seg td-tabs" id="tdTabs" role="group"></div>
       <section id="paneAhlam" class="ah"></section>
+      <section id="paneCamp" class="ah" hidden></section>
       <div id="paneSum" hidden>
       <section class="card td-next" id="next" aria-live="polite"><div><h2>يحمّل…</h2></div></section>
       <div class="td-grid">

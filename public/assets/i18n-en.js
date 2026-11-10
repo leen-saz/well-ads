@@ -680,6 +680,8 @@ export const EN = {
   "السعر بالريال": "Price in riyals",
   "السقف الشهري (ر.س)": "Monthly cap (SAR)",
   "السقف الشهري لتاب احلم": "Monthly cap for the Ahlam tab",
+  "السقف الشهري لتاب احلم: حملة جديدة": "Monthly cap for the Ahlam: new campaign tab",
+  "احلم: حملة جديدة": "Ahlam: new campaign",
   "احلم (الصفحة الرئيسية)": "Ahlam (home page)",
   "السقف الشهري لتاب الامتثال": "Monthly cap for the Compliance tab",
   "السقف الشهري لتاب التتبع": "Monthly cap for the Tracking tab",
