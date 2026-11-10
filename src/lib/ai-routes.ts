@@ -20,6 +20,7 @@ export const TASKS: Task[] = [
   { key: 'listening', ar: 'الرصد', en: 'Listening', def: 'xai' },
   { key: 'maestro', ar: 'المدير', en: 'Manager', def: 'xai' },
   { key: 'journeys', ar: 'الرحلات', en: 'Journeys', def: 'workers' },
+  { key: 'ahlam_campaign', ar: 'احلم: حملة جديدة', en: 'Ahlam: new campaign', def: 'openrouter' },
   { key: 'ahlam', ar: 'احلم (الصفحة الرئيسية)', en: 'Ahlam (home page)', def: 'openrouter' },
 ];
 export const TASK_KEYS = new Set(TASKS.map(t => t.key));
@@ -27,7 +28,7 @@ export const ROUTE_PROVIDERS: Provider[] = ['openai', 'xai', 'openrouter', 'work
 // OpenRouter ids are «author/model» with optional :variant (openai/gpt-5, meta-llama/llama-4:free)
 export const OR_MODEL = /^[a-z0-9][a-z0-9._~-]{0,60}\/[a-z0-9][a-z0-9._:~+-]{0,80}$/i;
 // The task that runs on OpenRouter by default (when its key is set): its model, until the owner picks another in «الموديلات»
-export const OR_DEFAULT: Record<string, string> = { ahlam: 'openai/gpt-4.1-mini' };
+export const OR_DEFAULT: Record<string, string> = { ahlam: 'openai/gpt-4.1-mini', ahlam_campaign: 'openai/gpt-4.1' };
 export const cleanModel = (s: unknown): string => String(s ?? '').trim().slice(0, 120);
 
 const SNAP_MS = 60_000;

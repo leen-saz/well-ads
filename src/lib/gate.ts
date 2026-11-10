@@ -42,6 +42,8 @@ export function need(pathname: string, search: string): Need | null {
   if (/^\/(api\/)?connectors(\/|$)/.test(pathname)) return 'connectors';
   // Dashboard data: the route picks the user's copy (analytics, creative or their department)
   if (/^\/api\/dash\//.test(pathname)) return 'any';
+  // Campaign plans of the home assistant: any signed-in user writes wishes; the routes check who sees and who approves
+  if (/^\/api\/campaigns\//.test(pathname)) return 'any';
   // Lessons of any tab: the route checks that tab's own level
   if (/^\/api\/lessons\//.test(pathname)) return 'any';
   // The shared library: the routes check each item's own tab

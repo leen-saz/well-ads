@@ -37,4 +37,21 @@ test.describe('احلم', () => {
     const r = await request.post('/api/today/ask', { data: { q: '' }, headers: { cookie: c.header, origin: `http://localhost:${process.env['SMOKE_PORT'] || 8787}` } });
     expect(r.status()).toBe(400);
   });
+  test('Arabic: «حملة جديدة» opens the wishes form; with no model connected the plan says so in plain words', async ({ page, context, request }) => {
+    await addSession(context, await login(request, 'owner'));
+    await page.goto('/today/?tab=campaign');
+    await expect(page.locator('#paneCamp')).toBeVisible();
+    await page.locator('#cmNew').click();
+    await page.locator('#cmGoal').fill('نبي حملة لتقويم القدم للأطفال');
+    await page.locator('#cmGo').click();
+    await expect(page.locator('#cmMsg')).toContainText('غير متصل');
+  });
+  test('English: the campaign tab and form, nothing left in Arabic', async ({ page, context, request }) => {
+    await addSession(context, await login(request, 'owner'));
+    await page.goto('/today/?tab=campaign&lang=en');
+    await expect(page.locator('#tdTabs button[data-k="campaign"]')).toHaveText('New campaign');
+    await page.locator('#cmNew').click();
+    await expect(page.locator('#cmGo')).toHaveText('Build the plan');
+    await expect(page.locator('#cmForm')).not.toContainText(/[\u0600-\u06FF]/);
+  });
 });

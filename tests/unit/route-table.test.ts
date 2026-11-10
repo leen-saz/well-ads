@@ -26,7 +26,7 @@ for (const [p, m] of Object.entries(import.meta.glob('../../src/api/routes/*.ts'
 for (const [p, m] of Object.entries(import.meta.glob('../../src/modules/*/routes.ts', { eager: true }))) groups[p.match(/modules\/(\w+)\/routes\.ts$/)![1]!] = m as Handlers;
 
 // group -> what the gate and the handlers must ask for. Module groups ask for their own key.
-const CORE_NEED: Record<string, string> = { auth: 'public', admin: 'owner', account: 'any', connectors: 'connectors', control: 'control', dash: 'any', lessons: 'any', library: 'any', today: 'any', vitals: 'any' };
+const CORE_NEED: Record<string, string> = { auth: 'public', admin: 'owner', account: 'any', connectors: 'connectors', control: 'control', dash: 'any', lessons: 'any', library: 'any', today: 'any', campaigns: 'any', vitals: 'any' };
 const needOfGroup = (g: string) => CORE_NEED[g] ?? g;
 
 // Public on purpose (the gate lets them through without a session)
