@@ -61,6 +61,7 @@ export const refresh = { GET: handle(async (request, e) => {
   const r = await renew(cfg, s);
   if (r.kind === 'login') return out('/login/', clearCookie());
   if (r.kind === 'expired') return html(401, 'انتهت الجلسة.');
+  if (r.kind === 'error') return new Response(null, { status: 302, headers: { location: safePath(url.searchParams.get('next')) || home(), 'cache-control': 'no-store' } }); // hiccup: keep the cookie
   return out(safePath(url.searchParams.get('next')) || home(), r.cookie);
 }) };
 

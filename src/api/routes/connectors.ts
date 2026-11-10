@@ -1,7 +1,7 @@
 // /api/connectors/*. Port of web/lib/routes/connectors/*.js (#43). Values go to Supabase Vault through the
 // service-role-only RPCs of 005_connectors.sql and never come back to the browser; audit logs names only.
 import {
-  env, sb, json, html, readJson, handle, requireUser, audit, sign, verify, readCookie, loadProfile, sessionFor, can,
+  env, sb, json, html, readJson, handle, requireUser, audit, sign, verify, readCookie, loadProfile, sessionFor, atLeast,
   type AuthEnv, type Cfg, type Session,
 } from '../../lib/auth';
 import { WELL_COMPANY } from '../../lib/tenant';
@@ -115,7 +115,7 @@ async function startMcp(request: Request, cfg: Cfg, uid: string, platform: strin
   try { clientId = await registerClient(redirect); } catch { return html(502, 'ما قدرت أبدأ الربط مع تيك توك. جرّب بعد دقيقة.'); }
   const { verifier, challenge } = await pkce();
   const nonce = crypto.randomUUID();
-  const state = await sign({ uid, p: platform, n: nonce, c: clientId, exp: Date.now() + 10 * 60 * 1000 }, cfg.secret);
+  const state = await sign({ uid, p: platform, n: nonce, c: clientId, exp: Date.now() + 10 * 60 * 1000 }, cfg.secret, 'oauth');
   return new Response(null, { status: 302, headers: {
     location: mcpAuthorizeUrl({ clientId, redirect, state, challenge }),
     'set-cookie': `${OAUTH_COOKIE}=${encodeURIComponent(`${nonce}.${verifier}`)}; Path=/api/connectors/; HttpOnly; Secure; SameSite=Lax; Max-Age=600`,
@@ -125,7 +125,7 @@ async function startMcp(request: Request, cfg: Cfg, uid: string, platform: strin
 
 export const start = {
   GET: handle(async (request, e) => {
-    const { cfg, user } = await requireUser(request, e, 'connectors', { well: true });
+    const { cfg, user } = await requireUser(request, e, 'connectors', { well: true, write: true });
     const p = byId(new URL(request.url).searchParams.get('platform'));
     const o = p ? OAUTH[p.id] : undefined;
     if (!p || !o) return html(400, 'المنصة ما تدعم زر الربط.');
@@ -133,7 +133,7 @@ export const start = {
     const app = appCreds(p, vars(e));
     if (!app) return html(400, 'بيانات تطبيق المنصة ناقصة في إعدادات السيرفر. أضفها كأسرار في Cloudflare.');
     const nonce = crypto.randomUUID();
-    const state = await sign({ uid: user.uid, p: p.id, n: nonce, exp: Date.now() + 10 * 60 * 1000 }, cfg.secret);
+    const state = await sign({ uid: user.uid, p: p.id, n: nonce, exp: Date.now() + 10 * 60 * 1000 }, cfg.secret, 'oauth');
     let location = authorizeUrl(p, { id: app.id, redirect: redirectFor(request), state }), cookie = nonce;
     if (o.v1) { // X: request token first; its temporary secret stays in the cookie until the redirect back
       const rt = await oauth1(o.request as string, { key: app.id, secret: app.secret, extra: { oauth_callback: `${redirectFor(request)}?state=${encodeURIComponent(state)}` } });
@@ -163,7 +163,7 @@ export const callback = {
     let cfg: Cfg;
     try { cfg = env(e); } catch { return html(503, 'الإعداد غير مكتمل.'); }
     const q = new URL(request.url).searchParams;
-    const st = (await verify(q.get('state'), cfg.secret)) as unknown as State | null;
+    const st = (await verify(q.get('state'), cfg.secret, Date.now(), 'oauth')) as unknown as State | null;
     const [nonce, tokenSecret] = (readCookie(request, OAUTH_COOKIE) || '').split('.');
     if (!st || !st.p || !st.uid || !nonce || st.n !== nonce) return back('/connectors/?err=state', true);
     const p = byId(st.p);
@@ -173,7 +173,7 @@ export const callback = {
     if (q.get('error') || q.get('denied') || !(v1 ? q.get('oauth_verifier') : code)) return back(`/connectors/?err=denied&p=${encodeURIComponent(st.p)}`, true);
     const profile = await loadProfile(cfg, st.uid);
     const user = profile && profile.active !== false ? sessionFor(profile, cfg) : null;
-    if (!user || user.co !== WELL_COMPANY || !p || !o || !can(user, 'connectors', cfg)) return back('/connectors/?err=access', true);
+    if (!user || user.co !== WELL_COMPANY || !p || !o || !atLeast(user, 'connectors', 'edit', cfg)) return back('/connectors/?err=access', true);
     if (o.mcpOAuth) {
       // TikTok MCP: the code + the PKCE verifier from the nonce cookie + the client id from the signed state
       try {
