@@ -29,7 +29,7 @@ export default async function mount() {
     : '<p class="muted">ما عندك أدوات مفتوحة للحين. اطلب الصلاحية من مالكة اللوحة.</p>';
 
   let st;
-  try { st = await api('/api/today/state'); } catch (err) { say($('#msg'), err.message); $('#next').hidden = true; failure($('#perf'), err, () => location.reload()); return; }
+  try { st = await api('/api/today/state'); } catch (err) { show('summary'); say($('#msg'), err.message); $('#next').hidden = true; failure($('#perf'), err, () => location.reload()); return; }
   const ready = [], miss = [];
 
   // البيانات
