@@ -9,7 +9,7 @@ import { check } from '../compliance/compliance';
 import { knowledgeFor, rulesFor, withKnowledge } from '../knowledge/knowledge';
 import { generate, pick, type LlmEnv } from '../../lib/llm';
 import { usageCtx } from '../../lib/usage';
-import { MEDIA_TYPES, MEDIA_MAX, mediaKey } from './media';
+import { MEDIA_TYPES, limitOf, tooBig, sniff, mediaKey } from './media';
 import { cachedStatus, postizPlatforms, withEngineSecrets, type EngineStatus } from './postiz';
 
 type Row = Record<string, unknown>;
@@ -63,14 +63,17 @@ export const posts = {
     const { cfg, user } = await requireUser(request, e, 'social');
     const q = new URL(request.url).searchParams;
     const from = day(q.get('from'), Date.now() - 7 * 864e5), to = day(q.get('to'), Date.now() + 31 * 864e5);
-    const r = await sb(cfg, scoped(`/rest/v1/social_posts?select=*&publish_at=gte.${from}&publish_at=lte.${to}&order=publish_at.asc&limit=500`, user.co), { admin: true });
-    if (!r.ok) return json(500, { error: 'ما قدرت أقرأ المنشورات' });
-    // Each post carries its compliance notice, so an auto post shows it until it goes out
-    const extra = await rulesFor(cfg, user.co);
+    // The posts and everything the page needs beside them are asked together, not one after the other (each is a subrequest and a
+    // round trip). Rows are small (media is a list of links, never the file) and capped by the date window and the limit.
     const owner = isOwner(user, cfg);
-    const tk = await tokensFor(cfg, user.co, e), ready = readyOf(tk, await engineState(tk));
+    const [r, extra, tk] = await Promise.all([
+      sb(cfg, scoped(`/rest/v1/social_posts?select=*&publish_at=gte.${from}&publish_at=lte.${to}&order=publish_at.asc&limit=300`, user.co), { admin: true }),
+      rulesFor(cfg, user.co), tokensFor(cfg, user.co, e)]);
+    if (!r.ok) return json(500, { error: 'ما قدرت أقرأ المنشورات' });
+    const [state, account] = await Promise.all([engineState(tk), accountOf(cfg, user.co)]);
+    const ready = readyOf(tk, state);
     return json(200, { posts: rows(r.data).map(p => ({ ...p, results: shownResults(p.results, owner), compliance: check(String(p.body || ''), extra) })), platforms: platformsView(ready),
-      ready, account: await accountOf(cfg, user.co) });
+      ready, account });
   }),
   POST: handle(async (request, e) => {
     const { cfg, user } = await requireUser(request, e, 'social', { write: true });
@@ -196,13 +199,20 @@ export const upload = { POST: handle(async (request, e) => {
   const type = (request.headers.get('content-type') || '').split(';')[0]!.trim().toLowerCase();
   const ext = MEDIA_TYPES[type];
   if (!ext) return json(415, { error: 'الملف لازم صورة (JPG / PNG / WebP) أو فيديو (MP4 / MOV)' });
+  // The size is judged from the header before the body is touched; the body then goes to R2 as a stream (R2 stops at the
+  // declared length, so a client that lies about it fails the put). Nothing is ever held in memory: a big video used to be
+  // read whole by arrayBuffer(), which could take the Worker's 128 MB and every other request on that isolate with it.
   const size = Number(request.headers.get('content-length') || 0);
-  if (size > MEDIA_MAX) return json(413, { error: 'الملف أكبر من 95 ميقا' });
-  const body = await request.arrayBuffer();
-  if (!body.byteLength) return json(400, { error: 'الملف فاضي' });
-  if (body.byteLength > MEDIA_MAX) return json(413, { error: 'الملف أكبر من 95 ميقا' });
+  if (request.headers.get('content-length') === '0') return json(400, { error: 'الملف فاضي' });
+  if (!(size > 0) || !request.body) return json(411, { error: 'ما قدرنا نعرف حجم الملف، جرّب ترفعه مرة ثانية' });
+  if (size > limitOf(type)) return json(413, { error: tooBig(type) });
   const key = mediaKey(user.co, ext);
-  await files.put(key, body, { httpMetadata: { contentType: type, cacheControl: 'public, max-age=31536000, immutable' } });
+  try { await files.put(key, request.body, { httpMetadata: { contentType: type, cacheControl: 'public, max-age=31536000, immutable' } }); }
+  catch { return json(502, { error: 'انقطع الرفع، جرّب مرة ثانية' }); }
+  // The first bytes must be what the type says (a renamed file is not a photo or video); a mismatch is deleted again
+  const head = await files.get(key, { range: { offset: 0, length: 16 } }).catch(() => null);
+  const real = head?.body ? sniff(new Uint8Array(await new Response(head.body).arrayBuffer())) : null;
+  if (!real || (real !== type && !(real.startsWith('video/') && type.startsWith('video/')))) { await files.delete(key).catch(() => {}); return json(415, { error: 'محتوى الملف ما يطابق نوعه. ارفع صورة أو فيديو سليم' }); }
   const url = new URL('/m/' + key.slice('social/'.length), request.url).toString();
   return json(200, { ok: true, url, type: type.startsWith('video/') ? 'video' : 'image' });
 }) };

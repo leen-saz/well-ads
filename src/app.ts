@@ -77,6 +77,6 @@ export default {
   // Cloudflare Cron Triggers (production only): the hourly data refresh on GitHub Actions, and every 5 minutes the due social posts
   scheduled(event: ScheduledController, env: CronEnv & AuthEnv, ctx: ExecutionContext) {
     // Every 5 minutes: due social posts, then one social-listening keyword that has not been fetched in a day
-    withWaiter(p => ctx.waitUntil(p), () => ctx.waitUntil(event.cron === SOCIAL_CRON ? Promise.all([runSocial(env), runListening(env as ListenEnv), runTranscribe(env as Parameters<typeof runTranscribe>[0])]) : dispatchRefresh(env)));
+    withWaiter(p => ctx.waitUntil(p), () => ctx.waitUntil(event.cron === SOCIAL_CRON ? Promise.allSettled([runSocial(env), runListening(env as ListenEnv), runTranscribe(env as Parameters<typeof runTranscribe>[0])]).then(rs => rs.forEach((r, i) => { if (r.status === 'rejected') console.error('cron: job failed', ['social', 'listening', 'transcribe'][i], String(r.reason).slice(0, 200)); })) : dispatchRefresh(env)));
   },
 };
