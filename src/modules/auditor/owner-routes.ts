@@ -5,6 +5,7 @@
 import { json, handle, requireUser, audit as logAudit, sb, notEnabled, type AuthEnv } from '../../lib/auth';
 import { scoped, WELL_COMPANY } from '../../lib/tenant';
 import { usageCtx } from '../../lib/usage';
+import { viaOpenRouter } from '../../lib/llm';
 import type { Dash } from '../overview/numbers';
 import { audit } from './audit';
 import { claimFromJudge, judgeHeadline } from './adapter';
@@ -62,10 +63,11 @@ export const auditRoute = { GET: handle(async (request, e: Env) => {
 export const critiqueRoute = { POST: handle(async (request, e: Env) => {
   const { cfg, user } = await requireUser(request, e, 'owner', { write: true });
   if (user.co !== WELL_COMPANY) return json(404, { error: 'ما فيه أرقام لشركتك للحين' });
-  if (!e.ANTHROPIC_API_KEY) return json(503, { error: notEnabled(user, 'مراجعة Claude', 'ANTHROPIC_API_KEY') });
+  const cctx = usageCtx(cfg, user, 'overview');
+  if (!e.ANTHROPIC_API_KEY && !(await viaOpenRouter(e, 'overview', cctx))) return json(503, { error: notEnabled(user, 'مراجعة Claude', 'ANTHROPIC_API_KEY') });
   const L = await load(e, new URL(request.url));
   if (L instanceof Response) return L;
   const claim = claimFromJudge(L.d, L.from, L.to, L.by, L.plat), r = audit(L.d, claim);
-  try { return json(200, await critique(e, claim, r.findings, undefined, usageCtx(cfg, user, 'overview'))); }
+  try { return json(200, await critique(e, claim, r.findings, undefined, cctx)); }
   catch (err) { console.warn('auditor_critique_failed', (err as Error).message); return json(502, { error: 'Claude ما رد الحين، جرّب بعد دقيقة' }); }
 }) };

@@ -152,6 +152,8 @@ export const approval = { POST: handle(async (request, e: Env) => {
 
 // AI cost: spend per tab and month, the owner's caps, the invoice check (src/modules/maestro/usage.ts)
 export { usage, budgets, reconcile } from './usage';
+// Which provider and model each AI task runs on (src/modules/maestro/models.ts)
+export { models } from './models';
 
 // «تدقيق القرارات»: the verdict auditor, owner only (src/modules/auditor/owner-routes.ts, named so the route-table glob mounts it only through maestro)
 export { auditRoute as audit, critiqueRoute as critique } from '../auditor/owner-routes';

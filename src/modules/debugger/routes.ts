@@ -4,7 +4,9 @@ import { json, handle, requireUser, notEnabled, type AuthEnv, type Cfg, type Ses
 import { scoped } from '../../lib/tenant';
 import { readAll as all } from '../../lib/paging';
 import { diagnose, type AdRow, type ConnRow, type LeadRow, type MetricRow } from './debugger';
-import { explain as claude, type ClaudeEnv } from './explain';
+import { explain as claude, explainViaOpenRouter, type ClaudeEnv } from './explain';
+import { viaOpenRouter, type LlmEnv } from '../../lib/llm';
+import { usageCtx } from '../../lib/usage';
 
 async function build(cfg: Cfg, user: Session) {
   const today = new Date(Date.now() + 3 * 3600e3).toISOString().slice(0, 10);
@@ -27,10 +29,18 @@ export const report = { GET: handle(async (request, e) => {
 }) };
 
 // The findings are read again on the server: Claude gets this company's data, never what the page sends
-export const explain = { POST: handle(async (request, e: AuthEnv & ClaudeEnv) => {
+// Runs on Claude, unless the owner routed the Debugger to OpenRouter (Maestro → models); if that fails, Claude answers when its key is there.
+export const explain = { POST: handle(async (request, e: AuthEnv & ClaudeEnv & LlmEnv) => {
   const { cfg, user } = await requireUser(request, e, 'debugger', { write: true });
-  if (!e.ANTHROPIC_API_KEY) return json(503, { error: notEnabled(user, 'الشرح بـ Claude', 'ANTHROPIC_API_KEY') });
+  const ctx = usageCtx(cfg, user, 'debugger'), orOn = await viaOpenRouter(e, 'debugger', ctx);
+  if (!orOn && !e.ANTHROPIC_API_KEY) return json(503, { error: notEnabled(user, 'الشرح بـ Claude', 'ANTHROPIC_API_KEY') });
   const r = await build(cfg, user);
-  try { return json(200, await claude(e, r.findings, r.platforms)); }
+  try {
+    if (orOn && ctx) {
+      try { return json(200, await explainViaOpenRouter(e, r.findings, r.platforms, ctx)); }
+      catch (err) { console.warn('debugger_openrouter_failed', (err as Error).message); if (!e.ANTHROPIC_API_KEY) throw err; }
+    }
+    return json(200, await claude(e, r.findings, r.platforms));
+  }
   catch (err) { console.warn('debugger_explain_failed', (err as Error).message); return json(502, { error: 'Claude ما رد الحين، جرّب بعد دقيقة' }); }
 }) };

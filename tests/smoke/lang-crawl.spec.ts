@@ -48,7 +48,7 @@ const ALLOW_AR: RegExp[] = [/^عربي$/, /^A word or claim never to be written/
 // Latin words that belong in Arabic too: brands, platforms, units, acronyms, the product's own names
 const LATIN_OK = new Set(('Well WellUnion Meta Facebook Instagram Messenger Threads Snapchat Snap TikTok Google YouTube WhatsApp Search Display ' +
   'Performance Max Demand Gen Shopping Moyasar CRM ROAS MER CTR CPM CPC CPL CPA CAC KPI SAR AI API URL PDF CSV ID GA GA4 SEO UTM HTML JSON ' +
-  'Claude Anthropic Gemini OpenAI GitHub Supabase Cloudflare Notion Canva Higgsfield Seedance Kling Veo Sora CapCut Paperclip Maestro English ' +
+  'Claude Anthropic Gemini OpenAI OpenRouter GitHub Supabase Cloudflare Notion Canva Higgsfield Seedance Kling Veo Sora CapCut Paperclip Maestro English ' +
   'iOS Android OK Pmax PMax Reels Stories Story Carousel Spark Lead Leads Ads Excel Care ' +
   'Analytics Console LinkedIn Pinterest Reddit Microsoft Bing Amazon Apple Taboola Apipeline Grok X Workers PostHog posthog ' +
   'googleads googleanalytics googlesearchconsole pinterest reddit wellcare MCP Business Pixel Advantage').split(' ').map(w => w.toLowerCase()));
