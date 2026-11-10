@@ -403,3 +403,6 @@ body{background:
 .sec-tab{height:32px;padding:0 16px;border-radius:999px;color:var(--muted);font:600 13px var(--f-ar);display:inline-flex;align-items:center;text-decoration:none}
 .sec-tab[aria-current="page"]{background:var(--surface);color:var(--text);box-shadow:var(--shadow)}
 .sec-tab.locked{opacity:.45;cursor:not-allowed}
+
+.stale-note{margin:0 0 14px;padding:10px 14px;border-radius:var(--r-sm);background:#FFF4DB;color:#6B4A00;border:1px solid #F0D9A0;font-size:14px}
+.stale-note p{margin:0}.stale-note p+p{margin-top:4px}

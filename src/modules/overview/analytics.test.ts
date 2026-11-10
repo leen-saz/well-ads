@@ -107,3 +107,28 @@ describe('overview: the rest of the analytics page', () => {
     expect(w!.spend).toBe(190);
   });
 });
+
+// A TikTok ad that opens WhatsApp reports no leads on the platform: its spend must not inflate the cost per lead
+describe('overview: WhatsApp-destination ads stay out of cost per lead', () => {
+  const W = {
+    range: D.range, departments: (D as { departments?: unknown }).departments,
+    ads: {
+      a: { name: 'ليدز', campaign: 'x', platform: 'tiktok', goal: 'lead', dept: 'iv' },
+      w: { name: 'واتساب', campaign: 'y', platform: 'tiktok', goal: 'lead', dest: 'whatsapp', dept: 'iv' },
+    },
+    rows: [['a', '2026-10-01', 100, 1000, 10, 4, 0], ['w', '2026-10-01', 300, 3000, 30, 0, 0]],
+  } as unknown as Dash;
+  it('outcome: total spend counts it, cost per lead does not', () => {
+    const o = outcome(W, F, T);
+    expect(o.spend).toBe(400);
+    expect(o.cpl).toBe(25);
+  });
+  it('departments and the weekday heat map ignore it for cost per lead only', () => {
+    expect(depts(W, F, T)[0]).toMatchObject({ spend: 400, leads: 4, cpl: 25 });
+    expect(heat(W, F, T).rows[0]!.cpl[4]).toBe(25);
+  });
+  it('an ad with an unknown destination is still a lead ad (nothing is guessed)', () => {
+    const U = { ...W, ads: { ...(W as { ads: object }).ads, w: { name: 'x', campaign: 'y', platform: 'tiktok', goal: 'lead', dest: 'unknown', dept: 'iv' } } } as unknown as Dash;
+    expect(outcome(U, F, T).cpl).toBe(100);
+  });
+});

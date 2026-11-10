@@ -1,16 +1,17 @@
 // GET /api/health (public, no login): the build version and whether each dependency answers.
 // Never any secret, URL, row or figure: only 'up' | 'down' | 'unset' per dependency. The deploy workflow reads it
 // after every deploy (.github/workflows/deploy.yml) and uptime checks may poll it.
+import { dataStatus, type DataStatus, type StatusBucket } from './datastatus';
 export type Dep = 'up' | 'down' | 'unset';
 export interface HealthEnv {
   APP_ENV?: string;
   BUILD_VERSION?: string;
   SUPABASE_URL?: string;
   SUPABASE_SERVICE_ROLE_KEY?: string;
-  FILES?: { list(o: { limit: number }): Promise<unknown> };
+  FILES?: { list(o: { limit: number }): Promise<unknown> } & StatusBucket;
   AI?: unknown;
 }
-export interface Health { ok: boolean; version: string; env: string; checks: Record<'supabase' | 'storage' | 'ai', Dep> }
+export interface Health { ok: boolean; version: string; env: string; checks: Record<'supabase' | 'storage' | 'ai', Dep>; data: DataStatus }
 
 const within = <T>(p: Promise<T>, ms: number): Promise<T> =>
   Promise.race([p, new Promise<T>((_, rej) => setTimeout(() => rej(new Error('timeout')), ms))]);
@@ -38,14 +39,15 @@ export const clearHealthCache = () => { kept = null; };
 export async function health(e: HealthEnv, f: typeof fetch = fetch, now = Date.now()): Promise<Health> {
   const version = e.BUILD_VERSION || 'dev';
   if (kept && kept.version === version && now - kept.at >= 0 && now - kept.at < HEALTH_TTL_MS) return kept.h;
-  const h = await check(e, f);
+  const h = await check(e, f, now);
   kept = { at: now, version, h };
   return h;
 }
 
-async function check(e: HealthEnv, f: typeof fetch): Promise<Health> {
-  const [sb, st] = await Promise.all([supabase(e, f), storage(e)]);
+async function check(e: HealthEnv, f: typeof fetch, now: number): Promise<Health> {
+  const [sb, st, data] = await Promise.all([supabase(e, f), storage(e), within(dataStatus(e.FILES, now), 3000).catch(() => dataStatus(undefined))]);
+  // `ok` stays about the dependencies; `data` says how old the numbers are and whether the hourly refresh could be started
   // The AI binding only exists or not; calling it would cost money
   const checks = { supabase: sb, storage: st, ai: (e.AI ? 'up' : 'unset') as Dep };
-  return { ok: sb === 'up' && st === 'up', version: e.BUILD_VERSION || 'dev', env: e.APP_ENV || 'local', checks };
+  return { ok: sb === 'up' && st === 'up', version: e.BUILD_VERSION || 'dev', env: e.APP_ENV || 'local', checks, data };
 }

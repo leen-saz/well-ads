@@ -43,6 +43,29 @@ import { ClientRouter } from 'astro:transitions';
 .sp-tab input{margin:0;height:36px;max-width:140px}
 .sp-tab b.n{font:600 15px var(--f-num)}
 .sp-hd{font-size:12px;color:var(--muted)}
+/* model routing: task · provider · model · save, then the current line; one card per task on phones */
+.mr-hd,.mr-rt{display:grid;grid-template-columns:minmax(110px,.8fr) minmax(150px,1fr) minmax(0,1.8fr) auto;gap:6px 12px;align-items:center}
+.mr-hd{font-size:12px;color:var(--muted);padding:10px 0 6px}
+.mr-rt{padding:12px 0;border-top:1px solid var(--line)}
+.mr-task{font-size:15px}
+.mr-f{min-width:0}.mr-f select,.mr-f input{margin:0;height:40px;width:100%;min-width:0}
+.mr-f input{font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:13px;text-align:start}
+.mr-f input:disabled{background:var(--tint);color:var(--muted)}.mr-f input[aria-invalid="true"]{border-color:var(--pulse)}
+.mr-lbl{display:none;margin:0 0 4px;font-size:12px;color:var(--muted)}
+.mr-s .btn{min-width:84px}
+.mr-cur{grid-column:2 / -1;display:flex;gap:8px;align-items:center;flex-wrap:wrap;font-size:13px;min-width:0}
+.mr-now{display:flex;gap:6px 8px;align-items:center;flex-wrap:wrap;min-width:0;max-width:100%}
+.mr-id{direction:ltr;unicode-bidi:isolate;display:inline-block;max-width:min(100%,340px);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;vertical-align:middle;padding:2px 8px;border-radius:8px;background:var(--tint);font:12px ui-monospace,SFMono-Regular,Menlo,monospace}
+.mr-cost{font-size:12px;padding:1px 9px;border-radius:999px;background:var(--tint-2)}.mr-cost.free{background:color-mix(in srgb,#2e9e6b 16%,transparent)}
+.mr-rmsg{grid-column:2 / -1}.mr-rmsg .msg{margin:0;min-height:0;font-size:13px}.mr-rmsg .msg:empty{display:none}
+@media (max-width:760px){
+  .mr-hd{display:none}
+  .mr-rt{grid-template-columns:1fr;padding:14px;margin-top:10px;border:1px solid var(--line);border-radius:16px;background:var(--surface)}
+  .mr-lbl{display:block}.mr-cur,.mr-rmsg{grid-column:auto}.mr-s .btn{width:100%}
+}
+.mr-err{display:flex;gap:12px;align-items:flex-start;padding:14px 16px;border-radius:16px;border:1px solid color-mix(in srgb,var(--pulse) 40%,transparent);background:color-mix(in srgb,var(--pulse) 8%,transparent);margin-top:12px}
+.mr-err>svg{flex:none;width:22px;height:22px;color:var(--pulse);margin-top:2px}.mr-err p{margin:4px 0 0;font-size:14px}.mr-err .btn{margin-top:12px}
+.mr-cd{font:600 12px var(--f-num);min-width:30px}
 .sp-flag{font-size:12px;padding:2px 10px;border-radius:999px;background:var(--tint-2)}
 .sp-flag.bad{background:color-mix(in srgb,var(--pulse) 14%,transparent)}
 .sp-total{font:700 28px var(--f-num);margin:6px 0 0}
@@ -104,7 +127,7 @@ import { ClientRouter } from 'astro:transitions';
       </section>
       <section class="card pad" id="models" hidden aria-labelledby="modelsH">
         <h2 id="modelsH" style="margin:0 0 4px">موديلات الذكاء الاصطناعي لكل مهمة</h2>
-        <p class="so-note">كل مهمة تشتغل على مزوّدها الحالي لين تختار غيره هنا. للمالكة بس. لو المزوّد غير مفعّل ترجع المهمة لمزوّدها الحالي.</p>
+        <p class="so-note">كل مهمة تشتغل على مزوّدها الافتراضي لين تختار غيره هنا. للمالك بس. لو المزوّد غير مفعّل ترجع المهمة لمزوّدها الافتراضي.</p>
         <div id="modelsProv" class="bar" style="flex-wrap:wrap;gap:8px"></div>
         <div id="modelsBody"></div>
         <div class="msg" id="modelsMsg" role="status"></div>

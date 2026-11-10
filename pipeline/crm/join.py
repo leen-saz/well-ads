@@ -221,6 +221,7 @@ def report(crm, today=None):
 def attach_from_db(data):
     """Used by build.py. No Supabase or no table yet: the dashboard simply has no CRM block."""
     if not supabase_store.enabled():
+        print("::warning title=crm::no database connection, this dash.json has no CRM block")
         return None
     try:
         crm = attach(data, load())
@@ -228,4 +229,5 @@ def attach_from_db(data):
         return crm
     except Exception as ex:  # noqa: BLE001 - the dashboard must still build
         print("crm: skipped —", str(ex)[:160])
+        print("::warning title=crm::CRM join failed, this dash.json has no CRM block (the site shows a notice)")
         return None

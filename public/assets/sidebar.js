@@ -55,7 +55,7 @@ export function sections(me, L) {
   const ov = (me.modules || []).find(m => m.key === 'overview' && m.status === 'live' && m.ok && !m.locked);
   const one = (useNew, newer, older) => (useNew ? newer : older);
   const items = {
-    home: [core('/today/', 'ملخص اليوم', 'Today', SUN, 'today', true), ...mods('home')],
+    home: [core('/today/', 'احلم', 'Ahlam', SUN, 'today', true), ...mods('home')],
     produce: mods('produce'),
     distribute: mods('distribute'),
     // ملخص الأداء (موديول overview وصفحاته) أول، بعده المواد الإعلانية، بعدها الرصد

@@ -2,7 +2,7 @@
 // numbers for the period, its versions side by side, and the ads under it. Pure functions over /dash.json, same rules
 // as the creative wall (pipeline/dash/10-creative.js): cost per lead counts only lead-goal spend and leads
 // (leadSpend / leadN), and video numbers are lifetime. rows = [key, day, spend, impr, clicks, leads, conv]
-import { type Ad, type Dash, family } from './numbers';
+import { type Ad, type Dash, countsAsLead, family } from './numbers';
 import { ideaKey } from './analytics';
 
 // Lifetime video numbers (pipeline/fetch_data.py vid_doc): i impressions, v first-seconds views, c watched to the end
@@ -83,7 +83,7 @@ export function adStats(d: Dash, from: string, to: string, f: Filters = ALL): Ad
   for (const r of d.rows ?? []) {
     const key = String(r[0]), day = String(r[1]), ad = ads[key];
     if (day < from || day > to || !ad || !matches(ad, f)) continue;
-    const s = num(r[2]), l = num(r[5]), lead = ad.goal === 'lead';
+    const s = num(r[2]), l = num(r[5]), lead = countsAsLead(ad);
     const o = by.get(key) ?? blank();
     add(o, { spend: s, impr: num(r[3]), clicks: num(r[4]), leads: l, conv: num(r[6]), leadSpend: lead ? s : 0, leadN: lead ? l : 0 });
     by.set(key, o);

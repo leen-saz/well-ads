@@ -1,6 +1,6 @@
 // Social listening: source parsing, dedupe, sentiment parsing, watch cleaning, the cron/refresh flow and scoping.
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { adLibraryUrl, cleanWatch, dedupe, due, missingTable, normUrl, parseBing, parseGdelt, parseNews, parseReddit, parseSentiment, parseTikTok, parseX, parseYouTube, query, sentimentPrompt, sources, terms } from './social';
+import { adLibraryUrl, cleanWatch, dedupe, due, missingTable, normUrl, parseBing, parseGdelt, parseNews, isHttps, parseReddit, parseSentiment, parseTikTok, parseX, parseYouTube, query, sentimentPrompt, sources, terms } from './social';
 import { batch, collect, cost, store } from './fetcher';
 import { raw } from './probe';
 // The page's own maths (plain JS in public/)
@@ -215,5 +215,20 @@ describe('our brand and missing keys (page)', () => {
     expect(brandAdd([comp, brand], ['wellcare'])).toEqual({ id: 2, kind: 'brand', name: 'ويل يونيون', keywords: ['WellUnion', 'wellcare'], links: { x: '@well' } });
     expect(brandAdd([comp, brand], ['wellunion'])).toBeNull();
     expect(missingKeys({ news: true, youtube: true }).map(k => k.src)).toEqual(['x', 'reddit']);
+  });
+});
+
+describe('listening: only https links are kept', () => {
+  const item = (link: string) => `<item><title>t</title><link>${link}</link><description>d</description></item>`;
+  it('news items with http, javascript or data links are dropped', () => {
+    const xml = `<rss><channel>${item('https://news.example.com/a')}${item('http://news.example.com/b')}${item('javascript:alert(1)')}${item('data:text/html;base64,AAAA')}${item('//news.example.com/c')}${item('')}</channel></rss>`;
+    expect(parseNews(xml, 1).map(m => m.url)).toEqual(['https://news.example.com/a']);
+  });
+  it('isHttps accepts only https', () => {
+    expect(isHttps(' https://a.example/x ')).toBe(true);
+    for (const u of ['http://a.example', 'javascript:x', 'JAVASCRIPT:x', 'ftp://a', '', null, undefined]) expect(isHttps(u)).toBe(false);
+  });
+  it('gdelt and bing drop plain http too', () => {
+    expect(parseGdelt(JSON.stringify({ articles: [{ url: 'http://a.example/1', title: 't' }] }), 1)).toEqual([]);
   });
 });
