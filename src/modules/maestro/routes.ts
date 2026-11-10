@@ -3,6 +3,7 @@
 import { summarize, TARGETS, type VitalRow } from '../../lib/vitals';
 import { sb, json, missingSchema, notApplied, readJson, handle, requireUser, audit, isOwner, atLeast, notEnabled, type AuthEnv, type Cfg } from '../../lib/auth';
 import { budget, chatLines, client, cleanTask, items, performance, STATUS, tabOf, withBrief, type PcEnv } from './paperclip';
+import { parseRangeParams, rangeMs } from '../../../public/assets/period.js';
 import { MODULES } from '../registry';
 import { knowledgeFor } from '../knowledge/knowledge';
 import { crmFor } from './health';
@@ -32,19 +33,21 @@ export const state = { GET: handle(async (request, e: Env) => {
   return json(200, { connected: true, owner: isOwner(user, cfg), canApprove: atLeast(user, 'maestro', 'approve', cfg), canEdit: atLeast(user, 'maestro', 'edit', cfg), statuses: STATUS, budget: budget(company), tabs: TABS, projectTabs: projectTabs(projects), agents, issues, approvals });
 }) };
 
-// One agent's performance card for the last 7 or 30 days
+// One agent's performance card for a period: ?from=&to= (Riyadh days, at most a year) or the old ?days=7|30
+const DAYS = [7, 30];
 export const agent = { GET: handle(async (request, e: Env) => {
   const { cfg, user } = await requireUser(request, e, 'maestro');
   const pc = client(e);
   if (!pc) return notSet(user);
   const u = new URL(request.url);
   const id = u.searchParams.get('id') || '';
-  const days = u.searchParams.get('days') === '7' ? 7 : 30;
+  const range = parseRangeParams(k => u.searchParams.get(k), Date.now(), { days: DAYS.includes(Number(u.searchParams.get('days'))) ? Number(u.searchParams.get('days')) : 30 });
+  if ('error' in range) return json(400, { error: 'الفترة مو صحيحة' });
   if (!/^[A-Za-z0-9_-]{1,64}$/.test(id)) return json(400, { error: 'طلب غير صحيح' });
   const c = await companyOf(cfg, user.co);
   if (!c?.paperclip_company_id) return json(409, { error: 'اربط الشركة بالمدير أول' });
-  const since = Date.now() - days * 864e5;
-  try { return json(200, { days, ...performance(await pc.agentInputs(c.paperclip_company_id, id, new Date(since).toISOString()), since) }); }
+  const [since, until] = rangeMs(range.from, range.to);
+  try { return json(200, { days: range.days, from: range.from, to: range.to, ...performance(await pc.agentInputs(c.paperclip_company_id, id, new Date(since).toISOString(), new Date(until).toISOString()), since, until) }); }
   catch (err) { console.error('maestro_agent_failed', (err as Error).message); return json(502, { error: 'المدير مو متاح الحين، جرّب بعد شوي' }); }
 }) };
 

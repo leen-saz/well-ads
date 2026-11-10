@@ -61,7 +61,7 @@ import { ClientRouter } from 'astro:transitions';
 .mx-empty{display:grid;place-items:center;gap:10px;padding:48px 16px;color:var(--muted);text-align:center}
 .mx-empty .i{width:40px;height:40px;padding:10px;border-radius:12px;background:var(--tint)}
 .mx-tree{display:grid;gap:6px}.mx-tree .mx-tree{padding-inline-start:24px;border-inline-start:1px dashed var(--line);margin-inline-start:12px}
-.mx-dlg{border:0;border-radius:20px;padding:24px;width:min(560px,92vw);box-shadow:var(--shadow-lg);background:var(--surface);color:var(--text)}
+.mx-dlg{overflow:visible;border:0;border-radius:20px;padding:24px;width:min(560px,92vw);box-shadow:var(--shadow-lg);background:var(--surface);color:var(--text)}
 .mx-dlg::backdrop{background:rgba(29,16,105,.25)}
 .mx-chat{display:grid;gap:12px;max-width:760px}
 .mx-thread{display:grid;gap:8px;max-height:55vh;overflow-y:auto;padding:4px}
@@ -135,8 +135,8 @@ import { ClientRouter } from 'astro:transitions';
         </form>
       </dialog>
       <dialog id="pdlg" class="mx-dlg" aria-labelledby="perfName">
-        <div class="mx-bar"><h2 id="perfName" style="margin:0"></h2>
-          <div class="seg" id="perfDays" role="group" aria-label="الفترة"><button type="button" data-days="7">7 أيام</button><button type="button" data-days="30">30 يوم</button></div></div>
+        <div class="mx-bar" style="border:0"><h2 id="perfName" style="margin:0"></h2></div>
+        <div id="perfPeriod" style="margin:0 0 12px"></div>
         <div id="perfBody"></div>
         <div class="bar" style="margin-top:16px"><button class="btn ghost" type="button" id="perfClose">إغلاق</button></div>
       </dialog>

@@ -186,7 +186,7 @@ describe('page maths', () => {
     const s = summarize(W, M, now, 30);
     expect(s.share.map((r: { name: string; total: number }) => [r.name, r.total])).toEqual([['Well', 10], ['منافس', 1]]);
     expect(s.share[0]?.share).toBeCloseTo(10 / 11);
-    expect(s.weeks).toHaveLength(8);
+    expect(s.weeks).toHaveLength(5); // 30 days: five bars of a week, the last one shorter
     expect(s.alerts.map((a: { type: string }) => a.type).sort()).toEqual(['keyword', 'negative']);
   });
   it('filters mentions', () => {
