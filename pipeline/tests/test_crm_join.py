@@ -143,26 +143,5 @@ class AttributionRuleTests(unittest.TestCase):
         self.assertEqual(crm["attribution"]["unmatched_sources"], {"oddsource": 1})
 
 
-
-class LooseNames(unittest.TestCase):
-    """A name that differs only in case, spacing or invisible marks still matches, but only when it names ONE ad."""
-    ADS = {"m1": {"name": "Offer One"}, "m2": {"name": "Twin"}, "m3": {"name": "twin"}, "t9": {"name": "Doula Video"}}
-
-    def key(self, name, source="meta_form", ad_id=None):
-        by_id, names = join.index(self.ADS)
-        return join.match_how(lead(source_platform=source, ad_id=ad_id, ad_name=name), by_id, names)
-
-    def test_spelling_differences_still_match_one_ad(self):
-        self.assertEqual(self.key("  offer   one\u200e "), ("m1", "name"))
-        self.assertEqual(self.key("DOULA video", source="tiktok_form", ad_id="x"), ("t9", "name"))
-
-    def test_two_ads_that_differ_only_by_case_are_never_guessed(self):
-        self.assertEqual(self.key("TWIN")[0], None)
-        self.assertEqual(self.key("Twin")[0], "m2")      # the exact spelling is still exact
-
-    def test_a_different_platform_family_is_not_matched(self):
-        self.assertEqual(self.key("offer one", source="snapchat_form")[0], None)
-
-
 if __name__ == "__main__":
     unittest.main()

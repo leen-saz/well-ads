@@ -6,7 +6,7 @@ data['crm'] = {
 }
 The dashboard sums them in its date range and filters, next to spend: closings, cost per closing, revenue, ROAS.
 """
-import os, re, sys, unicodedata
+import os, re, sys
 from datetime import datetime, timedelta, timezone
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
@@ -51,14 +51,6 @@ def family(source):
     return None
 
 
-def norm(name):
-    """A name with the differences that carry no meaning removed: Unicode form, case, invisible direction marks, repeated spaces.
-    The CRM and the platforms spell the same ad name slightly differently (a trailing space, «‎», a capital letter)."""
-    t = unicodedata.normalize("NFKC", str(name or ""))
-    t = "".join(c for c in t if unicodedata.category(c) != "Cf")
-    return re.sub(r"\s+", " ", t).strip().casefold()
-
-
 def index(ads):
     """(ad id -> dashboard key, name -> key). Names: TikTok by plain name (ids damaged by the CRM import); every family
     also by (prefix, name), only when the name belongs to one ad id, so two different ads never share a closing."""
@@ -78,11 +70,6 @@ def index(ads):
             names.setdefault((key[0], nm), {}).setdefault(base, key)
     # one dict for names: TikTok by plain name (as before), every family by (prefix, name) when the name is one ad id's
     tt_names.update({k: next(iter(v.values())) for k, v in names.items() if len(v) == 1})
-    # The same, by normalized name, only when every ad with that normalized name is one ad id (so it can never pick between two)
-    loose = {}
-    for (pre, nm), ids in names.items():
-        loose.setdefault((pre, norm(nm)), {}).update(ids)
-    tt_names.update({("~",) + k: next(iter(v.values())) for k, v in loose.items() if len(v) == 1 and k[1]})
     return by_id, tt_names
 
 
@@ -101,9 +88,6 @@ def match_how(row, by_id, tt_names):
     name = str(row.get("ad_name") or "").strip()
     if name:
         key = tt_names.get(name) if prefix == "t" else tt_names.get((prefix, name))
-        if key:
-            return key, "name"
-        key = tt_names.get(("~", prefix, norm(name))) if norm(name) else None
         if key:
             return key, "name"
     return None, ("broken_id" if ad_id and broken else "not_in_ads" if ad_id else "no_id")
