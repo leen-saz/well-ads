@@ -292,4 +292,24 @@ test.describe('احلم', () => {
       await expect.poll(() => again).toBe(1);
     });
   }
+  for (const lang of ['ar', 'en'] as const) {
+    test(`${lang}: the motion task shows its storyboard (scenes with time and animation) and opens the project in Design for the video export`, async ({ page, context, request }) => {
+      await addSession(context, await login(request, 'owner'));
+      const d = { ...PACK, campaign: { ...PACK.campaign, status: 'review', brief: { summary: 'B', messages: [], risks: [], questions: [] } },
+        tasks: [{ id: 1, position: 0, agent: 'design', title: 'Motion', status: 'review', depends_on: [], spec: { kind: 'motion' }, estimate_usd: 0.05 }],
+        outputs: [{ id: 31, task_id: 1, kind: 'motion_storyboard', body: { ratio: '9:16', seconds: 28.4, engine: 'templates', project: 7, version: 1, image_id: 41, audio_id: 42, text: 'Hook / Care',
+          scenes: [{ from: 0, to: 2.5, text: 'Hook line', anim: 'pop', pos: 'center', size: 'l' }, { from: 2.5, to: 6, text: 'Care line', anim: 'rise', pos: 'bottom', size: 'm' }], cta: { text: 'Book now', from: 25 } }, compliance: [] }] };
+      await page.route('**/api/campaigns/file**', r => r.fulfill({ status: 200, contentType: 'image/png', body: Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==', 'base64') }));
+      await page.route('**/api/campaigns/get**', r => r.fulfill({ json: d }));
+      await page.route('**/api/campaigns/list', r => r.fulfill({ json: { campaigns: [{ id: 'c1', title: 'Spring', status: 'review', estimate_usd: 0.05, created_at: '2026-11-01T00:00:00Z' }], mayApprove: true } }));
+      await page.goto('/today/?tab=campaign' + (lang === 'en' ? '&lang=en' : ''));
+      await page.locator('.cm-list button').first().click();
+      await page.locator('#cmAll').click();
+      await expect(page.locator('.cm-scenes tr')).toHaveCount(3);
+      await expect(page.locator('.cm-scenes')).toContainText('0.0–2.5');
+      await expect(page.locator('.cm-motion a.btn')).toHaveAttribute('href', '/design/?type=motion&id=7');
+      await expect(page.locator('.cm-poster')).toBeVisible();
+      if (lang === 'en') { await expect(page.locator('.cm-motion a.btn')).toHaveText('Open it in Motion graphic to export the video'); await expect(page.locator('.cm-motion .muted').first()).not.toContainText(/[\u0600-\u06FF]/); }
+    });
+  }
 });

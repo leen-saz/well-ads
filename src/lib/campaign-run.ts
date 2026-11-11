@@ -21,7 +21,7 @@ export interface Override { by: string; reason: string; at: string }
 export const REASON_MIN = 5, REASON_MAX = 300;
 export const cleanReason = (v: unknown): string => String(v ?? '').replace(/[\u0000-\u001F\u007F]/g, ' ').replace(/\s+/g, ' ').trim().slice(0, REASON_MAX);
 
-export interface TaskRow { id: number; position: number; agent: Agent; title: string; spec?: { detail?: string; retries?: number; auto?: number; regen?: number; feedback?: string; override?: Override; stage?: string; missing?: string[] } | null; depends_on: number[]; status: string; blocked_reason?: string | null; updated_at?: string }
+export interface TaskRow { id: number; position: number; agent: Agent; title: string; spec?: { detail?: string; retries?: number; auto?: number; regen?: number; feedback?: string; override?: Override; stage?: string; missing?: string[]; kind?: string } | null; depends_on: number[]; status: string; blocked_reason?: string | null; updated_at?: string }
 export interface OutputRow { id?: number; task_id: number | null; kind: string; platform?: string | null; body: { text?: string; [k: string]: unknown }; compliance?: unknown[] }
 
 const DONE = ['review', 'approved'];
@@ -155,15 +155,16 @@ export function affectedTasks(tasks: TaskRow[], agents: Agent[]): number[] {
 // A campaign approved before the tasks ran (or whose tasks were never saved) has none: this is the plan it gets, the same shape the planner
 // makes (knowledge, then the writers, then the compliance gate, then the budget and measurement plan). No AI call: the brief and wishes
 // already say what the campaign is about, and each agent reads them when its task runs.
-export function defaultTasks(): { agent: Agent; title: string; detail: string; after: number[] }[] {
+export function defaultTasks(): { agent: Agent; title: string; detail: string; after: number[]; kind?: 'motion' }[] {
   return [
     { agent: 'knowledge', title: 'سياق الحملة وما اشتغل قبل', detail: 'اجمع من المعرفة ومن أرقام الإعلانات السابقة ما يفيد هذي الحملة.', after: [] },
     { agent: 'content', title: 'النصوص الإعلانية والمحتوى', detail: 'ثلاث صيغ لنص إعلاني وهيكل مقال أو صفحة هبوط وكلمات مفتاحية.', after: [0] },
-    { agent: 'design', title: 'بريف التصميم', detail: 'الفكرة البصرية وقطع التصميم والمقاسات.', after: [0, 1] },
-    { agent: 'voice', title: 'سكربت الفويس أوفر', detail: 'نص فويس أوفر قصير مع ملاحظات الأداء.', after: [1] },
+    { agent: 'design', title: 'بريف التصميم وصور المقاسات', detail: 'الفكرة البصرية وقطع التصميم، وصورة لكل مقاس.', after: [0, 1] },
+    { agent: 'voice', title: 'سكربت الفويس أوفر وتسجيله', detail: 'نصان (30 و10 ثواني) مع تسجيل صوتي لكل واحد.', after: [1] },
+    { agent: 'design', title: 'موشن جرافيك (ستوري 9:16)', detail: 'خطة مشاهد تتحرك فوق صورة الستوري وتسجيل الصوت، كمشروع في تاب التصميم.', after: [2, 3], kind: 'motion' },
     { agent: 'social', title: 'الكابشنز وجدول النشر', detail: 'مسودات منشورات للمنصات المطلوبة مع يوم النشر المقترح.', after: [1] },
-    { agent: 'compliance', title: 'فحص الامتثال لكل القطع', detail: '', after: [1, 2, 3, 4] },
-    { agent: 'optimize', title: 'تقسيم الميزانية وخطة القياس', detail: 'وثيقة للمشتري الإعلامي.', after: [5] },
+    { agent: 'compliance', title: 'فحص الامتثال لكل القطع', detail: '', after: [1, 2, 3, 4, 5] },
+    { agent: 'optimize', title: 'تقسيم الميزانية وخطة القياس', detail: 'وثيقة للمشتري الإعلامي.', after: [6] },
   ];
 }
 
