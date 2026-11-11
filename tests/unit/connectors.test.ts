@@ -23,6 +23,7 @@ function db(rest: (url: string, init: RequestInit) => unknown = () => []) {
 async function call(path: string, init: RequestInit = {}, env: AuthEnv = ENV) {
   const headers = new Headers(init.headers);
   headers.set('cookie', await cookie());
+  headers.set('sec-fetch-site', 'same-origin');
   if (init.method && init.method !== 'GET') { headers.set('origin', ORIGIN); headers.set('content-type', 'application/json'); }
   return api.request(ORIGIN + path, { ...init, headers }, env);
 }
@@ -113,7 +114,7 @@ describe('TikTok MCP sign-in', () => {
 
   it('exchanges the code with the verifier and saves only names + the refresh token in the vault', async () => {
     const nonce = 'n1', verifier = 'v'.repeat(43);
-    const state = await sign({ uid: USER.id, p: 'tiktok', n: nonce, c: 'cid-1', exp: Date.now() + 600_000 }, ENV.SESSION_SECRET as string);
+    const state = await sign({ uid: USER.id, p: 'tiktok', n: nonce, c: 'cid-1', exp: Date.now() + 600_000 }, ENV.SESSION_SECRET as string, 'oauth');
     const calls: { url: string; method: string; body: string }[] = [];
     vi.stubGlobal('fetch', vi.fn(async (url: string, init: RequestInit = {}) => {
       const body = typeof init.body === 'string' ? init.body : init.body instanceof URLSearchParams ? init.body.toString() : '';
@@ -137,7 +138,7 @@ describe('TikTok MCP sign-in', () => {
   });
 
   it('rejects a bad state before calling TikTok or the vault', async () => {
-    const state = await sign({ uid: USER.id, p: 'tiktok', n: 'expected', c: 'cid', exp: Date.now() + 600_000 }, ENV.SESSION_SECRET as string);
+    const state = await sign({ uid: USER.id, p: 'tiktok', n: 'expected', c: 'cid', exp: Date.now() + 600_000 }, ENV.SESSION_SECRET as string, 'oauth');
     const calls: string[] = [];
     vi.stubGlobal('fetch', vi.fn(async (url: string) => { calls.push(url); return new Response('[]', { status: 200 }); }));
     const res = await api.request(`${ORIGIN}/api/connectors/callback?code=x&state=${encodeURIComponent(state)}`, {
@@ -174,8 +175,28 @@ describe('meta_pages exchange', () => {
     const p = byId('meta_pages');
     expect(p).not.toBeNull();
     const got = await exchange(p!, { code: 'c', redirect: 'https://x/cb', id: 'app', secret: 's' });
-    expect(got).toEqual({ values: { META_PAGE_ID: '111', META_PAGE_ACCESS_TOKEN: 'page-tok', IG_USER_ID: '222' }, expiresIn: null });
+    expect(got).toMatchObject({ values: { META_PAGE_ID: '111', META_PAGE_ACCESS_TOKEN: 'page-tok', IG_USER_ID: '222' }, expiresIn: null, shown: { META_PAGE_NAME: 'Well' } });
+    expect(got.pick).toBeUndefined();
     expect(urls.some(u => u.includes('/me/accounts') && u.includes('access_token=long'))).toBe(true);
+  });
+  it('several pages: none is bound by position, the list waits for the owner to choose', async () => {
+    const { exchange, byId } = await import('../../src/lib/connectors');
+    vi.stubGlobal('fetch', vi.fn(async (url: string) => {
+      if (url.includes('fb_exchange_token')) return new Response(JSON.stringify({ access_token: 'long', expires_in: 5184000 }));
+      if (url.includes('/me/accounts')) return new Response(JSON.stringify({ data: [{ id: '1', name: 'Kids', access_token: 't1' }, { id: '2', name: 'Care', access_token: 't2', instagram_business_account: { id: '9', username: 'care' } }] }));
+      return new Response(JSON.stringify({ access_token: 'short' }));
+    }));
+    const got = await exchange(byId('meta_pages')!, { code: 'c', redirect: 'r', id: 'a', secret: 's' });
+    expect(got.pick).toBe(true);
+    expect(Object.keys(got.values)).toEqual(['META_PAGES_PENDING']);
+    expect(JSON.parse(got.values.META_PAGES_PENDING!).pages.map((p: { name: string }) => p.name)).toEqual(['Kids', 'Care']);
+  });
+  it('one page without Instagram drops an Instagram id saved for a previous page', async () => {
+    const { exchange, byId } = await import('../../src/lib/connectors');
+    vi.stubGlobal('fetch', vi.fn(async (url: string) => new Response(JSON.stringify(url.includes('/me/accounts') ? { data: [{ id: '1', name: 'Kids', access_token: 't1' }] } : { access_token: 'x' }))));
+    const got = await exchange(byId('meta_pages')!, { code: 'c', redirect: 'r', id: 'a', secret: 's' });
+    expect(got.drop).toContain('IG_USER_ID');
+    expect(got.values).not.toHaveProperty('IG_USER_ID');
   });
   it('fails when no page was granted', async () => {
     const { exchange, byId } = await import('../../src/lib/connectors');

@@ -38,7 +38,7 @@ function renderWins(){
 function syncSections(){
   document.querySelectorAll('section[data-mode]').forEach(s=>{
     const modes=(s.dataset.mode||'ads').split(/\s+/), pages=(s.dataset.page||'').split(/\s+/).filter(Boolean);
-    s.hidden = !modes.includes(S.mode) || (pages.length && !pages.includes(S.page)) || (CREATIVE_ONLY && (s.id==='kpis' || !pages.includes('creative')));
+    s.hidden = s.hasAttribute('data-off') || !modes.includes(S.mode) || (pages.length && !pages.includes(S.page)) || (CREATIVE_ONLY && (s.id==='kpis' || !pages.includes('creative')));
   });
 }
 // Draw a part only when its section is on screen; switching tab calls render() again, so hidden parts never go stale

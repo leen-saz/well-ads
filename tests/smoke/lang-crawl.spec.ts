@@ -48,7 +48,7 @@ const ALLOW_AR: RegExp[] = [/^عربي$/, /^A word or claim never to be written/
 // Latin words that belong in Arabic too: brands, platforms, units, acronyms, the product's own names
 const LATIN_OK = new Set(('Well WellUnion Meta Facebook Instagram Messenger Threads Snapchat Snap TikTok Google YouTube WhatsApp Search Display ' +
   'Performance Max Demand Gen Shopping Moyasar CRM ROAS MER CTR CPM CPC CPL CPA CAC KPI SAR AI API URL PDF CSV ID GA GA4 SEO UTM HTML JSON ' +
-  'Claude Anthropic Gemini OpenAI GitHub Supabase Cloudflare Notion Canva Higgsfield Seedance Kling Veo Sora CapCut Paperclip Maestro English ' +
+  'Claude Anthropic Gemini OpenAI OpenRouter GitHub Supabase Cloudflare Notion Canva Higgsfield Seedance Kling Veo Sora CapCut Paperclip Maestro English ' +
   'iOS Android OK Pmax PMax Reels Stories Story Carousel Spark Lead Leads Ads Excel Care ' +
   'Analytics Console LinkedIn Pinterest Reddit Microsoft Bing Amazon Apple Taboola Apipeline Grok X Workers PostHog posthog ' +
   'googleads googleanalytics googlesearchconsole pinterest reddit wellcare MCP Business Pixel Advantage').split(' ').map(w => w.toLowerCase()));
@@ -123,7 +123,8 @@ async function exercise(page: Page, seen: Set<string>, lang: Lang) {
 
 // ---- The routes: what the sidebar offers the owner (every module) plus the module sub-pages and the known extras
 const EXTRA = ['/', '/today/', '/control/', '/control/new/', '/connectors/', '/account/', '/admin/', '/admin/modules/', '/library/', '/maestro/health/', '/soon/'];
-const MODULE_PAGES = MODULES.flatMap(m => [`/${m.key}/`, ...(m.pages ?? []).map(p => `/${m.key}/${p.path}/`)]);
+// A tab shown as a section of another (voiceover in voice, copy in content) is crawled inside it
+const MODULE_PAGES = MODULES.flatMap(m => [m.into ? `/${m.into}/?tab=${m.key}` : `/${m.key}/`, ...(m.pages ?? []).map(p => `/${m.key}/${p.path}/`)]);
 const PUBLIC = ['/login/', '/reset/', '/welcome/'];
 // The Performance pages: these must be clean in both languages
 const PERFORMANCE = /^\/overview\/|^pipeline:/;
@@ -168,7 +169,7 @@ for (const lang of ['en', 'ar'] as const) {
       test(`${path} ${lang}`, async ({ page, context, request }) => {
         await addSession(context, await login(request, 'owner'));
         await page.route('**/api/overview/data*', r => r.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(dashData()) }));
-        await check(path, lang, page, async () => { await page.goto(`${path}?lang=${lang}`); });
+        await check(path, lang, page, async () => { await page.goto(`${path}${path.includes('?') ? '&' : '?'}lang=${lang}`); });
       });
     }
     for (const path of PUBLIC) {

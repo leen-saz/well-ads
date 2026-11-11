@@ -112,7 +112,15 @@ def build(data, today=None):
         first = min(x["days"]) if x["days"] else None
         ev = {"spend": round(x["s7"], 2), "leads": round(x["l7"], 2), "days": 7, "target_cpl": round(t, 2) if t else None,
               "target_source": (tg.get(p) or {}).get("source"), "first_day": first}
-        if a.get("goal") == "lead" and t:
+        wa = a.get("dest") == "whatsapp"
+        if wa and t:
+            # TikTok ads that open WhatsApp never report leads on the platform: zero leads is not failure. Judged on clicks
+            # instead; only an ad that gets no clicks at all for the same spend is a pause.
+            if x["c7"] == 0 and x["s7"] >= rules.KILL_MULTIPLIER * t and (rules.days_running(first, today) or 0) >= rules.MIN_DAYS_BEFORE_PAUSE:
+                add(p, "ad", tid, a.get("name"), a.get("campaign"), "pause",
+                    f"صرف {x['s7']:.0f} ريال آخر 7 أيام بدون ولا نقرة. توجيه للواتساب: الليدز ما تنقاس من المنصة، فالحكم على النقرات.",
+                    {**ev, "metric": "clicks", "clicks": x["c7"], "dest": "whatsapp"}, 90)
+        elif a.get("goal") == "lead" and t:
             if x["l7"] == 0 and x["s7"] >= rules.KILL_MULTIPLIER * t and (rules.days_running(first, today) or 0) >= rules.MIN_DAYS_BEFORE_PAUSE:
                 add(p, "ad", tid, a.get("name"), a.get("campaign"), "pause",
                     f"صرف {x['s7']:.0f} ريال آخر 7 أيام بدون ولا ليد، وهذا ضعف تكلفة الليد المستهدفة ({t:.2f}) أو أكثر.", ev, 90)

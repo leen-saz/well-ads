@@ -75,12 +75,15 @@ function agg(from,to){
   for(const [k,date,sp,im,cl,ld,cv=0] of D.rows){
     if(date<from||date>to) continue;
     const a = ADS[k]; if(!matchesSlice(a)) continue;
-    const lg = a.goal==='lead' ? sp : 0;
-    const ln = a.goal==='lead' ? ld : 0;
+    // A TikTok ad that opens WhatsApp reports no leads on the platform: its spend stays out of the cost per lead
+    const wa = a.dest==='whatsapp', isLead = a.goal==='lead' && !wa;
+    const lg = isLead ? sp : 0;
+    const ln = isLead ? ld : 0;
     const o = byAd[k] ||= {spend:0,impr:0,clicks:0,leads:0,conv:0,leadSpend:0,leadN:0,days:{}};
+    if(wa){ o.waSpend=(o.waSpend||0)+sp; o.waClicks=(o.waClicks||0)+cl; }
     o.spend+=sp; o.impr+=im; o.clicks+=cl; o.leads+=ld; o.conv+=cv; o.leadSpend+=lg; o.leadN+=ln; o.days[date]=(o.days[date]||0)+sp;
     const d = byDay[date] ||= {}; const dp = d[a.platform] ||= {spend:0,leads:0,ls:0,ln:0}; dp.spend+=sp; dp.leads+=ld; dp.ls+=lg; dp.ln+=ln;
-    const p = byPlat[a.platform] ||= {spend:0,impr:0,clicks:0,leads:0,conv:0,leadSpend:0,leadN:0,ads:new Set()}; p.spend+=sp;p.impr+=im;p.clicks+=cl;p.leads+=ld;p.conv+=cv;p.leadSpend+=lg;p.leadN+=ln;p.ads.add(k);
+    const p = byPlat[a.platform] ||= {spend:0,impr:0,clicks:0,leads:0,conv:0,leadSpend:0,leadN:0,ads:new Set()}; if(wa){ p.waSpend=(p.waSpend||0)+sp; p.waClicks=(p.waClicks||0)+cl; } p.spend+=sp;p.impr+=im;p.clicks+=cl;p.leads+=ld;p.conv+=cv;p.leadSpend+=lg;p.leadN+=ln;p.ads.add(k);
   }
   // CRM (pipeline/crm/join.py): leads matched to ads. A closing is a payment; its value is the amount paid.
   // Leads count on their own day; closings on the lead's day or on the payment day (S.crmBy), as Leen picks.
@@ -92,7 +95,7 @@ function agg(from,to){
     const d = S.crmBy==='paid' ? paidDay : leadDay;
     if(paid && d && d>=from && d<=to){ add(k,'booked',1); add(k,'value',amount); }
   }
-  const tot = {spend:0,impr:0,clicks:0,leads:0,conv:0,leadSpend:0,leadN:0,crmLeads:0,booked:0,paid:0,value:0};
+  const tot = {spend:0,impr:0,clicks:0,leads:0,conv:0,leadSpend:0,leadN:0,crmLeads:0,booked:0,paid:0,value:0,waSpend:0,waClicks:0};
   for(const p of Object.values(byPlat)){for(const f in tot) tot[f]+=(p[f]||0);}
   // Every paid lead in the CRM, with or without an ad (crm.paid_all: [lead_day, paid_day, amount, source]); ignores the ad filters
   tot.allPaidN=0; tot.allPaid=0;

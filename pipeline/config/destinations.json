@@ -1,0 +1,12 @@
+{
+  "_doc": "Where TikTok ads send people, for what the TikTok API does not say by itself. An ad that opens WhatsApp reports no leads on the platform, so its spend is kept out of cost per lead and zero leads is not a failure. The pull reads the ad's own link and the ad group's messaging app first; use this file only for ads where those are empty. Every change goes through a PR. Ids and words below are placeholders: put real campaign ids here only if the team agrees they may sit in this public repo, otherwise leave the lists empty and tag the ad group's destination in TikTok.",
+  "_example": {
+    "campaign_ids": ["1000000000000001"],
+    "campaign_name_words": ["example_wa_word"]
+  },
+  "_how_dest_is_decided": "whatsapp = link, messaging app, a listed campaign id or a listed word says WhatsApp. unknown = a lead ad with no link and no messaging info at all (shown as «وجهة غير معروفة», counted like a lead ad, never guessed). Anything else = a normal lead ad. Recomputed on every run.",
+  "tiktok_whatsapp": {
+    "campaign_ids": [],
+    "campaign_name_words": []
+  }
+}

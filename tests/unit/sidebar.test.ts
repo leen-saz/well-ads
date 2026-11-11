@@ -34,3 +34,39 @@ describe('sidebar', () => {
     expect(off.some(i => i.href.startsWith('/overview'))).toBe(false);
   });
 });
+
+describe('sidebar groups', () => {
+  const secs = (m: ReturnType<typeof me>) => sections(m, L) as { key: string; label: string; items: Item[] }[];
+  it('follows the marketing order: create, distribute, measure, optimize, govern, system', () => {
+    expect(secs(me()).map(s => s.key)).toEqual(['home', 'produce', 'distribute', 'measure', 'optimize', 'govern', 'system']);
+    expect(secs(me()).map(s => s.label)).toEqual(['الرئيسية', 'الإنتاج', 'النشر والتوزيع', 'القياس والتحليل', 'التحسين والقرارات', 'الحوكمة', 'النظام']);
+  });
+  it('puts every tab in its group', () => {
+    const at = Object.fromEntries(secs(me()).flatMap(s => s.items.map(i => [i.text, s.key])));
+    expect(at).toMatchObject({
+      'الرصد': 'measure', 'المعرفة': 'system',
+      'التصميم': 'produce', 'المحتوى و SEO': 'produce', 'الصوت': 'produce', 'التفريغ': 'produce', 'وصف الصور': 'produce',
+      'السوشال': 'distribute', 'الرحلات والرسائل': 'distribute',
+      'ملخص الأداء': 'measure', 'المواد الإعلانية': 'measure',
+      'لوحة القرارات': 'optimize', 'المدير': 'optimize', 'التتبع': 'optimize',
+      'الامتثال': 'govern', 'السجل': 'govern', 'الصلاحيات': 'govern',
+      'الربط': 'system',
+    });
+  });
+  it('keeps locked tabs in place, visibly locked', () => {
+    const l = secs(me({ off: ['social'] })).find(s => s.key === 'distribute')!.items.find(i => i.key === 'social');
+    expect(l?.state).toBe('locked');
+  });
+  it('shows owner-only Permissions to the owner only', () => {
+    expect(secs(me({ role: 'member' })).flatMap(s => s.items).some(i => i.key === 'admin')).toBe(false);
+  });
+});
+
+describe('one list of groups', () => {
+  it('every module sits in a group of the shared list, and each group has a tab', async () => {
+    const { GROUPS } = await import('../../src/modules/registry');
+    const keys = GROUPS.map(g => g.key);
+    expect(keys).toEqual(['home', 'produce', 'distribute', 'measure', 'optimize', 'govern', 'system']);
+    for (const m of MODULES) expect(keys, m.key).toContain(m.group);
+  });
+});

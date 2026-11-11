@@ -5,13 +5,16 @@
 ## ملفات الموديول
 | المكان | وش فيه |
 |---|---|
-| `src/modules/<key>/module.ts` | الاسم بالعربي والإنجليزي، الأيقونة، الوجهة في القائمة (`group`: today / performance / create / review / system)، الحالة (`live` / `soon`)، ووش يسوي |
+| `src/modules/<key>/module.ts` | الاسم بالعربي والإنجليزي، الأيقونة، الوجهة في القائمة (`group`: home / produce / distribute / measure / optimize / govern / system، بترتيب القائمة)، الحالة (`live` / `soon`)، ووش يسوي |
 | `src/modules/<key>/routes.ts` | الـ API: `/api/<key>/<action>` |
 | `src/modules/<key>/*.ts` | منطق الموديول |
 | `src/modules/<key>/Page.astro` | الصفحة (`/<key>/`)، و`src/pages/<key>/index.astro` سطرين يستوردها بس |
 | `public/modules/<key>/client.js` | سكربت الصفحة (`export default async function mount()`) |
 | `src/modules/<key>/<key>.test.ts` | التستات |
 | `supabase/migrations/NNN_<key>.sql` | جداول الموديول، وكل جدول فيه `company_id` |
+
+## موديول يظهر داخل تاب ثاني
+`into: '<key>'` في `module.ts` يخلي الموديول قسماً داخل تاب ثاني بدل مدخل في القائمة (الفويس أوفر داخل الصوت، والكوبي رايتر داخل المحتوى). الرابط `/<into>/?tab=<key>`، والصلاحية والقفل وAPI تبقى للموديول نفسه، والرابط القديم `/<key>/` يحوّل للقسم.
 
 ## موديول جديد
 1. مجلد `src/modules/<key>/` فيه `module.ts` بحالة `soon`، وسطر في `src/modules/registry.ts`.

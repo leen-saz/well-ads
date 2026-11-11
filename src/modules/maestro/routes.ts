@@ -3,7 +3,8 @@
 import { summarize, TARGETS, type VitalRow } from '../../lib/vitals';
 import { sb, json, missingSchema, notApplied, readJson, handle, requireUser, audit, isOwner, atLeast, notEnabled, type AuthEnv, type Cfg } from '../../lib/auth';
 import { budget, chatLines, client, cleanTask, items, performance, STATUS, tabOf, withBrief, type PcEnv } from './paperclip';
-import { MODULES } from '../registry';
+import { parseRangeParams, rangeMs } from '../../../public/assets/period.js';
+import { MODULES, GROUPS } from '../registry';
 import { knowledgeFor } from '../knowledge/knowledge';
 import { crmFor } from './health';
 import { dataHealth, PARTS, type Part } from './datahealth';
@@ -16,7 +17,7 @@ async function companyOf(cfg: Cfg, co: string): Promise<Co | null> {
   return r.ok && Array.isArray(r.data) ? r.data[0] || null : null;
 }
 // The tabs a task can be sent to (every live tab but this one), and which Paperclip project belongs to which tab
-const TABS = MODULES.filter(m => m.status === 'live' && m.key !== 'maestro').map(m => ({ key: m.key, ar: m.ar }));
+const TABS = MODULES.filter(m => m.status === 'live' && m.key !== 'maestro').map(m => ({ key: m.key, ar: m.ar, group: m.group }));
 const projectTabs = (projects: Record<string, unknown>[]) => Object.fromEntries(projects.map(p => [String(p.id), tabOf(p.name)]).filter(([, k]) => k));
 const notSet = (user?: { role: string }) => json(503, { error: notEnabled(user, 'المدير', 'PAPERCLIP_URL و PAPERCLIP_TOKEN'), setup: true });
 
@@ -29,22 +30,24 @@ export const state = { GET: handle(async (request, e: Env) => {
   let agents: unknown[] = [], issues: unknown[] = [], approvals: unknown[] = [], company: Record<string, unknown> = {}, projects: Record<string, unknown>[] = [];
   try { [agents, issues, approvals, company, projects] = await Promise.all([pc.agents(c.paperclip_company_id), pc.issues(c.paperclip_company_id), pc.approvals(c.paperclip_company_id), pc.company(c.paperclip_company_id), pc.projects(c.paperclip_company_id)]); }
   catch (err) { console.error('maestro_state_failed', (err as Error).message); return json(502, { error: 'المدير مو متاح الحين، جرّب بعد شوي' }); }
-  return json(200, { connected: true, owner: isOwner(user, cfg), canApprove: atLeast(user, 'maestro', 'approve', cfg), canEdit: atLeast(user, 'maestro', 'edit', cfg), statuses: STATUS, budget: budget(company), tabs: TABS, projectTabs: projectTabs(projects), agents, issues, approvals });
+  return json(200, { connected: true, owner: isOwner(user, cfg), canApprove: atLeast(user, 'maestro', 'approve', cfg), canEdit: atLeast(user, 'maestro', 'edit', cfg), statuses: STATUS, budget: budget(company), tabs: TABS, groups: GROUPS, projectTabs: projectTabs(projects), agents, issues, approvals });
 }) };
 
-// One agent's performance card for the last 7 or 30 days
+// One agent's performance card for a period: ?from=&to= (Riyadh days, at most a year) or the old ?days=7|30
+const DAYS = [7, 30];
 export const agent = { GET: handle(async (request, e: Env) => {
   const { cfg, user } = await requireUser(request, e, 'maestro');
   const pc = client(e);
   if (!pc) return notSet(user);
   const u = new URL(request.url);
   const id = u.searchParams.get('id') || '';
-  const days = u.searchParams.get('days') === '7' ? 7 : 30;
+  const range = parseRangeParams(k => u.searchParams.get(k), Date.now(), { days: DAYS.includes(Number(u.searchParams.get('days'))) ? Number(u.searchParams.get('days')) : 30 });
+  if ('error' in range) return json(400, { error: 'الفترة مو صحيحة' });
   if (!/^[A-Za-z0-9_-]{1,64}$/.test(id)) return json(400, { error: 'طلب غير صحيح' });
   const c = await companyOf(cfg, user.co);
   if (!c?.paperclip_company_id) return json(409, { error: 'اربط الشركة بالمدير أول' });
-  const since = Date.now() - days * 864e5;
-  try { return json(200, { days, ...performance(await pc.agentInputs(c.paperclip_company_id, id, new Date(since).toISOString()), since) }); }
+  const [since, until] = rangeMs(range.from, range.to);
+  try { return json(200, { days: range.days, from: range.from, to: range.to, ...performance(await pc.agentInputs(c.paperclip_company_id, id, new Date(since).toISOString(), new Date(until).toISOString()), since, until) }); }
   catch (err) { console.error('maestro_agent_failed', (err as Error).message); return json(502, { error: 'المدير مو متاح الحين، جرّب بعد شوي' }); }
 }) };
 
@@ -106,7 +109,7 @@ export const connect = { POST: handle(async (request, e: Env) => {
   let made: Record<string, unknown> = {};
   try { made = await pc.createCompany(c.name); } catch (err) { console.error('maestro_connect_failed', (err as Error).message); return json(502, { error: 'ما قدرنا نجهز مساحة شركتك، جرّب بعد شوي' }); }
   const id = String(made.id || '');
-  if (!id) return json(502, { error: 'ما قدرنا نجهز مساحة شركتك، جرّب بعد شوي' });
+  if (!id) { console.error('maestro_connect_failed', 'the engine answered without a company id'); return json(502, { error: 'ما قدرنا نجهز مساحة شركتك، جرّب بعد شوي' }); }
   const r = await sb(cfg, `/rest/v1/companies?id=eq.${user.co}&paperclip_company_id=is.null`, { method: 'PATCH', admin: true, body: { paperclip_company_id: id } });
   if (!r.ok) return json(500, { error: 'ما انحفظ الربط' });
   await audit(cfg, user, 'maestro_connected', { target: { paperclip_company_id: id } });
@@ -149,6 +152,11 @@ export const approval = { POST: handle(async (request, e: Env) => {
 
 // AI cost: spend per tab and month, the owner's caps, the invoice check (src/modules/maestro/usage.ts)
 export { usage, budgets, reconcile } from './usage';
+// Which provider and model each AI task runs on (src/modules/maestro/models.ts)
+export { models } from './models';
+
+// «تدقيق القرارات»: the verdict auditor, owner only (src/modules/auditor/owner-routes.ts, named so the route-table glob mounts it only through maestro)
+export { auditRoute as audit, critiqueRoute as critique } from '../auditor/owner-routes';
 
 // The owner's CRM diagnostic: counts, sums and dates only (health.ts), never a name, phone or lead id.
 export const crm = { GET: handle(async (request, e: AuthEnv) => {

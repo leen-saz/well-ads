@@ -17,8 +17,8 @@ import { ClientRouter } from 'astro:transitions';
 <ClientRouter />
 <style is:global>
 .log-f{gap:10px;flex-wrap:wrap;align-items:flex-end;margin:0 0 14px}
-.log-f label{display:grid;gap:4px;font-size:13px;color:var(--muted);min-width:150px}
-.log-f .log-q{flex:1;min-width:220px}
+.log-f>label{display:grid;gap:4px;font-size:13px;color:var(--muted);min-width:150px}
+.log-f>.log-q{flex:1;min-width:220px}
 .log-f input{height:40px}
 .acc{display:grid;grid-template-columns:repeat(auto-fill,minmax(230px,1fr));gap:8px;margin:6px 0 0}
 .acc-row{display:flex;align-items:center;gap:8px;padding:6px 10px;border:1px solid var(--line);border-radius:12px}
@@ -50,11 +50,30 @@ import { ClientRouter } from 'astro:transitions';
           <div class="msg" id="addMsg" role="status"></div>
         </form>
       </section>
+      <section class="card pad" style="margin-top:16px">
+        <h2>إضافة مستخدم مباشرة</h2>
+        <p class="muted" style="margin:0">بدون إيميل: تكتب له باسوورد مؤقت وتعطيه إياه بنفسك، وهو يغيّره بعد أول دخول من حسابه. استخدمها لو الدعوة ما وصلت.</p>
+        <form id="addDirect" novalidate>
+          <div class="bar" style="align-items:flex-end">
+            <div style="flex:1;min-width:220px"><label for="dEmail">الإيميل</label><input type="email" id="dEmail" required></div>
+            <div style="flex:1;min-width:180px"><label for="dName">الاسم</label><input type="text" id="dName"></div>
+          </div>
+          <div class="bar" style="align-items:flex-end">
+            <div style="flex:1;min-width:220px"><label for="dPass">باسوورد مؤقت</label><input type="text" id="dPass" autocomplete="off" spellcheck="false" dir="ltr"></div>
+            <button class="btn secondary" type="button" id="dGen">ولّد باسوورد قوي</button>
+          </div>
+          <div class="muted" id="dPassNote" style="margin-top:6px"></div>
+          <label>الصلاحيات <span class="muted">(لكل تاب: مشاهدة، تعديل، أو موافقة)</span></label><div class="acc-presets" id="dPresets"></div><div class="acc" id="dDashChecks"></div>
+          <label>الأقسام المسموحة <span class="muted">(بدون تحديد = كل الأقسام. مدير القسم يشوف تحليلات قسمه بس)</span></label><div class="checks" id="dDeptChecks"></div>
+          <div class="bar" style="margin-top:20px"><button class="btn primary" type="submit">أضف المستخدم</button></div>
+          <div class="msg" id="dMsg" role="status"></div>
+        </form>
+      </section>
       <section class="card" style="margin-top:16px"><div class="pad" style="padding-bottom:0"><h2>المستخدمون وصلاحياتهم</h2></div><div class="tbl" id="users"></div><div class="pad" style="padding-top:0"><div class="msg" id="usersMsg" role="status"></div></div></section>
-      <section class="card" style="margin-top:16px"><div class="pad" style="padding-bottom:0"><h2>سجل الدخول والنشاط</h2><p class="muted" style="margin:0 0 12px">السجل ما ينعدّل ولا ينحذف. بدون تاريخ: آخر 200 فعل.</p>
+      <section class="card" style="margin-top:16px" id="orphanCard" hidden><div class="pad" style="padding-bottom:0"><h2>حسابات بدون صلاحيات</h2><p class="muted" style="margin:0 0 12px">حسابات تقدر تدخل بس ما لها ملف في اللوحة، فما تطلع في القائمة فوق. أعطها صلاحيات من هنا.</p></div><div class="tbl" id="orphans"></div><div class="pad" style="padding-top:0"><div class="msg" id="orphanMsg" role="status"></div></div></section>
+      <section class="card" style="margin-top:16px"><div class="pad" style="padding-bottom:0"><h2>سجل الدخول والنشاط</h2><p class="muted" style="margin:0 0 12px">السجل ما ينعدّل ولا ينحذف. كل الفترة: آخر 200 فعل.</p>
         <div class="bar log-f" role="search">
-          <label>من <input type="date" id="logFrom"></label>
-          <label>إلى <input type="date" id="logTo"></label>
+          <div id="logPeriod"></div>
           <label class="log-q">بحث <input type="search" id="logQ" placeholder="إيميل، فعل، أو هدف"></label>
           <span class="muted" id="logN" aria-live="polite"></span>
         </div></div><div class="tbl" id="log"></div></section>

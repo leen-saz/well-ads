@@ -33,9 +33,12 @@ export function postsOf(organic) {
   return out.filter(p => p.caption || p.text);
 }
 
+/** @param {any[]} posts @param {string[]} [keywords] @param {number | {from: string, to: string}} [days] @param {string} [today] @returns {any} */
+// `days` is a number (the last N days up to `today`) or a day range { from, to } (both days included)
 export function analyze(posts, keywords = [], days = 90, today = new Date().toISOString().slice(0, 10)) {
-  const from = new Date(Date.parse(today) - days * 864e5).toISOString().slice(0, 10);
-  const P = posts.filter(p => !p.date || String(p.date).slice(0, 10) >= from);
+  const range = days && typeof days === 'object';
+  const from = range ? days.from : new Date(Date.parse(today) - days * 864e5).toISOString().slice(0, 10), to = range ? days.to : '9999-12-31';
+  const P = posts.filter(p => !p.date || (String(p.date).slice(0, 10) >= from && String(p.date).slice(0, 10) <= to));
   const avg = P.length ? P.reduce((s, p) => s + p.eng, 0) / P.length : 0;
   const medE = median(P.map(p => p.eng)), medC = median(P.map(p => p.comments || 0));
 

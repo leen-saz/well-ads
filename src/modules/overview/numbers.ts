@@ -4,7 +4,12 @@
 
 import { pageLang } from './lang';
 
-export interface Ad { name: string; campaign: string; platform: string; dept?: string; goal?: string; status?: string; live?: boolean; group?: string }
+export interface Ad { name: string; campaign: string; platform: string; dept?: string; goal?: string; dest?: string; status?: string; live?: boolean; group?: string }
+// Cost per lead counts only lead-goal spend whose leads the platform can measure. A TikTok ad that opens WhatsApp reports
+// no leads there, so its spend stays out (same rule as pipeline/dash/03-agg.js). dest is 'whatsapp' | 'unknown' | absent.
+export const isWhatsappDest = (a: { dest?: string }): boolean => a.dest === 'whatsapp';
+export const countsAsLead = (a: { goal?: string; dest?: string }): boolean => a.goal === 'lead' && !isWhatsappDest(a);
+
 export interface Coverage { coverage_end?: string; synced_at?: string; ok?: boolean; stale_from?: string }
 export interface Dash {
   ads?: Record<string, Ad>; rows?: unknown[][]; generated_at?: string;

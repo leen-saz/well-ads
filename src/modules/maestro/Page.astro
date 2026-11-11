@@ -29,6 +29,7 @@ import { ClientRouter } from 'astro:transitions';
 .mx-bar{display:flex;gap:12px;align-items:center;justify-content:space-between;flex-wrap:wrap;border-bottom:1px solid var(--line);margin:0 0 12px}
 .mx-tabs{display:flex;gap:2px}
 .mx-tabs button{height:44px;padding:0 14px;border:0;background:none;color:var(--muted);font:600 14px var(--f-ar);cursor:pointer;border-bottom:2px solid transparent;margin-bottom:-1px;display:inline-flex;gap:6px;align-items:center}
+.mx-gh{margin:18px 0 8px;font-size:13px;font-weight:600;color:var(--muted)}
 .mx-tabs button[aria-selected="true"]{color:var(--text);border-bottom-color:var(--accent)}
 .mx-cnt{font:600 11px var(--f-num);background:var(--accent);color:#fff;border-radius:999px;padding:1px 7px}.mx-cnt:empty{display:none}
 .mx-tools{display:flex;gap:8px;align-items:center;padding:6px 0}
@@ -42,6 +43,29 @@ import { ClientRouter } from 'astro:transitions';
 .sp-tab input{margin:0;height:36px;max-width:140px}
 .sp-tab b.n{font:600 15px var(--f-num)}
 .sp-hd{font-size:12px;color:var(--muted)}
+/* model routing: task · provider · model · save, then the current line; one card per task on phones */
+.mr-hd,.mr-rt{display:grid;grid-template-columns:minmax(110px,.8fr) minmax(150px,1fr) minmax(0,1.8fr) auto;gap:6px 12px;align-items:center}
+.mr-hd{font-size:12px;color:var(--muted);padding:10px 0 6px}
+.mr-rt{padding:12px 0;border-top:1px solid var(--line)}
+.mr-task{font-size:15px}
+.mr-f{min-width:0}.mr-f select,.mr-f input{margin:0;height:40px;width:100%;min-width:0}
+.mr-f input{font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:13px;text-align:start}
+.mr-f input:disabled{background:var(--tint);color:var(--muted)}.mr-f input[aria-invalid="true"]{border-color:var(--pulse)}
+.mr-lbl{display:none;margin:0 0 4px;font-size:12px;color:var(--muted)}
+.mr-s .btn{min-width:84px}
+.mr-cur{grid-column:2 / -1;display:flex;gap:8px;align-items:center;flex-wrap:wrap;font-size:13px;min-width:0}
+.mr-now{display:flex;gap:6px 8px;align-items:center;flex-wrap:wrap;min-width:0;max-width:100%}
+.mr-id{direction:ltr;unicode-bidi:isolate;display:inline-block;max-width:min(100%,340px);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;vertical-align:middle;padding:2px 8px;border-radius:8px;background:var(--tint);font:12px ui-monospace,SFMono-Regular,Menlo,monospace}
+.mr-cost{font-size:12px;padding:1px 9px;border-radius:999px;background:var(--tint-2)}.mr-cost.free{background:color-mix(in srgb,#2e9e6b 16%,transparent)}
+.mr-rmsg{grid-column:2 / -1}.mr-rmsg .msg{margin:0;min-height:0;font-size:13px}.mr-rmsg .msg:empty{display:none}
+@media (max-width:760px){
+  .mr-hd{display:none}
+  .mr-rt{grid-template-columns:1fr;padding:14px;margin-top:10px;border:1px solid var(--line);border-radius:16px;background:var(--surface)}
+  .mr-lbl{display:block}.mr-cur,.mr-rmsg{grid-column:auto}.mr-s .btn{width:100%}
+}
+.mr-err{display:flex;gap:12px;align-items:flex-start;padding:14px 16px;border-radius:16px;border:1px solid color-mix(in srgb,var(--pulse) 40%,transparent);background:color-mix(in srgb,var(--pulse) 8%,transparent);margin-top:12px}
+.mr-err>svg{flex:none;width:22px;height:22px;color:var(--pulse);margin-top:2px}.mr-err p{margin:4px 0 0;font-size:14px}.mr-err .btn{margin-top:12px}
+.mr-cd{font:600 12px var(--f-num);min-width:30px}
 .sp-flag{font-size:12px;padding:2px 10px;border-radius:999px;background:var(--tint-2)}
 .sp-flag.bad{background:color-mix(in srgb,var(--pulse) 14%,transparent)}
 .sp-total{font:700 28px var(--f-num);margin:6px 0 0}
@@ -61,7 +85,7 @@ import { ClientRouter } from 'astro:transitions';
 .mx-empty{display:grid;place-items:center;gap:10px;padding:48px 16px;color:var(--muted);text-align:center}
 .mx-empty .i{width:40px;height:40px;padding:10px;border-radius:12px;background:var(--tint)}
 .mx-tree{display:grid;gap:6px}.mx-tree .mx-tree{padding-inline-start:24px;border-inline-start:1px dashed var(--line);margin-inline-start:12px}
-.mx-dlg{border:0;border-radius:20px;padding:24px;width:min(560px,92vw);box-shadow:var(--shadow-lg);background:var(--surface);color:var(--text)}
+.mx-dlg{overflow:visible;border:0;border-radius:20px;padding:24px;width:min(560px,92vw);box-shadow:var(--shadow-lg);background:var(--surface);color:var(--text)}
 .mx-dlg::backdrop{background:rgba(29,16,105,.25)}
 .mx-chat{display:grid;gap:12px;max-width:760px}
 .mx-thread{display:grid;gap:8px;max-height:55vh;overflow-y:auto;padding:4px}
@@ -83,7 +107,7 @@ import { ClientRouter } from 'astro:transitions';
   <div class="main">
     <header class="topbar" id="top"></header>
     <main class="content" id="content">
-      <p class="muted" style="margin:0 0 12px"><a id="healthLink" href="/maestro/health/" hidden>صحة الداتا ←</a></p>
+      <p class="muted" style="margin:0 0 12px"><a id="healthLink" href="/maestro/health/" hidden>صحة الداتا ←</a> <a id="auditLink" href="/maestro/audit/" hidden style="margin-inline-start:12px">تدقيق القرارات ←</a></p>
       <section class="card pad" id="spend" hidden aria-labelledby="spendH">
         <div class="mx-bar" style="border:0;margin:0"><h2 id="spendH" style="margin:0">الصرف على الذكاء الاصطناعي</h2>
           <label class="sr" for="spendMonth"><select id="spendMonth" aria-label="الشهر"></select></label></div>
@@ -92,7 +116,7 @@ import { ClientRouter } from 'astro:transitions';
         <div id="spendBody"></div>
         <details style="margin-top:14px"><summary>طابق الصرف مع الفاتورة</summary>
           <form id="recForm" novalidate class="sp-rec">
-            <div><label for="recProv">الفاتورة</label><select id="recProv"><option value="openai">مزوّد الكتابة والتصميم</option><option value="xai">مزوّد السوشال والرصد والمدير</option></select></div>
+            <div><label for="recProv">الفاتورة</label><select id="recProv"><option value="openai">مزوّد الكتابة والتصميم</option><option value="xai">مزوّد السوشال والرصد والمدير</option><option value="gemini">مزوّد التفريغ والصوت والصور</option><option value="openrouter">OpenRouter</option></select></div>
             <div><label for="recMonth">الشهر</label><select id="recMonth"></select></div>
             <div><label for="recUsd">مبلغ الفاتورة بالدولار</label><input type="number" id="recUsd" inputmode="decimal" min="0" step="0.01" dir="ltr"></div>
             <div class="bar" style="align-self:end"><button class="btn secondary" type="submit">قارن</button></div>
@@ -100,6 +124,13 @@ import { ClientRouter } from 'astro:transitions';
           <div id="recOut" role="status"></div>
         </details>
         <div class="msg" id="spendMsg" role="status"></div>
+      </section>
+      <section class="card pad" id="models" hidden aria-labelledby="modelsH">
+        <h2 id="modelsH" style="margin:0 0 4px">موديلات الذكاء الاصطناعي لكل مهمة</h2>
+        <p class="so-note">كل مهمة تشتغل على مزوّدها الافتراضي لين تختار غيره هنا. للمالك بس. لو المزوّد غير مفعّل ترجع المهمة لمزوّدها الافتراضي.</p>
+        <div id="modelsProv" class="bar" style="flex-wrap:wrap;gap:8px"></div>
+        <div id="modelsBody"></div>
+        <div class="msg" id="modelsMsg" role="status"></div>
       </section>
       <div id="setup"></div>
       <div id="board" hidden>
@@ -135,8 +166,8 @@ import { ClientRouter } from 'astro:transitions';
         </form>
       </dialog>
       <dialog id="pdlg" class="mx-dlg" aria-labelledby="perfName">
-        <div class="mx-bar"><h2 id="perfName" style="margin:0"></h2>
-          <div class="seg" id="perfDays" role="group" aria-label="الفترة"><button type="button" data-days="7">7 أيام</button><button type="button" data-days="30">30 يوم</button></div></div>
+        <div class="mx-bar" style="border:0"><h2 id="perfName" style="margin:0"></h2></div>
+        <div id="perfPeriod" style="margin:0 0 12px"></div>
         <div id="perfBody"></div>
         <div class="bar" style="margin-top:16px"><button class="btn ghost" type="button" id="perfClose">إغلاق</button></div>
       </dialog>

@@ -1,6 +1,8 @@
 // المدير: تبويبات (لوحة، الوارد، المهام، الإيجنتس، المحادثة) بالرابط، قائمة أو لوحة، فلاتر، بحث، ومهمة جديدة في نافذة.
 // اختصارات: C مهمة جديدة، / بحث، 1-5 التبويبات.
-import { $, $$, api, say, esc, fmt, shell, busy, pageSignal, failure, pageFailure, when } from '/assets/common.js';
+import { LANG, $, $$, api, say, esc, fmt, shell, busy, pageSignal, failure, pageFailure, when, icon } from '/assets/common.js';
+import { t } from '/assets/i18n.js';
+import { mountPeriod } from '/assets/period.js';
 
 // Runs on every visit of this page (assets/router.js calls it after each ClientRouter navigation).
 export default async function mount() {
@@ -35,6 +37,18 @@ export default async function mount() {
   const working = id => (S.issues || []).find(i => i.assigneeAgentId === id && i.status === 'in_progress');
   const matches = (...xs) => { const q = $('#q').value.trim().toLowerCase(); return !q || xs.some(x => String(x || '').toLowerCase().includes(q)); };
 
+  // The same groups as the sidebar (S.groups, from the server): lists and the task picker are grouped by them
+  const GEN = ['general', 'عام', 'General'];
+  const glabel = g => (LANG === 'en' ? g.en : g.ar);
+  const tabGroup = k => (S.tabs || []).find(t => t.key === k)?.group || GEN[0];
+  const issueGroup = i => tabGroup((S.projectTabs || {})[i.projectId]);
+  const agentGroup = id => issueGroup((S.issues || []).find(i => i.assigneeAgentId === id && (S.projectTabs || {})[i.projectId]) || {});
+  const grouped = (items, keyOf, render) => {
+    const gs = [...(S.groups || []), { key: GEN[0], ar: GEN[1], en: GEN[2] }];
+    return gs.map(g => { const xs = items.filter(x => (gs.some(y => y.key === keyOf(x)) ? keyOf(x) : GEN[0]) === g.key);
+      return xs.length ? `<section class="mx-grp"><h3 class="mx-gh">${esc(glabel(g))} <span class="muted">${xs.length}</span></h3><div class="mx-list">${xs.map(render).join('')}</div></section>` : ''; }).join('');
+  };
+
   // ---- the views
   const taskRow = i => `<article class="card mx-item"><span class="mx-dot ${esc(i.status)}" title="${esc(S.statuses[i.status] || i.status)}"></span><span class="mx-id">${esc(i.identifier || '')}</span>
     <b>${esc(i.title || '')}</b>${tabName(i) ? `<span class="so-chip mx-tab">${esc(tabName(i))}</span>` : ''}<span class="muted">${esc(names()[i.assigneeAgentId] || '')}</span><span class="so-chip">${esc(S.statuses[i.status] || i.status)}</span></article>`;
@@ -58,7 +72,7 @@ export default async function mount() {
   function tasks() {
     const is = (S.issues || []).filter(i => (filter === 'all' || i.status === filter) && matches(i.title, i.identifier, names()[i.assigneeAgentId], tabName(i)));
     if (!is.length) return empty('tasks', 'ما فيه مهام تطابق الفلتر أو البحث.', 'أنشئ مهمة');
-    if (layout === 'list') return `<div class="mx-list">${is.map(taskRow).join('')}</div>`;
+    if (layout === 'list') return grouped(is, issueGroup, taskRow);
     return `<div class="mx-cols">${COLS.map(c => { const col = is.filter(i => i.status === c || (c === 'todo' && i.status === 'backlog'));
       return `<section class="mx-col"><h3><span class="mx-dot ${c}"></span>${esc(S.statuses[c] || c)} <span class="muted">${col.length}</span></h3>${col.map(taskRow).join('')}</section>`; }).join('')}</div>`;
   }
@@ -69,7 +83,7 @@ export default async function mount() {
     const card = a => `<article class="card mx-item" data-agent="${esc(a.id)}"><span class="mx-dot ${a.status === 'running' ? 'in_progress' : a.status === 'error' ? 'blocked' : a.status === 'paused' ? 'cancelled' : 'done'}"></span>
       <b>${esc(a.name)}</b><span class="muted">${esc(a.title || a.role || '')}</span><span class="so-chip">${AG[a.status] || esc(a.status)}</span>
       ${spend(a)}${tabsOf(a.id).length ? `<span class="muted">التابات: ${esc(tabsOf(a.id).join('، '))}</span>` : ''}${working(a.id) ? `<span class="mx-now">يشتغل على: ${esc(working(a.id).identifier || '')} ${esc(working(a.id).title || '')}</span>` : ''}<button type="button" class="btn sm ghost" data-perf>الأداء</button></article>`;
-    if (layout === 'list') return `<div class="mx-list">${as.map(card).join('')}</div>`;
+    if (layout === 'list') return grouped(as, a => agentGroup(a.id), card);
     // Org chart: who reports to whom
     const ids = new Set(as.map(a => a.id));
     const tree = parent => { const kids = as.filter(a => (a.reportsTo && ids.has(a.reportsTo) ? a.reportsTo : null) === parent);
@@ -121,18 +135,39 @@ export default async function mount() {
     history.replaceState(history.state, '', u);
   }
 
+
+  // Connecting the company: a failure is an explained state with a retry that waits a little, never a bare line.
+  // The engine's own reason stays in the server logs (routes.ts); the page only says what happened in plain words.
+  let cool = 0;
+  async function connect(e) {
+    const btn = e.currentTarget; busy(btn, true); $('#cmsg').innerHTML = '';
+    try { await api('/api/maestro/connect', { method: 'POST', body: {} }); await load(); }
+    catch {
+      busy(btn, false);
+      const when_ = new Intl.DateTimeFormat(document.documentElement.lang === 'en' ? 'en-GB' : 'ar-SA-u-nu-latn', { hour: 'numeric', minute: '2-digit', timeZone: 'Asia/Riyadh' }).format(new Date());
+      $('#cmsg').innerHTML = `<div class="mr-err" role="alert">${icon('alert')}<div>
+        <strong>ما قدرنا نجهز مساحة شركتك</strong>
+        <p>صار خلل مؤقت عندنا وما انحفظ شي. جرّب مرة ثانية بعد لحظات.</p>
+        <p class="muted">لو تكرر الخلل، تواصل مع الدعم وخبره بوقت المحاولة: <bdi dir="ltr">${esc(when_)}</bdi></p>
+        <button class="btn sm secondary" type="button" id="cretry" disabled><span>أعد المحاولة</span> <span class="mr-cd" dir="ltr"></span></button></div></div>`;
+      const rb = $('#cretry'), cd = rb.querySelector('.mr-cd'); cool = 20;
+      const tick = () => { if (!rb.isConnected) return; if (cool > 0) { cd.textContent = '0:' + String(cool--).padStart(2, '0'); setTimeout(tick, 1000); } else { cd.textContent = ''; rb.disabled = false; } };
+      tick(); rb.addEventListener('click', connect);
+    }
+  }
+
   async function load() {
     try { S = await api('/api/maestro/state'); }
     catch (err) { failure($('#setup'), err, load); return; }
     if (!S.connected) {
       $('#setup').innerHTML = `<section class="card pad" style="max-width:640px"><h2>اربط شركتك بالمدير</h2><p class="muted">يجهز لشركتك مساحة فيها إيجنتس، ومهام، وميزانية، وموافقات.</p>
-        ${S.owner ? '<button class="btn primary" id="connect">اربط</button>' : '<p class="muted">الربط من المالكة.</p>'}<div class="msg" id="cmsg" role="status"></div></section>`;
-      $('#connect')?.addEventListener('click', async e => { busy(e.target, true); try { await api('/api/maestro/connect', { method: 'POST', body: {} }); await load(); } catch (err) { say($('#cmsg'), err.message); busy(e.target, false); } });
+        ${S.owner ? '<button class="btn primary" id="connect">اربط</button>' : '<p class="muted">الربط من المالك.</p>'}<div id="cmsg" aria-live="polite"></div></section>`;
+      $('#connect')?.addEventListener('click', connect);
       return;
     }
     $('#setup').innerHTML = ''; $('#board').hidden = false;
     if (!$('#agent').dataset.done) { $('#agent').insertAdjacentHTML('beforeend', (S.agents || []).map(a => `<option value="${esc(a.id)}">${esc(a.name)}${a.title ? ' · ' + esc(a.title) : ''}</option>`).join('')); $('#agent').dataset.done = '1'; }
-    if (!$('#tab').dataset.done) { $('#tab').insertAdjacentHTML('beforeend', (S.tabs || []).map(t => `<option value="${esc(t.key)}">${esc(t.ar)}</option>`).join('')); $('#tab').dataset.done = '1'; }
+    if (!$('#tab').dataset.done) { $('#tab').insertAdjacentHTML('beforeend', (S.groups || []).map(g => { const ts = (S.tabs || []).filter(t => t.group === g.key); return ts.length ? `<optgroup label="${esc(glabel(g))}">${ts.map(t => `<option value="${esc(t.key)}">${esc(t.ar)}</option>`).join('')}</optgroup>` : ''; }).join('')); $('#tab').dataset.done = '1'; }
     draw();
   }
 
@@ -166,22 +201,25 @@ export default async function mount() {
     catch (err) { say($('#msg'), err.message); busy(b, false); }
   });
   // ---- an agent's performance card (/api/maestro/agent): tasks done, spend, success rate, task time, last error
-  let perfAgent = null, perfDays = 30;
+  let perfAgent = null, perfRange = null, perfBar = null, perfSeq = 0;
   const n = (v, unit = '') => v == null ? '—' : `${fmt(v)}${unit}`;
   async function perf() {
-    const a = (S.agents || []).find(x => x.id === perfAgent); if (!a) return;
+    const a = (S.agents || []).find(x => x.id === perfAgent); if (!a || !perfRange) return;
     $('#perfName').textContent = a.name + (a.title || a.role ? ' · ' + (a.title || a.role) : '');
-    $$('#perfDays [data-days]').forEach(b => b.setAttribute('aria-pressed', String(Number(b.dataset.days) === perfDays)));
     $('#perfBody').innerHTML = '<p class="muted">يحمّل…</p>';
+    const mine = ++perfSeq; // a slower answer for an earlier period must not overwrite the newer one
     try {
-      const p = await api(`/api/maestro/agent?id=${encodeURIComponent(a.id)}&days=${perfDays}`);
+      const p = await api(`/api/maestro/agent?id=${encodeURIComponent(a.id)}&from=${perfRange.from}&to=${perfRange.to}`);
+      if (mine !== perfSeq) return;
       const k = [[n(p.done), 'مهام خلصت'], [p.spentCents == null ? '—' : usd(p.spentCents), 'الصرف'], [n(p.successRate, '%'), `نجاح التشغيلات (${n(p.runs)})`], [n(p.avgTaskMinutes, ' د'), 'متوسط وقت المهمة']];
       $('#perfBody').innerHTML = `<div class="mx-kpis">${k.map(([v, t]) => `<div class="card mx-kpi"><b>${esc(v)}</b><span>${t}</span></div>`).join('')}</div>
         ${spend(a)}<p class="muted">آخر تشغيل: ${p.lastRunAt ? esc(when(p.lastRunAt)) : '—'}</p>${p.lastError ? `<p class="so-note">آخر خطأ: ${esc(p.lastError)}</p>` : ''}`;
-    } catch (err) { failure($('#perfBody'), err, perf); }
+    } catch (err) { if (mine === perfSeq) failure($('#perfBody'), err, perf); }
   }
-  $('#view').addEventListener('click', e => { const b = e.target.closest('[data-perf]'); if (!b) return; perfAgent = b.closest('[data-agent]').dataset.agent; $('#pdlg').showModal(); perf(); });
-  $('#perfDays').addEventListener('click', e => { const b = e.target.closest('[data-days]'); if (b) { perfDays = Number(b.dataset.days); perf(); } });
+  $('#view').addEventListener('click', e => { const b = e.target.closest('[data-perf]'); if (!b) return; perfAgent = b.closest('[data-agent]').dataset.agent;
+    // the same period bar as the other pages, made the first time the card opens; changing it reloads the card
+    perfBar ||= mountPeriod($('#perfPeriod'), { id: 'maestro-agent', def: '30', url: false, onChange: r => { perfRange = r; if ($('#pdlg').open) perf(); } });
+    $('#pdlg').showModal(); perf(); });
   $('#perfClose').onclick = () => $('#pdlg').close();
   $('#cancel').onclick = () => $('#dlg').close();
   $('#f').addEventListener('submit', async e => {
@@ -240,5 +278,66 @@ export default async function mount() {
     busy(b, false);
   });
 
-  shell({ active: 'maestro', title: 'المدير', tools: '' }).then(me => { if (me.role === 'owner') $('#healthLink')?.removeAttribute('hidden'); mountSpend(); return load(); }).catch(pageFailure);
+  // ---- which provider and model each AI task runs on (owner only, like the spend above)
+  const PNAME = { openai: 'OpenAI', xai: 'Grok', openrouter: 'OpenRouter', workers: 'المجاني', anthropic: 'Claude' };   // the free one is Cloudflare's Workers AI
+  const FREE = new Set(['workers']);
+  // A few sensible OpenRouter ids for the picker; any other id can still be typed
+  const OR_PICKS = ['openai/gpt-5-mini', 'google/gemini-2.5-flash', 'anthropic/claude-haiku-5-5', 'meta-llama/llama-3.3-70b-instruct', 'deepseek/deepseek-chat'];
+  const NEEDS_MODEL = new Set(['openrouter', 'openai', 'xai']);   // the other providers have one model each
+  const MODEL_HINT = { openrouter: 'مثال: openai/gpt-5-mini', openai: 'فاضي = الموديل المعتاد', xai: 'فاضي = الموديل المعتاد' };
+  const opt = (v, label, on = true, sel = '') => `<option value="${esc(v)}"${sel === v ? ' selected' : ''}${on ? '' : ' disabled'}>${esc(label)}</option>`;
+  // The model id: always left-to-right, one line, cut with … and the whole id in the tooltip
+  const idChip = m => m ? `<code class="mr-id" dir="ltr" title="${esc(m)}" data-user-text>${esc(m)}</code>` : '';
+  const nowLine = r => {
+    if (!r.using) return `<span class="mr-now off"><b>الحالي</b>: <span>غير متصل</span> <span class="muted">· المزوّد مو مفعّل</span></span>`;
+    const free = FREE.has(r.using);
+    return `<span class="mr-now"><b>الحالي</b>: <span>${esc(PNAME[r.using] || '')}</span> ${idChip(r.model)} <span class="mr-cost${free ? ' free' : ''}">${free ? 'مجاني' : 'مدفوع حسب الاستخدام'}</span> <span class="muted">· ${r.route ? 'اخترته أنت' : 'الافتراضي'}</span></span>`;
+  };
+  function modelRow(r, d) {
+    const p = r.route?.provider || '', m = r.route?.model || '';
+    return `<form class="mr-rt" data-task="${esc(r.task)}" data-p="${esc(p)}" data-m="${esc(m)}" novalidate>
+      <b class="mr-task">${esc(r.ar)}</b>
+      <div class="mr-f"><label class="mr-lbl" for="mp-${esc(r.task)}">المزوّد</label>
+        <select id="mp-${esc(r.task)}" name="provider">${opt('', `الافتراضي (${PNAME[r.default] || ''})`, true, p)}${d.providers.map(x => opt(x.key, PNAME[x.key] || x.ar, x.on, p)).join('')}</select></div>
+      <div class="mr-f"><label class="mr-lbl" for="mm-${esc(r.task)}">الموديل</label>
+        <input id="mm-${esc(r.task)}" type="text" name="model" dir="ltr" autocomplete="off" spellcheck="false" data-user-text value="${esc(m)}"></div>
+      <div class="mr-s"><button class="btn sm primary" type="submit" disabled>احفظ</button></div>
+      <div class="mr-cur">${nowLine(r)}</div>
+      <div class="mr-rmsg" role="status" aria-live="polite"><div class="msg"></div></div></form>`;
+  }
+  // The model box follows the provider: only providers with a choice of models take one, and only OpenRouter gets the picker
+  function syncRow(f) {
+    const p = f.elements.provider.value, inp = f.elements.model, need = NEEDS_MODEL.has(p);
+    inp.disabled = !need;
+    inp.placeholder = need ? t(MODEL_HINT[p]) : t(p === 'workers' ? 'ما يحتاج موديل' : 'ما يتغير');
+    if (p === 'openrouter') inp.setAttribute('list', 'mxOr'); else inp.removeAttribute('list');
+    if (!need) inp.value = '';
+    inp.removeAttribute('aria-invalid');
+    const same = p === f.dataset.p && (need ? inp.value.trim() : '') === (need ? f.dataset.m : '');
+    f.querySelector('button[type=submit]').disabled = same;
+  }
+  async function mountModels(done) {
+    let d;
+    try { d = await api('/api/maestro/models'); }
+    catch (err) { if (/الجدول ناقص/.test(err.message)) { $('#models').hidden = false; $('#modelsBody').innerHTML = `<p class="muted">${esc(err.message)}</p>`; } return; }
+    $('#models').hidden = false;
+    $('#modelsProv').innerHTML = d.providers.map(p => `<span class="sp-flag${p.on ? '' : ' bad'}"><span>${esc(PNAME[p.key] || p.ar)}</span> <span>${p.on ? 'مفعّل' : 'غير مفعّل'}</span></span>`).join('');
+    $('#modelsBody').innerHTML = `<datalist id="mxOr">${OR_PICKS.map(x => `<option value="${esc(x)}"></option>`).join('')}</datalist>
+      <div class="mr-hd" aria-hidden="true"><span>المهمة</span><span>المزوّد</span><span>الموديل</span><span></span></div>` + d.tasks.map(x => modelRow(x, d)).join('');
+    $$('#modelsBody form').forEach(f => { syncRow(f); if (done && done.task === f.dataset.task) say(f.querySelector('.mr-rmsg .msg'), done.text, true); });
+  }
+  $('#modelsBody').addEventListener('input', e => { const f = e.target.closest('form'); if (f) { say(f.querySelector('.mr-rmsg .msg'), ''); syncRow(f); } });
+  $('#modelsBody').addEventListener('submit', async e => {
+    e.preventDefault();
+    const f = e.target.closest('[data-task]'); if (!f) return;
+    const msg = f.querySelector('.mr-rmsg .msg'), p = f.elements.provider.value, m = f.elements.model.value.trim();
+    if (p === 'openrouter' && !m) { f.elements.model.setAttribute('aria-invalid', 'true'); f.elements.model.focus(); say(msg, 'اكتب معرّف الموديل أو اختره من القائمة'); return; }
+    const b = e.submitter || f.querySelector('button[type=submit]'); busy(b, true);
+    try {
+      await api('/api/maestro/models', { method: 'POST', body: { task: f.dataset.task, provider: p, model: m } });
+      await mountModels({ task: f.dataset.task, text: p ? 'انحفظ الاختيار' : 'رجعت المهمة للافتراضي' });
+    } catch (err) { say(msg, err.message); busy(b, false); }
+  });
+
+  shell({ active: 'maestro', title: 'المدير', tools: '' }).then(me => { if (me.role === 'owner') { $('#healthLink')?.removeAttribute('hidden'); $('#auditLink')?.removeAttribute('hidden'); mountModels(); } mountSpend(); return load(); }).catch(pageFailure);
 }

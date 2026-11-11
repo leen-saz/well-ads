@@ -18,7 +18,7 @@ export const password = {
   GET: handle(async (request, e) => {
     const { user } = await requireUser(request, e, 'any');
     // The sidebar draws every module from here: locked = switched off for the company, ok = this user may open it
-    const modules = MODULES.map(m => ({ key: m.key, ar: m.ar, en: m.en, icon: m.icon, group: m.group, status: m.status, does: m.does, doesEn: m.doesEn, pages: m.pages ?? [],
+    const modules = MODULES.map(m => ({ key: m.key, ar: m.ar, en: m.en, icon: m.icon, group: m.group, status: m.status, does: m.does, doesEn: m.doesEn, pages: m.pages ?? [], into: m.into ?? '',
       locked: !!user.off?.includes(m.key), ok: m.status === 'soon' || can(user, m.key) }));
     return json(200, { email: user.email, name: user.name, role: user.role, dashboards: user.dash, departments: user.depts || [], modules });
   }),

@@ -2,8 +2,10 @@
 // الضغط على إعلان يفتح لوحة جانبية فيها أرقامه اليومية.
 import * as React from 'react';
 import {
-  type ColumnDef, type SortingState, type VisibilityState,
-  flexRender, getCoreRowModel, getFilteredRowModel, getPaginationRowModel, getSortedRowModel, useReactTable,
+  type ColumnDef, type ColumnVisibilityState, type PaginationState, type SortingState,
+  columnFilteringFeature, columnVisibilityFeature, createFilteredRowModel, createPaginatedRowModel, createSortedRowModel,
+  filterFn_equals, flexRender, globalFilteringFeature, rowPaginationFeature, rowSortingFeature, sortFn_basic,
+  tableFeatures, useTable,
 } from '@tanstack/react-table';
 import { ArrowUpDown, ChevronLeft, ChevronRight, Columns3 } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
@@ -19,6 +21,17 @@ import { DayChart } from './TrendChart';
 import { pct, qty, sar } from './format';
 import { T, pageLang } from './lang';
 
+// v9: every feature the table uses is declared once, up front; unused ones stay out of the bundle
+const features = tableFeatures({
+  rowSortingFeature, columnFilteringFeature, globalFilteringFeature, columnVisibilityFeature, rowPaginationFeature,
+  sortedRowModel: createSortedRowModel(),
+  filteredRowModel: createFilteredRowModel(),
+  paginatedRowModel: createPaginatedRowModel(),
+  sortFns: { basic: sortFn_basic },
+  filterFns: { equals: filterFn_equals },
+});
+type Feats = typeof features;
+
 // Labels are read when the table draws, so they follow the page language
 const sortable = (ar: string, en: string) => function Head({ column }: { column: { toggleSorting: (desc?: boolean) => void; getIsSorted: () => false | 'asc' | 'desc' } }) {
   return (
@@ -28,7 +41,7 @@ const sortable = (ar: string, en: string) => function Head({ column }: { column:
   );
 };
 
-const columns: ColumnDef<AdRow>[] = [
+const columns: ColumnDef<Feats, AdRow>[] = [
   {
     accessorKey: 'name', header: () => T('الإعلان', 'Ad'), enableHiding: false,
     cell: ({ row }) => (
@@ -53,23 +66,26 @@ const columns: ColumnDef<AdRow>[] = [
   { accessorKey: 'ctr', header: sortable('نسبة النقر', 'Click rate'), sortUndefined: 'last', cell: ({ row }) => <span className="tabular-nums">{pct(row.original.ctr)}</span> },
 ];
 
+const searchAdsAndCampaigns = (row: { original: AdRow }, _id: string, q: string) =>
+  `${row.original.name} ${row.original.campaign}`.toLowerCase().includes(q.trim().toLowerCase());
+
 export function AdsTable({ data, from, to }: { data: Dash; from: string; to: string }) {
   const rows = React.useMemo(() => byAd(data, from, to), [data, from, to]);
   const platforms = React.useMemo(() => [...new Set(rows.map(r => r.platform))].sort(), [rows]);
   const [sorting, setSorting] = React.useState<SortingState>([{ id: 'spend', desc: true }]);
-  const [visibility, setVisibility] = React.useState<VisibilityState>({});
+  const [visibility, setVisibility] = React.useState<ColumnVisibilityState>({});
+  const [pagination, setPagination] = React.useState<PaginationState>({ pageIndex: 0, pageSize: 15 });
   const [search, setSearch] = React.useState('');
   const [platform, setPlatform] = React.useState('all');
   const [open, setOpen] = React.useState<AdRow | null>(null);
 
-  const table = useReactTable({
-    data: rows, columns,
-    state: { sorting, columnVisibility: visibility, globalFilter: search, columnFilters: platform === 'all' ? [] : [{ id: 'platform', value: platform }] },
-    onSortingChange: setSorting, onColumnVisibilityChange: setVisibility, onGlobalFilterChange: setSearch,
-    globalFilterFn: (row, _id, q: string) => `${row.original.name} ${row.original.campaign}`.toLowerCase().includes(q.trim().toLowerCase()),
-    getCoreRowModel: getCoreRowModel(), getSortedRowModel: getSortedRowModel(),
-    getFilteredRowModel: getFilteredRowModel(), getPaginationRowModel: getPaginationRowModel(),
-    initialState: { pagination: { pageSize: 15 } },
+  // Stable references: v9 rebuilds its row models when an option or state value changes identity, which would send the table back to page 1
+  const columnFilters = React.useMemo(() => (platform === 'all' ? [] : [{ id: 'platform', value: platform }]), [platform]);
+  const table = useTable({
+    features, data: rows, columns,
+    state: { sorting, columnVisibility: visibility, globalFilter: search, pagination, columnFilters },
+    onSortingChange: setSorting, onPaginationChange: setPagination, onColumnVisibilityChange: setVisibility, onGlobalFilterChange: setSearch,
+    globalFilterFn: searchAdsAndCampaigns,
   });
 
   return (
@@ -123,7 +139,7 @@ export function AdsTable({ data, from, to }: { data: Dash; from: string; to: str
           </Table>
         </div>
         <div className="flex items-center justify-between gap-2 text-sm text-muted-foreground">
-          <span>{T(`صفحة ${table.getState().pagination.pageIndex + 1} من ${Math.max(table.getPageCount(), 1)}`, `Page ${table.getState().pagination.pageIndex + 1} of ${Math.max(table.getPageCount(), 1)}`)}</span>
+          <span>{T(`صفحة ${pagination.pageIndex + 1} من ${Math.max(table.getPageCount(), 1)}`, `Page ${pagination.pageIndex + 1} of ${Math.max(table.getPageCount(), 1)}`)}</span>
           <div className="flex gap-2">
             <Button variant="outline" size="icon" className="size-8" onClick={() => table.previousPage()} disabled={!table.getCanPreviousPage()} aria-label={T('الصفحة اللي قبل', 'Previous page')}>{pageLang() === 'en' ? <ChevronLeft /> : <ChevronRight />}</Button>
             <Button variant="outline" size="icon" className="size-8" onClick={() => table.nextPage()} disabled={!table.getCanNextPage()} aria-label={T('الصفحة اللي بعد', 'Next page')}>{pageLang() === 'en' ? <ChevronRight /> : <ChevronLeft />}</Button>

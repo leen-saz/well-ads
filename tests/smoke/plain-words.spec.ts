@@ -9,7 +9,7 @@ import { TECH_WORDS } from '../shared/tech-words';
 
 const PAGES = [
   '/', '/today/', '/control/', '/control/new/', '/account/', '/library/', '/overview/', '/overview/creative/', '/listening/',
-  '/design/', '/video/', '/copy/', '/voice/', '/social/', '/content/', '/journeys/', '/compliance/', '/maestro/', '/knowledge/', '/debugger/', '/soon/',
+  '/design/', '/video/', '/content/?tab=copy', '/voice/', '/social/', '/content/', '/journeys/', '/compliance/', '/maestro/', '/knowledge/', '/debugger/', '/soon/',
 ];
 const FAKE = 'http://localhost:8788';
 
@@ -21,12 +21,11 @@ for (const missing of [false, true]) {
       for (const path of PAGES) {
         test(`${path} as a member, ${lang}`, async ({ page, context, request }) => {
           await addSession(context, await login(request, 'member'));
-          await page.goto(`${path}?lang=${lang}`);
+          await page.goto(`${path}${path.includes('?') ? '&' : '?'}lang=${lang}`);
           await page.waitForLoadState('networkidle');
           await page.waitForTimeout(500);
           const seen = new Set(await pageStrings(page));
-          await openTabs(page);
-          for (const s of await pageStrings(page)) seen.add(s);
+          await openTabs(page, seen);
           const bad = [...seen].filter(s => TECH_WORDS.test(s)).map(s => s.slice(0, 120));
           expect(bad, `technical words on ${path} (${lang})`).toEqual([]);
           // The plain sentences that replace the technical ones follow the language too

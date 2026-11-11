@@ -8,7 +8,7 @@ import { DEFAULT_ENGINE, ENGINES, engineOf } from './engines';
 import { J_COLS, advance, cancel, createJobs, sayOf, type Job, type JobEnv } from './jobs';
 
 type VEnv = Parameters<typeof requireUser>[1] & JobEnv;
-const MIG = '024_video.sql';
+const MIG = '031_video.sql';
 const P_COLS = 'id,title,source_url,brief,script,ratio,seconds,avatar_id,review_status,reviewed_by,reviewed_at,review_note,approved_by,approved_at,created_by,created_at,updated_at';
 const rows = <T>(d: unknown): T[] => (Array.isArray(d) ? d : []) as T[];
 const NOT_READY = 'ما اكتمل تجهيزه، بلّغ الإدارة';

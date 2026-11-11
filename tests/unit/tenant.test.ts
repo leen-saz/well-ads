@@ -36,6 +36,7 @@ describe('tenant', () => {
       if (url.includes('/rest/v1/profiles?id=eq.' + acmeOwner.id)) return new Response(JSON.stringify([acmeOwner]));
       if (url.includes('/auth/v1/invite')) return new Response(JSON.stringify({ id: '44444444-4444-4444-4444-444444444444' }));
       if (url.includes('/rest/v1/profiles?id=eq.55555555')) return new Response('[]'); // another company's user: not found in ours
+      if (url.includes('/rest/v1/profiles?id=eq.44444444')) return new Response('[]'); // the invited id has no profile yet
       return new Response(JSON.stringify([{ email: 'x@acme.example' }]));
     }));
     const cookie = await cookieFor(acmeOwner);

@@ -1,5 +1,4 @@
 ---
-// The page lives in its module: src/modules/copy/Page.astro
-import Page from '../../modules/copy/Page.astro';
+// Moved into content: the old address opens its section (the gate redirects first, this is the fallback)
+return Astro.redirect('/content/?tab=copy');
 ---
-<Page />

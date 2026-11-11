@@ -11,6 +11,10 @@ A stream that is cut, or whose reader leaves (stop button, closed tab), is still
 
 Recording is best effort: it runs after the answer (`waitUntil` through `withWaiter`, set in `src/app.ts`) and swallows every error, so it can never slow or break a model call.
 
+Gemini (audio, video, images, speech: `src/lib/gemini.ts`, through the same adapter) is recorded the same way as provider `gemini`, with audio and video input at the audio rate. It has no free fallback, so a tab that reaches its cap stops with a plain message instead of moving to Workers AI.
+
+OpenRouter calls are recorded as provider `openrouter` with the **cost OpenRouter returned** (`usage.cost`, asked for with `usage: { include: true }`), not from the price table; a call that comes back without a cost is recorded as «بدون سعر». The same monthly caps apply (see `docs/ai-providers.md`).
+
 Not recorded yet: the Debugger's Claude calls (own SDK, `src/modules/debugger/explain.ts`), Grok live search (`grokSearch`, per-search fees), and images (`openaiImage`). Callers without a user, such as cron jobs, are recorded with a null user (Listening passes its company).
 
 ## Prices
@@ -19,7 +23,7 @@ Not recorded yet: the Debugger's Claude calls (own SDK, `src/modules/debugger/ex
 `src/lib/prices.ts`: USD per million tokens, each row with its source and the date it was last looked at. They are **estimates until the owner has matched a real invoice** (`verified: false`). A model with no row is recorded with `priced=false` and cost 0, and shows as «بدون سعر» instead of looking free. Workers AI is recorded as 0 (free inside Cloudflare's daily allowance).
 
 ## Monthly cap per tab
-`ai_budgets (company_id, module, monthly_cap_usd, alert_at_pct)`. **Empty means no cap and there is no default cap.** Only the owner sees or edits it (Maestro → «الصرف على الذكاء الاصطناعي»); the owner types riyals, it is stored in dollars.
+`ai_budgets (company_id, module, monthly_cap_usd, alert_at_pct)`. **A tab with no row has the default cap (`DEFAULT_CAP_USD` in `src/lib/usage.ts`, 5 USD a month): the owner raises it by saving a cap, or removes the limit by saving an empty one. Only a saved row with an empty cap means no limit.** If the budget or spend read fails, or the table is missing, the default cap applies and the paid call is refused (fail closed). Every paid call goes through the check and the record: text (`generate`/`stream`), Gemini (`gemini()` and the Voice tab's `/api/voice/speak`), OpenAI images and Grok search (flat estimates per call, marked estimated). Only the owner sees or edits it (Maestro → «الصرف على الذكاء الاصطناعي»); the owner types riyals, it is stored in dollars.
 - At `alert_at_pct` (default 80) the screen shows an alert, and the audit log gets one `ai_budget_alert` row.
 - At 100% that tab's calls go to Workers AI (`ai_budget_capped` in the audit log). If Workers AI is not bound the call stops with `cap_reached` instead of spending more.
 - The motion plan is billed to the Design tab.
@@ -32,4 +36,4 @@ Maestro → «طابق الصرف مع الفاتورة»: pick the invoice (the
 What this cannot prove without real invoices: that the price table matches what the providers charge, and that no call path is missing. The invoice also includes things not recorded (see "Not recorded yet").
 
 ## Secrets and migrations
-No new secrets. Migration `019_ai_usage.sql` is applied by the owner in Supabase → SQL Editor; until then the screen says so and no cap is enforced.
+No new secrets. Migration `019_ai_usage.sql` is applied by the owner in Supabase → SQL Editor; until then the screen says so and the default cap applies (paid calls stop).

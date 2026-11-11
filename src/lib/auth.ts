@@ -90,15 +90,20 @@ function key(secret: string): Promise<CryptoKey> {
   return k;
 }
 
-export async function sign(payload: object, secret: string): Promise<string> {
-  const p = toB64u(enc.encode(JSON.stringify(payload)));
+// Every signed token carries a type, so a token made for one purpose (the OAuth state in a URL) is never accepted as another
+// (the session cookie). Same secret, different `typ`; verify() refuses a token of the wrong type.
+export type TokenType = 'session' | 'oauth';
+export async function sign(payload: object, secret: string, typ: TokenType = 'session'): Promise<string> {
+  const p = toB64u(enc.encode(JSON.stringify({ ...payload, typ })));
   const m = new Uint8Array(await crypto.subtle.sign('HMAC', await key(secret), enc.encode(p)));
   return `${p}.${toB64u(m)}`;
 }
 
 // Returns the cookie payload if the signature is valid and not expired. stale = permissions must be re-read.
 // crypto.subtle.verify compares in constant time.
-export async function verify(token: string | null | undefined, secret: string, now = Date.now()): Promise<Session | null> {
+// `typ` is the type the caller expects. Session cookies issued before types existed have no `typ`: they are accepted as
+// sessions only if they have the session's own shape (role + dash list), which an OAuth state never has.
+export async function verify(token: string | null | undefined, secret: string, now = Date.now(), typ: TokenType = 'session'): Promise<Session | null> {
   if (!token || !secret) return null;
   const [p, s, extra] = token.split('.');
   if (!p || !s || extra !== undefined) return null;
@@ -108,6 +113,9 @@ export async function verify(token: string | null | undefined, secret: string, n
   let o: Session;
   try { o = JSON.parse(dec.decode(fromB64u(p))) as Session; } catch { return null; }
   if (!o || typeof o.exp !== 'number' || o.exp < now || !o.uid) return null;
+  const got = (o as { typ?: unknown }).typ;
+  if (got === undefined) { if (typ !== 'session' || !Array.isArray(o.dash) || (o.role !== 'owner' && o.role !== 'member')) return null; }
+  else if (got !== typ) return null;
   return { ...o, stale: !o.chk || now - o.chk > RECHECK_MS };
 }
 
@@ -205,15 +213,49 @@ export function keyKind(k: string): string {
   try { return 'jwt:' + String((JSON.parse(atob(p.replace(/-/g, '+').replace(/_/g, '/'))) as { role?: string }).role ?? '?'); } catch { return 'unknown'; }
 }
 
-export async function loadProfile(cfg: Cfg, uid: string): Promise<Profile | null> {
+// 'missing' = the account has no profile; 'error' = Supabase could not answer (5xx, 429, network). The two must not be mixed:
+// a hiccup is not a reason to log anyone out.
+export type ProfileRead = { kind: 'ok'; profile: Profile } | { kind: 'missing' } | { kind: 'error' };
+export async function readProfile(cfg: Cfg, uid: string): Promise<ProfileRead> {
   const q = `/rest/v1/profiles?id=eq.${encodeURIComponent(uid)}&select=`;
-  const r = await sb<Profile[]>(cfg, q + '*,company:companies(disabled_modules)', { admin: true });
-  if (r.ok && Array.isArray(r.data)) return r.data[0] || null;
+  const done = (r: SbResult<Profile[]>): ProfileRead | null => {
+    if (r.ok && Array.isArray(r.data)) return r.data[0] ? { kind: 'ok', profile: r.data[0] } : { kind: 'missing' };
+    return null;
+  };
+  const hiccup = (r: SbResult<unknown>) => r.status >= 500 || r.status === 429;
+  let r: SbResult<Profile[]>;
+  try { r = await sb<Profile[]>(cfg, q + '*,company:companies(disabled_modules)', { admin: true }); } catch { return { kind: 'error' }; }
+  const first = done(r);
+  if (first) return first;
+  if (hiccup(r)) return { kind: 'error' };
   // A column from a migration that is not applied yet must not lock everyone out: read the profile alone and log why.
   const d = (r.data && typeof r.data === 'object' && !Array.isArray(r.data) ? r.data : {}) as Record<string, unknown>;
   console.warn('profile_read_degraded', JSON.stringify({ status: r.status, code: d.code ?? null, msg: String(d.message ?? '').slice(0, 160) }));
-  const plain = await sb<Profile[]>(cfg, q + '*', { admin: true });
-  return plain.ok && Array.isArray(plain.data) ? plain.data[0] || null : null;
+  let plain: SbResult<Profile[]>;
+  try { plain = await sb<Profile[]>(cfg, q + '*', { admin: true }); } catch { return { kind: 'error' }; }
+  const second = done(plain);
+  if (second) return second;
+  return hiccup(plain) ? { kind: 'error' } : { kind: 'missing' };
+}
+// Old shape for callers that only need "profile or nothing" (login, OAuth callback)
+export async function loadProfile(cfg: Cfg, uid: string): Promise<Profile | null> {
+  const r = await readProfile(cfg, uid);
+  return r.kind === 'ok' ? r.profile : null;
+}
+
+// Re-reads the user's permissions and issues the renewed cookie (renewing never extends the session). Shared by
+// /api/auth/refresh and the page gate, which renews in place instead of redirecting there and back.
+export type Renewed = { kind: 'ok'; session: Session; cookie: string } | { kind: 'login' } | { kind: 'expired' } | { kind: 'error' };
+export async function renew(cfg: Cfg, s: Session): Promise<Renewed> {
+  const read = await readProfile(cfg, s.uid);
+  if (read.kind === 'error') return { kind: 'error' }; // Supabase hiccup: keep the session as it is
+  if (read.kind === 'missing' || read.profile.active === false) return { kind: 'login' };
+  const profile = read.profile;
+  const fresh = sessionFor(profile, cfg);
+  fresh.exp = s.exp;
+  const left = Math.max(0, Math.floor((s.exp - Date.now()) / 1000));
+  if (!left) return { kind: 'expired' };
+  return { kind: 'ok', session: fresh, cookie: setCookie(await sign(fresh, cfg.secret), left) };
 }
 
 // What a visitor typed in the email box, for the audit log: only something shaped like an email and of sane length.
@@ -262,9 +304,11 @@ export async function requireUser(request: Request, e: AuthEnv, need: Need, { wr
   if (write && !sameOrigin(request)) throw json(403, { error: 'طلب مرفوض' });
   const s = await verify(readCookie(request, SESSION), cfg.secret);
   if (!s) throw json(401, { error: 'سجّل الدخول' });
-  const profile = await loadProfile(cfg, s.uid);
-  if (!profile || profile.active === false) throw json(401, { error: 'الحساب موقوف' }, { 'set-cookie': clearCookie() });
-  const user = sessionFor(profile, cfg);
+  const read = await readProfile(cfg, s.uid);
+  // A Supabase hiccup answers 503 and keeps the cookie; only a missing or disabled account clears it
+  if (read.kind === 'error') throw json(503, { error: 'تعذّر التحقق من حسابك الحين. جرّب بعد لحظات.' });
+  if (read.kind === 'missing' || read.profile.active === false) throw json(401, { error: 'الحساب موقوف' }, { 'set-cookie': clearCookie() });
+  const user = sessionFor(read.profile, cfg);
   if (locked(user, need)) throw json(403, { error: LOCKED });
   if (well && user.co !== WELL_COMPANY) throw json(403, { error: WELL_ONLY });
   if (!can(user, need, cfg)) throw json(403, { error: 'ما عندك صلاحية' });

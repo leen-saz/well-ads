@@ -34,7 +34,16 @@ jobs:
       CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
       CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
       BUCKET: well-ads-files
+      # The other company's TikTok account is kept out by id and name markers that must not sit in this public repo (docs/tiktok-exclusion.md)
+      TIKTOK_EXCLUDED_ADVERTISER_IDS: ${{ secrets.TIKTOK_EXCLUDED_ADVERTISER_IDS }}
+      TIKTOK_EXCLUDED_MARKERS: ${{ secrets.TIKTOK_EXCLUDED_MARKERS }}
     steps:
+      - name: Check the TikTok exclusion is configured
+        run: |
+          if [ -z "$TIKTOK_EXCLUDED_ADVERTISER_IDS" ] || [ -z "$TIKTOK_EXCLUDED_MARKERS" ]; then
+            echo "::warning title=tiktok-exclusion::TIKTOK_EXCLUDED_ADVERTISER_IDS / TIKTOK_EXCLUDED_MARKERS secrets are not set (fine if the token cannot see that account): the other company's TikTok account is NOT being excluded (docs/tiktok-exclusion.md)"
+            exit 0
+          fi
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
@@ -226,6 +235,9 @@ jobs:
           put dash-aud.json public/dash-aud.json "application/json"
           put dash-organic.json public/dash-organic.json "application/json"
           put dash.json public/dash.json "application/json"
+          # When the numbers were built and whether the CRM block is in them: /api/data-status and the stale notice read it
+          jq -c '{built_at: (.generated_at // null), crm_present: ((.crm // {}) != {}), crm_synced: (.crm.synced // null)}' public/dash.json > data-status.json
+          put data-status.json data-status.json "application/json"
           for f in public/c/index.html public/dept/*/index.html public/index.html; do put "${f#public/}" "$f" "text/html; charset=utf-8"; done
           # Phase 4.2: the same data as JSON per audience (full, creative, each department) for /api/dash/data
           for f in public/data/*.json public/data/dept/*.json; do put "${f#public/}" "$f" "application/json"; done

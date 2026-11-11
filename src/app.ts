@@ -11,6 +11,7 @@ import { withWaiter } from './lib/usage';
 import { dispatchRefresh, type CronEnv } from './lib/cron';
 import { runListening, type ListenEnv } from './modules/listening/fetcher';
 import { runSocial } from './modules/social/cron';
+import { runTranscribe } from './modules/transcribe/service';
 // Cloudflare Workflows: the class must be exported from the Worker entry
 export { JourneyRun } from './modules/journeys/workflow';
 
@@ -45,9 +46,17 @@ app.use(async (c, next) => {
   if (d.rewrite) {
     const req = new Request(d.rewrite, c.req.raw);
     REWRITTEN.add(req);
-    return app.fetch(req, c.env, c.executionCtx);
+    const res = await app.fetch(req, c.env, c.executionCtx);
+    if (!d.cookie) return res;
+    const h = new Headers(res.headers); h.append('set-cookie', d.cookie);
+    return new Response(res.body, { status: res.status, statusText: res.statusText, headers: h });
   }
-  return next();
+  await next();
+  if (d.cookie) {
+    const h = new Headers(c.res.headers); h.append('set-cookie', d.cookie);
+    c.res = new Response(c.res.body, { status: c.res.status, statusText: c.res.statusText, headers: h });
+  }
+  return;
 });
 app.route('/', api);
 // Dashboards built by the pipeline, from R2 (phase 4.1)
@@ -68,6 +77,6 @@ export default {
   // Cloudflare Cron Triggers (production only): the hourly data refresh on GitHub Actions, and every 5 minutes the due social posts
   scheduled(event: ScheduledController, env: CronEnv & AuthEnv, ctx: ExecutionContext) {
     // Every 5 minutes: due social posts, then one social-listening keyword that has not been fetched in a day
-    withWaiter(p => ctx.waitUntil(p), () => ctx.waitUntil(event.cron === SOCIAL_CRON ? Promise.all([runSocial(env), runListening(env as ListenEnv)]) : dispatchRefresh(env)));
+    withWaiter(p => ctx.waitUntil(p), () => ctx.waitUntil(event.cron === SOCIAL_CRON ? Promise.allSettled([runSocial(env), runListening(env as ListenEnv), runTranscribe(env as Parameters<typeof runTranscribe>[0])]).then(rs => rs.forEach((r, i) => { if (r.status === 'rejected') console.error('cron: job failed', ['social', 'listening', 'transcribe'][i], String(r.reason).slice(0, 200)); })) : dispatchRefresh(env)));
   },
 };

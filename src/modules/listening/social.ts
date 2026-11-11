@@ -97,11 +97,14 @@ const decode = (s: string) => s.replace(/<!\[CDATA\[([\s\S]*?)\]\]>/g, '$1')
 const tag = (xml: string, t: string) => decode((xml.match(new RegExp(`<${t}[^>]*>([\\s\\S]*?)</${t}>`)) || [])[1] || '');
 
 // Google News RSS: <item><title/><link/><pubDate/><source/><description/></item>. Regex, no XML parser (CPU budget).
+// Only https links are kept: a feed can carry javascript:, data: or plain http links that must never reach a page or a click.
+export const isHttps = (u: unknown): boolean => /^https:\/\//i.test(String(u ?? '').trim());
+
 export function parseNews(xml: string, watchId: number): Mention[] {
   return (xml.match(/<item>[\s\S]*?<\/item>/g) || []).slice(0, 30).map(it => ({
     watch_id: watchId, source: 'news', url: tag(it, 'link').trim(), title: clip(tag(it, 'title'), 220),
     snippet: clip(tag(it, 'description'), 300), author: clip(tag(it, 'source'), 80), published_at: iso(tag(it, 'pubDate')),
-  })).filter(m => m.url);
+  })).filter(m => isHttps(m.url));
 }
 
 // Bing News RSS, the fallback when Google News refuses the server. Bing takes one plain term per request (no OR, no quotes),
@@ -113,7 +116,7 @@ export function parseBing(xml: string, watchId: number): Mention[] {
     try { url = new URL(raw).searchParams.get('url') || raw; } catch { /* kept as is, dropped below if not a link */ }
     return { watch_id: watchId, source: 'news', url, title: clip(tag(it, 'title'), 220), snippet: clip(tag(it, 'description'), 300),
       author: clip(tag(it, 'News:Source'), 80), published_at: iso(tag(it, 'pubDate')) };
-  }).filter(m => /^https?:\/\//.test(m.url) && !/^https?:\/\/(www\.)?bing\.com\//.test(m.url));
+  }).filter(m => isHttps(m.url) && !/^https?:\/\/(www\.)?bing\.com\//.test(m.url));
 }
 
 // GDELT DOC API (free, no key), read by the sources check only: it answers 429 to Cloudflare's shared servers.
@@ -122,7 +125,7 @@ export function parseBing(xml: string, watchId: number): Mention[] {
 export function parseGdelt(body: string, watchId: number): Mention[] {
   let j: { articles?: Record<string, unknown>[] };
   try { j = JSON.parse(body); } catch { return []; }
-  return (j.articles || []).slice(0, 50).filter(a => /^https?:\/\//.test(String(a.url || ''))).map(a => {
+  return (j.articles || []).slice(0, 50).filter(a => isHttps(a.url)).map(a => {
     const d = String(a.seendate || '').match(/^(\d{4})(\d\d)(\d\d)T(\d\d)(\d\d)(\d\d)Z$/);
     return { watch_id: watchId, source: 'news', url: String(a.url), title: clip(a.title, 220), snippet: '', author: clip(a.domain, 80),
       published_at: d ? `${d[1]}-${d[2]}-${d[3]}T${d[4]}:${d[5]}:${d[6]}.000Z` : null };

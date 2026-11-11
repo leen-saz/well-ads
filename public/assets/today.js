@@ -1,6 +1,8 @@
 // اليوم: صفحة البداية. كل جزء يطلع بس إذا المستخدم يقدر يفتح الصفحة اللي جاي منها (السيرفر يقرر في /api/today/state).
 import { $, api, esc, icon, shell, say, when, day, fmt, sar, LANG, failure } from './common.js';
 import { sections } from './sidebar.js';
+import { mountAhlam } from './ahlam.js';
+import { mountCampaign } from './campaign.js';
 
 const READY = new Set(['ok', 'mcp', 'github']);
 const STALE_H = 3; // التحديث كل ساعة: أقدم من 3 ساعات = فيه شي واقف
@@ -8,9 +10,20 @@ const KIND = { new_campaign: 'حملة جديدة', pause: 'إيقاف', pause_c
 const L = (ar, en) => (LANG === 'en' ? en : ar);
 
 export default async function mount() {
-  const me = await shell({ active: 'today', title: 'اليوم' });
+  const me = await shell({ active: 'today', title: L('احلم', 'Ahlam') });
   const owner = me.role === 'owner', dept = (me.departments || []).length;
-  $('#hello').textContent = `أهلاً ${me.name || ''}. ${owner ? 'هذي صورة اليوم للنظام كله.' : dept ? 'هذي صورة اليوم لقسمك.' : 'هذي صورة اليوم للي تشتغل عليه.'}`;
+  $('#hello').textContent = L(`أهلاً ${me.name || ''}. ${owner ? 'هذي صورة اليوم للنظام كله.' : dept ? 'هذي صورة اليوم لقسمك.' : 'هذي صورة اليوم للي تشتغل عليه.'}`, `Hello ${me.name || ''}. ${owner ? 'Here is today for the whole system.' : dept ? "Here is today for your department." : 'Here is today for what you work on.'}`);
+
+  // قسمين: احلم (المساعد) وملخص اليوم (اللي كان الصفحة كلها). الاختيار في الرابط ?tab=summary
+  const tabs = [['ahlam', L('احلم', 'Ahlam'), '#paneAhlam'], ['campaign', L('حملة جديدة', 'New campaign'), '#paneCamp'], ['summary', L('ملخص اليوم', 'Today summary'), '#paneSum']];
+  const show = k => { for (const [key, , sel] of tabs) $(sel).hidden = key !== k; $('#tdTabs').querySelectorAll('button').forEach(b => b.setAttribute('aria-pressed', String(b.dataset.k === k))); };
+  $('#tdTabs').setAttribute('aria-label', L('الأقسام', 'Sections'));
+  $('#tdTabs').innerHTML = tabs.map(([k, name]) => `<button type="button" data-k="${k}" aria-pressed="false">${esc(name)}</button>`).join('');
+  $('#tdTabs').onclick = ev => { const k = ev.target.closest('button')?.dataset.k; if (!k) return; show(k); history.replaceState(null, '', k === 'ahlam' ? location.pathname + (LANG === 'en' ? '?lang=en' : '') : `?tab=${k}` + (LANG === 'en' ? '&lang=en' : '')); };
+  const want = new URLSearchParams(location.search).get('tab');
+  show(want === 'summary' || want === 'campaign' ? want : 'ahlam');
+  mountAhlam($('#paneAhlam'), me, L);
+  mountCampaign($('#paneCamp'), me, L);
 
   // أدواتك: نفس أقسام القائمة، بس اللي يفتح لك
   const secs = sections(me, L).map(s => ({ ...s, items: s.items.filter(it => it.state === 'ok' && it.key !== 'today') })).filter(s => s.items.length);
@@ -19,7 +32,7 @@ export default async function mount() {
     : '<p class="muted">ما عندك أدوات مفتوحة للحين. اطلب الصلاحية من مالكة اللوحة.</p>';
 
   let st;
-  try { st = await api('/api/today/state'); } catch (err) { say($('#msg'), err.message); $('#next').hidden = true; failure($('#perf'), err, () => location.reload()); return; }
+  try { st = await api('/api/today/state'); } catch (err) { show('summary'); say($('#msg'), err.message); $('#next').hidden = true; failure($('#perf'), err, () => location.reload()); return; }
   const ready = [], miss = [];
 
   // البيانات

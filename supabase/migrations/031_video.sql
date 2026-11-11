@@ -1,4 +1,4 @@
--- 024: موديول الفيديو (دمج DaVinci، المرحلة 4). مشروع فيديو من رابط منتج أو خدمة: الموجز، السكربت، خطة اللقطات،
+-- 031: موديول الفيديو (دمج DaVinci، المرحلة 4). مشروع فيديو من رابط منتج أو خدمة: الموجز، السكربت، خطة اللقطات،
 -- وطلبات التوليد (كل لقطة طلب بحالته وإعادة المحاولة وتكلفته). كل جدول فيه company_id. الناتج يبقى مسودة لين
 -- يمر على المراجع ثم المعتمد، وما يطلع من النظام قبل الاعتماد.
 create table if not exists public.video_projects (
@@ -66,7 +66,7 @@ revoke all on public.video_settings from anon, authenticated;
 
 -- ai_usage يقبل مزوّد الفيديو
 alter table public.ai_usage drop constraint if exists ai_usage_provider_check;
-alter table public.ai_usage add constraint ai_usage_provider_check check (provider in ('openai', 'xai', 'workers', 'anthropic', 'higgsfield'));
+alter table public.ai_usage add constraint ai_usage_provider_check check (provider in ('openai', 'xai', 'workers', 'anthropic', 'gemini', 'openrouter', 'higgsfield'));
 
 -- الموديول الجديد يبدأ مقفول: لين تفتحه من الإعدادات ← الموديولات. نقفله مرة وحدة لكل شركة (سطر video_settings يمنع القفل
 -- من الرجوع لو أعدنا تشغيل الملف بعد ما انفتح).

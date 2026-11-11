@@ -4,6 +4,9 @@
 // secret: false = رقم حساب أو معرّف، ينعرض في الصفحة. fetch: true = عندنا سحب بيانات لها اليوم.
 // إضافة منصة جديدة = عنصر جديد هنا بس.
 
+import { postizStatus } from '../modules/social/postiz';
+import { SOCIAL } from '../modules/social/engine';
+
 export interface Field { env: string; label: string; secret: boolean; type: string; optional?: boolean; manual?: boolean; placeholder?: string }
 export interface Platform { id: string; name: string; group: string; core?: string; fetch?: boolean; mcp?: boolean; docs?: string; help?: string; fields: Field[]; logo?: string | null; color?: string | null }
 type FieldOpts = Partial<Omit<Field, 'env' | 'label'>>;
@@ -89,6 +92,9 @@ export const PLATFORMS: Platform[] = [
   { id: 'meta_pages', name: 'صفحة فيسبوك وحساب انستقرام (للنشر)', group: 'ads', docs: 'https://developers.facebook.com/apps/',
     help: 'زر "اربط" بنفس تطبيق ميتا: يطلب صلاحيات النشر ويحفظ مفتاح الصفحة ورقمها ورقم انستقرام المربوط فيها. السوشال يستخدمها للنشر.',
     fields: [ID('META_PAGE_ID', 'رقم صفحة فيسبوك'), ID('IG_USER_ID', 'رقم حساب انستقرام (Business)', { optional: true }), F('META_PAGE_ACCESS_TOKEN', 'مفتاح الصفحة', { manual: true })] },
+  { id: 'postiz', name: 'Postiz (محرك نشر إضافي: تيك توك وX ولينكدإن)', group: 'ads', docs: 'https://docs.postiz.com/public-api/introduction',
+    help: 'Postiz برنامج مفتوح المصدر تستضيفه أنت (docker compose على سيرفر صغير) وننشر من خلاله لتيك توك وX ولينكدإن بعد اعتماد المنشور. العنوان: https://دومينك (نكمل مسار /api/public/v1 بنفسنا). المفتاح: Postiz ← Settings ← Public API. ما ينشر شي قبل الاعتماد، ولا نستخدم الجدولة ولا المسودات في Postiz. التفاصيل في docs/social-engine.md.',
+    fields: [ID('POSTIZ_URL', 'عنوان Postiz (https فقط)', { placeholder: 'https://postiz.example.com' }), F('POSTIZ_API_KEY', 'مفتاح Public API')] },
   { id: 'meta_capi', name: 'Meta Conversions API (Pixel)', group: 'ads', docs: 'https://business.facebook.com/events_manager2', help: 'Events Manager ← البيكسل ← Settings ← Conversions API ← Generate access token.',
     fields: [F('META_CAPI_TOKEN', 'Conversions API token'), ID('META_PIXEL_ID', 'Pixel / Dataset ID')] },
   { id: 'tiktok_events', name: 'TikTok Events API (Pixel)', group: 'ads', docs: 'https://ads.tiktok.com/i18n/events_manager', help: 'Events Manager ← البيكسل ← Settings ← Generate access token.',
@@ -167,7 +173,9 @@ export const oauthFields = (p: Platform): Field[] => p.fields.filter(f => !f.man
 // ---- زر "اربط": الطريقة الأساسية لكل منصة تدعم OAuth. الخانات اليدوية بديل إذا الربط ما ضبط.
 // app = أسماء متغيرات بيانات التطبيق في بيئة السيرفر. store = وين ينحفظ اللي يرجع (أسماء متغيرات السحب).
 export type Values = Record<string, string>;
-export interface Exchanged { values: Values; expiresIn?: number | null }
+// shown: names that may appear in the page (never a secret); drop: stored names that must not stay bound;
+// pick: several choices were granted and none is bound yet (the owner chooses on the Social tab)
+export interface Exchanged { values: Values; expiresIn?: number | null; shown?: Values; drop?: string[]; pick?: boolean }
 interface ExchangeArgs { code: string; redirect: string; id: string; secret: string }
 export interface OAuthCfg {
   authorize: string; token?: string; scope?: string; app: string[]; expires?: string; basic?: boolean; v1?: boolean;
@@ -267,16 +275,23 @@ async function metaExchange({ code, redirect, id, secret }: ExchangeArgs, env = 
   return { values: { [env]: String(long.access_token) }, expiresIn: Number(long.expires_in) || 60 * 86400 };
 }
 
-// Page tokens obtained from a long-lived user token do not expire. The first page the user granted is used;
-// its linked Instagram business account (if any) is stored with it.
+// Page tokens obtained from a long-lived user token do not expire. One page granted: it is bound with its linked
+// Instagram business account (if any). Several pages: none is bound; the list (with the page tokens) waits in the vault
+// as META_PAGES_PENDING until the owner chooses one on the Social tab, so the wrong page is never picked by position.
+export interface PageCand { id: string; name: string; token: string; ig?: { id: string; name: string } }
+export const META_PENDING = 'META_PAGES_PENDING';
+export const pageValues = (g: PageCand): Exchanged => ({
+  values: { META_PAGE_ID: g.id, META_PAGE_ACCESS_TOKEN: g.token, ...(g.ig ? { IG_USER_ID: g.ig.id } : {}) }, expiresIn: null,
+  shown: { META_PAGE_NAME: g.name, IG_ACCOUNT_NAME: g.ig?.name || '' }, drop: g.ig ? [META_PENDING] : ['IG_USER_ID', META_PENDING],
+});
 async function metaPagesExchange(args: ExchangeArgs): Promise<Exchanged> {
   const user = (await metaExchange(args, 'USER')).values.USER as string;
-  const pages = await getJson(`https://graph.facebook.com/v23.0/me/accounts?fields=id,name,access_token,instagram_business_account&access_token=${encodeURIComponent(user)}`);
-  const page = (Array.isArray(pages.data) ? pages.data : [])[0] as { id?: string; access_token?: string; instagram_business_account?: { id?: string } } | undefined;
-  if (!page?.id || !page.access_token) throw new Error('no page');
-  const values: Values = { META_PAGE_ID: page.id, META_PAGE_ACCESS_TOKEN: page.access_token };
-  if (page.instagram_business_account?.id) values.IG_USER_ID = page.instagram_business_account.id;
-  return { values, expiresIn: null };
+  const pages = await getJson(`https://graph.facebook.com/v23.0/me/accounts?fields=${encodeURIComponent('id,name,access_token,instagram_business_account{id,username,name}')}&limit=25&access_token=${encodeURIComponent(user)}`);
+  const list: PageCand[] = (Array.isArray(pages.data) ? pages.data : []).flatMap((x: { id?: string; name?: string; access_token?: string; instagram_business_account?: { id?: string; username?: string; name?: string } }) =>
+    x?.id && x.access_token ? [{ id: x.id, name: x.name || x.id, token: x.access_token, ...(x.instagram_business_account?.id ? { ig: { id: x.instagram_business_account.id, name: x.instagram_business_account.username || x.instagram_business_account.name || x.instagram_business_account.id } } : {}) }] : []);
+  if (!list.length) throw new Error('no page');
+  if (list.length === 1) return pageValues(list[0] as PageCand);
+  return { values: { [META_PENDING]: JSON.stringify({ at: Date.now(), pages: list }) }, expiresIn: null, pick: true };
 }
 
 // ---- OAuth 1.0a (X): توقيع HMAC-SHA1 حسب RFC 5849
@@ -318,6 +333,13 @@ export async function check(p: Platform, v: Values): Promise<{ ok: boolean; msg:
     if (!r.ok) return { ok: false, msg: 'Meta رفض المفتاح أو رقم الحساب' };
     const d = (await r.json().catch(() => ({}))) as Obj;
     return { ok: true, msg: d.name ? `Meta: ${d.name}` : 'Meta قبل المفتاح' };
+  }
+  if (p.id === 'postiz' && (v.POSTIZ_URL || v.POSTIZ_API_KEY)) {
+    // One read: is the address reachable over https, is the key valid, which platforms already have a connected account
+    const s = await postizStatus(v);
+    if (s.code !== 'ok') return { ok: false, msg: ({ off: 'ما انكتب عنوان ولا مفتاح', url: 'العنوان لازم https ومن دومين (مو IP ولا localhost)', key: 'Postiz رفض المفتاح أو المفتاح ناقص', down: 'ما قدرت أوصل لـ Postiz. تأكد من العنوان وإن السيرفر شغال' } as const)[s.code] };
+    const on = s.channels.filter(c => c.code === 'ok').map(c => SOCIAL[c.platform].name);
+    return { ok: true, msg: on.length ? `Postiz شغال. حسابات مربوطة: ${on.join('، ')}` : 'Postiz شغال بس ما فيه حساب مربوط لتيك توك أو X أو لينكدإن. اربطها من داخل Postiz' };
   }
   return null;
 }

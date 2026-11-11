@@ -2,7 +2,7 @@
 import { test, expect } from '@playwright/test';
 import { login, addSession, emailFor } from './helpers';
 import { CORE_KEYS, MODULE_KEYS } from './keys';
-import { LIVE } from '../../src/modules/registry';
+import { LIVE, MODULES } from '../../src/modules/registry';
 
 const BASE = `http://localhost:${process.env['SMOKE_PORT'] || 8787}`;
 // Each live tab: its page and its main read-only API
@@ -11,8 +11,11 @@ const TABS: { key: string; page: string; api: string }[] = [
   { key: 'listening', page: '/listening/', api: '/api/listening/demand' },
   { key: 'design', page: '/design/', api: '/api/design/options' },
   { key: 'video', page: '/video/', api: '/api/video/engines' },
-  { key: 'copy', page: '/copy/', api: '/api/copy/projects' },
+  { key: 'copy', page: '/content/?tab=copy', api: '/api/copy/projects' },
   { key: 'voice', page: '/voice/', api: '/api/voice/guide' },
+  { key: 'transcribe', page: '/transcribe/', api: '/api/transcribe/jobs' },
+  { key: 'vision', page: '/vision/', api: '/api/vision/recent' },
+  { key: 'voiceover', page: '/voice/?tab=voiceover', api: '/api/voiceover/guide' },
   { key: 'social', page: '/social/', api: '/api/social/posts' },
   { key: 'content', page: '/content/', api: '/api/content/plans' },
   { key: 'journeys', page: '/journeys/', api: '/api/journeys/list' },
@@ -28,12 +31,23 @@ test('the suite covers every live module', () => {
   expect(TABS.map(t => t.key).sort()).toEqual([...LIVE].sort());
 });
 
+test('the old addresses of voiceover and copy open their sections inside Voice and Content', async ({ request }) => {
+  const cookie = (await login(request, 'owner')).header;
+  for (const [old, now] of [['/voiceover/', '/voice/?tab=voiceover'], ['/copy/', '/content/?tab=copy']]) {
+    const r = await request.get(old, { headers: { cookie }, maxRedirects: 0 });
+    expect(r.status(), old).toBe(302);
+    expect(r.headers()['location'], old).toContain(now);
+  }
+});
+
 test.describe('health and sign-in', () => {
   test('/api/health answers without a login', async ({ request }) => {
     const r = await request.get('/api/health');
     expect(r.status()).toBe(200);
     const h = await r.json();
-    expect(h).toEqual({ ok: true, version: 'smoke-build', env: 'local', checks: { supabase: 'up', storage: 'up', ai: 'unset' } });
+    expect(h).toMatchObject({ ok: true, version: 'smoke-build', env: 'local', checks: { supabase: 'up', storage: 'up', ai: 'unset' } });
+    // The age of the numbers is reported as codes only (no bucket data in the smoke setup, so it is simply not claimed)
+    expect(['ok', 'warn', 'stale', 'unknown']).toContain(h.data.level);
   });
   test('signed out: pages go to the login page, the API answers 401 JSON', async ({ request }) => {
     const p = await request.get('/overview/', { maxRedirects: 0 });
@@ -178,8 +192,27 @@ test.describe('sidebar and language (browser)', () => {
   test('the owner sees every live tab and the permissions page', async ({ page, context, request }) => {
     await addSession(context, await login(request, 'owner'));
     await page.goto('/today/');
-    for (const k of LIVE) await expect(page.locator(`a.navi[data-k="${k}"]`).first(), k).toBeVisible();
+    // voiceover and copy are sections inside Voice and Content, not entries of their own
+    for (const k of LIVE.filter(k => !MODULES.find(m => m.key === k)?.into)) await expect(page.locator(`a.navi[data-k="${k}"]`).first(), k).toBeVisible();
+    for (const k of ['voiceover', 'copy']) await expect(page.locator(`a.navi[data-k="${k}"]`), k).toHaveCount(0);
     await expect(page.locator('a.navi[data-k="admin"]')).toBeVisible();
+  });
+  test('the sidebar groups follow the marketing order, fold, and remember it; the group of the open page never hides', async ({ page, context, request }) => {
+    await addSession(context, await login(request, 'owner'));
+    await page.goto('/today/');
+    const heads = page.locator('.side-h[data-g]');
+    await expect(heads).toHaveText(['الرئيسية', 'الإنتاج', 'النشر والتوزيع', 'القياس والتحليل', 'التحسين والقرارات', 'الحوكمة', 'النظام']);
+    const design = page.locator('a.navi[data-k="design"]');
+    await expect(design).toBeVisible();
+    await page.locator('.side-h[data-g="produce"]').click();
+    await expect(page.locator('.side-h[data-g="produce"]')).toHaveAttribute('aria-expanded', 'false');
+    await expect(design).toBeHidden();
+    await page.reload();
+    await expect(design).toBeHidden();
+    // Opening a page of the folded group shows it again, with its highlight
+    await page.goto('/design/');
+    await expect(page.locator('a.navi[data-k="design"][aria-current="page"]')).toBeVisible();
+    await expect(page.locator('a.navi[data-k="design"]')).toBeVisible();
   });
   test('the language switch flips the page to English, left to right, and back', async ({ page, context, request }) => {
     await addSession(context, await login(request, 'owner'));

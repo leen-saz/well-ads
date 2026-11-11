@@ -1,6 +1,7 @@
 // الرصد: (1) وش ينقال عننا وعن المنافسين بالكلمات من مصادر عامة، مع الشعور، وحصة الظهور في الإشارات والتنبيهات.
 // (2) تبويب ثاني: تفاعل منشوراتنا العضوية والطلب من الـ CRM (يتحمّل أول ما ينفتح).
-import { $, $$, api, say, esc, shell, fmt, busy, failure } from '/assets/common.js';
+import { $, $$, api, say, esc, shell, fmt, busy, failure, LANG } from '/assets/common.js';
+import { mountPeriod, rangeMs, diffDays, daysWord } from '/assets/period.js';
 import { analyze, postsOf, demandAlerts } from '/modules/listening/analyze.js';
 import { summarize, filterMentions, brandSuggestions, brandAdd, missingKeys } from '/modules/listening/social.js';
 
@@ -10,6 +11,7 @@ const SRC = { meta_form: 'نموذج ميتا', meta_ctwa: 'واتساب من إ
 const KEY = 'well-listen-kw';
 const DEFAULT_KW = ['محاليل', 'فيتامين', 'ولادة', 'رعاية منزلية', 'قدم السكري'];
 const pct = x => x == null ? 'جديد' : `${x > 0 ? '+' : ''}${Math.round(x * 100)}%`;
+const L = (ar, en) => (LANG === 'en' ? en : ar);
 const lift = x => x == null ? '—' : `${x.toFixed(1)}×`;
 
 async function organicData() {
@@ -20,7 +22,7 @@ async function organicData() {
 }
 
 async function organic() {
-  let kw = DEFAULT_KW, days = 90, posts = [];
+  let kw = DEFAULT_KW, range = null, ready = false, posts = [];
   try { const s = JSON.parse(localStorage.getItem(KEY) || 'null'); if (Array.isArray(s) && s.length) kw = s; } catch {}
   const save = () => { try { localStorage.setItem(KEY, JSON.stringify(kw)); } catch {} };
 
@@ -37,8 +39,9 @@ async function organic() {
       $('#out').innerHTML = `<div class="card dg-ok"><b>ما فيه منشورات عضوية للحين.</b><p class="muted" style="margin:6px 0 0">اربط "صفحة فيسبوك وحساب انستقرام" من صفحة الربط، وأول تحديث يجيب المنشورات هنا.</p></div>`;
       return;
     }
-    const r = analyze(posts, kw, days);
-    $('#sumO').innerHTML = `<div class="card"><b>${fmt(r.posts)}</b><span>منشور آخر ${days} يوم</span></div><div class="card"><b>${fmt(r.avg, 1)}</b><span>متوسط التفاعل للمنشور</span></div>`
+    if (!range) return;
+    const r = analyze(posts, kw, { from: range.from, to: range.to });
+    $('#sumO').innerHTML = `<div class="card"><b>${fmt(r.posts)}</b><span>${L('منشور في الفترة', 'posts in the period')}</span></div><div class="card"><b>${fmt(r.avg, 1)}</b><span>متوسط التفاعل للمنشور</span></div>`
       + Object.entries(r.networks).map(([n, v]) => `<div class="card"><b>${fmt(v.posts)}</b><span>${esc(NET[n] || n)}</span></div>`).join('');
     $('#out').innerHTML = `
       <section class="card pad"><h2>الكلمات اللي تتابعها</h2>
@@ -52,21 +55,22 @@ async function organic() {
 
   async function demand() {
     try {
-      const d = await api('/api/listening/demand');
+      const d = await api(`/api/listening/demand?from=${range.from}&to=${range.to}`);
       const alerts = demandAlerts(d.sources || []);
-      $('#demand').innerHTML = (d.sources || []).length ? `<div class="tbl"><table class="dg-plat"><thead><tr><th>المصدر</th><th>هالأسبوع</th><th>الأسبوع اللي قبله</th><th>التغيّر</th></tr></thead><tbody>
+      $('#demand').innerHTML = (d.sources || []).length ? `<div class="tbl"><table class="dg-plat"><thead><tr><th>المصدر</th><th>${L('هالفترة', 'This period')}</th><th>${L('الفترة اللي قبلها', 'Period before')}</th><th>التغيّر</th></tr></thead><tbody>
           ${d.sources.map(s => { const a = alerts.find(x => x.source === s.source); return `<tr${a ? ' class="ls-alert"' : ''}><td>${esc(SRC[s.source] || s.source)}</td><td class="n">${fmt(s.now)}</td><td class="n">${fmt(s.prev)}</td><td class="n">${s.prev ? pct((s.now - s.prev) / s.prev) : '—'}</td></tr>`; }).join('')}
           </tbody></table></div>${alerts.length ? `<p class="dg-fix" style="margin:10px 0 0"><b>انتبه:</b> ${alerts.map(a => `${esc(SRC[a.source] || a.source)} ${pct(a.change)}`).join('، ')}</p>` : ''}`
-        : '<p class="muted">ما فيه ليدز آخر أسبوعين.</p>';
+        : `<p class="muted">${L('ما فيه ليدز في هالفترة وقبلها.', 'No leads in this period or the one before.')}</p>`;
     } catch (err) { failure($('#demand'), err, demand); }
   }
 
   $('#addKw').addEventListener('submit', e => { e.preventDefault(); const v = $('#kwIn').value.trim(); if (v && !kw.includes(v)) { kw = [...kw, v].slice(0, 20); save(); draw(); } $('#kwIn').value = ''; });
   $('#kw').addEventListener('click', e => { const b = e.target.closest('[data-del]'); if (!b) return; kw = kw.filter((_, i) => i !== +b.dataset.del); save(); draw(); });
-  $$('[data-days]').forEach(b => b.addEventListener('click', () => { days = +b.dataset.days; $$('[data-days]').forEach(x => x.setAttribute('aria-pressed', String(x === b))); draw(); }));
-
-  demand();
+  // The same period bar as every page; the posts, the words and the CRM demand all follow it. Saved in this browser (the tab has no address of its own)
+  mountPeriod($('#orgPeriod'), { id: 'listening-organic', def: 'all', url: false, onChange: r => { range = r; if (ready) { draw(); demand(); } } });
   try { posts = postsOf(await organicData()); } catch (err) { say($('#msg'), 'ما قدرت أقرأ المنشورات العضوية: ' + err.message); }
+  ready = true;
+  demand();
   draw();
 }
 
@@ -81,7 +85,7 @@ const pctS = x => `${Math.round(x * 100)}%`;
 const day = s => (s ? String(s).slice(0, 10) : '—');
 
 async function listening() {
-  let W = [], M = [], days = 30, shown = 15, filt = {};
+  let W = [], M = [], range = null, ready = false, mseq = 0, shown = 15, filt = {};
 
   function setup(d) {
     // Nothing technical here: a normal user is told to ask the owner, the owner is sent to the data-health page
@@ -147,24 +151,25 @@ async function listening() {
   }
 
   function drawTrend(sum) {
+    const unit = sum.step === 1 ? L('يوم بيوم', 'day by day') : sum.step === 7 ? L('أسبوع بأسبوع', 'week by week') : L('شهر بشهر', 'month by month');
     const max = Math.max(1, ...sum.weeks.map(w => w.positive + w.negative + w.neutral + w.unscored));
     if (!sum.weeks.some(w => w.positive + w.negative + w.neutral + w.unscored)) { $('#trend').innerHTML = '<p class="muted" style="margin:10px 0 0">يبان هنا بعد أول إشارات عن علامتنا.</p>'; return; }
-    $('#trend').innerHTML = `<div class="lx-trend" role="img" aria-label="شعور الناس أسبوع بأسبوع">${sum.weeks.map(w => { const t = w.positive + w.negative + w.neutral + w.unscored;
-      return `<div class="col" style="height:${Math.max(4, 100 * t / max)}%" title="${t} إشارة: ${w.positive} إيجابي، ${w.negative} سلبي">${['positive', 'neutral', 'unscored', 'negative'].map(k => w[k] ? `<i style="height:${100 * w[k] / t}%;background:${MOOD[k]}"></i>` : '').join('')}</div>`; }).join('')}</div>
-      <div class="lx-trend-l">${sum.weeks.map(w => `<span>${new Date(w.start).toISOString().slice(5, 10)}</span>`).join('')}</div>`;
+    $('#trend').innerHTML = `<div class="lx-trend" role="img" aria-label="${L('شعور الناس', 'How people felt')} ${unit}">${sum.weeks.map(w => { const t = w.positive + w.negative + w.neutral + w.unscored;
+      return `<div class="col" style="height:${Math.max(4, 100 * t / max)}%" title="${t} ${L('إشارة', 'mentions')}: ${w.positive} ${L('إيجابي', 'positive')}, ${w.negative} ${L('سلبي', 'negative')}">${['positive', 'neutral', 'unscored', 'negative'].map(k => w[k] ? `<i style="height:${100 * w[k] / t}%;background:${MOOD[k]}"></i>` : '').join('')}</div>`; }).join('')}</div>
+      <div class="lx-trend-l">${sum.weeks.map(w => `<span>${new Date(w.start + 3 * 36e5).toISOString().slice(5, 10)}</span>`).join('')}</div>`;
   }
 
   function drawAlerts(sum) {
     $('#alerts').innerHTML = sum.alerts.map(a => a.type === 'negative'
-      ? `<div class="card lx-alert critical"><b>الكلام السلبي عن ${esc(a.name)} زاد</b><p style="margin:4px 0 0">${pctS(a.now)} من الإشارات آخر 7 أيام سلبية، كانت ${pctS(a.before)} الأسبوع اللي قبله. افتح الإشارات السلبية تحت وشوف السبب.</p></div>`
-      : `<div class="card lx-alert"><b>كلمة "${esc(a.name)}" انذكرت ${fmt(a.count)} مرة آخر 7 أيام</b></div>`).join('');
+      ? `<div class="card lx-alert critical"><b>${L(`الكلام السلبي عن ${esc(a.name)} زاد`, `Negative talk about ${esc(a.name)} went up`)}</b><p style="margin:4px 0 0">${L(`${pctS(a.now)} من الإشارات آخر ${daysWord(sum.window)} سلبية، كانت ${pctS(a.before)} المدة اللي قبلها. افتح الإشارات السلبية تحت وشوف السبب.`, `${pctS(a.now)} of the mentions in the last ${daysWord(sum.window, 'en')} are negative, up from ${pctS(a.before)} in the same length before. Open the negative mentions below to see why.`)}</p></div>`
+      : `<div class="card lx-alert"><b>${L(`كلمة "${esc(a.name)}" انذكرت ${fmt(a.count)} مرة آخر ${daysWord(sum.window)}`, `The word "${esc(a.name)}" was mentioned ${fmt(a.count)} times in the last ${daysWord(sum.window, 'en')}`)}</b></div>`).join('');
   }
 
   function drawMentions() {
-    const from = Date.now() - days * 864e5;
-    const list = filterMentions(M, filt).filter(m => (Date.parse(m.published_at || m.fetched_at || '') || 0) >= from);
+    const [from, to] = range ? rangeMs(range.from, range.to) : [0, Infinity];
+    const list = filterMentions(M, filt).filter(m => { const t = Date.parse(m.published_at || m.fetched_at || '') || 0; return t >= from && t < to; });
     const name = new Map(W.map(w => [w.id, w.name]));
-    $('#ments').innerHTML = list.slice(0, shown).map(m => `<article class="lx-m"><a href="${esc(m.url)}" target="_blank" rel="noopener" dir="auto">${esc(m.title || m.url)}</a>
+    $('#ments').innerHTML = list.slice(0, shown).map(m => `<article class="lx-m">${/^https:\/\//i.test(String(m.url || '').trim()) ? `<a href="${esc(m.url)}" target="_blank" rel="noopener noreferrer" dir="auto">${esc(m.title || m.url)}</a>` : `<span dir="auto">${esc(m.title || '')}</span>`}
         ${m.snippet ? `<p class="muted" style="margin:0;font-size:14px" dir="auto">${esc(m.snippet.slice(0, 220))}</p>` : ''}
         <div class="lx-meta"><span class="lx-s ${m.sentiment || 'unscored'}">${SENT[m.sentiment || 'unscored']}</span>${m.reason ? `<span>${esc(m.reason)}</span>` : ''}
           <span>· ${esc(SOURCE[m.source] || m.source)}</span>${m.author ? `<span>· ${esc(m.author)}</span>` : ''}<span>· ${esc(name.get(m.watch_id) || '')}</span><span>· ${day(m.published_at)}</span></div></article>`).join('')
@@ -172,12 +177,18 @@ async function listening() {
     $('#more').hidden = list.length <= shown;
   }
 
-  function drawAll() { const sum = summarize(W, M, Date.now(), days); drawWatch(); drawBrand(); drawVoice(sum); drawTrend(sum); drawAlerts(sum); drawMentions(); }
+  function drawAll() { if (!range) return; const [, to] = rangeMs(range.from, range.to); const sum = summarize(W, M, to, diffDays(range.from, range.to) + 1); drawWatch(); drawBrand(); drawVoice(sum); drawTrend(sum); drawAlerts(sum); drawMentions(); }
 
   async function load() {
     const d = await api('/api/listening/watch'); setup(d); W = d.watches || [];
-    if (!d.missing) { const m = await api('/api/listening/mentions'); M = m.mentions || []; }
-    drawAll();
+    if (!d.missing) await loadMentions(); else drawAll();
+  }
+  // The mentions of the chosen period (the server cuts them to it); a slower answer for an earlier period is dropped
+  async function loadMentions() {
+    const mine = ++mseq;
+    const m = await api(`/api/listening/mentions?from=${range.from}&to=${range.to}`);
+    if (mine !== mseq) return;
+    M = m.mentions || []; shown = 15; drawAll();
   }
 
   $('#wk').addEventListener('change', () => { $('#wl').hidden = $('#wk').value !== 'competitor'; });
@@ -215,11 +226,13 @@ async function listening() {
     } catch (err) { say($('#lmsg'), err.message); }
   }
   $('#refresh').addEventListener('click', async e => { const b = e.currentTarget; busy(b, true); await refresh(0); busy(b, false); });
-  $$('[data-ld]').forEach(b => b.addEventListener('click', () => { days = +b.dataset.ld; $$('[data-ld]').forEach(x => x.setAttribute('aria-pressed', String(x === b))); drawAll(); }));
   ['#fW', '#fS', '#fSrc'].forEach(s => $(s).addEventListener('change', () => { filt = { watch: +$('#fW').value || 0, sentiment: $('#fS').value, source: $('#fSrc').value }; shown = 15; drawMentions(); }));
   $('#more').addEventListener('click', () => { shown += 15; drawMentions(); });
 
+  // One period bar for the whole tab: the shares, the trend, the alerts and the list all follow it. In the address and saved in this browser
+  mountPeriod($('#lxPeriod'), { id: 'listening', def: '30', onChange: r => { range = r; if (ready) loadMentions().catch(err => say($('#lmsg'), err.message)); } });
   try { await load(); } catch (err) { say($('#lmsg'), err.message); }
+  ready = true;
 }
 
 export default async function mount() {

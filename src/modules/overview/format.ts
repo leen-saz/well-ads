@@ -16,9 +16,17 @@ const df = () => {
 };
 
 export const qty = (v: number): string => nf(0).format(v);
+// A number with at most `digits` decimals, in the page language
+export const fixed = (v: number, digits: number): string => nf(digits).format(v);
 export const sar = (v: number | null): string => (v == null ? '—' : `${nf(2).format(v)} ${pageLang() === 'en' ? 'SAR' : 'ر.س'}`);
 export const pct = (v: number | null): string => (v == null ? '—' : `${nf(2).format(v * 100)}%`);
 export const longDay = (day: string): string => df().format(new Date(day + 'T00:00:00Z'));
+// With the year, for spans that cross one
+export const fullDay = (day: string): string => {
+  const k = `y${pageLang()}`;
+  if (!cache.has(k)) cache.set(k, new Intl.DateTimeFormat(LOCALE[pageLang()], { day: 'numeric', month: 'long', year: 'numeric', timeZone: 'UTC' }));
+  return (cache.get(k) as Intl.DateTimeFormat).format(new Date(day + 'T00:00:00Z'));
+};
 // Day/month in Arabic, month/day in English (the way each reads a short date)
 export const shortDay = (day: string): string => {
   const [, m, d] = day.split('-');

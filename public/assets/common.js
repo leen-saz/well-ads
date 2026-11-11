@@ -1,6 +1,6 @@
 // أدوات مشتركة: الطلبات، والأيقونات، والتواريخ، وهيكل التطبيق (القائمة الجانبية والشريط العلوي)
 import { LANG, t, langSwitch, restoreDraft } from './i18n.js';
-import { sections, TIP } from './sidebar.js';
+import { sections, TIP, startsShut, wireGroups } from './sidebar.js';
 import { ME_KEY, FRESH, readMe, slim } from './me-cache.js';
 export { LANG, t, langSwitch };
 // Pages switch with Astro's ClientRouter: listeners on document/window of one page are removed when it leaves
@@ -56,7 +56,7 @@ export async function apiStream(path, body, { onText = () => {}, signal } = {}) 
     return data;
   }
   const reader = res.body.getReader(), dec = new TextDecoder();
-  let buf = '', text = '', result = null, failed = false;
+  let buf = '', text = '', result = null, failed = false, why = '';
   const take = block => {
     const line = block.split('\n').find(l => l.startsWith('data:'));
     if (!line) return;
@@ -64,7 +64,7 @@ export async function apiStream(path, body, { onText = () => {}, signal } = {}) 
     if (ev.type === 'delta') { text += ev.text; onText(text); }
     else if (ev.type === 'reset') { text = ''; onText(text); }
     else if (ev.type === 'result') result = ev;
-    else if (ev.type === 'error') failed = true;
+    else if (ev.type === 'error') { failed = true; if (/[\u0600-\u06FF]/.test(ev.message || '')) why = ev.message; }   // an Arabic sentence is for the user; a code is not
   };
   try {
     for (;;) {
@@ -75,7 +75,7 @@ export async function apiStream(path, body, { onText = () => {}, signal } = {}) 
     }
   } catch (err) { if (signal?.aborted) return null; throw err; }
   if (signal?.aborted) return null;
-  if (failed || !result) throw new Error('ما طلع جواب أقدر أقراه، جرّب مرة ثانية');
+  if (failed || !result) throw new Error(why || 'ما طلع جواب أقدر أقراه، جرّب مرة ثانية');
   return result;
 }
 // The readable part of a JSON answer still being written: its string values, one per line, keys left out
@@ -115,6 +115,7 @@ const P = {
   out: '<path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><path d="m16 17 5-5-5-5"/><path d="M21 12H9"/>',
   menu: '<path d="M4 6h16M4 12h16M4 18h16"/>',
   plus: '<path d="M12 5v14M5 12h14"/>',
+  chev: '<path d="m6 9 6 6 6-6"/>',
   panel: '<rect x="3" y="3" width="18" height="18" rx="2"/><path d="M15 3v18"/>',
   check: '<path d="M20 6 9 17l-5-5"/>',
   x: '<path d="M18 6 6 18M6 6l12 12"/>',
@@ -179,22 +180,23 @@ function drawSide(side, me, active) {
   const initials = (me.name || me.email || '·').trim().split(/\s+/).map(w => w[0]).join('').slice(0, 2).toUpperCase();
   // كل الأقسام تطلع للكل: اللي ما له صلاحية عليه أو مقفل لشركته يطلع بقفل
   // Quick create (shadcn dashboard-01 'Quick Create'): only what this user can open
-  const NEW = [['control', '/control/new/', 'قرار جديد', 'gavel'], ['social', '/social/', 'منشور جديد', 'calendar'], ['design', '/design/', 'تصميم جديد', 'image'], ['copy', '/copy/', 'نص إعلان جديد', 'pen']];
+  const NEW = [['control', '/control/new/', 'قرار جديد', 'gavel'], ['social', '/social/', 'منشور جديد', 'calendar'], ['design', '/design/', 'تصميم جديد', 'image'], ['copy', '/content/?tab=copy', 'نص إعلان جديد', 'pen']];
   const can = new Set(sections(me, L).flatMap(sec => sec.items).filter(it => it.state === 'ok').map(it => it.key));
   const quick = NEW.filter(([k]) => can.has(k));
   side.innerHTML = `<div class="side-top"><a class="brand mark" href="/today/" aria-label="Well">Well<i>.</i></a><button type="button" class="btn icon ghost side-fold" id="sideFold" aria-label="${L('طي القائمة', 'Collapse menu')}" aria-pressed="false">${icon('panel')}</button><button class="btn icon ghost side-x" type="button" data-close-side aria-label="${L('إغلاق القائمة', 'Close menu')}">${icon('x')}</button></div>
     ${quick.length ? `<div class="qc"><button type="button" class="btn primary qc-btn" id="qcBtn" aria-haspopup="menu" aria-expanded="false">${icon('plus')}<span>${L('جديد', 'New')}</span></button>
       <div class="menu qc-menu" id="qcMenu" role="menu" hidden>${quick.map(([, href, t, ic]) => `<a href="${href}" role="menuitem">${icon(ic)}${t}</a>`).join('')}</div></div>` : ''}
-    ${sections(me, L).map(sec => `<div class="side-sec"><small class="side-h">${esc(sec.label)}</small>${sec.items.map(it => {
+    ${sections(me, L).map(sec => `<div class="side-sec${startsShut(sec, active) ? ' shut' : ''}"><button type="button" class="side-h" data-g="${sec.key}" aria-expanded="${!startsShut(sec, active)}" aria-controls="sg-${sec.key}"><span>${esc(sec.label)}</span>${icon('chev', 'chv')}</button><div class="side-items" id="sg-${sec.key}">${sec.items.map(it => {
       const ic = it.svg ? `<svg class="i" viewBox="0 0 24 24" aria-hidden="true">${it.svg}</svg>` : icon(it.ic);
       if (it.state === 'ok' || it.state === 'soon') return `<a class="navi${it.state === 'soon' ? ' soon' : ''}" href="${it.href}" data-k="${esc(it.key)}"${FULL(it.href)}${it.key === active ? ' aria-current="page"' : ''}>${ic}<span>${esc(it.text)}</span>${it.state === 'soon' ? `<small class="tag">${L('قريباً', 'Soon')}</small>` : ''}</a>`;
       return `<span class="navi locked" aria-disabled="true" data-tip="${L(...TIP[it.state])}">${ic}<span>${esc(it.text)}</span>${icon('lock', 'lk')}</span>`;
-    }).join('')}</div>`).join('')}
+    }).join('')}</div></div>`).join('')}
     <div class="grow"></div>
     <a class="navi" href="/settings/" data-k="settings"${active === 'settings' ? ' aria-current="page"' : ''}>${icon('settings')}<span>الإعدادات</span></a>
     <button class="me" id="meBtn" aria-haspopup="menu" aria-expanded="false"><span class="avatar">${esc(initials)}</span>
       <span class="who"><b>${esc(me.name || me.email || '')}</b><span class="muted">${me.role === 'owner' ? 'المالكة' : (me.departments || []).length ? 'مدير قسم' : 'عضو'}</span></span></button>
     <div class="menu" id="meMenu" role="menu" hidden><a href="/account/" role="menuitem">${icon('user')}حسابي</a><form method="post" action="/api/auth/logout" style="margin:0"><button type="submit" role="menuitem">${icon('out')}خروج</button></form></div>`;
+  wireGroups(side);
   side.querySelector('form')?.addEventListener('submit', () => { try { localStorage.removeItem(ME_KEY); } catch { /* storage blocked */ } });
   // Navigation labels as tooltips, used when the menu is folded to icons
   side.querySelectorAll('.navi').forEach(a => { const t = a.querySelector('span')?.textContent; if (t && !a.title) a.title = t; });
@@ -219,7 +221,7 @@ function bindMe() {
 }
 
 // الهيكل: قائمة جانبية بأيقونات + شريط علوي. tools = HTML لأدوات الشريط.
-export async function shell({ active, title, badge = '', tools = '' }) {
+export async function shell({ active, title, badge = '', tools = '', section = active }) {
   const app = $('#app'), side = $('#side', app);
   // The title bar needs nothing from the server: it goes up before the user is known
   $('#top', app).innerHTML = `<div class="t"><button class="btn icon ghost burger" id="burger" aria-label="القائمة" aria-controls="side" aria-expanded="false">${icon('menu')}</button><h1>${esc(title)}</h1>${badge}</div><div class="tools"><span id="tools">${tools}</span>${langSwitch()}</div>`;
@@ -237,9 +239,11 @@ export async function shell({ active, title, badge = '', tools = '' }) {
   drawer(app, side);
   restoreDraft();
   warmAnalytics(app);
+  // Old numbers are said out loud on every page, in plain words (public/assets/freshness.js)
+  import('./freshness.js').then(m => m.staleBanner($('#content', app))).catch(() => {});
   import('./vitals.js').then(m => m.measure()).catch(() => {});
   // Every live tab ends with its lessons card (learning loop, docs/learning-loops.md)
-  if ((me.modules || []).some(m => m.key === active && m.status === 'live' && m.ok && !m.locked)) import('./lessons.js').then(m => m.lessonsCard(active)).catch(() => {});
+  if ((me.modules || []).some(m => m.key === section && m.status === 'live' && m.ok && !m.locked)) import('./lessons.js').then(m => m.lessonsCard(section)).catch(() => {});
   return me;
 }
 
@@ -283,4 +287,22 @@ export function settingsTabs(current, me) {
   nav.className = 'tabs settings-tabs'; nav.setAttribute('aria-label', 'الإعدادات');
   nav.innerHTML = tabs.filter(x => x[4]).map(([h, t, ic, k]) => `<a href="${h}"${k === current ? ' aria-current="page"' : ''}>${icon(ic)}<span>${t}</span></a>`).join('');
   $('#content').prepend(nav);
+}
+
+// One tab with sections (voice: text and voiceover, content: content and copywriter): a switch at the top of the page.
+// The sections come from the server's module list (modules with `into`); a section this user cannot open, or that is locked
+// for the company, shows with its lock like the sidebar does. Each section is its own page, so a click is a navigation.
+export function sectionTabs(me, host, active, first) {
+  const el = $('#tabsw'); if (!el) return;
+  const L = (ar, en) => (LANG === 'en' ? en : ar);
+  const mods = me.modules || [];
+  const self = mods.find(m => m.key === host);
+  const kids = mods.filter(m => m.into === host && m.status === 'live');
+  if (!self || !kids.length) { el.hidden = true; return; }
+  const items = [{ key: host, href: `/${host}/`, text: L(first[0], first[1]), on: !self.locked && self.ok, why: self.locked ? 'locked' : 'noaccess' },
+    ...kids.map(k => ({ key: k.key, href: `/${host}/?tab=${k.key}`, text: L(k.ar, k.en), on: !k.locked && k.ok, why: k.locked ? 'locked' : 'noaccess' }))];
+  el.innerHTML = items.map(it => it.on
+    ? `<a class="sec-tab" href="${it.href}"${it.key === active ? ' aria-current="page"' : ''}>${esc(it.text)}</a>`
+    : `<span class="sec-tab locked" aria-disabled="true" title="${esc(L(...TIP[it.why]))}">${esc(it.text)}</span>`).join('');
+  el.hidden = false;
 }

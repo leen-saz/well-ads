@@ -5,7 +5,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import * as A from '../../lib/auth';
 import { api } from '../../api/index';
-import { clearSnaps } from '../../lib/usage';
+import { clearSnaps, overCap } from '../../lib/usage';
 import { WELL_COMPANY } from '../../lib/tenant';
 import { AVATARS, splitSeconds, validate } from './engine';
 import { higgsfield } from './higgsfield';
@@ -18,7 +18,7 @@ const user = { co: CO, uid: 'u-1', email: 'a@example.com' };
 const CLIP = { kind: 'text-to-video', prompt: 'لقطة لعيادة هادئة', ratio: '9:16', seconds: 5, resolution: '720p' };
 
 // ---- the fakes
-let db: Job[], usage: Record<string, unknown>[], caps: { module: string; monthly_cap_usd: number; alert_at_pct: number }[], spent: { module: string; cost_usd: number }[];
+let db: Job[], usage: Record<string, unknown>[], caps: { module: string; monthly_cap_usd: number | null; alert_at_pct: number }[], spent: { module: string; cost_usd: number }[];
 let submits: number, submitStatus: number, statusWord: string, videoType: string, profile: A.Profile | null;
 const files = { stored: [] as string[], put: vi.fn(async (k: string) => { files.stored.push(k); }) };
 const env = { ...E, FILES: files as unknown as R2Bucket };
@@ -111,6 +111,7 @@ describe('job lifecycle', () => {
   });
   it('two callers on the same queued job send it once', async () => {
     const [j] = await queue();
+    await overCap(usageCtx(), 'video');   // the minute snapshot is warm, as it is on a running Worker
     await Promise.all([advance(ctx(), j!), advance(ctx(), j!)]);
     expect(submits).toBe(1);
   });
@@ -181,10 +182,15 @@ describe('cap and setup', () => {
     expect(await advance(ctx(), j!)).toMatchObject({ status: 'failed', error_code: 'cap_reached', attempts: 0 });
     expect(submits).toBe(0);
   });
+  it('with no row saved the default cap applies (the owner has not chosen)', async () => {
+    spent = [{ module: 'video', cost_usd: 5 }];
+    expect(await advance(ctx(), (await queue())[0]!)).toMatchObject({ status: 'failed', error_code: 'cap_reached' });
+    expect(submits).toBe(0);
+  });
   it('under the cap, or with no cap, it goes through', async () => {
     caps = [{ module: 'video', monthly_cap_usd: 5, alert_at_pct: 80 }]; spent = [{ module: 'video', cost_usd: 1 }];
     expect((await advance(ctx(), (await queue())[0]!)).status).toBe('running');
-    clearSnaps(); caps = []; spent = [{ module: 'video', cost_usd: 9999 }];
+    clearSnaps(); caps = [{ module: 'video', monthly_cap_usd: null, alert_at_pct: 80 }]; spent = [{ module: 'video', cost_usd: 9999 }];   // the owner saved an empty cap: no limit
     expect((await advance(ctx(), (await queue())[0]!)).status).toBe('running');
   });
   it('without the engine keys the job stops as not ready and nothing is sent', async () => {

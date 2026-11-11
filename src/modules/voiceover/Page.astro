@@ -1,0 +1,70 @@
+---
+import { ClientRouter } from 'astro:transitions';
+// الفويس أوفر: نص يتحول لصوت عربي بلهجة سعودية أو خليجية. السكربت في public/modules/voiceover/client.js
+---
+<!doctype html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="robots" content="noindex,nofollow">
+<meta name="referrer" content="no-referrer">
+<meta name="theme-color" content="#F6F0E3">
+<title>الصوت · Well</title>
+<link rel="preload" href="/assets/fonts/thmanyahsans-Regular.woff2" as="font" type="font/woff2" crossorigin>
+<link rel="preload" href="/assets/fonts/playfair-display-900.woff2" as="font" type="font/woff2" crossorigin>
+<link rel="stylesheet" href="/assets/app.css">
+<ClientRouter />
+<style is:global>
+.vo-grid{display:grid;grid-template-columns:minmax(0,1.2fr) minmax(0,1fr);gap:16px;align-items:start}
+@media (max-width:1000px){.vo-grid{grid-template-columns:1fr}}
+.vo-grid h2{margin:0 0 6px}
+.vo-four{display:grid;grid-template-columns:1fr 1fr;gap:0 12px}
+@media (max-width:520px){.vo-four{grid-template-columns:1fr}}
+.vo-count{font-size:12px;margin:4px 0 0}.vo-count.over{color:#C0392B}
+.vo-flag{font-size:13px;padding:8px 12px;border-radius:12px;background:var(--tint);margin-top:8px}
+.vo-flag.bad{background:color-mix(in srgb,var(--pulse) 12%,transparent)}
+.vo-out{display:grid;gap:10px;margin-top:6px}
+.vo-out audio{width:100%}
+.vo-act{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+</style>
+</head>
+<body data-page="voiceover" data-module>
+<div class="app" id="app">
+  <aside class="side" id="side" aria-label="القائمة" transition:persist="side"></aside>
+  <div class="scrim"></div>
+  <div class="main">
+    <header class="topbar" id="top"></header>
+    <main class="content" id="content">
+      <div class="sec-tabs" id="tabsw" hidden></div>
+      <p class="muted" style="margin:0 0 14px">اكتب النص ويتحول لصوت عربي بلهجة سعودية أو خليجية. تسمعه قبل ما تنزّله، وصوت العلامة تحفظه مرة وينطبق على كل مرة.</p>
+      <div class="so-note" id="notready" hidden role="status"></div>
+      <div class="vo-grid">
+        <section class="card pad">
+          <h2>النص</h2>
+          <form id="vf" novalidate>
+            <label for="text">النص المقروء</label><textarea id="text" rows="7" maxlength="1500" dir="auto" placeholder="اكتب النص اللي تبي يتقرا"></textarea>
+            <p class="muted vo-count" id="count">0 من 1500</p>
+            <div class="vo-four">
+              <div><label for="voice">الصوت</label><select id="voice"></select></div>
+              <div><label for="accent">اللهجة</label><select id="accent"></select></div>
+              <div><label for="tone">النبرة</label><select id="tone"></select></div>
+              <div><label for="pace">الإيقاع</label><select id="pace"></select></div>
+            </div>
+            <div class="bar" style="margin-top:14px"><button class="btn primary" type="submit" id="go">ولّد الصوت</button><button class="btn secondary" type="button" id="brand">احفظ كصوت للعلامة</button></div>
+            <div class="msg" id="msg" role="status"></div>
+          </form>
+          <div id="flags" aria-live="polite"></div>
+        </section>
+        <section class="card pad">
+          <h2>الصوت</h2>
+          <p class="muted" id="idle" style="margin:0">لما تولّد الصوت يطلع هنا، تسمعه وتنزّله.</p>
+          <div class="vo-out" id="out" hidden></div>
+        </section>
+      </div>
+    </main>
+  </div>
+</div>
+<script is:inline type="module" src="/assets/router.js"></script>
+</body>
+</html>

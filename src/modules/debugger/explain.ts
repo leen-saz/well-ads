@@ -3,6 +3,8 @@
 // Without ANTHROPIC_API_KEY the button says it is off; the findings themselves never need it.
 import Anthropic from '@anthropic-ai/sdk';
 import type { Finding } from './debugger';
+import { generate, withoutFallback, type LlmEnv } from '../../lib/llm';
+import type { UsageCtx } from '../../lib/usage';
 
 export interface ClaudeEnv { ANTHROPIC_API_KEY?: string; ANTHROPIC_MODEL?: string }
 export const CLAUDE_MODEL = 'claude-sonnet-5-5'; // Leen: Sonnet (half the price of Opus); ANTHROPIC_MODEL overrides
@@ -20,6 +22,13 @@ ${f.map(x => `- ${x.level} | ${x.title} | ${x.detail} | ${x.fix}`).join('\n') ||
 ${Object.entries(platforms).map(([p, v]) => `- ${p} | ${v.spend7} | ${v.leads7} | ${v.crm7} | ${v.lastDay || '-'}`).join('\n') || '- ما فيه'}
 المطلوب: رتّب الشغل حسب الأثر على الصرف والليدز. لكل خطوة: وش تسوي بالضبط، ووين (اسم الشاشة في المنصة)، وكيف تتأكد إنها انحلت.
 بحد أقصى 7 خطوات مرقمة. بدون مقدمة.`;
+}
+
+// The same plan on OpenRouter, when the owner routed the Debugger there (src/lib/ai-routes.ts). Workers AI is not a fallback here:
+// a failure throws, and the caller goes back to Claude.
+export async function explainViaOpenRouter(e: LlmEnv, findings: Finding[], platforms: Platforms, ctx: UsageCtx, f: typeof fetch = fetch): Promise<{ text: string; model: string }> {
+  const out = await generate(withoutFallback(e), 'debugger', { messages: [{ role: 'system', content: SYSTEM }, { role: 'user', content: explainPrompt(findings, platforms) }], max_tokens: 3000 }, f, ctx);
+  return { text: out.response.slice(0, 6000), model: out.model };
 }
 
 export async function explain(e: ClaudeEnv, findings: Finding[], platforms: Platforms, f?: typeof fetch): Promise<{ text: string; model: string }> {

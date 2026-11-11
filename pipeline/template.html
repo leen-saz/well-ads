@@ -195,6 +195,15 @@ input[type=search]{width:min(240px,100%)}
 .tile.feature .spark{fill:#fff}
 .kpis.kout{grid-template-columns:repeat(auto-fit,minmax(min(100%,160px),1fr))}
 .kout .kpi.hero .v{font-size:1.6rem}
+.payer{display:grid;grid-template-columns:minmax(0,2fr) minmax(0,1fr);gap:14px;padding:16px 18px;border:1px solid var(--ink);border-radius:14px;background:var(--glass-bg,#fff);align-items:center}
+@media (max-width:700px){.payer{grid-template-columns:1fr}}
+.payer .l{display:block;color:var(--muted);font-size:.85rem}
+.payer-main .v{display:inline-block;font-size:2.4rem;font-weight:800;line-height:1.15;margin-inline-end:10px}
+.payer-side .v{display:block;font-size:1.5rem;font-weight:700}
+.payer-note{display:block;margin-top:4px}
+.payer.watch .payer-main .v{color:#B7791F}.payer.bad .payer-main .v{color:#C0392B}.payer.off .payer-main .v{color:var(--muted)}
+.pill.wa-dest{background:var(--glass-bg,#fff);color:var(--muted);border:1px dashed var(--line)}
+.payrank-na{margin:0;padding:10px 12px;border:1px dashed var(--line);border-radius:10px}
 /* The customer journey: a horizontal pipe that narrows with the numbers (pipeline/dash/05-render.js, funnelHTML) */
 .ffun2{display:grid;grid-template-columns:minmax(0,1fr) 17rem;gap:14px;align-items:start}
 @media (max-width:1000px){.ffun2{grid-template-columns:1fr}}
@@ -244,6 +253,18 @@ input[type=search]{width:min(240px,100%)}
 .flines li.bad{color:var(--bad)}.flines li.bad::before{background:var(--bad)}
 .flines li.watch{color:#b45309}.flines li.watch::before{background:#f59e0b}
 .flines li.off{color:var(--muted)}.flines li.off::before{background:var(--line)}
+.flines li.dis{font-weight:600}
+.flinkp.bad text{fill:var(--bad)}
+.fv-head{display:flex;align-items:center;gap:8px}.fv-conf{margin-inline-start:auto;font-size:.72rem}
+.fverdict.dis h4{color:var(--bad)}
+.fmeta{display:grid;gap:2px;margin-top:6px;font-size:.75rem;color:var(--muted)}.fmeta p{margin:0}.fmeta .fbig{font-size:.85rem;font-weight:600;color:var(--ink)}
+.sr-only{position:absolute;inline-size:1px;block-size:1px;margin:-1px;padding:0;border:0;overflow:hidden;clip:rect(0 0 0 0);clip-path:inset(50%);white-space:nowrap}
+.ftargets{margin-top:8px;font-size:.85rem}.ftargets summary{cursor:pointer;color:var(--muted)}.ftargets .m{color:var(--muted)}
+.ft-scroll{overflow-x:auto}.ftargets table{width:100%;border-collapse:collapse;margin-top:6px}
+.ftargets th,.ftargets td{padding:6px;text-align:start;border-bottom:1px solid var(--line);font-weight:400}
+.ftargets input{width:5.5em;padding:4px 6px;border:1px solid var(--line);border-radius:8px;background:var(--surface);color:var(--ink);font:inherit;font-variant-numeric:tabular-nums}
+.ftargets p{margin:6px 0 0;font-size:.75rem}
+.ftargets .btn-sm{margin-inline-start:6px;padding:3px 10px;border:1px solid var(--line);border-radius:999px;background:var(--surface);color:var(--ink);font:inherit;cursor:pointer}
 .fname{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
 .fname b{width:24px;height:24px;border-radius:50%;background:var(--accent);color:#fff;display:grid;place-items:center;font-size:.78rem}
 .fname span{font-weight:600;color:var(--ink)}
@@ -660,7 +681,7 @@ body{background:
     <div class="tbl"><table class="tree" id="tTree"></table></div>
   </section>
 
-  <section data-mode="ads" data-page="creative" class="panel" aria-labelledby="perH" id="personas">
+  <section data-mode="ads" data-page="creative" class="panel" aria-labelledby="perH" id="personas" data-off hidden>
     <div class="panel-h"><h2 id="perH">شخصيات الجمهور <details class="qi"><summary aria-label="كيف تنحسب؟">!</summary><div>من تفاصيل المشاهدين لكل إعلان في الفترة والفلاتر المختارة (ميتا وسناب وتيك توك). العمر داخل كل جنس من ميتا بس (ترجعهم مع بعض)، والمنصات الثانية ما تقسمه. المنطقة والجهاز والوقت لكل المشاهدين. النتايج = الليدز والمحادثات.</div></details></h2><span class="sub" id="perSub"></span></div>
     <div class="per-grid" id="perCards"></div>
   </section>
