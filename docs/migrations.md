@@ -28,3 +28,36 @@ Rules going forward:
   the company's own `ad_key`s. Per-company ad keys (ADR-0006) must add `company_id` to `ad_metrics` first.
 - `control_settings`, `suggestions`, `outcomes`, `platform_activity` and `connections` have no company column, so the
   Control and Connectors routes are Well-only in code (`requireUser(..., { well: true })`).
+
+## Which migrations are applied (tracking from 033)
+
+`033_schema_migrations.sql` creates `public.schema_migrations (name, applied_at)`. From 033 on, **every migration ends with**
+
+```sql
+insert into public.schema_migrations (name) values ('NNN_name.sql') on conflict do nothing;
+```
+
+(a test fails if a new file forgets it). `/api/health` then returns `migrations`:
+
+| state | meaning |
+|---|---|
+| `ok` | every tracked file has a row |
+| `missing` | `missing` lists the file names with no row: apply them in the SQL editor |
+| `untracked` | `033` itself is not applied yet (run it first) |
+| `unknown` | the table could not be read (a Supabase problem, not a missing migration) |
+
+Files up to `032_buyer_actions.sql` predate the table and are not checked there: «المدير ← صحة الداتا ← المايقريشنات» probes
+their tables and columns instead. To record them too (optional, for the record only), run once after 033, listing only the
+ones you know are applied:
+
+```sql
+insert into public.schema_migrations (name) values
+  ('000_base.sql'), ('001_control.sql') -- … one per applied file
+on conflict do nothing;
+```
+
+**Failing the production deploy.** By default a missing migration is only reported (the site keeps deploying). Setting
+the Worker variable `MIGRATIONS_STRICT` to `1` (Cloudflare ← Workers ← well-ads ← Settings ← Variables) makes `/api/health`
+return `ok: false` while any tracked migration is missing or `033` is not applied, and the deploy check in
+`deploy.yml` already fails on `ok: false`. Turn it on only after 033 and everything after it are applied, otherwise the
+next deploy fails.

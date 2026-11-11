@@ -1,0 +1,45 @@
+// The migration files in supabase/migrations, in apply order. A test fails when this list and the folder differ, so a new
+// migration cannot be forgotten here. /api/health compares it with the schema_migrations table (src/lib/health.ts).
+export const MIGRATIONS: readonly string[] = [
+  '000_base.sql',
+  '001_control.sql',
+  '002_departments.sql',
+  '003_phase_a.sql',
+  '004_learning.sql',
+  '005_connectors.sql',
+  '006_companies.sql',
+  '007_social.sql',
+  '008_journeys.sql',
+  '009_content_agent.sql',
+  '010_maestro.sql',
+  '011_crm_leads.sql',
+  '011_modules.sql',
+  '012_access_levels.sql',
+  '013_listening.sql',
+  '013_social_approver.sql',
+  '014_knowledge.sql',
+  '014_lessons_by_tab.sql',
+  '015_copy.sql',
+  '016_brand_assets.sql',
+  '017_knowledge_brand_source.sql',
+  '018_motion_videos.sql',
+  '019_ai_usage.sql',
+  '020_library.sql',
+  '021_lock_down_anon.sql',
+  '022_web_vitals.sql',
+  '023_social_recovery.sql',
+  '024_transcribe.sql',
+  '025_vision.sql',
+  '026_voiceover.sql',
+  '027_site_requests.sql',
+  '028_drop_site_requests.sql',
+  '029_openrouter_routes.sql',
+  '030_campaigns.sql',
+  '031_ai_models_spend.sql',
+  '032_buyer_actions.sql',
+  '033_schema_migrations.sql',
+];
+
+// Files up to this one were applied by hand before the schema_migrations table existed: they are not checked here
+// (the data-health page probes their tables and columns instead). Every later file records itself as its last statement.
+export const TRACKED_AFTER = '032_buyer_actions.sql';
