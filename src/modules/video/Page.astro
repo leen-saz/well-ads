@@ -28,6 +28,12 @@ import { ClientRouter } from 'astro:transitions';
 .vd-job{padding:12px 14px;display:grid;gap:6px;border:1px solid var(--line);border-radius:var(--r-sm)}
 .vd-job header{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
 .vd-job video{width:100%;max-width:360px;border-radius:12px;background:#000}
+.vd-brief{margin-top:18px;padding-top:6px;border-top:1px solid var(--line)}
+.vd-shot{padding:12px 14px;display:grid;gap:6px;border:1px solid var(--line);border-radius:var(--r-sm);margin-top:10px}
+.vd-shot header{display:flex;gap:8px;align-items:center}
+.vd-shot details{font-size:13px;color:var(--muted)}
+.vd-notice{font-size:13px;padding:8px 12px;border-radius:12px;background:color-mix(in srgb,var(--pulse) 10%,transparent);display:grid;gap:2px}
+.vd-notices{display:grid;gap:8px;margin-top:12px}
 .vd-st{font-size:13px;padding:2px 10px;border-radius:999px;background:var(--tint-2)}
 .vd-st.done{background:color-mix(in srgb,var(--accent) 18%,transparent)}
 .vd-st.failed{background:color-mix(in srgb,var(--pulse) 14%,transparent)}
@@ -57,10 +63,41 @@ import { ClientRouter } from 'astro:transitions';
             <div class="bar" style="margin-top:14px"><button class="btn primary" type="submit" id="save">أنشئ الفيديو</button></div>
             <div class="msg" id="pmsg" role="status"></div>
           </form>
+          <div class="vd-brief" id="briefBox" hidden>
+            <h2>الموجز</h2>
+            <p class="vd-note">الصق رابط صفحة المنتج أو الخدمة ونقرأ منها العرض والفوائد والسعر، وبعدها عدّل اللي تبي.</p>
+            <form id="uf" novalidate class="bar" style="gap:8px;align-items:end;flex-wrap:wrap">
+              <div style="flex:1;min-width:200px"><label for="url">رابط الصفحة</label><input type="url" id="url" dir="ltr" placeholder="https://"></div>
+              <button class="btn secondary" type="submit" id="read">اقرأ الصفحة</button>
+            </form>
+            <div class="msg" id="umsg" role="status"></div>
+            <form id="bf" novalidate>
+              <div class="vd-two">
+                <div><label for="b_service">الخدمة أو المنتج</label><input type="text" id="b_service" maxlength="120"></div>
+                <div><label for="b_price">السعر <span class="muted">(لو موجود)</span></label><input type="text" id="b_price" maxlength="60"></div>
+                <div><label for="b_audience">الجمهور</label><input type="text" id="b_audience" maxlength="160"></div>
+                <div><label for="b_cta">الدعوة للخطوة</label><input type="text" id="b_cta" maxlength="60"></div>
+              </div>
+              <label for="b_offer">العرض</label><input type="text" id="b_offer" maxlength="300">
+              <label for="b_benefits">الفوائد <span class="muted">(كل فايدة في سطر)</span></label><textarea id="b_benefits" rows="4" maxlength="800" dir="auto"></textarea>
+              <div class="bar" style="margin-top:14px"><button class="btn secondary" type="submit" id="bsave">احفظ الموجز</button><button class="btn primary" type="button" id="wscript">اكتب السكربت</button></div>
+              <div class="msg" id="bmsg" role="status"></div>
+            </form>
+          </div>
         </section>
         <section class="card pad">
-          <h2>اللقطات</h2>
-          <form id="cf" novalidate hidden>
+          <div id="scriptBox" hidden>
+            <h2>السكربت</h2>
+            <p class="vd-note" id="fit"></p>
+            <div id="shots"></div>
+            <div class="vd-notices" id="notices" role="status"></div>
+            <div id="avBox" hidden><label for="avvoice">رابط ملف صوت الأفاتار</label><input type="url" id="avvoice" dir="ltr" placeholder="https://"><p class="vd-note">جهّز الصوت من تاب الفويس أوفر أول.</p></div>
+            <div class="bar" style="margin-top:14px"><button class="btn secondary" type="button" id="ssave">احفظ تعديلات السكربت</button><button class="btn primary" type="button" id="render">ولّد الفيديو</button></div>
+            <div class="msg" id="smsg" role="status"></div>
+          </div>
+          <h2 style="margin-top:22px">اللقطات</h2>
+          <details id="manual" hidden><summary>أضف لقطة بإيدك</summary>
+          <form id="cf" novalidate>
             <div class="vd-two">
               <div><label for="kind">نوع اللقطة</label><select id="kind"></select></div>
               <div><label for="clip">طول اللقطة</label><select id="clip"></select></div>
@@ -70,7 +107,7 @@ import { ClientRouter } from 'astro:transitions';
             <div id="voiceBox" hidden><label for="voice">رابط ملف الصوت</label><input type="url" id="voice" dir="ltr" placeholder="https://"><p class="vd-note">جهّز الصوت من تاب الفويس أوفر أول.</p></div>
             <div class="bar" style="margin-top:14px"><button class="btn primary" type="submit" id="go">ولّد اللقطة</button></div>
             <div class="msg" id="cmsg" role="status"></div>
-          </form>
+          </form></details>
           <p class="vd-note" id="noproj">أنشئ فيديو أول عشان تضيف لقطات.</p>
           <div class="vd-jobs" id="jobs" aria-live="polite"></div>
         </section>
