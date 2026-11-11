@@ -536,6 +536,7 @@ export const EN = {
   'املأ تفاصيل التصميم واضغط "جهّز تفاصيل التصميم".': 'Fill in the design details and press "Prepare the design details".', 'املأ التفاصيل واضغط "صمّم".': 'Fill in the details and press "Design".', 'المصمم شغّال والتصميم بالطريق… (حوالي دقيقة)': 'The designer is working, your design is on its way… (about a minute)', 'المعاينة': 'Preview', 'وش نجح عندنا آخر 30 يوم': 'What worked for us in the last 30 days',
   'الصيغة': 'Format', 'النصوص المقترحة': 'Suggested copy', '· ذكاء اصطناعي': '· AI', '· قوالب': '· templates',
   'السطر الثاني': 'Second line', 'الزر': 'Button', 'نزّل PNG': 'Download PNG', 'اختر مقاس واحد على الأقل.': 'Pick at least one size.',
+  'جرّب الخلفية مرة ثانية': 'Try the background again', 'انرسمت الخلفية.': 'The background is drawn.', 'المصمم يرسم الخلفية… (حوالي دقيقة)': 'Drawing the background… (about a minute)', 'النصوص جاهزة، بس الخلفية ما انرسمت. السبب فوق المعاينة.': 'The copy is ready, but the background was not drawn. The reason is above the preview.',
   'يجهز تفاصيل التصميم…': 'Preparing the design details…', 'جاهز. عدّل النص أو اختر خيار ثاني، والمعاينة تتحدث.': 'Ready. Edit the copy or pick another option, and the preview updates.',
   'ما فيه إعلانات ليدز بثلاث ليدز أو أكثر آخر 30 يوم، فالنصوص من القوالب.': 'No lead ads with three or more leads in the last 30 days, so the copy comes from templates.',
   // الصوت (voice)
