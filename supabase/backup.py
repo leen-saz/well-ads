@@ -12,7 +12,11 @@ TABLES = ("profiles", "audit_log", "dashboard_state", "ads", "ad_metrics", "plat
           "suggestions", "control_settings", "outcomes", "lessons",
           "companies", "connections", "crm_leads", "crm_sync_state", "knowledge", "brand_assets", "social_posts",
           "journeys", "journey_runs", "copy_projects", "content_plans", "listen_watch", "listen_mentions",
-          "motion_projects", "motion_versions")
+          "motion_projects", "motion_versions",
+          "ai_budgets", "ai_routes", "ai_usage", "campaigns", "campaign_tasks", "campaign_outputs", "library_items",
+          "library_favorites", "transcribe_jobs", "vision_analyses", "voiceover_settings", "video_projects", "video_jobs", "video_settings")
+# Not backed up on purpose (tests/unit/backup-coverage.test.ts reads this): web_vitals is 7-day telemetry with no personal data
+SKIPPED = ("web_vitals",)
 PAGE = 1000
 
 

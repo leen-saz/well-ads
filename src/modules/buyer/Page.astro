@@ -1,0 +1,69 @@
+---
+import { ClientRouter } from 'astro:transitions';
+// الميديا باير: توصيات مرتبة من أرقام الإعلانات (قراءة بس).
+---
+<!doctype html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="robots" content="noindex,nofollow">
+<meta name="referrer" content="no-referrer">
+<meta name="theme-color" content="#F6F0E3">
+<title>الميديا باير · Well</title>
+<link rel="preload" href="/assets/fonts/thmanyahsans-Regular.woff2" as="font" type="font/woff2" crossorigin>
+<link rel="preload" href="/assets/fonts/playfair-display-900.woff2" as="font" type="font/woff2" crossorigin>
+<link rel="stylesheet" href="/assets/app.css">
+<ClientRouter />
+<style is:global>
+.by-sum{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,180px),1fr));gap:12px;margin:0 0 16px}
+.by-sum .card{padding:14px 16px;display:grid;gap:2px}
+.by-sum b{font:700 26px var(--f-num);color:var(--ink)}
+.by-sum span{font-size:13px;color:var(--muted)}
+.by-list{display:grid;gap:10px}
+.by-r{padding:14px 16px;display:grid;gap:8px;border-inline-start:4px solid var(--soft)}
+.by-r.pause,.by-r.budget_down{border-inline-start-color:var(--pulse)}
+.by-r.budget_up,.by-r.shift_budget,.by-r.resume{border-inline-start-color:var(--accent)}
+.by-r h3{margin:0;font-size:15px}
+.by-do{padding:8px 12px;border-radius:12px;background:var(--tint);font-size:14px}
+.by-tags{display:flex;gap:6px;flex-wrap:wrap}
+.by-tag{font-size:12px;padding:2px 10px;border-radius:999px;background:var(--tint-2)}
+.by-r dl{display:grid;gap:4px;margin:0;font-size:14px}
+.by-r dt{font-weight:700;display:inline}
+.by-r dd{display:inline;margin:0}
+.by-open{background:var(--pulse);color:#fff}
+.by-prev{width:100%;border-collapse:collapse;font-size:13px}
+.by-prev th,.by-prev td{padding:6px 8px;text-align:start;border-bottom:1px solid var(--line)}
+.by-r ul{margin:0;padding-inline-start:18px;font-size:13px;color:var(--muted)}
+</style>
+</head>
+<body data-page="buyer" data-module>
+<div class="app" id="app">
+  <aside class="side" id="side" aria-label="القائمة" transition:persist="side"></aside>
+  <div class="scrim"></div>
+  <div class="main">
+    <header class="topbar" id="top"></header>
+    <main class="content" id="content">
+      <p class="muted" style="margin:0 0 14px">توصيات من أرقام الإعلانات مقارنة بقاعدة أفضل الممارسات لكل منصة ولقواعد الشركة. كل توصية تمر على حكم التسويق أول. قراءة بس: ما يغيّر أي حملة، والمشتري الإعلامي ينفّذ يدوياً.</p>
+      <div class="by-sum" id="sum"></div>
+      <div class="bar" style="justify-content:space-between;margin:0 0 10px"><h2 style="margin:0">التوصيات</h2></div>
+      <div class="by-list" id="list"><p class="muted">يحلل…</p></div>
+      <section class="card pad" id="rulesBox" hidden style="margin:16px 0 0">
+        <div class="bar" style="justify-content:space-between;margin:0 0 8px"><h2 style="margin:0">قواعد الشركة</h2><div class="bar"><button class="btn sm secondary" type="button" id="rulesExport">تصدير</button><button class="btn sm" type="button" id="rulesImport">استيراد القواعد</button></div></div>
+        <p class="muted" id="rulesInfo" style="margin:0 0 8px"></p>
+        <div id="rulesForm" hidden>
+          <p class="muted" style="margin:0 0 8px">ارفع ملف JSON أو الصق نصه. تنحفظ في قاعدة البيانات فقط، والملف ما يدخل الريبو.</p>
+          <input type="file" id="rulesFile" accept="application/json,.json" style="margin:0 0 8px">
+          <textarea id="rulesText" rows="6" dir="ltr" style="width:100%;font:13px var(--f-num,monospace)" placeholder='{"rules":[...]}'></textarea>
+          <div class="bar" style="margin:8px 0 0"><button class="btn sm secondary" type="button" id="rulesPreview">معاينة</button></div>
+          <div id="rulesPrev" style="margin:10px 0 0"></div>
+        </div>
+      </section>
+      <details class="card pad" id="gated" hidden style="margin:16px 0 0"><summary><b>توصيات وقفها الحكم</b></summary><ul id="gatedList" class="muted"></ul></details>
+      <div class="msg" id="msg" role="status"></div>
+    </main>
+  </div>
+</div>
+<script is:inline type="module" src="/assets/router.js"></script>
+</body>
+</html>

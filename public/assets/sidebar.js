@@ -1,5 +1,5 @@
 // أقسام القائمة الجانبية، نفسها في common.js (صفحات Astro) و nav.js (لوحات التحليلات والمواد الإعلانية).
-// سبعة أقسام على ترتيب التسويق: الرئيسية ← الإنتاج ← النشر ← القياس ← التحسين ← الحوكمة ← النظام. تحت كل قسم أدواته. الموديولات تجي من السيرفر (me.modules ← src/modules/registry.ts)
+// ستة أقسام على ترتيب التسويق: الرئيسية ← الإنتاج ← النشر ← القياس ← التحسين ← النظام والحوكمة. تحت كل قسم أدواته. الموديولات تجي من السيرفر (me.modules ← src/modules/registry.ts)
 // وكل موديول يحدد قسمه بـ group. HUBS (src/lib/gate.ts) تبقى للروابط القديمة /performance و/create و/review و/system.
 // state: ok = يفتح، noaccess = ما عندك صلاحية، locked = مقفل لشركتك، soon = قريباً.
 const SUN = '<circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/>';
@@ -11,8 +11,7 @@ export const GROUPS = [
   ['distribute', 'النشر والتوزيع', 'Publish & distribute'],
   ['measure', 'القياس والتحليل', 'Measure & analyze'],
   ['optimize', 'التحسين والقرارات', 'Optimize & decide'],
-  ['govern', 'الحوكمة', 'Governance'],
-  ['system', 'النظام', 'System'],
+  ['system', 'النظام والحوكمة', 'System & governance'],
 ];
 
 // Which groups the user folded, remembered on this device (storage may be blocked: then every group stays open)
@@ -64,9 +63,10 @@ export function sections(me, L) {
       one(ov, core('/overview/creative/', 'المواد الإعلانية', 'Creatives', 'image', 'overview:creative', true), core('/?view=creative', 'المواد الإعلانية', 'Creatives', 'image', 'creative')),
       ...mods('measure', m => m.key !== 'overview')],
     optimize: [core('/control/', 'لوحة القرارات', 'Decision board', 'gavel', 'control'), ...mods('optimize')],
-    govern: [...mods('govern'), core('/control/?tab=log', 'السجل', 'History', 'clock', 'control:log', has('control')),
+    // الربط والمعرفة، ثم الحوكمة (الامتثال، السجل، الصلاحيات للمالكة): ستة أقسام كحد أقصى في القائمة
+    system: [core('/connectors/', 'الربط', 'Connectors', 'plug', 'connectors'), ...mods('system'),
+      core('/control/?tab=log', 'السجل', 'History', 'clock', 'control:log', has('control')),
       ...(me.role === 'owner' ? [core('/admin/', 'الصلاحيات', 'Permissions', SHIELD, 'admin', true)] : [])],
-    system: [core('/connectors/', 'الربط', 'Connectors', 'plug', 'connectors'), ...mods('system')],
   };
   return GROUPS.map(([k, ar, en]) => ({ key: k, label: L(ar, en), items: items[k] })).filter(s => s.items.length);
 }

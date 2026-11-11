@@ -1,6 +1,7 @@
 // أدوات مشتركة: الطلبات، والأيقونات، والتواريخ، وهيكل التطبيق (القائمة الجانبية والشريط العلوي)
 import { LANG, t, langSwitch, restoreDraft } from './i18n.js';
 import { sections, TIP, startsShut, wireGroups } from './sidebar.js';
+import { agentDots } from './agentdots.js';
 import { ME_KEY, FRESH, readMe, slim } from './me-cache.js';
 export { LANG, t, langSwitch };
 // Pages switch with Astro's ClientRouter: listeners on document/window of one page are removed when it leaves
@@ -44,7 +45,7 @@ export async function api(path, { method = 'GET', body, timeout = 90000 } = {}) 
 // Streaming POST (the shared live-text component). The route answers JSON (a question or an error) or text/event-stream:
 // `delta` text, `reset` (the writer changed, drop what you showed), then `result` with the final payload. `onText(text)` gets the whole text so far.
 // Abort `signal` to stop. Returns the JSON, or the `result` event; a stopped run returns null.
-export async function apiStream(path, body, { onText = () => {}, signal } = {}) {
+export async function apiStream(path, body, { onText = () => {}, onStep = () => {}, signal } = {}) {
   let res;
   try { res = await fetch(path, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(body), credentials: 'same-origin', signal }); }
   catch (err) { if (signal?.aborted) return null; throw Object.assign(new Error('ما قدرت أوصل للخادم. تأكد من الاتصال وجرّب مرة ثانية'), { status: 0, retryable: true }); }
@@ -63,6 +64,7 @@ export async function apiStream(path, body, { onText = () => {}, signal } = {}) 
     let ev; try { ev = JSON.parse(line.slice(5)); } catch { return; }
     if (ev.type === 'delta') { text += ev.text; onText(text); }
     else if (ev.type === 'reset') { text = ''; onText(text); }
+    else if (ev.type === 'step') onStep(ev);
     else if (ev.type === 'result') result = ev;
     else if (ev.type === 'error') { failed = true; if (/[\u0600-\u06FF]/.test(ev.message || '')) why = ev.message; }   // an Arabic sentence is for the user; a code is not
   };
@@ -197,6 +199,7 @@ function drawSide(side, me, active) {
       <span class="who"><b>${esc(me.name || me.email || '')}</b><span class="muted">${me.role === 'owner' ? 'المالكة' : (me.departments || []).length ? 'مدير قسم' : 'عضو'}</span></span></button>
     <div class="menu" id="meMenu" role="menu" hidden><a href="/account/" role="menuitem">${icon('user')}حسابي</a><form method="post" action="/api/auth/logout" style="margin:0"><button type="submit" role="menuitem">${icon('out')}خروج</button></form></div>`;
   wireGroups(side);
+  if (!side.dataset.dots) { side.dataset.dots = '1'; agentDots(side, L); }
   side.querySelector('form')?.addEventListener('submit', () => { try { localStorage.removeItem(ME_KEY); } catch { /* storage blocked */ } });
   // Navigation labels as tooltips, used when the menu is folded to icons
   side.querySelectorAll('.navi').forEach(a => { const t = a.querySelector('span')?.textContent; if (t && !a.title) a.title = t; });

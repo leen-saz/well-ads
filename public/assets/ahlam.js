@@ -47,10 +47,13 @@ export function mountAhlam(root, me, L) {
     if (!text || ctl) return;
     q.value = ''; $('#ahChips', root).hidden = true;
     add('me', `<p>${esc(text)}</p>`);
-    const bot = add('bot', `<p class="muted">${esc(L('أفكّر…', 'Thinking…'))}</p>`);
+    // The thinking indicator: pulsing dots and the steps as they happen (what is being read, which tool); it is replaced by the answer
+    const steps = [];
+    const think = () => `<div class="ah-think" role="status"><span class="ah-dots" aria-hidden="true"><i></i><i></i><i></i></span><ul>${steps.length ? steps.map((x, i) => `<li class="${i === steps.length - 1 ? 'now' : 'done'}">${esc(x)}</li>`).join('') : `<li class="now">${esc(L('أفكّر…', 'Thinking…'))}</li>`}</ul></div>`;
+    const bot = add('bot', think());
     ctl = new AbortController(); send.disabled = true; stop.hidden = false;
     try {
-      const res = await apiStream('/api/today/ask', { q: text, history: history.slice(-MAX_TURNS), lang: L('ar', 'en') }, { signal: ctl.signal, onText: t => { bot.innerHTML = render(t); log.scrollTop = log.scrollHeight; } });
+      const res = await apiStream('/api/today/ask', { q: text, history: history.slice(-MAX_TURNS), lang: L('ar', 'en') }, { signal: ctl.signal, onStep: ev => { steps.push(L(ev.ar, ev.en)); if (!bot.dataset.text) bot.innerHTML = think(); }, onText: t => { bot.dataset.text = '1'; bot.innerHTML = render(t); log.scrollTop = log.scrollHeight; } });
       if (res?.answer) {
         bot.innerHTML = render(res.answer);
         const src = (res.sources || []).map(s => `<span class="p">${esc(L(s.ar, s.en))}</span>`).join('');

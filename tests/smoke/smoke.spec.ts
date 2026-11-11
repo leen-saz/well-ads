@@ -23,6 +23,7 @@ const TABS: { key: string; page: string; api: string }[] = [
   { key: 'maestro', page: '/maestro/', api: '/api/maestro/state' },
   { key: 'knowledge', page: '/knowledge/', api: '/api/knowledge/list' },
   { key: 'debugger', page: '/debugger/', api: '/api/debugger/report' },
+  { key: 'buyer', page: '/buyer/', api: '/api/buyer/report' },
 ];
 const hasArabic = (s: string) => /[؀-ۿ]/.test(s);
 
@@ -201,7 +202,7 @@ test.describe('sidebar and language (browser)', () => {
     await addSession(context, await login(request, 'owner'));
     await page.goto('/today/');
     const heads = page.locator('.side-h[data-g]');
-    await expect(heads).toHaveText(['الرئيسية', 'الإنتاج', 'النشر والتوزيع', 'القياس والتحليل', 'التحسين والقرارات', 'الحوكمة', 'النظام']);
+    await expect(heads).toHaveText(['الرئيسية', 'الإنتاج', 'النشر والتوزيع', 'القياس والتحليل', 'التحسين والقرارات', 'النظام والحوكمة']);
     const design = page.locator('a.navi[data-k="design"]');
     await expect(design).toBeVisible();
     await page.locator('.side-h[data-g="produce"]').click();

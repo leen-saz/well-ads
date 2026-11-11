@@ -486,6 +486,13 @@ export const EN = {
   'ليد في الـ CRM آخر 30 يوم': 'CRM leads, last 30 days', 'ليدز المنصة': 'Platform leads', 'ليدز الـ CRM': 'CRM leads',
   'آخر يوم فيه أرقام': 'Last day with numbers', 'ما فيه أرقام آخر 14 يوم.': 'No numbers in the last 14 days.',
   'ما لقيت مشاكل في التتبع.': 'No tracking issues found.', 'الأرقام توصل من كل المنصات والليدز مربوطة بإعلاناتها.': 'Numbers arrive from every platform and leads are tied to their ads.',
+  // الميديا باير (buyer)
+  'الميديا باير': 'Media buyer', 'الميديا باير · Well': 'Media buyer · Well',
+  'توصيات من أرقام الإعلانات مقارنة بقاعدة أفضل الممارسات لكل منصة ولقواعد الشركة. كل توصية تمر على حكم التسويق أول. قراءة بس: ما يغيّر أي حملة، والمشتري الإعلامي ينفّذ يدوياً.': 'Recommendations from the ad numbers against a best-practice playbook per platform and the company rules. Each one goes through the marketing judge first. Read-only: it changes no campaign, and the media buyer acts by hand.',
+  'قواعد الشركة': 'Company rules', 'تصدير': 'Export', 'استيراد القواعد': 'Import rules', 'معاينة': 'Preview', 'أكّد واحفظ': 'Confirm and save',
+  'ارفع ملف JSON أو الصق نصه. تنحفظ في قاعدة البيانات فقط، والملف ما يدخل الريبو.': 'Upload a JSON file or paste its text. Saved in the database only; the file never enters the repo.',
+  'مفتوح: يحتاج قرار لين': 'Open: needs Leen\'s decision',
+  'التوصيات': 'Recommendations', 'يحلل…': 'Analyzing…', 'توصيات وقفها الحكم': 'Recommendations the judge blocked', 'حلّل من جديد': 'Analyze again',
   // الامتثال (compliance)
   'الامتثال': 'Compliance', 'الامتثال · Well': 'Compliance · Well',
   'يفحص نصوص الإعلانات على قواعد الإعلان الصحي في السعودية وسياسات المنصات. تنويه بس، ما يمنع النشر.': 'Checks ad copy against Saudi health-ad rules and platform policies. A notice only; it never blocks publishing.',
@@ -597,6 +604,7 @@ export const EN = {
   'املأ تفاصيل التصميم واضغط "جهّز تفاصيل التصميم".': 'Fill in the design details and press "Prepare the design details".', 'املأ التفاصيل واضغط "صمّم".': 'Fill in the details and press "Design".', 'المصمم شغّال والتصميم بالطريق… (حوالي دقيقة)': 'The designer is working, your design is on its way… (about a minute)', 'المعاينة': 'Preview', 'وش نجح عندنا آخر 30 يوم': 'What worked for us in the last 30 days',
   'الصيغة': 'Format', 'النصوص المقترحة': 'Suggested copy', '· ذكاء اصطناعي': '· AI', '· قوالب': '· templates',
   'السطر الثاني': 'Second line', 'الزر': 'Button', 'نزّل PNG': 'Download PNG', 'اختر مقاس واحد على الأقل.': 'Pick at least one size.',
+  'جرّب الخلفية مرة ثانية': 'Try the background again', 'انرسمت الخلفية.': 'The background is drawn.', 'المصمم يرسم الخلفية… (حوالي دقيقة)': 'Drawing the background… (about a minute)', 'النصوص جاهزة، بس الخلفية ما انرسمت. السبب فوق المعاينة.': 'The copy is ready, but the background was not drawn. The reason is above the preview.',
   'يجهز تفاصيل التصميم…': 'Preparing the design details…', 'جاهز. عدّل النص أو اختر خيار ثاني، والمعاينة تتحدث.': 'Ready. Edit the copy or pick another option, and the preview updates.',
   'ما فيه إعلانات ليدز بثلاث ليدز أو أكثر آخر 30 يوم، فالنصوص من القوالب.': 'No lead ads with three or more leads in the last 30 days, so the copy comes from templates.',
   // الصوت (voice)
@@ -746,6 +754,7 @@ export const EN = {
   "احلم (الصفحة الرئيسية)": "Ahlam (home page)",
   "السقف الشهري لتاب الامتثال": "Monthly cap for the Compliance tab",
   "السقف الشهري لتاب التتبع": "Monthly cap for the Tracking tab",
+  "السقف الشهري لتاب الميديا باير": "Monthly cap for the Media buyer tab",
   "السقف الشهري لتاب التصميم": "Monthly cap for the Design tab",
   "السقف الشهري لتاب الرحلات والرسائل": "Monthly cap for the Journeys and messages tab",
   "السقف الشهري لتاب الرصد": "Monthly cap for the Listening tab",

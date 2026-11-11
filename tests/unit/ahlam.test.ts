@@ -21,14 +21,14 @@ const run = (u: A.Session): Run => ({ cfg, user: u, e: { ...E, FILES: files } })
 
 type B = Record<string, any>;   // eslint-disable-line @typescript-eslint/no-explicit-any
 type Call = { url: string; method: string; body: B };
-let calls: Call[], suggestions: unknown[];
+let calls: Call[], suggestions: unknown[], camps: unknown[], ctasks: unknown[], couts: unknown[];
 const sse = (parts: string[], usage = { prompt_tokens: 50, completion_tokens: 20, cost: 0.0004 }) => new Response(
   [...parts.map(t => `data: ${JSON.stringify({ choices: [{ delta: { content: t } }] })}\n\n`), `data: ${JSON.stringify({ choices: [{ delta: {}, finish_reason: 'stop' }], usage })}\n\n`, 'data: [DONE]\n\n'].join(''),
   { headers: { 'content-type': 'text/event-stream' } });
 const planReply = (tools: unknown[]) => new Response(JSON.stringify({ choices: [{ message: { content: JSON.stringify({ tools }) } }], usage: { prompt_tokens: 30, completion_tokens: 10, cost: 0.0001 } }));
 let plan: () => Response, answer: () => Response;
 beforeEach(() => {
-  calls = []; suggestions = []; clearRoutes(); clearSnaps();
+  calls = []; suggestions = []; camps = []; ctasks = []; couts = []; clearRoutes(); clearSnaps();
   plan = () => planReply([{ name: 'performance', args: { days: 7 } }]);
   answer = () => sse(['الأسبوع ', 'ممتاز']);
   vi.stubGlobal('fetch', vi.fn(async (url: string, init: RequestInit = {}) => {
@@ -37,6 +37,9 @@ beforeEach(() => {
     if (url === OR_URL) return body?.stream ? answer() : plan();
     if (url.includes('/profiles?id=eq.')) return new Response(JSON.stringify([{ id: UID, email: 'm@example.com', role: 'member', active: true, access: { ceo: 'view' }, company_id: WELL_COMPANY }]));
     if (url.includes('/suggestions?')) return new Response(JSON.stringify(suggestions));
+    if (url.includes('/rest/v1/campaign_tasks')) return new Response(JSON.stringify(ctasks));
+    if (url.includes('/rest/v1/campaign_outputs')) return new Response(JSON.stringify(couts));
+    if (url.includes('/rest/v1/campaigns')) return new Response(JSON.stringify(camps));
     return new Response('[]');
   }));
 });
@@ -55,12 +58,15 @@ describe('which model', () => {
   });
 });
 
+// the campaigns tool is for everyone (a user reads his own campaigns); the others follow the permissions
+const names = (r: ReturnType<typeof run>) => toolsFor(r).map(t => t.name).filter(n => n !== 'campaigns');
 describe('the tools follow the user\'s permissions', () => {
-  it('a user with no dashboard sees no tool', () => expect(toolsFor(run(user([]))).map(t => t.name)).toEqual([]));
-  it('analytics gives the numbers, not the decision board or knowledge', () => expect(toolsFor(run(user(['ceo']))).map(t => t.name)).toEqual(['performance', 'ads']));
-  it('control and knowledge add theirs', () => expect(toolsFor(run(user(['ceo', 'control', 'knowledge']))).map(t => t.name)).toEqual(['performance', 'ads', 'decisions', 'knowledge']));
-  it('another company never gets the decision board', () => expect(toolsFor(run(user(['control'], { co: '22222222-2222-2222-2222-222222222222' }))).map(t => t.name)).toEqual([]));
-  it('a module the company switched off is not readable', () => expect(toolsFor(run(user(['knowledge'], { off: ['knowledge'] }))).map(t => t.name)).toEqual([]));
+  it('everyone can read their own campaigns and outputs (read-only)', () => expect(toolsFor(run(user([]))).map(t => t.name)).toEqual(['campaigns']));
+  it('a user with no dashboard sees no tool', () => expect(names(run(user([])))).toEqual([]));
+  it('analytics gives the numbers, not the decision board or knowledge', () => expect(names(run(user(['ceo'])))).toEqual(['performance', 'ads']));
+  it('control and knowledge add theirs', () => expect(names(run(user(['ceo', 'control', 'knowledge'])))).toEqual(['performance', 'ads', 'decisions', 'knowledge']));
+  it('another company never gets the decision board', () => expect(names(run(user(['control'], { co: '22222222-2222-2222-2222-222222222222' })))).toEqual([]));
+  it('a module the company switched off is not readable', () => expect(names(run(user(['knowledge'], { off: ['knowledge'] })))).toEqual([]));
 });
 
 describe('the plan', () => {
@@ -187,5 +193,81 @@ describe('POST /api/today/ask', () => {
     expect(dayStart(Date.parse('2026-11-10T22:30:00Z'))).toBe('2026-11-10T21:00:00.000Z');   // 01:30 on the 11th in Riyadh
     expect(dayStart(Date.parse('2026-11-10T10:00:00Z'))).toBe('2026-11-09T21:00:00.000Z');
     expect(dailyLimit({})).toBe(40); expect(dailyLimit({ AHLAM_DAILY_LIMIT: '5' })).toBe(5); expect(dailyLimit({ AHLAM_DAILY_LIMIT: 'x' })).toBe(40);
+  });
+});
+
+describe('questions about campaigns (read-only, with the link to the pack)', () => {
+  const CID = '44444444-4444-4444-4444-444444444444';
+  const ask = (q: string) => all(converse(run(user(['ceo'])), { q, history: [], lang: 'ar' }, fetch));
+  const system = () => String(orCalls().find(c => c.body?.stream)!.body.messages[0].content);
+  beforeEach(() => {
+    plan = () => planReply([]);   // the router picked nothing: a campaign question still reads the campaigns
+    camps = [{ id: CID, title: 'انشر مفهوم Well مع Longevity', status: 'review', brief: { summary: 'تعريف بمفهوم الرعاية الوقائية' } }];
+    ctasks = [{ id: 1, position: 0, agent: 'content', title: 'نصوص الإعلانات', status: 'review', blocked_reason: null }, { id: 2, position: 1, agent: 'social', title: 'منشورات', status: 'blocked', blocked_reason: 'وعد بنتيجة' }];
+    couts = [{ task_id: 1, kind: 'copy', platform: null, body: { text: 'عنوان: رعاية تبدأ قبل ما تحتاجها' }, compliance: [] }];
+  });
+  it('reads the campaigns even when the router picked nothing, and puts the pack link, task states and outputs in front of the model', async () => {
+    const ev = await ask('وين مخرجات حملة Longevity؟');
+    expect(ev.find(e => e.type === 'result')!.sources.map((s: { tool: string }) => s.tool)).toEqual(['campaigns']);
+    const sys = system();
+    expect(sys).toContain(`/today/?tab=campaign&c=${CID}`); expect(sys).toContain('رعاية تبدأ قبل ما تحتاجها'); expect(sys).toContain('وعد بنتيجة'); expect(sys).toContain('امتثال: بدون ملاحظات');
+    expect(sys).toContain('ما تقول أبداً «ما عندي اطلاع»');
+  });
+  it('with no campaign it says exactly what is missing and where to get it', async () => {
+    camps = [];
+    await ask('وين مخرجات الحملة؟');
+    expect(system()).toContain('الناقص'); expect(system()).toContain('/today/?tab=campaign');
+  });
+  it('a user who is not an approver reads only their own campaigns', async () => {
+    await ask('وين الحملة؟');
+    expect(calls.find(c => c.url.includes('/rest/v1/campaigns?'))!.url).toContain('created_by=eq.m%40example.com');
+  });
+  it('the turn tells the page its steps (what it understands, reads and writes) so it can show them', async () => {
+    const ev = await ask('وين الحملة؟');
+    const steps = ev.filter(e => e.type === 'step');
+    expect(steps.map(e => e.phase)).toEqual(['plan', 'tool', 'answer']); expect(steps[1]!.ar).toContain('الحملات'); expect(steps[1]!.en).toContain('Campaigns');
+  });
+  it('reads only: no write other than the audit rows of the question and the tool', async () => {
+    await ask('وين الحملة؟');
+    expect(calls.filter(c => c.method !== 'GET' && c.url !== OR_URL).map(c => c.url.replace(/\?.*/, '').replace('https://sb.example/rest/v1/', '')).filter(u => !['audit_log', 'ai_usage', 'rpc/ai_spend'].includes(u))).toEqual([]);
+  });
+  const askAs = (q: string, dash = ['ceo', 'control']) => all(converse(run(user(dash)), { q, history: [], lang: 'ar' }, fetch));
+  const toolsRead = (ev: Ev[]) => ev.find(e => e.type === 'result')!.sources.map((x: { tool: string }) => x.tool);
+  it('«وش واقف بالحملة من أسئلة» is about the new campaign, not the decision board, even when the router picked the board', async () => {
+    plan = () => planReply([{ name: 'decisions', args: {} }]);
+    camps = [{ id: CID, title: 'انشر مفهوم Well مع Longevity', status: 'running', brief: { summary: 'م', questions: [{ q: 'كم الميزانية؟', assumption: 'متوسطة' }, { q: 'أي نبرة؟', assumption: 'دافئة', answer: 'رسمية' }] } }];
+    const ev = await askAs('وش واقف بالحملة من أسئلة؟');
+    expect(toolsRead(ev)).toEqual(['campaigns']);
+    const sys = system();
+    expect(sys).toContain('كم الميزانية؟'); expect(sys).toContain('افتراض: متوسطة'); expect(sys).toContain('جواب المستخدم: رسمية'); expect(sys).toContain('الواقف الحين');
+    expect(sys).toContain('«الحملة» أو «حملتي» بدون تحديد تعني حملة احلم الجديدة');
+  });
+  it('the stopped tasks and their reasons are what «واقف» answers with', async () => {
+    camps = [{ id: CID, title: 'Longevity', status: 'review', brief: {} }];
+    ctasks = [{ id: 2, position: 1, agent: 'social', title: 'منشورات', status: 'blocked', blocked_reason: 'وعد بنتيجة', spec: { auto: 2 } }];
+    await askAs('وش واقف بحملتي؟');
+    expect(system()).toContain('الواقف الحين: «منشورات» (موقوف بسبب الامتثال: وعد بنتيجة)');
+  });
+  it('with several active campaigns and no way to tell which, nothing is guessed: the model is told to ask with numbered choices', async () => {
+    camps = [{ id: CID, title: 'Longevity', status: 'running', brief: {} }, { id: '55555555-5555-5555-5555-555555555555', title: 'رمضان', status: 'review', brief: {} }, { id: '66666666-6666-6666-6666-666666666666', title: 'قديمة', status: 'done', brief: {} }];
+    await askAs('وش وضع الحملة؟');
+    const sys = system();
+    expect(sys).toContain('يوجد 2 حملات نشطة'); expect(sys).toContain('1) «Longevity»'); expect(sys).toContain('2) «رمضان»'); expect(sys).not.toContain('«قديمة» (مكتملة)\n');
+    expect(sys).not.toContain('## تفاصيل حملة');
+  });
+  it('a title in the question settles it even with several active campaigns; with one active campaign no question is asked', async () => {
+    camps = [{ id: CID, title: 'Longevity', status: 'running', brief: {} }, { id: '55555555-5555-5555-5555-555555555555', title: 'رمضان', status: 'review', brief: {} }];
+    await askAs('وين مخرجات حملة رمضان؟');
+    expect(system()).toContain('## تفاصيل حملة «رمضان»');
+    calls = [];
+    camps = [{ id: CID, title: 'Longevity', status: 'running', brief: {} }, { id: '66666666-6666-6666-6666-666666666666', title: 'قديمة', status: 'done', brief: {} }];
+    await askAs('وش وضع الحملة؟');
+    expect(system()).toContain('## تفاصيل حملة «Longevity»'); expect(system()).not.toContain('سؤال توضيح قصير بخيارات مرقّمة قبل');
+  });
+  it('the running AD campaigns (or the decision board) stay with the board and the numbers: the campaigns tool is not forced', async () => {
+    plan = () => planReply([{ name: 'decisions', args: {} }]);
+    camps = [{ id: CID, title: 'Longevity', status: 'running', brief: {} }];
+    expect(toolsRead(await askAs('وش وضع حملات الإعلانات الجارية؟'))).toEqual(['decisions']);
+    expect(toolsRead(await askAs('وش القرارات اللي تنتظرني في الحملات؟'))).toEqual(['decisions']);
   });
 });

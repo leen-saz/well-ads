@@ -105,6 +105,7 @@ input[type=checkbox]{width:16px;height:16px;accent-color:var(--ink);margin:0;cur
 .navi:hover{background:var(--tint);color:var(--text)}
 .navi.locked{opacity:.45;cursor:not-allowed}.navi.locked:hover{background:transparent;color:var(--muted)}.navi .lk{width:14px;height:14px;margin-inline-start:auto}
 .navi[aria-current]{background:var(--accent);color:#FFFFFF;font-weight:500;box-shadow:0 6px 18px color-mix(in srgb,var(--accent) 28%,transparent)}
+.agent-dot{margin-inline-start:auto;flex:none;width:8px;height:8px;border-radius:50%;background:#9aa0a6}.agent-dot[data-s=running]{background:var(--accent);animation:agp 1s infinite ease-in-out}.agent-dot[data-s=failed]{background:var(--err,#d93025)}.navi[aria-current] .agent-dot[data-s=running],.navi[aria-current] .agent-dot[data-s=idle]{background:#FFFFFF}@keyframes agp{0%,80%,100%{opacity:.3;transform:scale(.8)}40%{opacity:1;transform:scale(1.15)}}@media (prefers-reduced-motion:reduce){.agent-dot[data-s=running]{animation:none}}
 .navi.soon{height:40px;font-size:14px}.navi.soon .i{flex:none}
 .navi .tag{margin-inline-start:auto;flex:none;font:500 11px/1 var(--f-ar);padding:4px 8px;border-radius:999px;background:var(--tint-2);color:var(--text)}
 .navi[aria-current] .tag{background:color-mix(in srgb,#FFFFFF 25%,transparent);color:#FFFFFF}
@@ -307,8 +308,9 @@ body{background:
   radial-gradient(760px 560px at 55% 115%,color-mix(in srgb,var(--deep) 12%,transparent),transparent 60%),
   linear-gradient(180deg,#F5F3FC,#ECE8F8);background-attachment:fixed}
 .card{background:var(--glass);border:1px solid var(--glass-edge);-webkit-backdrop-filter:var(--glass-blur);backdrop-filter:var(--glass-blur);box-shadow:var(--shadow)}
-.side{margin:12px;margin-inline-end:0;height:calc(100vh - 24px);top:12px;border-radius:26px;background:var(--glass);border:1px solid var(--glass-edge);-webkit-backdrop-filter:var(--glass-blur);backdrop-filter:var(--glass-blur);box-shadow:var(--shadow)}
-.app{grid-template-columns:calc(var(--side) + 12px) 1fr}
+.side{margin:12px;height:calc(100vh - 24px);top:12px;border-radius:26px;background:var(--glass);border:1px solid var(--glass-edge);-webkit-backdrop-filter:var(--glass-blur);backdrop-filter:var(--glass-blur);box-shadow:var(--shadow)}
+.app{grid-template-columns:calc(var(--side) + 24px) 1fr}   /* the card floats with 12px on every side, so the top bar never touches it */
+@media (min-width:901px){.topbar{min-height:90px;-webkit-mask-image:linear-gradient(#000 calc(100% - 16px),transparent);mask-image:linear-gradient(#000 calc(100% - 16px),transparent)}.side{padding-top:14px}}   /* the frosted bar fades out at its lower edge instead of ending in a hard line */   /* its title sits on the same line as the sidebar's logo row (12 + 14 padding + 18 = 44) */
 .side-h{text-transform:uppercase;padding:14px 16px 6px}
 .navi{border-radius:14px}
 .navi:hover{background:var(--glass-strong)}
@@ -352,7 +354,7 @@ body{background:
 .qc{position:relative;margin:14px 0 8px}
 .qc-btn{width:100%;justify-content:center;gap:8px;min-height:44px}
 .qc-menu{position:absolute;inset-inline:0;top:calc(100% + 6px);inset-block-end:auto;z-index:45}
-.app.mini{grid-template-columns:88px 1fr}
+.app.mini{grid-template-columns:100px 1fr}
 .app.mini .side{padding-inline:10px}
 .app.mini .side-top{flex-direction:column}
 .app.mini .side .brand{font-size:0}.app.mini .side .brand i{font-size:28px}

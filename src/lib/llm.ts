@@ -321,14 +321,19 @@ export async function grokSearch(e: LlmEnv, messages: Msg[], sources: ('web' | '
 
 // Images from OpenAI's Images API (the design tab). PAID per image (more for higher quality and size).
 // With a product photo it is an edit: the product kept, a new scene around it. Without one, a new background.
-// No fallback: Workers AI has no image model we use. Returns a data: URL, or null with the reason logged.
-// `ctx` puts it under the Design tab's monthly cap (a spent cap answers null, no call) and records it. The Images API returns no
+// No fallback: Workers AI has no image model we use. imageOf() says why there is no picture, so the page can tell the user.
+// `ctx` puts it under the Design tab's monthly cap (a spent cap answers 'capped', no call) and records it. The Images API returns no
 // price, so a flat estimate per image is recorded and marked estimated.
 export const IMAGE_USD = 0.07;
-export async function openaiImage(e: LlmEnv, prompt: string, f: typeof fetch = fetch, product?: { bytes: Uint8Array<ArrayBuffer>; mime: string }, ctx?: UsageCtx): Promise<string | null> {
-  if (!e.OPENAI_API_KEY) return null;
-  if (ctx && await overCap(ctx, 'design')) { console.warn('image_capped'); return null; }
-  const model = clean(e.OPENAI_IMAGE_MODEL) || DEFAULTS.image, opts = { size: '1024x1536', quality: 'medium', output_format: 'jpeg' };
+export const IMAGE_SIZES = ['1024x1536', '1024x1024', '1536x1024'] as const;
+export type ImageSize = typeof IMAGE_SIZES[number];
+// no_key: OPENAI_API_KEY missing · capped: the tab's monthly cap is spent · refused: the content policy said no · failed: anything else
+export type ImageMiss = 'no_key' | 'capped' | 'refused' | 'failed';
+export interface ImageOut { image: string | null; miss?: ImageMiss; status?: number }
+export async function imageOf(e: LlmEnv, prompt: string, f: typeof fetch = fetch, product?: { bytes: Uint8Array<ArrayBuffer>; mime: string }, ctx?: UsageCtx, size: ImageSize = '1024x1536'): Promise<ImageOut> {
+  if (!e.OPENAI_API_KEY) return { image: null, miss: 'no_key' };
+  if (ctx && await overCap(ctx, 'design')) { console.warn('image_capped'); return { image: null, miss: 'capped' }; }
+  const model = clean(e.OPENAI_IMAGE_MODEL) || DEFAULTS.image, opts = { size: IMAGE_SIZES.includes(size) ? size : '1024x1536', quality: 'medium', output_format: 'jpeg' };
   try {
     let r: Response;
     if (product) {
@@ -341,9 +346,18 @@ export async function openaiImage(e: LlmEnv, prompt: string, f: typeof fetch = f
       r = await f('https://api.openai.com/v1/images/generations', { method: 'POST', headers: { authorization: `Bearer ${e.OPENAI_API_KEY}`, 'content-type': 'application/json' },
         body: JSON.stringify({ model, prompt, n: 1, ...opts }) });
     }
-    if (!r.ok) { console.warn('image_failed', product ? 'edit' : 'new', r.status); return null; }
+    if (!r.ok) {
+      // The error code only (never the body): a safety refusal is the user's to fix, anything else is worth a retry
+      const code = String(((await r.json().catch(() => null)) as { error?: { code?: unknown } } | null)?.error?.code || '');
+      console.warn('image_failed', product ? 'edit' : 'new', r.status, code.slice(0, 40));
+      return { image: null, miss: r.status === 400 && /moderation|safety|content_policy/i.test(code) ? 'refused' : 'failed', status: r.status };
+    }
     const b64 = ((await r.json()) as { data?: { b64_json?: string }[] })?.data?.[0]?.b64_json;
-    if (b64) record(ctx, 'design', { provider: 'openai', model, estimated: true, costUsd: IMAGE_USD });
-    return b64 ? `data:image/jpeg;base64,${b64}` : null;
-  } catch (err) { console.warn('image_failed', (err as Error).message); return null; }
+    if (!b64) { console.warn('image_failed', 'empty'); return { image: null, miss: 'failed' }; }
+    record(ctx, 'design', { provider: 'openai', model, estimated: true, costUsd: IMAGE_USD });
+    return { image: `data:image/jpeg;base64,${b64}` };
+  } catch (err) { console.warn('image_failed', (err as Error).message); return { image: null, miss: 'failed' }; }
+}
+export async function openaiImage(e: LlmEnv, prompt: string, f: typeof fetch = fetch, product?: { bytes: Uint8Array<ArrayBuffer>; mime: string }, ctx?: UsageCtx): Promise<string | null> {
+  return (await imageOf(e, prompt, f, product, ctx)).image;
 }
