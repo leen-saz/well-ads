@@ -756,6 +756,7 @@ export const EN = {
   "السقف الشهري لتاب التتبع": "Monthly cap for the Tracking tab",
   "السقف الشهري لتاب الميديا باير": "Monthly cap for the Media buyer tab",
   "السقف الشهري لتاب التصميم": "Monthly cap for the Design tab",
+  "السقف الشهري لتاب الفيديو": "Monthly cap for the Video tab",
   "السقف الشهري لتاب الرحلات والرسائل": "Monthly cap for the Journeys and messages tab",
   "السقف الشهري لتاب الرصد": "Monthly cap for the Listening tab",
   "السقف الشهري لتاب السوشال": "Monthly cap for the Social tab",
