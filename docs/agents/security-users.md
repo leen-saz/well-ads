@@ -8,7 +8,7 @@
 **يملك:**
 - `src/lib/{auth,gate,vault,headers,tenant,rules,mcp-oauth}.ts`
 - `src/api/routes/{auth,account,admin}.ts` و `src/pages/{login,reset,welcome,account,admin,compliance}/`
-- `src/modules/compliance/` و `docs/{secrets,runbook}` و `docs/adr/0004-connector-tokens-in-vault.md`
+- `src/modules/compliance/` و `docs/{secrets,runbook.md}` و `docs/adr/0004-connector-tokens-in-vault.md`
 - `.github/{dependabot.yml,CODEOWNERS}` والسياسات في `docs/dependencies.md`
 
 **لا يملك:** البيانات نفسها (البيانات وCRM)، ومحتوى الواجهات (تجربة الاستخدام).

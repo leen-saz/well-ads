@@ -13,7 +13,7 @@
 | الذكاء الاصطناعي والتوجيه | [ai-routing.md](ai-routing.md) | المدير (`maestro`) وتكاليف الذكاء الاصطناعي | `src/lib/{llm,gemini,ai-routes,usage}.ts`، `src/modules/maestro` |
 | السوشال والنشر | [social-publishing.md](social-publishing.md) | السوشال، الرحلات والرسائل، المحتوى و SEO والكوبي رايتر، الرصد | `src/modules/{social,journeys,content,copy,listening}`، `deploy/postiz` |
 | الأمان والمستخدمون | [security-users.md](security-users.md) | الحساب، الإدارة، الدخول، الامتثال، سجل التدقيق | `src/lib/{auth,gate,vault,headers,tenant,mcp-oauth}.ts`، `src/api/routes/{auth,account,admin}.ts`، `src/modules/compliance` |
-| البيانات وCRM | [data-crm.md](data-crm.md) | الربط، صحة البيانات (داخل المدير)، التتبع | `pipeline/{fetch_data,crm,supabase_store}`، `supabase/migrations`، `src/api/routes/{connectors,dash}.ts`، `src/modules/{debugger,maestro/datahealth.ts}`، `src/lib/datastatus.ts` |
+| البيانات وCRM | [data-crm.md](data-crm.md) | الربط، صحة البيانات (داخل المدير)، التتبع | `pipeline/{fetch_data.py,crm,supabase_store.py}`، `supabase/migrations`، `src/api/routes/{connectors,dash}.ts`، `src/modules/{debugger,maestro/datahealth.ts}`، `src/lib/datastatus.ts` |
 | السرعة والاستقرار | [speed-stability.md](speed-stability.md) | كل الواجهات (غير مملوكة لتاب) | `src/lib/{cron,vitals,health,paging}.ts`، `src/api/routes/vitals.ts`، `.github/workflows`، `wrangler.jsonc` |
 | تجربة الاستخدام | [ux.md](ux.md) | القائمة الجانبية، المكتبة، المعرفة، وصف الصور، الصفحات العامة | `public/assets`، `src/components`، `src/styles`، `src/pages`، `src/modules/{knowledge,vision}` |
 | الفيديو الإعلاني | [video-ads.md](video-ads.md) | التصميم، الصوت والفويس أوفر، التفريغ | `src/modules/{design,voice,voiceover,transcribe}`، `docs/motion-video.md` |
