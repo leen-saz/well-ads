@@ -9,6 +9,7 @@ import { serveSite } from './lib/site';
 import { versionAssets } from './lib/assets';
 import { withWaiter } from './lib/usage';
 import { dispatchRefresh, dispatchWorkflow, type CronEnv } from './lib/cron';
+import { runWatchdog, type WatchdogEnv } from './lib/watchdog';
 import { runListening, type ListenEnv } from './modules/listening/fetcher';
 import { runSocial } from './modules/social/cron';
 import { runTranscribe } from './modules/transcribe/service';
@@ -17,6 +18,7 @@ export { JourneyRun } from './modules/journeys/workflow';
 
 type Bindings = Env & AuthEnv;
 const SOCIAL_CRON = '*/5 * * * *';
+const WATCHDOG_CRON = '37 * * * *';
 // Sunday 02:17 UTC: the weekly encrypted backup. The 1st at 02:47 UTC: the monthly restore test (docs/runbook.md → Backups)
 const BACKUP_CRON = '17 2 * * 0';
 const RESTORE_CRON = '47 2 1 * *';
@@ -78,7 +80,9 @@ app.use(pages());
 export default {
   fetch: app.fetch,
   // Cloudflare Cron Triggers (production only): the hourly data refresh on GitHub Actions, and every 5 minutes the due social posts
-  scheduled(event: ScheduledController, env: CronEnv & AuthEnv, ctx: ExecutionContext) {
+  scheduled(event: ScheduledController, env: CronEnv & AuthEnv & WatchdogEnv, ctx: ExecutionContext) {
+    // Minute 37: the outside watcher of the data age (src/lib/watchdog.ts). It must be matched here: anything else starts a refresh.
+    if (event.cron === WATCHDOG_CRON) { ctx.waitUntil(runWatchdog(env).then(() => undefined, err => console.error('cron: watchdog failed', String(err).slice(0, 200)))); return; }
     // These two must be matched here: any other cron falls through to starting a data refresh
     if (event.cron === BACKUP_CRON) { ctx.waitUntil(dispatchWorkflow(env, 'db-backup.yml').then(() => undefined)); return; }
     if (event.cron === RESTORE_CRON) { ctx.waitUntil(dispatchWorkflow(env, 'db-restore-test.yml').then(() => undefined)); return; }

@@ -31,7 +31,7 @@ export async function explainViaOpenRouter(e: LlmEnv, findings: Finding[], platf
   return { text: out.response.slice(0, 6000), model: out.model };
 }
 
-export async function explain(e: ClaudeEnv, findings: Finding[], platforms: Platforms, f?: typeof fetch): Promise<{ text: string; model: string }> {
+export async function explain(e: ClaudeEnv, findings: Finding[], platforms: Platforms, f?: typeof fetch): Promise<{ text: string; model: string; usage: { in: number; out: number } }> {
   if (!e.ANTHROPIC_API_KEY) throw new Error('no_key');
   const client = new Anthropic({ apiKey: e.ANTHROPIC_API_KEY, maxRetries: 1, ...(f ? { fetch: f } : {}) });
   const model = (e.ANTHROPIC_MODEL || '').replace(/[^a-z0-9.\-_]/gi, '') || CLAUDE_MODEL;
@@ -44,5 +44,5 @@ export async function explain(e: ClaudeEnv, findings: Finding[], platforms: Plat
   if (r.stop_reason === 'refusal') throw new Error('refused');
   const text = r.content.flatMap(b => (b.type === 'text' ? [b.text] : [])).join('').trim().slice(0, 6000);
   if (!text) throw new Error('empty');
-  return { text, model: r.model };
+  return { text, model: r.model, usage: { in: r.usage?.input_tokens ?? 0, out: r.usage?.output_tokens ?? 0 } };
 }
