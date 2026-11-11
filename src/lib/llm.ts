@@ -20,7 +20,7 @@ export interface LlmInput { messages: Msg[]; max_tokens: number; response_format
 export interface LlmOut { response: string; engine: Provider; model: string }
 
 export const DEFAULTS = { openai: 'gpt-6.1-sol', xai: 'grok-4.7', image: 'gpt-image-2' } as const;
-export const PROVIDER: Record<string, Provider> = { content: 'openai', design: 'openai', copy: 'openai', motion: 'openai', social: 'xai', maestro: 'xai', listening: 'xai', ahlam: 'openrouter', ahlam_campaign: 'openrouter' };
+export const PROVIDER: Record<string, Provider> = { content: 'openai', design: 'openai', copy: 'openai', motion: 'openai', video: 'openai', social: 'xai', maestro: 'xai', listening: 'xai', ahlam: 'openrouter', ahlam_campaign: 'openrouter' };
 const URL_OF = { openai: 'https://api.openai.com/v1/responses', xai: 'https://api.x.ai/v1/responses' } as const;
 export const OR_URL = 'https://openrouter.ai/api/v1/chat/completions';
 export const OR_TIMEOUT_MS = 60_000, OR_STREAM_MS = 120_000;

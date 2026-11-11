@@ -24,6 +24,7 @@ function world() {
       : url.includes('/knowledge?') ? [{ id: 1, kind: 'forbidden', title: '', body: SECRET, price: null, modules: [], active: true }]
       : url.includes('/content_plans?') ? [{ id: 3, site: 'https://x.sa', competitors: [], items: [{ id: 'a1', kind: 'article', title: 'ت', why: 'و', priority: 1, status: 'approved' }] }]
       : url.includes('/copy_projects?') ? [{ id: 5, name: 'محاليل', service: 'محاليل', audience: '', offer: '', voice: '', banned: [], competitors: [] }]
+      : url.includes('/video_projects?') ? [{ id: 9, ratio: '9:16', seconds: 15, avatar_id: '', review_status: 'draft', brief: { service: 'فحص منزلي', offer: 'فحص في بيتك', benefits: ['راحة'] }, script: {} }]
       : url.includes('/companies?') ? [{ id: OWNER.id, name: 'Well', paperclip_company_id: PC }]
       : [];
     return new Response(JSON.stringify(data));
@@ -38,6 +39,7 @@ function ai() {
     seen.push(JSON.stringify(input.messages || []));
     // the copy skill asks for a JSON list of variants; the journeys writer for {head, body}
     const reply = input.messages?.some(m => m.content.includes('JSON فقط: {"head"')) ? '{"head":"عنوان","body":"نص الرسالة"}'
+      : input.messages?.some(m => m.content.includes('"shots"')) ? '{"shots":[{"scene":"مشهد","line":"جملة","onScreen":"","prompt":"a calm clinic"}],"cta":"احجز"}'
       : input.messages?.some(m => m.content.includes('"primary"')) ? '[{"angle":"أ","why":"ب","primary":"نص أساسي","headline":"عنوان","description":"وصف","cta":"احجز"}]' : LONG;
     return { response: reply };
   });
@@ -52,6 +54,7 @@ const CALLS: Record<(typeof AI_MODULES)[number], (env: A.AuthEnv) => Promise<Res
   voice: async env => ROUTES.voice.rewrite.POST(await post('/api/voice/rewrite', { text: 'نص', seconds: 30 }), env),
   social: async env => ROUTES.social.suggest.POST(await post('/api/social/suggest', { brief: 'محاليل في البيت', platforms: ['facebook'] }), env),
   maestro: async env => ROUTES.maestro.task.POST(await post('/api/maestro/task', { title: 'اكتب منشور' }), env),
+  video: async env => ROUTES.video.script.POST(await post('/api/video/script', { id: 9 }), env),
   journeys: async env => ROUTES.journeys.write.POST(await post('/api/journeys/write', { type: 'email', idea: 'متابعة' }), env),
 };
 

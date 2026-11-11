@@ -17,7 +17,7 @@ export const KINDS = {
 } as const;
 export type Kind = keyof typeof KINDS;
 // Modules that write with AI and read the knowledge
-export const AI_MODULES = ['content', 'design', 'copy', 'voice', 'social', 'maestro', 'journeys'] as const;
+export const AI_MODULES = ['content', 'design', 'copy', 'voice', 'social', 'maestro', 'journeys', 'video'] as const;
 
 export interface Entry {
   id: number; kind: Kind; title: string; body: string; price: number | null; modules: string[]; active: boolean;
