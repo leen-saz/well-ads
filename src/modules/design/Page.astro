@@ -73,6 +73,7 @@ import { ClientRouter } from 'astro:transitions';
 .dz-size{display:grid;grid-template-columns:auto 1fr;gap:2px 8px;align-items:center;padding:10px 12px;border:1px solid var(--line);border-radius:12px;cursor:pointer}
 .dz-size span{grid-column:2;font-size:12px;color:var(--muted)}
 .dz-size:has(input:checked){border-color:var(--accent,#7E57FD)}
+.dz-bg{display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin:0 0 12px;padding:10px 14px;border-radius:12px;background:var(--tint);border-inline-start:4px solid var(--pulse,#F86080);font-size:14px}.dz-bg span{flex:1 1 260px}
 .dz-more{margin-top:12px}.dz-more summary{cursor:pointer;font-weight:600;padding:6px 0}
 .dz-kind{display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin:0 0 14px}.dz-kind .seg button{height:36px}
 .mv-grid{display:grid;grid-template-columns:minmax(0,400px) minmax(0,1fr);gap:16px;align-items:start}
@@ -136,6 +137,7 @@ import { ClientRouter } from 'astro:transitions';
           <div class="ls-out"><section class="card pad" id="ref"><p class="muted">املأ التفاصيل واضغط "صمّم".</p></section><section class="card pad" id="vars"></section></div>
         </div>
         <h2 style="margin:18px 0 10px">المعاينة</h2>
+      <div class="dz-bg" id="bgNote" hidden role="alert"><span id="bgMsg"></span><button class="btn sm secondary" type="button" id="bgRetry">جرّب الخلفية مرة ثانية</button></div>
         <div class="dz-prev" id="prev"></div>
       </div>
       <div id="motionFlow" hidden>
