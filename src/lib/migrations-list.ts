@@ -35,9 +35,11 @@ export const MIGRATIONS: readonly string[] = [
   '028_drop_site_requests.sql',
   '029_openrouter_routes.sql',
   '030_campaigns.sql',
-  '031_schema_migrations.sql',
+  '031_ai_models_spend.sql',
+  '032_buyer_actions.sql',
+  '033_schema_migrations.sql',
 ];
 
 // Files up to this one were applied by hand before the schema_migrations table existed: they are not checked here
 // (the data-health page probes their tables and columns instead). Every later file records itself as its last statement.
-export const TRACKED_AFTER = '030_campaigns.sql';
+export const TRACKED_AFTER = '032_buyer_actions.sql';

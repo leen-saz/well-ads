@@ -10,6 +10,14 @@ NOW = datetime(2026, 10, 29, 13, 5, tzinfo=timezone(timedelta(hours=3)))
 
 
 class Health(unittest.TestCase):
+    def test_missing_or_broken_file_is_none(self):
+        import tempfile
+        self.assertIsNone(health.load("/nonexistent/data.json"))
+        with tempfile.NamedTemporaryFile("w", suffix=".json", delete=False) as f:
+            f.write("{broken")
+        self.assertIsNone(health.load(f.name))
+        os.unlink(f.name)
+
     def test_clean(self):
         d = {"platforms": {"meta": {"ok": True, "coverage_end": "2026-10-29"}, "tiktok": {"ok": True, "synced_at": "2026-10-29T12:00+03:00"}}, "ads": {}, "rows": []}
         self.assertEqual(health.check(d, NOW), ([], []))

@@ -6,7 +6,7 @@ import { readAll as all } from '../../lib/paging';
 import { diagnose, type AdRow, type ConnRow, type LeadRow, type MetricRow } from './debugger';
 import { explain as claude, explainViaOpenRouter, type ClaudeEnv } from './explain';
 import { viaOpenRouter, type LlmEnv } from '../../lib/llm';
-import { usageCtx } from '../../lib/usage';
+import { overCap, record, usageCtx } from '../../lib/usage';
 
 async function build(cfg: Cfg, user: Session) {
   const today = new Date(Date.now() + 3 * 3600e3).toISOString().slice(0, 10);
@@ -40,7 +40,11 @@ export const explain = { POST: handle(async (request, e: AuthEnv & ClaudeEnv & L
       try { return json(200, await explainViaOpenRouter(e, r.findings, r.platforms, ctx)); }
       catch (err) { console.warn('debugger_openrouter_failed', (err as Error).message); if (!e.ANTHROPIC_API_KEY) throw err; }
     }
-    return json(200, await claude(e, r.findings, r.platforms));
+    // Claude is billed per call, so it is recorded like the others and stops at the tab's monthly cap
+    if (ctx && await overCap(ctx, 'debugger')) return json(429, { error: 'وصل الديبقر سقفه الشهري للذكاء الاصطناعي. تواصل مع الإدارة.' });
+    const out = await claude(e, r.findings, r.platforms);
+    record(ctx, 'debugger', { provider: 'anthropic', model: out.model, usage: out.usage });
+    return json(200, { text: out.text, model: out.model });
   }
   catch (err) { console.warn('debugger_explain_failed', (err as Error).message); return json(502, { error: 'Claude ما رد الحين، جرّب بعد دقيقة' }); }
 }) };

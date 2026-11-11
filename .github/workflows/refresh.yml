@@ -243,6 +243,10 @@ jobs:
           npx wrangler r2 object put "$BUCKET/data.json" --file ../data.json --content-type application/json --remote >/dev/null
           echo "::notice title=refresh::$(wc -l < now.txt) covers in use, $(find public -name index.html | wc -l) pages uploaded"
 
+      # Runs even when a step before it failed or the run was cancelled (`if: always()`): the old order meant a failure in
+      # the first steps hid the check, and no alert came out of those hours. The outside watcher (src/lib/watchdog.ts)
+      # covers the case where this workflow never starts at all.
       - name: Data health (email alert on failure)
+        if: always()
         working-directory: pipeline
         run: python health.py

@@ -2,7 +2,18 @@
 import json, os, subprocess, sys, tempfile, unittest
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-CHROME = os.environ.get("CHROME", "/usr/bin/google-chrome")
+
+
+def find_chrome():
+    """CHROME, else a browser in the usual places on Linux (CI) or macOS (a developer's machine); None if there is none."""
+    import glob, shutil
+    cands = [os.environ.get("CHROME"), shutil.which("google-chrome"), "/usr/bin/google-chrome",
+             "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome"]
+    cands += sorted(glob.glob(os.path.expanduser("~/Library/Caches/ms-playwright/chromium-*/chrome-mac*/Chromium.app/Contents/MacOS/Chromium")))
+    return next((c for c in cands if c and os.path.exists(c)), None)
+
+
+CHROME = find_chrome()
 
 
 def page(data):
@@ -103,18 +114,22 @@ def month_data():
 
 class FixtureBrowserTests(unittest.TestCase):
     def test_selected_range_and_filters_match_known_values(self):
-        if not os.path.exists(CHROME):
-            self.fail("chrome is not available")
-        if not os.path.exists("/tmp/pw/node_modules/puppeteer-core"):
-            subprocess.check_call(["npm", "install", "--prefix", "/tmp/pw", "puppeteer-core"], timeout=180)
-        shot = "/opt/cursor/artifacts/screenshots"
-        os.makedirs(shot, exist_ok=True)
+        if not CHROME:
+            # CI must have a browser (a silent skip there would hide a broken check); a laptop without one just skips
+            if os.environ.get("CI"):
+                self.fail("chrome is not available")
+            self.skipTest("no Chrome found: set CHROME to run the browser fixture locally")
+        pw = os.path.join(tempfile.gettempdir(), "pw")
+        if not os.path.exists(os.path.join(pw, "node_modules", "puppeteer-core")):
+            subprocess.check_call(["npm", "install", "--prefix", pw, "puppeteer-core"], timeout=180)
         with tempfile.TemporaryDirectory() as tmp:
+            shot = os.path.join(tmp, "screenshots")
+            os.makedirs(shot)
             main = os.path.join(tmp, "main.html")
             month = os.path.join(tmp, "month.html")
             open(main, "w", encoding="utf-8").write(page(main_data()))
             open(month, "w", encoding="utf-8").write(page(month_data()))
-            env = dict(os.environ, CHROME=CHROME)
+            env = dict(os.environ, CHROME=CHROME, PW_DIR=pw)
             proc = subprocess.run(
                 ["node", os.path.join(ROOT, "tests", "browser_date_fixture.js"),
                  "file://" + main, "file://" + month, shot],

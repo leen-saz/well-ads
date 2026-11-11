@@ -60,14 +60,14 @@ export function mountCampaign(root, me, L) {
 
   let view = 0;   // a new screen cancels a run loop that belongs to the old one
   const KIND = { insight: ['سياق ورصد', 'Context & listening'], copy: ['نصوص ومحتوى', 'Copy & content'], design_brief: ['بريف التصميم', 'Design brief'], voice_script: ['نص الصوت', 'Voice script'],
-    post: ['مسودة منشور', 'Post draft'], compliance_report: ['تقرير الامتثال', 'Compliance report'], optimization: ['الميزانية والتحسين', 'Budget & optimization'], measurement: ['خطة القياس', 'Measurement plan'] };
+    post: ['مسودة منشور', 'Post draft'], design_image: ['صورة التصميم', 'Design image'], voice_script: ['نص الفويس أوفر', 'Voiceover script'], voice_audio: ['تسجيل صوتي', 'Voice recording'], voice_srt: ['ترجمة SRT', 'SRT subtitles'], asset_missing: ['ملف ما انولّد', 'File not made'], compliance_report: ['تقرير الامتثال', 'Compliance report'], optimization: ['الميزانية والتحسين', 'Budget & optimization'], measurement: ['خطة القياس', 'Measurement plan'] };
   const KPI_EN = { ctr: 'Click rate', clickToLead: 'Click to lead', leadToClose: 'Lead to close', cpl: 'Cost per lead (max)', costShare: 'Cost of a close, share of its value (max)', roas: 'Return on spend', maturityDays: 'Lead age before judging its close' };
   const UNIT = { '%': '%', SAR: ['ر.س', 'SAR'], '×': '×', day: ['يوم', 'days'] };
   const PLAT = { facebook: 'Facebook', instagram: 'Instagram', tiktok: 'TikTok', x: 'X', linkedin: 'LinkedIn', snapchat: 'Snapchat' };
   const packText = (c, d) => {
     const b = c.brief || {}, out = [`# ${c.title}`, '', b.summary || '', ''];
     if ((b.questions || []).length) out.push(`## ${L('أسئلة مفتوحة', 'Open questions')}`, ...b.questions.map(x => `- ${x.q} → ${x.answer ? L('الجواب: ', 'Answer: ') + x.answer : L('افتراض: ', 'Assumption: ') + x.assumption}`), '');
-    for (const t of d.tasks) { out.push(`## ${pick(AGENT, t.agent)}: ${t.title}`, ''); for (const o of d.outputs.filter(x => x.task_id === t.id)) out.push(o.platform ? `**${PLAT[o.platform] || o.platform}**` : '', o.body?.text || '', ''); }
+    for (const t of d.tasks) { out.push(`## ${pick(AGENT, t.agent)}: ${t.title}`, ''); for (const o of d.outputs.filter(x => x.task_id === t.id)) out.push(o.platform ? `**${PLAT[o.platform] || o.platform}**` : '', o.body?.key ? `[${o.body.text || o.kind}](${location.origin}/api/campaigns/file?id=${o.id}&dl=1)` : (o.body?.text || ''), ''); }
     return out.join('\n');
   };
 
@@ -75,7 +75,18 @@ export function mountCampaign(root, me, L) {
     const k = KIND[o.kind] ? L(...KIND[o.kind]) : o.kind;
     // internal references (the knowledge summary, the budget document) are not ads: no findings are shown on them, whatever an older run stored
     const hits = ['insight', 'optimization', 'measurement'].includes(o.kind) ? [] : (o.compliance || []).filter(h => h.level !== 'info');
-    const body = o.kind === 'measurement'
+    const file = `/api/campaigns/file?id=${encodeURIComponent(o.id)}`;
+    const dl = (url, name) => `<a class="btn" href="${esc(url)}" download="${esc(name)}">${esc(L('تنزيل', 'Download'))}</a>`;
+    const body = o.kind === 'design_image'
+      ? `<figure class="cm-fig"><img src="${file}" alt="${esc(o.body.text || '')}" loading="lazy" width="${esc(o.body.w || '')}" height="${esc(o.body.h || '')}"><figcaption>${esc(o.body.text || '')} · ${dl(file + '&dl=1', `design-${o.platform || 'image'}.jpg`)}</figcaption></figure>`
+      : o.kind === 'voice_audio'
+        ? `<div class="cm-aud"><audio controls preload="none" src="${file}"></audio><span class="muted">${esc(L(`نسخة ${o.body.label} ثانية · ${o.body.seconds} ث`, `${o.body.label}-second version · ${o.body.seconds}s`))}</span> ${dl(file + '&dl=1', `voiceover-${o.body.label}s.wav`)}</div><div class="cm-text">${render(o.body.text || '')}</div>`
+        : o.kind === 'voice_srt'
+          ? `<pre class="cm-srt" dir="auto">${esc(o.body.text || '')}</pre>${dl('data:text/plain;charset=utf-8,' + encodeURIComponent(o.body.text || ''), `subtitles-${o.body.label}s.srt`)}`
+          : o.kind === 'asset_missing'
+            ? `<p class="msg err">${esc(o.body.text || '')}</p>`
+            : o.kind === 'voice_script' ? `<p class="muted">${esc(L(`نسخة ${o.body.label} ثانية`, `${o.body.label}-second version`))}</p><div class="cm-text">${render(o.body.text || '')}</div>${o.body.notes ? `<p class="muted">${esc(o.body.notes)}</p>` : ''}`
+      : o.kind === 'measurement'
       ? `<ul class="cm-kpis">${(o.body.kpis || []).map(x => `<li>${esc(L(x.ar, KPI_EN[x.key] || x.ar))}: <b>${esc(x.target)} ${esc(Array.isArray(UNIT[x.unit]) ? L(...UNIT[x.unit]) : UNIT[x.unit] || '')}</b></li>`).join('')}</ul>`
       : `<div class="cm-text">${render(o.body.text || '')}</div>`;
     const day = o.kind === 'post' && o.body.day ? ` · ${esc(L('اليوم', 'Day'))} ${esc(o.body.day)}` : '';
@@ -116,6 +127,7 @@ export function mountCampaign(root, me, L) {
       ${t.spec?.detail && !outs.length ? `<p class="muted">${esc(t.spec.detail)}</p>` : ''}${outs.map(outputHtml).join('')}
       <div class="cm-actions">${t.status === 'blocked' && d.mayApprove ? `<button class="btn" data-ovr="${t.id}" type="button">${esc(L('اعتمد رغم الرفض', 'Approve despite the refusal'))}</button>` : ''}
         ${t.status === 'review' && d.mayApprove ? `<button class="btn" data-ok="${t.id}" type="button">${esc(L('اعتمد هذا الناتج', 'Approve this output'))}</button>` : ''}
+        ${(t.spec?.missing || []).length && d.mayApprove && (t.status === 'review' || t.status === 'approved') ? `<button class="btn primary" data-assets="${t.id}" type="button">${esc(L('ولّد الملفات الناقصة', 'Make the missing files'))}</button>` : ''}
         ${(t.status === 'blocked' || t.status === 'failed') && d.mayApprove && (t.spec?.retries || 0) < 2 ? `<button class="btn" data-retry="${t.id}" type="button">${esc(L('أعد الكتابة وافحص من جديد', 'Rewrite and check again'))}</button>` : ''}</div>`;
   }
   function taskSummary(t, outs) {
@@ -152,6 +164,7 @@ export function mountCampaign(root, me, L) {
         <ol class="cm-tasks" id="cmTasks"></ol><p class="muted" id="cmPackNote" hidden>${esc(L('كل شي هنا مسودات ووثائق. المنشورات تنحفظ مسودة في السوشال وما تنشر إلا بعد اعتماد المعتمد هناك. ما يتغيّر أي حساب إعلاني.', 'Everything here is drafts and documents. Posts are saved as drafts in Social and only go out once its approver approves them there. No ad account is changed.'))}</p></section>
       <section class="cm-cost"><b>${esc(L('التكلفة المتوقعة قبل التشغيل:', 'Expected cost before running:'))} ${esc(sar(c.estimate_usd))}</b>
         <p class="muted">${esc(L('تقدير تقريبي حسب الموديل المختار. الصرف الفعلي يظهر في «الصرف على الذكاء الاصطناعي» ويلتزم بالسقف الشهري.', 'A rough estimate for the chosen model. Actual spend shows in AI spend and follows the monthly cap.'))}</p>
+        <p class="muted" id="cmAssets" hidden></p>
         <p class="msg err" id="cmCap" hidden>${esc(L('وصل السقف الشهري لاحلم: التنفيذ بيكون على الموديل المجاني أو يتوقف.', "Ahlam's monthly cap is reached: the run will use the free model or stop."))}</p></section>
       <div class="cm-actions"><button class="btn primary" id="cmOk" type="button" hidden>${esc(L('اعتمد الخطة والتكلفة', 'Approve the plan and cost'))}</button>
         <button class="btn" id="cmDl" type="button" hidden>${esc(L('نزّل الحزمة (Markdown)', 'Download the pack (Markdown)'))}</button><button class="btn" id="cmCp" type="button" hidden>${esc(L('انسخ الحزمة', 'Copy the pack'))}</button>
@@ -178,7 +191,8 @@ export function mountCampaign(root, me, L) {
     }, true);
     $('#cmTasks', R).addEventListener('click', ev => {
       const b = ev.target.closest('button'); if (!b) return;
-      const ok = b.dataset.ok, retry = b.dataset.retry, ovr = b.dataset.ovr;
+      const ok = b.dataset.ok, retry = b.dataset.retry, ovr = b.dataset.ovr, again = b.dataset.assets;
+      if (again) { b.disabled = true; call('/api/campaigns/assets', { task: Number(again) }, () => cur?.live && loop()); return; }
       if (ok) { b.disabled = true; call('/api/campaigns/review', { task: Number(ok) }); }
       else if (retry) { b.disabled = true; call('/api/campaigns/retry', { task: Number(retry) }); }
       else if (ovr) openOverride(b, Number(ovr));
@@ -238,6 +252,9 @@ export function mountCampaign(root, me, L) {
     set('#cmProg', progHtml(d));
     set('#cmPackH', esc(started ? L('حزمة الحملة', 'Campaign pack') : L('الخطة: مين يسوي وش', 'The plan: who does what')));
     show('#cmPackNote', started); show('#cmCap', !!d.capped);
+    const ap = d.assetPlan || {};
+    show('#cmAssets', !!ap.images);
+    set('#cmAssets', esc(L(`يشمل توليد ${ap.images} صور وملفين صوتيين (نحو ${sar(ap.usd)}): كل واحد يتولّد بعد ما يمر نصه على الامتثال، ويمر على سقف تاب التصميم والفويس أوفر.`, `Includes making ${ap.images} pictures and ${ap.audio} audio files (about ${sar(ap.usd)}): each is made only after its text passes compliance, and counts against the Design and Voiceover caps.`)));
     show('#cmOk', planned && d.mayApprove); show('#cmDl', started); show('#cmCp', started);
     show('#cmNo', ['planned', 'approved', 'running', 'review'].includes(c.status));
     const waitingN = d.tasks.filter(t => t.status === 'waiting').length;
@@ -282,7 +299,7 @@ export function mountCampaign(root, me, L) {
       const det = li.querySelector('details'), sum = li.querySelector('summary'), body = li.querySelector('.cm-body');
       const sh = taskSummary(t, outs); if (sum.innerHTML !== sh) sum.innerHTML = sh;
       // the body is rebuilt only when this task changed, and not while a form is open in it
-      const sig = JSON.stringify([t.status, t.blocked_reason, t.spec?.override, t.spec?.auto, t.spec?.retries, outs.map(o => [o.id, (o.body?.text || '').length]), d.mayApprove]);
+      const sig = JSON.stringify([t.status, t.blocked_reason, t.spec?.override, t.spec?.auto, t.spec?.retries, t.spec?.missing, outs.map(o => [o.id, (o.body?.text || '').length]), d.mayApprove]);
       if (cur.sig[t.id] !== sig && !body.querySelector('.cm-ovf')) { body.innerHTML = taskBody(t, outs, d); cur.sig[t.id] = sig; }
       // fold: the user's own choice wins; otherwise it opens only while the task works or has a problem
       const was = cur.prev[t.id]; cur.prev[t.id] = t.status;

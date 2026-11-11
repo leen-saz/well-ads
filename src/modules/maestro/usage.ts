@@ -3,8 +3,8 @@
 import { sb, json, readJson, handle, requireUser, audit, missingSchema, notApplied } from '../../lib/auth';
 import { scoped } from '../../lib/tenant';
 import { MODULES } from '../registry';
-import { PRICES } from '../../lib/prices';
-import { USD_SAR, DEFAULT_ALERT_PCT, defaultCap, clearSnaps, levelOf, monthStart, reconcile as compare, type Row } from '../../lib/usage';
+import { PRICES, priceOf, type Billed } from '../../lib/prices';
+import { cost as priceCost, USD_SAR, DEFAULT_ALERT_PCT, defaultCap, clearSnaps, levelOf, monthStart, reconcile as compare, type Row } from '../../lib/usage';
 
 const MIGRATION = 'migration 019_ai_usage.sql';
 // the home assistant (task `ahlam`) is not a module but is billed and capped like a tab
@@ -13,14 +13,29 @@ const TAB_KEYS = new Set(TABS.map(t => t.key));
 const MONTH = /^(\d{4})-(0[1-9]|1[0-2])$/;
 const r2 = (n: number) => Math.round(n * 100) / 100;
 const num = (x: unknown) => { const n = Number(x); return isFinite(n) ? n : 0; };
+type ModelRow = { month: string; provider: string; model: string; calls: number; tokens_in: number; tokens_out: number; cost_usd: number; unpriced: number; estimated: number };
+// Recorded against expected, per provider and model. «Expected» is the tokens priced from our own table (prices.ts); where the provider
+// reports its own cost (OpenRouter, search and image estimates) the two differ on purpose, and the row says which kind it is.
+export function compareModels(rows: ModelRow[]) {
+  return rows.map(r => {
+    const tin = num(r.tokens_in), tout = num(r.tokens_out), p = priceOf(r.provider as Billed, r.model);
+    const expected = p ? priceCost(r.provider as Billed, r.model, tin, tout).usd : null, recorded = num(r.cost_usd);
+    const diff = expected === null ? null : Math.round((recorded - expected) * 1e6) / 1e6;
+    return { provider: r.provider, model: r.model, calls: num(r.calls), tokens_in: tin, tokens_out: tout, recorded_usd: recorded, expected_usd: expected, diff_usd: diff,
+      diff_pct: expected && expected > 0 ? Math.round(((recorded - expected) / expected) * 10_000) / 100 : null,
+      unpriced: num(r.unpriced), estimated: num(r.estimated), verified: !!p?.verified, in_table: !!p };
+  }).sort((a, b) => b.recorded_usd - a.recorded_usd);
+}
 type Budget = { module: string; monthly_cap_usd: number | null; alert_at_pct: number };
 
 export const usage = { GET: handle(async (request, e) => {
   const { cfg, user } = await requireUser(request, e, 'owner');
   const now = Date.now(), pick = new URL(request.url).searchParams.get('month') || '';
-  const [u, b] = await Promise.all([
+  const [u, b, mr] = await Promise.all([
     sb<Row[]>(cfg, '/rest/v1/rpc/ai_spend', { method: 'POST', admin: true, body: { p_company: user.co, p_since: monthStart(now, 5) } }),
     sb<Budget[]>(cfg, scoped('/rest/v1/ai_budgets?select=module,monthly_cap_usd,alert_at_pct', user.co), { admin: true }),
+    // the recorded-vs-expected table: its own function (migration 031), so a missing one hides the table and nothing else
+    sb<ModelRow[]>(cfg, '/rest/v1/rpc/ai_models_spend', { method: 'POST', admin: true, body: { p_company: user.co, p_since: monthStart(now, 5) } }),
   ]);
   if (!u.ok || !b.ok) return json(missingSchema(u) || missingSchema(b) ? 503 : 500, { error: missingSchema(u) || missingSchema(b) ? notApplied(user, MIGRATION) : 'ما قدرت أقرأ الصرف' });
   const rows = Array.isArray(u.data) ? u.data : [];
@@ -46,6 +61,7 @@ export const usage = { GET: handle(async (request, e) => {
     month, current: month === nowMonth, rate: USD_SAR,
     months: months.map(m => ({ month: m, usd: sum(m).usd, sar: r2(sum(m).sar) })),
     tabs, total: { usd: sum(month).usd, sar: r2(sum(month).sar) },
+    models: mr.ok && Array.isArray(mr.data) ? compareModels(mr.data.filter(x => String(x.month) === month)) : null,
     prices: PRICES.map(p => ({ provider: p.provider, match: p.match, in_usd: p.inUsd, out_usd: p.outUsd, source: p.source, date: p.date, verified: p.verified })),
   });
 }) };
