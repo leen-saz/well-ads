@@ -38,7 +38,7 @@ export function cleanWishes(raw: Record<string, unknown>): { wishes?: Wishes; er
   return { wishes: { goal, dept, offer: tidy(raw['offer'], 400), audience: tidy(raw['audience'], 400), platforms, dates: tidy(raw['dates'], 120), budget: tidy(raw['budget'], 120), tone: tidy(raw['tone'], 200), notes: tidy(raw['notes'], 1200) } };
 }
 
-export interface PlanTask { agent: Agent; title: string; detail: string; after: number[] }
+export interface PlanTask { agent: Agent; title: string; detail: string; after: number[]; kind?: 'motion' }
 // An open question the plan could not settle: the agents do NOT wait for it, they take `assumption`; a person may answer later and only
 // the tasks it affects are written again.
 export interface Question { q: string; assumption: string; affects: Agent[]; answer?: string }
@@ -50,6 +50,7 @@ export function planMessages(w: Wishes): { role: string; content: string }[] {
   const agents = (Object.keys(AGENTS) as Agent[]).map(k => `- ${k}: ${AGENTS[k].ar}`).join('\n');
   const sys = `أنت «احلم»، مخطّط حملات في لوحة إعلانات Well. تحوّل أمنيات المستخدم لخطة حملة كاملة تتوزّع على إيجنتس التطبيق.
 رجّع JSON فقط بهذا الشكل: {"title":"اسم قصير للحملة","brief":{"summary":"ملخص الحملة في 3 جمل","audience":"الجمهور","messages":["رسالة رئيسية"],"risks":["خطر"],"questions":[{"q":"سؤال لا يمكن حسمه من الأمنيات","assumption":"افتراض معقول يكمل الإيجنت عليه","affects":["content","social"]}]},"tasks":[{"agent":"content","title":"عنوان المهمة","detail":"وش المطلوب بالضبط","after":[0]}]}
+مهمة الموشن جرافيك: مهمة واحدة agent=design مع "kind":"motion" (ستوري 9:16 من صورة التصميم وتسجيل الصوت)، وتجي بعد مهمتي التصميم والصوت (after فيها الاثنتين)، وقبل مهمة الامتثال.
 الإيجنتس المتاحة (agent):
 ${agents}
 القواعد:
@@ -85,7 +86,7 @@ export function parsePlan(text: string): Plan | null {
     if (!t || !isAgent(t['agent']) || tasks.length >= MAX_TASKS) continue;
     const i = tasks.length;
     const after = Array.isArray(t['after']) ? [...new Set((t['after'] as unknown[]).map(Number))].filter(n => Number.isInteger(n) && n >= 0 && n < i) : [];
-    tasks.push({ agent: t['agent'], title: tidy(t['title'], 120) || AGENTS[t['agent']].ar, detail: tidy(t['detail'], 600), after });
+    tasks.push({ agent: t['agent'], title: tidy(t['title'], 120) || AGENTS[t['agent']].ar, detail: tidy(t['detail'], 600), after, ...(t['agent'] === 'design' && t['kind'] === 'motion' && !tasks.some(x => x.kind === 'motion') ? { kind: 'motion' as const } : {}) });
   }
   if (!tasks.length) return null;
   const b = raw.brief ?? {};

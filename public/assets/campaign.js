@@ -60,7 +60,7 @@ export function mountCampaign(root, me, L) {
 
   let view = 0;   // a new screen cancels a run loop that belongs to the old one
   const KIND = { insight: ['سياق ورصد', 'Context & listening'], copy: ['نصوص ومحتوى', 'Copy & content'], design_brief: ['بريف التصميم', 'Design brief'], voice_script: ['نص الصوت', 'Voice script'],
-    post: ['مسودة منشور', 'Post draft'], design_image: ['صورة التصميم', 'Design image'], voice_script: ['نص الفويس أوفر', 'Voiceover script'], voice_audio: ['تسجيل صوتي', 'Voice recording'], voice_srt: ['ترجمة SRT', 'SRT subtitles'], asset_missing: ['ملف ما انولّد', 'File not made'], compliance_report: ['تقرير الامتثال', 'Compliance report'], optimization: ['الميزانية والتحسين', 'Budget & optimization'], measurement: ['خطة القياس', 'Measurement plan'] };
+    post: ['مسودة منشور', 'Post draft'], design_image: ['صورة التصميم', 'Design image'], voice_script: ['نص الفويس أوفر', 'Voiceover script'], voice_audio: ['تسجيل صوتي', 'Voice recording'], voice_srt: ['ترجمة SRT', 'SRT subtitles'], asset_missing: ['ملف ما انولّد', 'File not made'], motion_storyboard: ['موشن جرافيك (ستوري بورد)', 'Motion graphic (storyboard)'], compliance_report: ['تقرير الامتثال', 'Compliance report'], optimization: ['الميزانية والتحسين', 'Budget & optimization'], measurement: ['خطة القياس', 'Measurement plan'] };
   const KPI_EN = { ctr: 'Click rate', clickToLead: 'Click to lead', leadToClose: 'Lead to close', cpl: 'Cost per lead (max)', costShare: 'Cost of a close, share of its value (max)', roas: 'Return on spend', maturityDays: 'Lead age before judging its close' };
   const UNIT = { '%': '%', SAR: ['ر.س', 'SAR'], '×': '×', day: ['يوم', 'days'] };
   const PLAT = { facebook: 'Facebook', instagram: 'Instagram', tiktok: 'TikTok', x: 'X', linkedin: 'LinkedIn', snapchat: 'Snapchat' };
@@ -77,7 +77,14 @@ export function mountCampaign(root, me, L) {
     const hits = ['insight', 'optimization', 'measurement'].includes(o.kind) ? [] : (o.compliance || []).filter(h => h.level !== 'info');
     const file = `/api/campaigns/file?id=${encodeURIComponent(o.id)}`;
     const dl = (url, name) => `<a class="btn" href="${esc(url)}" download="${esc(name)}">${esc(L('تنزيل', 'Download'))}</a>`;
-    const body = o.kind === 'design_image'
+    const ANIM = { fade: ['ظهور ناعم', 'Soft fade'], rise: ['يطلع من تحت', 'Rises'], pop: ['تكبير سريع', 'Pop'], type: ['كتابة حرف حرف', 'Typing'], slide: ['سحب من الجنب', 'Slide'] };
+    const t1 = n => Number(n).toFixed(1);
+    const board = o.kind === 'motion_storyboard' ? `<div class="cm-motion">${o.body.image_id ? `<img class="cm-poster" src="/api/campaigns/file?id=${encodeURIComponent(o.body.image_id)}" alt="" loading="lazy">` : ''}
+      <div><p class="muted">${esc(L(`ستوري ${o.body.ratio} · ${t1(o.body.seconds)} ثانية · الخطة من ${o.body.engine === 'templates' ? 'قالب' : 'الذكاء الاصطناعي'}`, `Story ${o.body.ratio} · ${t1(o.body.seconds)} s · plan from ${o.body.engine === 'templates' ? 'a template' : 'AI'}`))}</p>
+      <table class="cm-scenes"><tbody>${(o.body.scenes || []).map(sc => `<tr><td>${t1(sc.from)}–${t1(sc.to)}</td><td>${esc(sc.text)}</td><td class="muted">${esc(sc.anim in ANIM ? L(...ANIM[sc.anim]) : sc.anim)}</td></tr>`).join('')}${o.body.cta ? `<tr><td>${t1(o.body.cta.from)}→</td><td><b>${esc(o.body.cta.text)}</b></td><td class="muted">${esc(L('دعوة', 'CTA'))}</td></tr>` : ''}</tbody></table>
+      ${o.body.project ? `<p><a class="btn primary" href="/design/?type=motion&id=${encodeURIComponent(o.body.project)}">${esc(L('افتحه في موشن جرافيك لتصدير الفيديو', 'Open it in Motion graphic to export the video'))}</a></p>
+      <p class="muted">${esc(L('الفيديو النهائي يُرسم ويُصدَّر من المتصفح في صفحة التصميم (ما ينفع من السيرفر): هنا مشروع جاهز بصورته وصوته وخطة مشاهده، ويحتاج صلاحية تاب التصميم.', 'The final video is drawn and exported in the browser on the Design page (it cannot be done on the server): here is a ready project with its picture, recording and scene plan; it needs access to the Design tab.'))}</p>` : ''}</div></div>` : '';
+    const body = o.kind === 'motion_storyboard' ? board : o.kind === 'design_image'
       ? `<figure class="cm-fig"><img src="${file}" alt="${esc(o.body.text || '')}" loading="lazy" width="${esc(o.body.w || '')}" height="${esc(o.body.h || '')}"><figcaption>${esc(o.body.text || '')} · ${dl(file + '&dl=1', `design-${o.platform || 'image'}.jpg`)}</figcaption></figure>`
       : o.kind === 'voice_audio'
         ? `<div class="cm-aud"><audio controls preload="none" src="${file}"></audio><span class="muted">${esc(L(`نسخة ${o.body.label} ثانية · ${o.body.seconds} ث`, `${o.body.label}-second version · ${o.body.seconds}s`))}</span> ${dl(file + '&dl=1', `voiceover-${o.body.label}s.wav`)}</div><div class="cm-text">${render(o.body.text || '')}</div>`
