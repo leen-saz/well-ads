@@ -53,7 +53,7 @@ describe('media buyer rules', () => {
     expect(r2.gated.some(g => g.rule === 'stop_cpl' && g.reason.includes('تمام'))).toBe(true);
   });
   it('flags spend with no leads as a tracking check, even in the learning period', () => {
-    const r = recommend(base({ ads: [ad('t1', 'tiktok', 'c1')], metrics: series('t1', 2, 0, () => [T.cpl, 3000, 60, 0]) }));
+    const r = recommend(base({ ads: [ad('t1', 'meta', 'c1')], metrics: series('t1', 2, 0, () => [T.cpl, 3000, 60, 0]) }));
     expect(ids(r)).toEqual(['zero_leads']); expect(r.recs[0]!.kind).toBe('review');
   });
   it('spots creative fatigue when the cost is off target too', () => {
