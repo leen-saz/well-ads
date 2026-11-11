@@ -200,7 +200,7 @@ test.describe('sidebar and language (browser)', () => {
     await addSession(context, await login(request, 'owner'));
     await page.goto('/today/');
     const heads = page.locator('.side-h[data-g]');
-    await expect(heads).toHaveText(['الرئيسية', 'الإنتاج', 'النشر والتوزيع', 'القياس والتحليل', 'التحسين والقرارات', 'الحوكمة', 'النظام']);
+    await expect(heads).toHaveText(['الرئيسية', 'الإنتاج', 'النشر والتوزيع', 'القياس والتحليل', 'التحسين والقرارات', 'النظام والحوكمة']);
     const design = page.locator('a.navi[data-k="design"]');
     await expect(design).toBeVisible();
     await page.locator('.side-h[data-g="produce"]').click();
