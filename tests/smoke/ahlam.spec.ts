@@ -196,7 +196,7 @@ test.describe('احلم', () => {
     await page.goto('/today/?tab=campaign');
     await page.locator('.cm-list button').first().click();
     await expect(page.locator('#cmOk')).toBeVisible();
-    await expect(page.locator('#cmRun')).toHaveCount(0);
+    await expect(page.locator('#cmRunBox')).toBeHidden();
   });
   // ---- the pack page is patched, never redrawn: folds, scroll and typing survive the automatic updates
   const LONG = 'A long output line that fills the page. '.repeat(60);
