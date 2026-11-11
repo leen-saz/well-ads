@@ -22,3 +22,13 @@ describe('dash.json uploads', () => {
     }
   });
 });
+
+// The health step must run even when a step before it failed: otherwise an early failure hides the check (docs/system-workflow-review.md 1.1)
+describe('refresh.yml health step', () => {
+  const text = Object.entries(FILES).find(([p]) => p.endsWith('/refresh.yml'))?.[1] ?? '';
+  it('runs with if: always()', () => {
+    const at = text.indexOf('- name: Data health');
+    expect(at).toBeGreaterThan(0);
+    expect(text.slice(at, at + 200)).toMatch(/if: always\(\)/);
+  });
+});
