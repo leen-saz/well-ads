@@ -27,7 +27,7 @@ export type Lang = 'ar' | 'en';
 export interface Source { tool: string; ar: string; en: string }
 export interface Run { cfg: Cfg; user: Session; e: AhlamEnv; dash?: Promise<Dash | null> }
 type Args = Record<string, unknown>;
-interface Tool { name: string; ar: string; en: string; help: string; allowed: (r: Run) => boolean; run: (r: Run, a: Args) => Promise<string> }
+export interface Tool { name: string; ar: string; en: string; help: string; allowed: (r: Run) => boolean; run: (r: Run, a: Args) => Promise<string> }
 
 const clampInt = (v: unknown, lo: number, hi: number, d: number): number => { const n = Math.round(Number(v)); return Number.isFinite(n) ? Math.min(hi, Math.max(lo, n)) : d; };
 const tidy = (s: unknown, max: number): string => String(s ?? '').replace(/[\u0000-\u001F\u007F]/g, ' ').replace(/\s+/g, ' ').trim().slice(0, max);

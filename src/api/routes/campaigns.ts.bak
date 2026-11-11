@@ -1,0 +1,241 @@
+// /api/campaigns/*: «حملة جديدة» in احلم (src/lib/campaign.ts, docs/ahlam.md). The user's wishes become a brief and a plan of tasks for
+// the in-app agents, saved in campaigns / campaign_tasks (migration 030). Any signed-in user may write wishes and get a plan; seeing a
+// campaign needs being its author or an approver; starting it needs an approver (owner, or approve on the manager tab). Nothing here
+// touches an ad account.
+import { sb, json, readJson, handle, requireUser, audit, missingSchema, notApplied, NO_APPROVE, type AuthEnv, type Session } from '../../lib/auth';
+import { scoped } from '../../lib/tenant';
+import { generate, llmMessage, pick, type LlmEnv, type Provider } from '../../lib/llm';
+import { overCap, usageCtx } from '../../lib/usage';
+import { TASK, PLAN_SCHEMA, PLANS_PER_DAY, AGENTS, cleanWishes, estimate, mayApprove, parsePlan, planMessages } from '../../lib/campaign';
+import { dayStart, loadDash, toolsFor, type AhlamEnv } from '../../lib/ahlam';
+import { SOCIAL } from '../../modules/social/engine';
+import { loadKnowledge, forbiddenRules, systemPrompt } from '../../modules/knowledge/knowledge';
+import { MAX_RETRIES, STALE_MS, kpis, parsePosts, readyTask, rollup, slim, socialTargets, taskMessages, verdict, type OutputRow, type TaskRow } from '../../lib/campaign-run';
+
+type Env = AuthEnv & LlmEnv;
+const MIGRATION = 'migration 030_campaigns.sql';
+const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+type Row = Record<string, unknown>;
+const rows = (d: unknown): Row[] => (Array.isArray(d) ? (d as Row[]) : []);
+const idOf = (v: unknown): string | null => (typeof v === 'string' && UUID.test(v) ? v.toLowerCase() : null);
+const fail = (user: Session, r: { ok: boolean; status: number; data: unknown }, msg: string) =>
+  json(missingSchema(r as never) ? 503 : 500, { error: missingSchema(r as never) ? notApplied(user, MIGRATION) : msg });
+
+// The user's own campaigns; approvers and the owner see all of the company's
+const visible = (user: Session, cfg: Parameters<typeof mayApprove>[1]) => (mayApprove(user, cfg) ? '' : `&created_by=eq.${encodeURIComponent(user.email)}`);
+
+export const list = { GET: handle(async (request, e: Env) => {
+  const { cfg, user } = await requireUser(request, e, 'any');
+  const r = await sb(cfg, scoped(`/rest/v1/campaigns?select=id,title,status,estimate_usd,created_by,created_at&order=created_at.desc&limit=50${visible(user, cfg)}`, user.co), { admin: true });
+  if (!r.ok) return fail(user, r, 'ما قدرت أقرأ الحملات');
+  return json(200, { campaigns: rows(r.data), mayApprove: mayApprove(user, cfg) });
+}) };
+
+export const get = { GET: handle(async (request, e: Env) => {
+  const { cfg, user } = await requireUser(request, e, 'any');
+  const id = idOf(new URL(request.url).searchParams.get('id'));
+  if (!id) return json(400, { error: 'طلب غير صحيح' });
+  const c = await sb(cfg, scoped(`/rest/v1/campaigns?select=*&id=eq.${id}${visible(user, cfg)}`, user.co), { admin: true });
+  if (!c.ok) return fail(user, c, 'ما قدرت أقرأ الحملة');
+  const campaign = rows(c.data)[0];
+  if (!campaign) return json(404, { error: 'الحملة غير موجودة' });
+  const t = await sb(cfg, scoped(`/rest/v1/campaign_tasks?select=id,position,agent,title,spec,depends_on,status,blocked_reason,estimate_usd,updated_at&campaign_id=eq.${id}&order=position.asc`, user.co), { admin: true });
+  const o = await sb(cfg, scoped(`/rest/v1/campaign_outputs?select=id,task_id,kind,platform,body,compliance&campaign_id=eq.${id}&order=id.asc&limit=200`, user.co), { admin: true });
+  return json(200, { campaign, tasks: rows(t.data), outputs: rows(o.data), agents: AGENTS, mayApprove: mayApprove(user, cfg), capped: await overCap(usageCtx(cfg, user, TASK)!, TASK) });
+}) };
+
+// The wishes -> a plan. One model call, saved as `planned`: the user reads the plan and its cost before anything runs.
+export const create = { POST: handle(async (request, e: Env) => {
+  const { cfg, user } = await requireUser(request, e, 'any', { write: true });
+  const w = cleanWishes(await readJson(request, 20_000));
+  if (!w.wishes) return json(400, { error: w.error });
+  const model = pick(e, TASK);
+  if (!model) return json(503, { error: 'احلم يحتاج الذكاء الاصطناعي، وهو غير متصل الحين' });
+  const today = await sb<unknown[]>(cfg, `/rest/v1/audit_log?select=id&action=eq.campaign_create&user_id=eq.${encodeURIComponent(user.uid)}&at=gte.${encodeURIComponent(dayStart(Date.now()))}&limit=${PLANS_PER_DAY}`, { admin: true });
+  if (today.ok && Array.isArray(today.data) && today.data.length >= PLANS_PER_DAY) return json(429, { error: `وصلت حدّك اليوم (${PLANS_PER_DAY} خطط حملات). جرّب بكرة.` });
+  let plan, used_model = model.model, used_provider: Provider = model.provider;
+  try {
+    const out = await generate(e, TASK, { messages: planMessages(w.wishes), max_tokens: 3000, response_format: { type: 'json_schema', json_schema: PLAN_SCHEMA } }, fetch, usageCtx(cfg, user, TASK));
+    plan = parsePlan(out.response); used_model = out.model; used_provider = out.engine;
+  } catch (err) { return json(502, { error: llmMessage(err) }); }
+  if (!plan) return json(502, { error: 'ما طلعت خطة أقدر أقراها، جرّب مرة ثانية أو وضّح الأمنيات أكثر' });
+  const est = estimate(plan.tasks.map(t => t.agent), used_model, used_provider);
+  const made = await sb<Row[]>(cfg, '/rest/v1/campaigns', { method: 'POST', admin: true, headers: { Prefer: 'return=representation' },
+    body: { company_id: user.co, title: plan.title, wishes: w.wishes, brief: plan.brief, status: 'planned', estimate_usd: est.usd, created_by: user.email } });
+  const id = made.ok ? idOf(rows(made.data)[0]?.['id']) : null;
+  if (!id) return fail(user, made, 'ما انحفظت الحملة');
+  const tasks = await sb(cfg, '/rest/v1/campaign_tasks', { method: 'POST', admin: true, headers: { Prefer: 'return=minimal' },
+    body: plan.tasks.map((t, i) => ({ campaign_id: id, company_id: user.co, position: i, agent: t.agent, title: t.title, spec: { detail: t.detail }, depends_on: t.after, estimate_usd: est.perTask[i] })) });
+  if (!tasks.ok) { await sb(cfg, scoped(`/rest/v1/campaigns?id=eq.${id}`, user.co), { method: 'DELETE', admin: true }); return fail(user, tasks, 'ما انحفظت مهام الحملة'); }
+  await audit(cfg, user, 'campaign_create', { target: { id, tasks: plan.tasks.length, estimate_usd: est.usd } });   // never the wishes' text
+  return json(200, { id, rough: est.rough });
+}) };
+
+// Starting a campaign spends the AI budget: only an approver. planned -> approved, once.
+export const approve = { POST: handle(async (request, e: Env) => {
+  const { cfg, user } = await requireUser(request, e, 'any', { write: true });
+  if (!mayApprove(user, cfg)) return json(403, { error: NO_APPROVE });
+  const id = idOf((await readJson(request, 2000))['id']);
+  if (!id) return json(400, { error: 'طلب غير صحيح' });
+  const r = await sb<Row[]>(cfg, scoped(`/rest/v1/campaigns?id=eq.${id}&status=eq.planned`, user.co), { method: 'PATCH', admin: true, headers: { Prefer: 'return=representation' },
+    body: { status: 'approved', approved_by: user.email, approved_at: new Date().toISOString(), updated_at: new Date().toISOString() } });
+  if (!r.ok) return fail(user, r, 'ما انحفظ الاعتماد');
+  if (!rows(r.data).length) return json(409, { error: 'الحملة مو بانتظار الاعتماد' });
+  await audit(cfg, user, 'campaign_approve', { target: { id } });
+  return json(200, { ok: true });
+}) };
+
+export const cancel = { POST: handle(async (request, e: Env) => {
+  const { cfg, user } = await requireUser(request, e, 'any', { write: true });
+  const id = idOf((await readJson(request, 2000))['id']);
+  if (!id) return json(400, { error: 'طلب غير صحيح' });
+  const r = await sb<Row[]>(cfg, scoped(`/rest/v1/campaigns?id=eq.${id}&status=in.(planned,approved,running,review)${visible(user, cfg)}`, user.co), { method: 'PATCH', admin: true, headers: { Prefer: 'return=representation' },
+    body: { status: 'cancelled', updated_at: new Date().toISOString() } });
+  if (!r.ok) return fail(user, r, 'ما انلغت الحملة');
+  if (!rows(r.data).length) return json(404, { error: 'الحملة غير موجودة أو انتهت' });
+  await audit(cfg, user, 'campaign_cancel', { target: { id } });
+  return json(200, { ok: true });
+}) };
+
+const AGENTS_AR: Record<string, string> = { knowledge: 'المعرفة', content: 'المحتوى', design: 'التصميم', voice: 'الصوت', optimize: 'التحسين' };
+const KIND: Record<string, string> = { knowledge: 'insight', content: 'copy', design: 'design_brief', voice: 'voice_script', optimize: 'optimization' };
+const nowIso = () => new Date().toISOString();
+type SbCfg = Parameters<typeof sb>[0];
+const patchTask = (cfg: SbCfg, co: string, id: number, body: Row, extra = '') =>
+  sb<Row[]>(cfg, scoped(`/rest/v1/campaign_tasks?id=eq.${id}${extra}`, co), { method: 'PATCH', admin: true, headers: { Prefer: 'return=representation' }, body: { ...body, updated_at: nowIso() } });
+async function setCampaign(cfg: SbCfg, co: string, id: string, status: string, from: string): Promise<void> {
+  await sb(cfg, scoped(`/rest/v1/campaigns?id=eq.${id}&status=in.(${from})`, co), { method: 'PATCH', admin: true, body: { status, updated_at: nowIso() } });
+}
+async function tasksOf(cfg: SbCfg, co: string, id: string): Promise<TaskRow[]> {
+  const t = await sb(cfg, scoped(`/rest/v1/campaign_tasks?select=id,position,agent,title,spec,depends_on,status,blocked_reason,updated_at&campaign_id=eq.${id}&order=position.asc`, co), { admin: true });
+  return rows(t.data) as unknown as TaskRow[];
+}
+
+// One task per call. Runs the next task whose dependencies are done, by the agent it was given to; the page calls it again until it
+// says `done`. Only a campaign an approver approved runs; whoever may see it may keep it going. The claim (waiting -> running) is
+// one conditional write, so two pages never run the same task twice.
+export const step = { POST: handle(async (request, e: Env) => {
+  const { cfg, user } = await requireUser(request, e, 'any', { write: true });
+  const id = idOf((await readJson(request, 2000))['id']);
+  if (!id) return json(400, { error: 'طلب غير صحيح' });
+  const c = await sb<Row[]>(cfg, scoped(`/rest/v1/campaigns?select=id,title,status,wishes,brief&id=eq.${id}${visible(user, cfg)}`, user.co), { admin: true });
+  if (!c.ok) return fail(user, c, 'ما قدرت أقرأ الحملة');
+  const camp = rows(c.data)[0];
+  if (!camp) return json(404, { error: 'الحملة غير موجودة' });
+  const was = String(camp['status']);
+  if (was !== 'approved' && was !== 'running') return json(409, { error: 'الحملة لازم تنعتمد أول، وما تشتغل بعد الإلغاء' });
+  let tasks = await tasksOf(cfg, user.co, id);
+  for (const t of tasks.filter(x => x.status === 'running' && x.updated_at && Date.parse(x.updated_at) < Date.now() - STALE_MS)) { await patchTask(cfg, user.co, t.id, { status: 'waiting' }, '&status=eq.running'); t.status = 'waiting'; }
+  const t = readyTask(tasks);
+  if (!t) {
+    const r = rollup(tasks);
+    if (r.status !== 'running' && was !== r.status) await setCampaign(cfg, user.co, id, r.status, 'approved,running');
+    return json(200, { done: true, status: r.status, stalled: r.stalled });
+  }
+  const claim = await patchTask(cfg, user.co, t.id, { status: 'running' }, '&status=eq.waiting');
+  if (!claim.ok) return fail(user, claim, 'ما قدرت أبدأ المهمة');
+  if (!rows(claim.data).length) return json(200, { busy: true });
+  if (was === 'approved') await setCampaign(cfg, user.co, id, 'running', 'approved');
+
+  const wishes = (camp['wishes'] ?? {}) as Row, wanted = socialTargets(Array.isArray(wishes['platforms']) ? (wishes['platforms'] as string[]) : []);
+  const entries = await loadKnowledge(cfg, user.co);
+  const extra = forbiddenRules(entries);
+  const out: OutputRow[] = [];
+  let status = 'review', reason: string | null = null, spec: Row = {};
+
+  try {
+    const prior = await sb(cfg, scoped(`/rest/v1/campaign_outputs?select=task_id,kind,platform,body,compliance&campaign_id=eq.${id}&order=id.asc&limit=200`, user.co), { admin: true });
+    const outputs = rows(prior.data) as unknown as OutputRow[];
+    if (t.agent === 'compliance') {
+      // The gate before «ready»: every draft of the campaign is checked again against the rules as they are today. No AI call.
+      const live = new Set(tasks.filter(x => x.status !== 'blocked' && x.status !== 'failed').map(x => x.id));
+      const texts = outputs.filter(o => o.task_id != null && live.has(o.task_id) && !['compliance_report', 'measurement'].includes(o.kind)).map(o => ({ label: `${o.kind}${o.platform ? ' · ' + o.platform : ''}`, text: String(o.body.text ?? '') }));
+      const v = verdict(texts, extra);
+      const n = (l: string) => v.hits.filter(h => h.level === l).length;
+      out.push({ task_id: t.id, kind: 'compliance_report', body: { text: `فُحصت ${texts.length} مسودة: ${n('critical')} مخالفة، ${n('warn')} انتبه، ${n('info')} ملاحظة.${v.hits.length ? '\n' + v.hits.slice(0, 20).map(h => `- ${h.title} «${h.match}»: ${h.fix}`).join('\n') : '\nما ظهرت ملاحظات.'}` }, compliance: slim(v.hits) });
+      if (v.blocked) { status = 'blocked'; reason = v.reason; }
+    } else {
+      const run = { cfg, user, e: e as AhlamEnv };
+      const tool = async (n: string, a: Record<string, unknown>): Promise<string> => { try { return (await toolsFor(run).find(x => x.name === n)?.run(run, a)) ?? ''; } catch { return ''; } };
+      const data = t.agent === 'knowledge' || t.agent === 'optimize' ? [await tool('performance', { days: 30 }), await tool('ads', { sort: 'best', days: 30, limit: 5 })].filter(Boolean).join('\n\n') : '';
+      const funnel = t.agent === 'optimize' ? ((await loadDash(run)) as { funnel_targets?: unknown } | null)?.funnel_targets : undefined;
+      const ks = kpis(funnel);
+      const gen = await generate(e, TASK, { messages: taskMessages(t.agent, { wishes: wishes as never, brief: camp['brief'], task: t, outputs, knowledge: systemPrompt(entries, 'content', 4000), data, kpis: ks, platforms: wanted }), max_tokens: 2500 }, fetch, usageCtx(cfg, user, TASK));
+      const text = gen.response.trim();
+      if (t.agent === 'social') {
+        const posts = parsePosts(text, wanted);
+        if (!posts.length) { status = 'failed'; reason = 'ما طلعت مسودات منشورات أقدر أقراها'; }
+        else {
+          const v = verdict(posts.map(p => ({ label: SOCIAL[p.platform as keyof typeof SOCIAL].name, text: p.body })), extra);
+          for (const p of posts) out.push({ task_id: t.id, kind: 'post', platform: p.platform, body: { text: p.body, day: p.day }, compliance: slim(v.hits.filter(h => p.body.includes(h.match))) });
+          if (v.blocked) { status = 'blocked'; reason = v.reason; }
+        }
+      } else {
+        const v = verdict([{ label: AGENTS_AR[t.agent] ?? t.agent, text }], extra);
+        out.push({ task_id: t.id, kind: KIND[t.agent] ?? 'text', body: { text }, compliance: slim(v.hits) });
+        if (t.agent === 'optimize') out.push({ task_id: t.id, kind: 'measurement', body: { text: 'أهداف القياس (نفس أرقام الحكم في لوحة الأداء)', kpis: ks }, compliance: [] });
+        if (v.blocked) { status = 'blocked'; reason = v.reason; }
+      }
+    }
+    if (status === 'blocked') spec = { feedback: reason };
+  } catch (err) {
+    const m = (err as Error)?.message;
+    if (m === 'cap_reached' || m === 'no_model' || m === 'llm_busy') { await patchTask(cfg, user.co, t.id, { status: 'waiting' }); return json(200, { paused: m, message: llmMessage(err) }); }
+    status = 'failed'; reason = llmMessage(err);
+  }
+  if (out.length) {
+    const w = await sb(cfg, '/rest/v1/campaign_outputs', { method: 'POST', admin: true, headers: { Prefer: 'return=minimal' }, body: out.map(o => ({ ...o, campaign_id: id, company_id: user.co })) });
+    if (!w.ok) { status = 'failed'; reason = 'ما انحفظت مخرجات المهمة'; }
+  }
+  // Drafts into Social only from a task that passed the check; they are `draft` and manual: scheduling and approval stay with Social's approvers
+  let drafts = 0;
+  if (t.agent === 'social' && status === 'review') {
+    const posts = out.filter(o => o.kind === 'post');
+    const w = await sb(cfg, '/rest/v1/social_posts', { method: 'POST', admin: true, headers: { Prefer: 'return=minimal' }, body: posts.map(o => {
+      const at = new Date(Date.now() + Number(o.body['day'] ?? 1) * 864e5); at.setUTCHours(15, 0, 0, 0);
+      return { company_id: user.co, platforms: [o.platform ?? ''], body: String(o.body.text ?? ''), publish_at: at.toISOString(), mode: 'manual', status: 'draft', created_by: user.email };
+    }) });
+    if (w.ok) drafts = posts.length;
+  }
+  await patchTask(cfg, user.co, t.id, { status, blocked_reason: reason, spec: { ...(t.spec ?? {}), ...spec } });
+  await audit(cfg, user, 'campaign_task_run', { target: { id, task: t.id, agent: t.agent, status, outputs: out.length, drafts } });
+  tasks = await tasksOf(cfg, user.co, id);
+  const r = rollup(tasks);
+  if (r.status !== 'running') await setCampaign(cfg, user.co, id, r.status, 'approved,running');
+  return json(200, { ran: { task: t.id, agent: t.agent, status, reason }, more: r.status === 'running', status: r.status });
+}) };
+
+// A person looks at a finished task and approves it (an approver). Nothing is published by this: it only marks the draft as accepted.
+export const review = { POST: handle(async (request, e: Env) => {
+  const { cfg, user } = await requireUser(request, e, 'any', { write: true });
+  if (!mayApprove(user, cfg)) return json(403, { error: NO_APPROVE });
+  const b = await readJson(request, 2000), id = idOf(b['id']), task = Math.round(Number(b['task']));
+  if (!id || !Number.isInteger(task) || task < 1) return json(400, { error: 'طلب غير صحيح' });
+  const r = await patchTask(cfg, user.co, task, { status: 'approved', blocked_reason: null }, `&campaign_id=eq.${id}&status=eq.review`);
+  if (!r.ok) return fail(user, r, 'ما انحفظ الاعتماد');
+  if (!rows(r.data).length) return json(409, { error: 'المهمة مو بانتظار المراجعة' });
+  await audit(cfg, user, 'campaign_task_approve', { target: { id, task } });
+  const roll = rollup(await tasksOf(cfg, user.co, id));
+  if (roll.status === 'done') await setCampaign(cfg, user.co, id, 'done', 'running,review,approved');
+  return json(200, { ok: true, status: roll.status });
+}) };
+
+// A blocked or failed task goes back to waiting, at most MAX_RETRIES times; the new draft must pass the same check. An approver only,
+// because it spends again. The old output is dropped so the pack never holds a draft that was stopped.
+export const retry = { POST: handle(async (request, e: Env) => {
+  const { cfg, user } = await requireUser(request, e, 'any', { write: true });
+  if (!mayApprove(user, cfg)) return json(403, { error: NO_APPROVE });
+  const b = await readJson(request, 2000), id = idOf(b['id']), task = Math.round(Number(b['task']));
+  if (!id || !Number.isInteger(task) || task < 1) return json(400, { error: 'طلب غير صحيح' });
+  const cur = rows((await sb(cfg, scoped(`/rest/v1/campaign_tasks?select=id,status,spec&id=eq.${task}&campaign_id=eq.${id}`, user.co), { admin: true })).data)[0];
+  if (!cur || (cur['status'] !== 'blocked' && cur['status'] !== 'failed')) return json(409, { error: 'المهمة مو موقوفة' });
+  const spec = (cur['spec'] ?? {}) as Row, n = Number(spec['retries'] ?? 0);
+  if (n >= MAX_RETRIES) return json(409, { error: `انعادت المحاولة ${MAX_RETRIES} مرات. عدّل الأمنيات وسوّ حملة جديدة` });
+  const r = await patchTask(cfg, user.co, task, { status: 'waiting', blocked_reason: null, spec: { ...spec, retries: n + 1 } }, `&status=eq.${cur['status']}`);
+  if (!r.ok) return fail(user, r, 'ما انحفظت المحاولة');
+  if (!rows(r.data).length) return json(409, { error: 'المهمة تغيّرت. حدّث الصفحة' });
+  await sb(cfg, scoped(`/rest/v1/campaign_outputs?task_id=eq.${task}&campaign_id=eq.${id}`, user.co), { method: 'DELETE', admin: true });
+  await setCampaign(cfg, user.co, id, 'running', 'review');
+  await audit(cfg, user, 'campaign_task_retry', { target: { id, task, retries: n + 1 } });
+  return json(200, { ok: true });
+}) };
