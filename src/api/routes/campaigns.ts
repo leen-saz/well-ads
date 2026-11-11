@@ -10,7 +10,7 @@ import { TASK, PLAN_SCHEMA, PLANS_PER_DAY, AGENTS, cleanWishes, estimate, mayApp
 import { dayStart, loadDash, toolsFor, type AhlamEnv } from '../../lib/ahlam';
 import { SOCIAL } from '../../modules/social/engine';
 import { loadKnowledge, forbiddenRules, systemPrompt } from '../../modules/knowledge/knowledge';
-import { MAX_RETRIES, STALE_MS, kpis, parsePosts, readyTask, rollup, slim, socialTargets, taskMessages, verdict, type OutputRow, type TaskRow } from '../../lib/campaign-run';
+import { MAX_RETRIES, STALE_MS, REASON_MIN, cleanReason, kpis, parsePosts, readyTask, rollup, slim, socialTargets, taskMessages, verdict, type OutputRow, type TaskRow } from '../../lib/campaign-run';
 
 type Env = AuthEnv & LlmEnv;
 const MIGRATION = 'migration 030_campaigns.sql';
@@ -149,10 +149,11 @@ export const step = { POST: handle(async (request, e: Env) => {
     if (t.agent === 'compliance') {
       // The gate before «ready»: every draft of the campaign is checked again against the rules as they are today. No AI call.
       const live = new Set(tasks.filter(x => x.status !== 'blocked' && x.status !== 'failed').map(x => x.id));
-      const texts = outputs.filter(o => o.task_id != null && live.has(o.task_id) && !['compliance_report', 'measurement'].includes(o.kind)).map(o => ({ label: `${o.kind}${o.platform ? ' · ' + o.platform : ''}`, text: String(o.body.text ?? '') }));
+      const passed = new Set(tasks.filter(x => x.spec?.override).map(x => x.id));   // let through by a person, with a reason: reported, not blocked again
+      const texts = outputs.filter(o => o.task_id != null && live.has(o.task_id) && !passed.has(o.task_id) && !['compliance_report', 'measurement'].includes(o.kind)).map(o => ({ label: `${o.kind}${o.platform ? ' · ' + o.platform : ''}`, text: String(o.body.text ?? '') }));
       const v = verdict(texts, extra);
       const n = (l: string) => v.hits.filter(h => h.level === l).length;
-      out.push({ task_id: t.id, kind: 'compliance_report', body: { text: `فُحصت ${texts.length} مسودة: ${n('critical')} مخالفة، ${n('warn')} انتبه، ${n('info')} ملاحظة.${v.hits.length ? '\n' + v.hits.slice(0, 20).map(h => `- ${h.title} «${h.match}»: ${h.fix}`).join('\n') : '\nما ظهرت ملاحظات.'}` }, compliance: slim(v.hits) });
+      out.push({ task_id: t.id, kind: 'compliance_report', body: { text: `فُحصت ${texts.length} مسودة: ${n('critical')} مخالفة، ${n('warn')} انتبه، ${n('info')} ملاحظة.${passed.size ? ` (${passed.size} مهمة متجاوزة بموافقة ومذكورة في الحزمة)` : ''}${v.hits.length ? '\n' + v.hits.slice(0, 20).map(h => `- ${h.title} «${h.match}»: ${h.fix}`).join('\n') : '\nما ظهرت ملاحظات.'}` }, compliance: slim(v.hits) });
       if (v.blocked) { status = 'blocked'; reason = v.reason; }
     } else {
       const run = { cfg, user, e: e as AhlamEnv };
@@ -238,4 +239,51 @@ export const retry = { POST: handle(async (request, e: Env) => {
   await setCampaign(cfg, user.co, id, 'running', 'review');
   await audit(cfg, user, 'campaign_task_retry', { target: { id, task, retries: n + 1 } });
   return json(200, { ok: true });
+}) };
+
+// The owner or an approver lets a stopped task through, knowing compliance refused it. A short reason is required, the override is
+// audit-logged (who, why, the rules: never the draft's text), the task shows «تجاوز بموافقة» in the pack, and the campaign goes on to
+// the next task. Posts it made become Social DRAFTS (manual): they are never scheduled or published from here.
+export const override = { POST: handle(async (request, e: Env) => {
+  const { cfg, user } = await requireUser(request, e, 'any', { write: true });
+  if (!mayApprove(user, cfg)) return json(403, { error: NO_APPROVE });
+  const b = await readJson(request, 3000), id = idOf(b['id']), task = Math.round(Number(b['task'])), reason = cleanReason(b['reason']);
+  if (!id || !Number.isInteger(task) || task < 1) return json(400, { error: 'طلب غير صحيح' });
+  if (reason.length < REASON_MIN) return json(400, { error: 'اكتب سبب التجاوز (جملة قصيرة على الأقل)' });
+  const cur = rows((await sb(cfg, scoped(`/rest/v1/campaign_tasks?select=id,agent,status,spec&id=eq.${task}&campaign_id=eq.${id}`, user.co), { admin: true })).data)[0];
+  if (!cur || cur['status'] !== 'blocked') return json(409, { error: 'المهمة مو موقوفة من الامتثال' });
+  const outs = rows((await sb(cfg, scoped(`/rest/v1/campaign_outputs?select=kind,platform,body,compliance&task_id=eq.${task}&campaign_id=eq.${id}&order=id.asc`, user.co), { admin: true })).data);
+  const ov = { by: user.email, reason, at: nowIso() };
+  const spec: Row = { ...((cur['spec'] ?? {}) as Row), override: ov };
+  delete spec['feedback'];
+  const r = await patchTask(cfg, user.co, task, { status: 'review', blocked_reason: null, spec }, '&status=eq.blocked');
+  if (!r.ok) return fail(user, r, 'ما انحفظ التجاوز');
+  if (!rows(r.data).length) return json(409, { error: 'المهمة تغيّرت. حدّث الصفحة' });
+  let drafts = 0;
+  if (cur['agent'] === 'social') {
+    const posts = outs.filter(o => o['kind'] === 'post');
+    const w = await sb(cfg, '/rest/v1/social_posts', { method: 'POST', admin: true, headers: { Prefer: 'return=minimal' }, body: posts.map(o => {
+      const at = new Date(Date.now() + Number((o['body'] as Row | null)?.['day'] ?? 1) * 864e5); at.setUTCHours(15, 0, 0, 0);
+      return { company_id: user.co, platforms: [String(o['platform'] ?? '')], body: String((o['body'] as Row | null)?.['text'] ?? ''), publish_at: at.toISOString(), mode: 'manual', status: 'draft', created_by: user.email };
+    }) });
+    if (w.ok) drafts = posts.length;
+  }
+  const rules = [...new Set(outs.flatMap(o => (Array.isArray(o['compliance']) ? (o['compliance'] as { rule?: string; level?: string }[]) : []).filter(h => h.level === 'critical').map(h => String(h.rule))))].slice(0, 10);
+  await audit(cfg, user, 'campaign_compliance_override', { target: { id, task, agent: cur['agent'], reason, rules, drafts } });
+  const roll = rollup(await tasksOf(cfg, user.co, id));
+  if (roll.status === 'running') await setCampaign(cfg, user.co, id, 'running', 'review');
+  return json(200, { ok: true, status: roll.status });
+}) };
+
+// For the sidebar's dots: which agents are working on a campaign task right now (running), which failed, and whether any campaign is
+// active at all. Two small reads, the user's own campaigns (an approver sees the company's). No text, no ids.
+export const agents = { GET: handle(async (request, e: Env) => {
+  const { cfg, user } = await requireUser(request, e, 'any');
+  const c = await sb(cfg, scoped(`/rest/v1/campaigns?select=id&status=in.(approved,running,review)&limit=50${visible(user, cfg)}`, user.co), { admin: true });
+  const ids = c.ok ? rows(c.data).map(x => idOf(x['id'])).filter((x): x is string => !!x) : [];
+  if (!ids.length) return json(200, { active: false, agents: {} });
+  const t = await sb(cfg, scoped(`/rest/v1/campaign_tasks?select=agent,status&campaign_id=in.(${ids.join(',')})&status=in.(running,failed)&limit=200`, user.co), { admin: true });
+  const out: Record<string, string> = {};
+  for (const x of rows(t.data)) { const a = String(x['agent']), s = String(x['status']); if (s === 'running' || !out[a]) out[a] = s; }
+  return json(200, { active: true, agents: out });
 }) };

@@ -121,8 +121,8 @@ export function mountCampaign(root, me, L) {
     const outs = t => d.outputs.filter(o => o.task_id === t.id);
     const tasks = d.tasks.map(t => `<li>${dot(t.status)} <b>${esc(pick(AGENT, t.agent))}</b> · ${esc(t.title)}${t.spec?.detail && !started ? `<br><span class="muted">${esc(t.spec.detail)}</span>` : ''}
         <br><small class="muted"><span class="cm-st" data-st="${t.id}" data-s="${esc(t.status)}">${esc(pick(TSTATUS, t.status))}</span> · ${esc(sar(t.estimate_usd))}</small>
-        ${t.blocked_reason ? `<p class="msg err">${esc(t.blocked_reason)}</p>` : ''}${outs(t).map(outputHtml).join('')}
-        <div class="cm-actions">${t.status === 'review' && d.mayApprove ? `<button class="btn" data-ok="${t.id}" type="button">${esc(L('اعتمد هذا الناتج', 'Approve this output'))}</button>` : ''}
+        ${t.blocked_reason ? `<p class="msg err">${esc(t.blocked_reason)}</p>` : ''}${t.spec?.override ? `<p class="cm-ovr"><b>${esc(L('تجاوز بموافقة', 'Overridden with approval'))}</b> · ${esc(t.spec.override.by)} · ${esc(t.spec.override.reason)}</p>` : ''}${outs(t).map(outputHtml).join('')}
+        <div class="cm-actions">${t.status === 'blocked' && d.mayApprove ? `<button class="btn" data-ovr="${t.id}" type="button">${esc(L('اعتمد رغم الرفض', 'Approve despite the refusal'))}</button>` : ''}${t.status === 'review' && d.mayApprove ? `<button class="btn" data-ok="${t.id}" type="button">${esc(L('اعتمد هذا الناتج', 'Approve this output'))}</button>` : ''}
         ${(t.status === 'blocked' || t.status === 'failed') && d.mayApprove && (t.spec?.retries || 0) < 2 ? `<button class="btn" data-retry="${t.id}" type="button">${esc(L('أعد الكتابة وافحص من جديد', 'Rewrite and check again'))}</button>` : ''}</div></li>`).join('');
     const stalled = d.tasks.some(t => t.status === 'waiting') && !live;
     frame(`<button class="btn" id="cmBack" type="button">${esc(L('كل الحملات', 'All campaigns'))}</button>
@@ -146,13 +146,33 @@ export function mountCampaign(root, me, L) {
     act($('#cmOk', root), '/api/campaigns/approve'); act($('#cmNo', root), '/api/campaigns/cancel');
     root.querySelectorAll('[data-ok]').forEach(el => act(el, '/api/campaigns/review', { task: Number(el.dataset.ok) }));
     root.querySelectorAll('[data-retry]').forEach(el => act(el, '/api/campaigns/retry', { task: Number(el.dataset.retry) }));
+    // The override: the approver must say why, in a few words; it is logged and marked in the pack
+    root.querySelectorAll('[data-ovr]').forEach(btn => { btn.onclick = () => {
+      const li = btn.closest('li'), tid = Number(btn.dataset.ovr);
+      if (li.querySelector('.cm-ovf')) return;
+      li.insertAdjacentHTML('beforeend', `<form class="cm-ovf"><p class="muted">${esc(L('الامتثال رفض هذي القطعة. التجاوز يتسجّل باسمك مع السبب، والمنشورات تبقى مسودات ما تنشر لين يعتمدها معتمد السوشال.', 'Compliance refused this piece. The override is logged under your name with the reason, and posts stay drafts that only go out once Social approves them.'))}</p>
+        <label class="cm-f"><span>${esc(L('سبب التجاوز (إجباري)', 'Reason for the override (required)'))}</span><textarea rows="2" maxlength="300" required minlength="5"></textarea></label>
+        <div class="cm-actions"><button class="btn primary" type="submit">${esc(L('تأكيد التجاوز', 'Confirm the override'))}</button><button class="btn" type="button" data-x>${esc(L('تراجع', 'Cancel'))}</button></div></form>`);
+      const f = li.querySelector('.cm-ovf'); f.querySelector('textarea').focus();
+      f.querySelector('[data-x]').onclick = () => f.remove();
+      f.onsubmit = async ev => {
+        ev.preventDefault();
+        const reason = f.querySelector('textarea').value.trim();
+        if (reason.length < 5) return say(msg(), L('اكتب سبب التجاوز (جملة قصيرة على الأقل)', 'Write the reason (a short sentence at least)'));
+        f.querySelector('[type=submit]').disabled = true;
+        try { await api('/api/campaigns/override', { method: 'POST', body: { id, task: tid, reason } }); window.dispatchEvent(new Event('wl-campaign-change')); showCampaign(id, false); }
+        catch (err) { say(msg(), err.message); f.querySelector('[type=submit]').disabled = false; }
+      };
+    }; });
     const dl = $('#cmDl', root), cp = $('#cmCp', root);
     if (dl) dl.onclick = () => { const a = document.createElement('a'); a.href = URL.createObjectURL(new Blob([packText(c, d)], { type: 'text/markdown' })); a.download = 'campaign-pack.md'; a.click(); setTimeout(() => URL.revokeObjectURL(a.href), 2000); };
     if (cp) cp.onclick = async () => { try { await navigator.clipboard.writeText(packText(c, d)); say(msg(), L('اننسخت الحزمة', 'Pack copied')); } catch { say(msg(), L('ما قدرت أنسخ، استخدم التنزيل', 'Could not copy, use download')); } };
     // One task per call, then the screen refreshes: the run is visible step by step and stops by itself on a pause, a stall or the end
     const go = async () => {
       try {
+        window.dispatchEvent(new Event('wl-campaign-change'));
         const r = await api('/api/campaigns/step', { method: 'POST', timeout: 180000, body: { id } });
+        window.dispatchEvent(new Event('wl-campaign-change'));
         if (mine !== view) return;
         if (r.paused) { await showCampaign(id, false); return say(msg(), r.message); }
         if (r.busy) { setTimeout(() => mine === view && go(), 3000); return; }

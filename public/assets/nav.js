@@ -1,6 +1,7 @@
 // نفس القائمة الجانبية حق لوحة القرارات، فوق اللوحات (/ و/creative): موقع واحد.
 // كل الأقسام تطلع للكل، واللي ما له صلاحية عليه يطلع مقفل. في الجوال: زر قائمة يفتح درج.
 import { sections, TIP, startsShut, wireGroups } from './sidebar.js';
+import { agentDots } from './agentdots.js';
 import { ME_KEY, FRESH, readMe, slim } from './me-cache.js';
 const EN = (() => { try { return new URLSearchParams(location.search).get('lang') === 'en' || localStorage.getItem('well-ads-lang') === 'en'; } catch { return false; } })();
 const L = (ar, en) => EN ? en : ar;
@@ -65,6 +66,7 @@ body{padding-inline-start:256px}
 .wl-mark i{color:#7E57FD;font-style:normal}
 .wl-navi{display:flex;align-items:center;gap:12px;height:44px;padding:0 16px;border-radius:999px;color:rgba(29,16,105,.62);text-decoration:none;transition:background .2s,color .2s}
 .wl-out{margin:0}.wl-out .wl-navi{width:100%;border:0;background:none;font:inherit;cursor:pointer;text-align:start}
+.agent-dot{margin-inline-start:auto;flex:none;width:8px;height:8px;border-radius:50%;background:#9aa0a6}.agent-dot[data-s=running]{background:#7E57FD;animation:agp 1s infinite ease-in-out}.agent-dot[data-s=failed]{background:#d93025}.wl-navi[aria-current] .agent-dot[data-s=running],.wl-navi[aria-current] .agent-dot[data-s=idle]{background:#fff}@keyframes agp{0%,80%,100%{opacity:.3;transform:scale(.8)}40%{opacity:1;transform:scale(1.15)}}@media (prefers-reduced-motion:reduce){.agent-dot[data-s=running]{animation:none}}
 .wl-navi:hover{background:rgba(126,87,253,.07);color:#1D1069}
 .wl-navi:focus-visible{outline:2px solid #7E57FD;outline-offset:2px}
 .wl-navi[aria-current]{background:#7E57FD;color:#FFFFFF;font-weight:500;box-shadow:0 6px 18px rgba(126,87,253,.28)}
@@ -112,7 +114,7 @@ function draw(me) {
   side.innerHTML = `<div class="wl-top"><a class="wl-mark" href="/today/">Well<i>.</i></a><button type="button" class="wl-x" aria-label="${L('إغلاق القائمة', 'Close menu')}">${I('x')}</button></div>
     ${sections(me, L).map(sec => `<div class="wl-sec${startsShut(sec, here) ? ' shut' : ''}"><button type="button" class="wl-h" data-g="${sec.key}" aria-expanded="${!startsShut(sec, here)}" aria-controls="sg-${sec.key}"><span>${esc(sec.label)}</span>${I('chev')}</button><div class="wl-items" id="sg-${sec.key}">${sec.items.map(it => {
       const ic = it.svg ? `<svg class="wl-i" viewBox="0 0 24 24" aria-hidden="true">${it.svg}</svg>` : I(it.ic);
-      if (it.state === 'ok' || it.state === 'soon') return `<a class="wl-navi${it.state === 'soon' ? ' wl-soon' : ''}" href="${it.href}"${it.key === here ? ' aria-current="page"' : ''}>${ic}<span>${esc(it.text)}</span>${it.state === 'soon' ? `<small class="wl-tag">${L('قريباً', 'Soon')}</small>` : ''}</a>`;
+      if (it.state === 'ok' || it.state === 'soon') return `<a class="wl-navi${it.state === 'soon' ? ' wl-soon' : ''}" href="${it.href}" data-k="${esc(it.key)}"${it.key === here ? ' aria-current="page"' : ''}>${ic}<span>${esc(it.text)}</span>${it.state === 'soon' ? `<small class="wl-tag">${L('قريباً', 'Soon')}</small>` : ''}</a>`;
       return `<span class="wl-navi wl-locked" aria-disabled="true" title="${L(...TIP[it.state])}">${ic}<span>${esc(it.text)}</span>${I('lock')}</span>`;
     }).join('')}</div></div>`).join('')}
     <div class="wl-grow"></div>
@@ -120,6 +122,7 @@ function draw(me) {
     <form method="post" action="/api/auth/logout" class="wl-out"><button type="submit" class="wl-navi">${I('out')}<span>${L('خروج', 'Sign out')}</span></button></form>
     <div class="wl-me"><span class="wl-av">${esc(initials)}</span><span><b>${esc(me.name || me.email || '')}</b><small>${role}</small></span></div>`;
   wireGroups(side);
+  if (!side.dataset.dots) { side.dataset.dots = '1'; agentDots(side, L); }
   side.querySelector('.wl-out')?.addEventListener('submit', () => { try { localStorage.removeItem(ME_KEY); } catch { /* storage blocked */ } });
 }
 

@@ -113,13 +113,13 @@ const TOOLS: Tool[] = [
       const pickOne = all.find(c => id && String(c['id']).toLowerCase() === id) ?? (best && score(best) > 0 ? best : all[0])!;
       const cid = String(pickOne['id']);
       const [t, o] = await Promise.all([
-        sb<Record<string, unknown>[]>(r.cfg, scoped(`/rest/v1/campaign_tasks?select=id,position,agent,title,status,blocked_reason&campaign_id=eq.${cid}&order=position.asc`, r.user.co), { admin: true }),
+        sb<Record<string, unknown>[]>(r.cfg, scoped(`/rest/v1/campaign_tasks?select=id,position,agent,title,status,blocked_reason,spec&campaign_id=eq.${cid}&order=position.asc`, r.user.co), { admin: true }),
         sb<Record<string, unknown>[]>(r.cfg, scoped(`/rest/v1/campaign_outputs?select=task_id,kind,platform,body,compliance&campaign_id=eq.${cid}&order=id.asc&limit=60`, r.user.co), { admin: true })]);
       const tasks = t.ok && Array.isArray(t.data) ? t.data : [], outs = o.ok && Array.isArray(o.data) ? o.data : [];
       const b = (pickOne['brief'] ?? {}) as Record<string, unknown>;
       lines.push('', `## تفاصيل حملة «${tidy(pickOne['title'], 80)}» (الحالة: ${STATUS_AR[String(pickOne['status'])] ?? pickOne['status']})`, `رابط حزمة الحملة (المخرج النهائي): ${link(cid)}`, `الملخص: ${tidy(b['summary'], 500)}`);
       for (const k of tasks) {
-        lines.push(`- مهمة «${tidy(k['title'], 80)}» (${tidy(k['agent'], 20)}): ${TASK_AR[String(k['status'])] ?? tidy(k['status'], 20)}${k['blocked_reason'] ? ` — سبب الوقف: ${tidy(k['blocked_reason'], 240)}` : ''}`);
+        lines.push(`- مهمة «${tidy(k['title'], 80)}» (${tidy(k['agent'], 20)}): ${TASK_AR[String(k['status'])] ?? tidy(k['status'], 20)}${k['blocked_reason'] ? ` — سبب الوقف: ${tidy(k['blocked_reason'], 240)}` : ''}${(k['spec'] as { override?: { by?: string; reason?: string } } | null)?.override ? ` — تجاوز بموافقة ${tidy((k['spec'] as { override: { by?: string } }).override.by, 60)}: ${tidy((k['spec'] as { override: { reason?: string } }).override.reason, 160)}` : ''}`);
         for (const x of outs.filter(y => y['task_id'] === k['id']).slice(0, 4)) {
           const hits = Array.isArray(x['compliance']) ? (x['compliance'] as { level?: string; title?: string }[]).filter(h => h.level === 'critical' || h.level === 'warn') : [];
           lines.push(`  · ${tidy(x['kind'], 24)}${x['platform'] ? ' / ' + tidy(x['platform'], 16) : ''}: ${tidy((x['body'] as { text?: unknown } | null)?.text, 500)}${hits.length ? ` [امتثال: ${hits.map(h => tidy(h.title, 60)).join('، ')}]` : ' [امتثال: بدون ملاحظات]'}`);

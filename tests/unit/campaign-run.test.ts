@@ -215,3 +215,70 @@ describe('review and retry', () => {
     expect((await post('/api/campaigns/retry', { id: CID, task: 1 })).status).toBe(403);
   });
 });
+
+describe('POST /api/campaigns/override (a person lets a compliance-stopped task through)', () => {
+  const blocked = (agent = 'content') => [task(0, agent, 'blocked', [], { blocked_reason: 'وعد بنتيجة', spec: { feedback: 'ف' } }), task(1, 'compliance', 'waiting', [0])];
+  const REASON = 'النص معتمد قانونياً من المستشار';
+  beforeEach(() => { tasks = blocked(); outputs = [{ task_id: 1, kind: 'copy', platform: null, body: { text: 'نص ممنوع سري' }, compliance: [{ rule: 'cure_claim', level: 'critical' }] }]; });
+  it('is for the owner or an approver only', async () => {
+    access = { content: 'edit' };
+    expect((await post('/api/campaigns/override', { id: CID, task: 1, reason: REASON })).status).toBe(403);
+    expect(calls.some(x => x.method === 'PATCH')).toBe(false);
+  });
+  it('needs a short written reason, a valid task, and a task that compliance actually stopped', async () => {
+    expect((await post('/api/campaigns/override', { id: CID, task: 1 })).status).toBe(400);
+    expect((await post('/api/campaigns/override', { id: CID, task: 1, reason: 'ok' })).status).toBe(400);
+    expect((await post('/api/campaigns/override', { id: CID, task: 0, reason: REASON })).status).toBe(400);
+    tasks = [task(0, 'content', 'review')];
+    expect((await post('/api/campaigns/override', { id: CID, task: 1, reason: REASON })).status).toBe(409);
+    tasks = [task(0, 'content', 'failed')];
+    expect((await post('/api/campaigns/override', { id: CID, task: 1, reason: REASON })).status).toBe(409);
+  });
+  it('marks the task «overridden» with who and why, moves it to review, and audit-logs who, why and the rules, never the text', async () => {
+    const r = await post('/api/campaigns/override', { id: CID, task: 1, reason: REASON });
+    expect(r.status).toBe(200);
+    const p = calls.find(x => x.method === 'PATCH' && x.url.includes('campaign_tasks'))!;
+    expect(p.url).toContain('status=eq.blocked');
+    expect(p.body).toMatchObject({ status: 'review', blocked_reason: null, spec: { override: { by: 'm@example.com', reason: REASON } } });
+    expect(p.body.spec.feedback).toBeUndefined();
+    const aud = calls.filter(x => x.url.includes('/audit_log') && x.method === 'POST').map(x => x.body);
+    expect(aud.map(a => a.action)).toEqual(['campaign_compliance_override']);
+    expect(JSON.stringify(aud)).toContain(REASON); expect(JSON.stringify(aud)).toContain('cure_claim'); expect(JSON.stringify(aud)).not.toContain('نص ممنوع سري');
+  });
+  it('the next task can now run (the campaign goes on), and the compliance gate does not stop the overridden task again', async () => {
+    tasks = [task(0, 'content', 'review', [], { spec: { override: { by: 'm@example.com', reason: REASON, at: 'x' } } }), task(1, 'compliance', 'waiting', [0])];
+    outputs = [{ task_id: 1, kind: 'copy', platform: null, body: { text: 'نتائج مضمونة ومن غير أضرار' }, compliance: [] }];
+    const j = await step();
+    expect(j.ran!.agent).toBe('compliance'); expect(j.ran!.status).toBe('review');
+    const rep = (calls.find(x => x.url.endsWith('/campaign_outputs') && x.method === 'POST')!.body as { body: { text: string } }[])[0]!.body.text;
+    expect(rep).toContain('متجاوزة بموافقة');
+  });
+  it('an overridden social task makes Social DRAFTS only: manual, never scheduled, approved or published', async () => {
+    tasks = blocked('social');
+    outputs = [{ task_id: 1, kind: 'post', platform: 'x', body: { text: 'مسودة', day: 2 }, compliance: [] }];
+    expect((await post('/api/campaigns/override', { id: CID, task: 1, reason: REASON })).status).toBe(200);
+    const s = calls.find(x => x.url.endsWith('/social_posts'))!.body as Record<string, unknown>[];
+    expect(s.every(p => p['status'] === 'draft' && p['mode'] === 'manual' && !('approved_by' in p))).toBe(true);
+    expect(writes().filter(w => !['campaign_tasks', 'campaigns', 'social_posts', 'audit_log'].includes(w))).toEqual([]);
+  });
+  it('the pack file says the task was overridden, by whom and why', () => {
+    const md = packMarkdown({ title: 'ح', status: 'review' }, [{ ...t(0, 'content', 'review'), spec: { override: { by: 'a@x.co', reason: 'سبب', at: 'x' } } }], []);
+    expect(md).toContain('تجاوز بموافقة a@x.co: سبب');
+  });
+});
+
+describe('GET /api/campaigns/agents (the sidebar dots)', () => {
+  const get = async () => await (await api.request('https://well.example/api/campaigns/agents', { headers: { cookie: `${A.SESSION}=${encodeURIComponent(await A.sign(A.sessionFor(profile(), cfg), cfg.secret))}` } }, E)).json() as { active: boolean; agents: Record<string, string> };
+  it('needs sign-in', async () => { expect((await api.request('https://well.example/api/campaigns/agents', {}, E)).status).toBe(401); });
+  it('says which agents are working or failed, with no text and no ids; inactive when there is no live campaign', async () => {
+    tasks = [task(0, 'content', 'running'), task(1, 'social', 'failed'), task(2, 'social', 'running')];
+    expect(await get()).toEqual({ active: true, agents: { content: 'running', social: 'running' } });
+    tasks = [task(0, 'design', 'failed')];
+    expect((await get()).agents).toEqual({ design: 'failed' });
+  });
+  it('a member only counts their own campaigns', async () => {
+    access = {};
+    await get();
+    expect(calls.find(x => x.url.includes('/rest/v1/campaigns?'))!.url).toContain('created_by=eq.m%40example.com');
+  });
+});

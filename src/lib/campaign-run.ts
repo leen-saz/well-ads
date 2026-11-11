@@ -12,7 +12,12 @@ import { AGENTS, type Agent, type Wishes } from './campaign';
 export const MAX_RETRIES = 2;
 export const STALE_MS = 10 * 60_000;   // a task 'running' longer than this lost its Worker: it goes back to waiting
 export const MAX_POSTS = 6;
-export interface TaskRow { id: number; position: number; agent: Agent; title: string; spec?: { detail?: string; retries?: number; feedback?: string } | null; depends_on: number[]; status: string; blocked_reason?: string | null; updated_at?: string }
+// A person let a draft through although compliance stopped it: who, why (their own words, never the draft's text) and when
+export interface Override { by: string; reason: string; at: string }
+export const REASON_MIN = 5, REASON_MAX = 300;
+export const cleanReason = (v: unknown): string => String(v ?? '').replace(/[\u0000-\u001F\u007F]/g, ' ').replace(/\s+/g, ' ').trim().slice(0, REASON_MAX);
+
+export interface TaskRow { id: number; position: number; agent: Agent; title: string; spec?: { detail?: string; retries?: number; feedback?: string; override?: Override } | null; depends_on: number[]; status: string; blocked_reason?: string | null; updated_at?: string }
 export interface OutputRow { id?: number; task_id: number | null; kind: string; platform?: string | null; body: { text?: string; [k: string]: unknown }; compliance?: unknown[] }
 
 const DONE = ['review', 'approved'];
@@ -120,6 +125,7 @@ export function packMarkdown(c: { title: string; brief?: { summary?: string; aud
   for (const t of [...tasks].sort((a, z) => a.position - z.position)) {
     const outs = outputs.filter(o => o.task_id === t.id);
     L.push(`## ${AGENTS[t.agent].ar}: ${t.title}`, `(${t.status}${t.blocked_reason ? ` — ${t.blocked_reason}` : ''})`, '');
+    if (t.spec?.override) L.push(`> تجاوز بموافقة ${t.spec.override.by}: ${t.spec.override.reason}`, '');
     for (const o of outs) L.push(o.platform ? `**${o.platform}**` : '', String(o.body.text ?? ''), '');
   }
   return L.join('\n');
