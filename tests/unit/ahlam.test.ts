@@ -231,4 +231,43 @@ describe('questions about campaigns (read-only, with the link to the pack)', () 
     await ask('وين الحملة؟');
     expect(calls.filter(c => c.method !== 'GET' && c.url !== OR_URL).map(c => c.url.replace(/\?.*/, '').replace('https://sb.example/rest/v1/', '')).filter(u => !['audit_log', 'ai_usage', 'rpc/ai_spend'].includes(u))).toEqual([]);
   });
+  const askAs = (q: string, dash = ['ceo', 'control']) => all(converse(run(user(dash)), { q, history: [], lang: 'ar' }, fetch));
+  const toolsRead = (ev: Ev[]) => ev.find(e => e.type === 'result')!.sources.map((x: { tool: string }) => x.tool);
+  it('«وش واقف بالحملة من أسئلة» is about the new campaign, not the decision board, even when the router picked the board', async () => {
+    plan = () => planReply([{ name: 'decisions', args: {} }]);
+    camps = [{ id: CID, title: 'انشر مفهوم Well مع Longevity', status: 'running', brief: { summary: 'م', questions: [{ q: 'كم الميزانية؟', assumption: 'متوسطة' }, { q: 'أي نبرة؟', assumption: 'دافئة', answer: 'رسمية' }] } }];
+    const ev = await askAs('وش واقف بالحملة من أسئلة؟');
+    expect(toolsRead(ev)).toEqual(['campaigns']);
+    const sys = system();
+    expect(sys).toContain('كم الميزانية؟'); expect(sys).toContain('افتراض: متوسطة'); expect(sys).toContain('جواب المستخدم: رسمية'); expect(sys).toContain('الواقف الحين');
+    expect(sys).toContain('«الحملة» أو «حملتي» بدون تحديد تعني حملة احلم الجديدة');
+  });
+  it('the stopped tasks and their reasons are what «واقف» answers with', async () => {
+    camps = [{ id: CID, title: 'Longevity', status: 'review', brief: {} }];
+    ctasks = [{ id: 2, position: 1, agent: 'social', title: 'منشورات', status: 'blocked', blocked_reason: 'وعد بنتيجة', spec: { auto: 2 } }];
+    await askAs('وش واقف بحملتي؟');
+    expect(system()).toContain('الواقف الحين: «منشورات» (موقوف بسبب الامتثال: وعد بنتيجة)');
+  });
+  it('with several active campaigns and no way to tell which, nothing is guessed: the model is told to ask with numbered choices', async () => {
+    camps = [{ id: CID, title: 'Longevity', status: 'running', brief: {} }, { id: '55555555-5555-5555-5555-555555555555', title: 'رمضان', status: 'review', brief: {} }, { id: '66666666-6666-6666-6666-666666666666', title: 'قديمة', status: 'done', brief: {} }];
+    await askAs('وش وضع الحملة؟');
+    const sys = system();
+    expect(sys).toContain('يوجد 2 حملات نشطة'); expect(sys).toContain('1) «Longevity»'); expect(sys).toContain('2) «رمضان»'); expect(sys).not.toContain('«قديمة» (مكتملة)\n');
+    expect(sys).not.toContain('## تفاصيل حملة');
+  });
+  it('a title in the question settles it even with several active campaigns; with one active campaign no question is asked', async () => {
+    camps = [{ id: CID, title: 'Longevity', status: 'running', brief: {} }, { id: '55555555-5555-5555-5555-555555555555', title: 'رمضان', status: 'review', brief: {} }];
+    await askAs('وين مخرجات حملة رمضان؟');
+    expect(system()).toContain('## تفاصيل حملة «رمضان»');
+    calls = [];
+    camps = [{ id: CID, title: 'Longevity', status: 'running', brief: {} }, { id: '66666666-6666-6666-6666-666666666666', title: 'قديمة', status: 'done', brief: {} }];
+    await askAs('وش وضع الحملة؟');
+    expect(system()).toContain('## تفاصيل حملة «Longevity»'); expect(system()).not.toContain('سؤال توضيح قصير بخيارات مرقّمة قبل');
+  });
+  it('the running AD campaigns (or the decision board) stay with the board and the numbers: the campaigns tool is not forced', async () => {
+    plan = () => planReply([{ name: 'decisions', args: {} }]);
+    camps = [{ id: CID, title: 'Longevity', status: 'running', brief: {} }];
+    expect(toolsRead(await askAs('وش وضع حملات الإعلانات الجارية؟'))).toEqual(['decisions']);
+    expect(toolsRead(await askAs('وش القرارات اللي تنتظرني في الحملات؟'))).toEqual(['decisions']);
+  });
 });

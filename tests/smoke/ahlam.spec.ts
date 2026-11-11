@@ -151,4 +151,24 @@ test.describe('احلم', () => {
     await expect(page.locator('a.navi[data-k="design"] .agent-dot')).toHaveAttribute('data-s', 'running');
     expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
   });
+  for (const lang of ['ar', 'en'] as const) {
+    test(`${lang}: open questions show as assumptions with a field to answer; saving sends the answer; an auto-rewrite note shows on the task`, async ({ page, context, request }) => {
+      await addSession(context, await login(request, 'owner'));
+      let sent: { index?: number; answer?: string } | null = null;
+      const mk = (answer?: string) => ({ ...PACK, campaign: { ...PACK.campaign, brief: { summary: 'Brief', messages: [], risks: [], questions: [{ q: 'Budget?', assumption: 'Medium', affects: ['optimize'], ...(answer ? { answer } : {}) }] } },
+        tasks: [{ ...PACK.tasks[0]!, spec: { auto: 1, retries: 0 } }], outputs: [] });
+      await page.route('**/api/campaigns/get**', r => r.fulfill({ json: mk(sent?.answer) }));
+      await page.route('**/api/campaigns/list', r => r.fulfill({ json: { campaigns: [{ id: 'c1', title: 'Spring', status: 'review', estimate_usd: 0.05, created_at: '2026-11-01T00:00:00Z' }], mayApprove: true } }));
+      await page.route('**/api/campaigns/answer', r => { sent = r.request().postDataJSON(); return r.fulfill({ json: { ok: true, regenerate: 0 } }); });
+      await page.goto('/today/?tab=campaign' + (lang === 'en' ? '&lang=en' : ''));
+      await page.locator('.cm-list button').first().click();
+      await expect(page.locator('.cm-asm')).toHaveText(lang === 'en' ? 'Assumption' : 'افتراض');
+      await expect(page.locator('[data-q="0"]')).toHaveValue('Medium');
+      await expect(page.locator('.cm-auto')).toContainText(lang === 'en' ? 'rewrote it automatically 1 of 2' : 'تلقائياً 1 من 2');
+      await page.locator('[data-q="0"]').fill('Fifty thousand');
+      await page.locator('[data-qs="0"]').click();
+      await expect(page.locator('.cm-asm')).toHaveText(lang === 'en' ? 'Your answer' : 'إجابتك');
+      expect(sent).toMatchObject({ index: 0, answer: 'Fifty thousand' });
+    });
+  }
 });

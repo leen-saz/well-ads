@@ -66,6 +66,7 @@ export function mountCampaign(root, me, L) {
   const PLAT = { facebook: 'Facebook', instagram: 'Instagram', tiktok: 'TikTok', x: 'X', linkedin: 'LinkedIn', snapchat: 'Snapchat' };
   const packText = (c, d) => {
     const b = c.brief || {}, out = [`# ${c.title}`, '', b.summary || '', ''];
+    if ((b.questions || []).length) out.push(`## ${L('أسئلة مفتوحة', 'Open questions')}`, ...b.questions.map(x => `- ${x.q} → ${x.answer ? L('الجواب: ', 'Answer: ') + x.answer : L('افتراض: ', 'Assumption: ') + x.assumption}`), '');
     for (const t of d.tasks) { out.push(`## ${pick(AGENT, t.agent)}: ${t.title}`, ''); for (const o of d.outputs.filter(x => x.task_id === t.id)) out.push(o.platform ? `**${PLAT[o.platform] || o.platform}**` : '', o.body?.text || '', ''); }
     return out.join('\n');
   };
@@ -121,7 +122,7 @@ export function mountCampaign(root, me, L) {
     const outs = t => d.outputs.filter(o => o.task_id === t.id);
     const tasks = d.tasks.map(t => `<li>${dot(t.status)} <b>${esc(pick(AGENT, t.agent))}</b> · ${esc(t.title)}${t.spec?.detail && !started ? `<br><span class="muted">${esc(t.spec.detail)}</span>` : ''}
         <br><small class="muted"><span class="cm-st" data-st="${t.id}" data-s="${esc(t.status)}">${esc(pick(TSTATUS, t.status))}</span> · ${esc(sar(t.estimate_usd))}</small>
-        ${t.blocked_reason ? `<p class="msg err">${esc(t.blocked_reason)}</p>` : ''}${t.spec?.override ? `<p class="cm-ovr"><b>${esc(L('تجاوز بموافقة', 'Overridden with approval'))}</b> · ${esc(t.spec.override.by)} · ${esc(t.spec.override.reason)}</p>` : ''}${outs(t).map(outputHtml).join('')}
+        ${t.blocked_reason ? `<p class="msg err">${esc(t.blocked_reason)}</p>` : ''}${t.spec?.auto ? `<p class="muted cm-auto">${esc(t.status === 'blocked' ? L(`أعاد الإيجنت كتابتها تلقائياً ${t.spec.auto} من 2 بعد ملاحظات الامتثال وما نجحت: تحتاج قرارك.`, `The agent rewrote it automatically ${t.spec.auto} of 2 times after compliance feedback and it still failed: it needs your decision.`) : L(`أعاد الإيجنت كتابتها تلقائياً ${t.spec.auto} من 2 بحسب ملاحظات الامتثال.`, `The agent rewrote it automatically ${t.spec.auto} of 2 times following compliance feedback.`))}</p>` : ''}${t.spec?.override ? `<p class="cm-ovr"><b>${esc(L('تجاوز بموافقة', 'Overridden with approval'))}</b> · ${esc(t.spec.override.by)} · ${esc(t.spec.override.reason)}</p>` : ''}${outs(t).map(outputHtml).join('')}
         <div class="cm-actions">${t.status === 'blocked' && d.mayApprove ? `<button class="btn" data-ovr="${t.id}" type="button">${esc(L('اعتمد رغم الرفض', 'Approve despite the refusal'))}</button>` : ''}${t.status === 'review' && d.mayApprove ? `<button class="btn" data-ok="${t.id}" type="button">${esc(L('اعتمد هذا الناتج', 'Approve this output'))}</button>` : ''}
         ${(t.status === 'blocked' || t.status === 'failed') && d.mayApprove && (t.spec?.retries || 0) < 2 ? `<button class="btn" data-retry="${t.id}" type="button">${esc(L('أعد الكتابة وافحص من جديد', 'Rewrite and check again'))}</button>` : ''}</div></li>`).join('');
     const stalled = d.tasks.some(t => t.status === 'waiting') && !live;
@@ -130,6 +131,12 @@ export function mountCampaign(root, me, L) {
       <div id="cmProg">${progHtml(d)}</div>
       <section><h3>${esc(L('ملخص الحملة', 'Campaign brief'))}</h3><p>${esc(b.summary)}</p>${b.audience ? `<p><b>${esc(L('الجمهور:', 'Audience:'))}</b> ${esc(b.audience)}</p>` : ''}
         ${(b.messages || []).length ? `<h4>${esc(L('الرسائل الرئيسية', 'Key messages'))}</h4><ul>${li(b.messages)}</ul>` : ''}${(b.risks || []).length ? `<h4>${esc(L('مخاطر وأسئلة مفتوحة', 'Risks and open questions'))}</h4><ul>${li(b.risks)}</ul>` : ''}</section>
+      ${(b.questions || []).length ? `<section id="cmQs"><h3>${esc(L('أسئلة مفتوحة', 'Open questions'))}</h3><p class="muted">${esc(L('الإيجنتس ما توقفوا عندها: أخذوا افتراضاً لكل سؤال وكمّلوا. عدّل الجواب وبنعيد كتابة الأجزاء المتأثرة بس.', 'The agents did not stop for them: they took an assumption for each question and went on. Edit an answer and only the affected parts are written again.'))}</p>
+        <ul class="cm-qs">${b.questions.map((x, i) => `<li><b>${esc(x.q)}</b> <span class="cm-asm ${x.answer ? 'ans' : ''}">${esc(x.answer ? L('إجابتك', 'Your answer') : L('افتراض', 'Assumption'))}</span>
+          <textarea data-q="${i}" rows="2" maxlength="400" aria-label="${esc(L('الجواب', 'Answer'))}">${esc(x.answer || x.assumption)}</textarea>
+          <button class="btn" data-qs="${i}" type="button">${esc(started ? L('احفظ وأعد توليد الجزء المتأثر', 'Save and rewrite the affected part') : L('احفظ الجواب', 'Save the answer'))}</button>
+          ${(x.affects || []).length ? `<small class="muted">${esc(L('يؤثر على:', 'Affects:'))} ${esc(x.affects.map(a => pick(AGENT, a)).join('، '))}</small>` : ''}</li>`).join('')}</ul>
+        ${started ? `<p class="muted">${esc(L('المسودات اللي انحفظت قبل في السوشال تبقى هناك، والجديدة تنضاف جنبها.', 'Drafts already saved in Social stay there; the new ones are added beside them.'))}</p>` : ''}</section>` : ''}
       <section id="cmPack"><h3>${esc(started ? L('حزمة الحملة', 'Campaign pack') : L('الخطة: مين يسوي وش', 'The plan: who does what'))}</h3><ol class="cm-tasks">${tasks}</ol>
         ${started ? `<p class="muted">${esc(L('كل شي هنا مسودات ووثائق. المنشورات تنحفظ مسودة في السوشال وما تنشر إلا بعد اعتماد المعتمد هناك. ما يتغيّر أي حساب إعلاني.', 'Everything here is drafts and documents. Posts are saved as drafts in Social and only go out once its approver approves them there. No ad account is changed.'))}</p>` : ''}</section>
       <section class="cm-cost"><b>${esc(L('التكلفة المتوقعة قبل التشغيل:', 'Expected cost before running:'))} ${esc(sar(c.estimate_usd))}</b>
@@ -163,6 +170,13 @@ export function mountCampaign(root, me, L) {
         try { await api('/api/campaigns/override', { method: 'POST', body: { id, task: tid, reason } }); window.dispatchEvent(new Event('wl-campaign-change')); showCampaign(id, false); }
         catch (err) { say(msg(), err.message); f.querySelector('[type=submit]').disabled = false; }
       };
+    }; });
+    root.querySelectorAll('[data-qs]').forEach(btn => { btn.onclick = async () => {
+      const i = Number(btn.dataset.qs), ta = root.querySelector(`[data-q="${i}"]`), text = ta.value.trim();
+      if (!text) return say(msg(), L('اكتب الجواب', 'Write the answer'));
+      btn.disabled = true;
+      try { const r = await api('/api/campaigns/answer', { method: 'POST', body: { id, index: i, answer: text } }); window.dispatchEvent(new Event('wl-campaign-change')); showCampaign(id, r.regenerate > 0); }
+      catch (err) { say(msg(), err.message); btn.disabled = false; }
     }; });
     const dl = $('#cmDl', root), cp = $('#cmCp', root);
     if (dl) dl.onclick = () => { const a = document.createElement('a'); a.href = URL.createObjectURL(new Blob([packText(c, d)], { type: 'text/markdown' })); a.download = 'campaign-pack.md'; a.click(); setTimeout(() => URL.revokeObjectURL(a.href), 2000); };
