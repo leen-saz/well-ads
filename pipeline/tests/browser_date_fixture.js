@@ -1,5 +1,5 @@
 const fs = require('fs');
-const puppeteer = require('/tmp/pw/node_modules/puppeteer-core');
+const puppeteer = require(require('path').join(process.env.PW_DIR || '/tmp/pw', 'node_modules', 'puppeteer-core'));
 
 const [mainUrl, monthUrl, shotDir] = process.argv.slice(2);
 const fails = [];

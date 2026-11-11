@@ -10,9 +10,13 @@ import { TASK, PLAN_SCHEMA, PLANS_PER_DAY, AGENTS, cleanWishes, estimate, mayApp
 import { dayStart, loadDash, toolsFor, type AhlamEnv } from '../../lib/ahlam';
 import { SOCIAL } from '../../modules/social/engine';
 import { loadKnowledge, forbiddenRules, systemPrompt } from '../../modules/knowledge/knowledge';
-import { INTERNAL_KINDS, PUBLISHABLE, defaultTasks, MAX_AUTO, MAX_REGEN, MAX_RETRIES, STALE_MS, REASON_MIN, affectedTasks, cleanReason, kpis, parsePosts, readyTask, rollup, slim, socialTargets, taskMessages, verdict, type OutputRow, type TaskRow } from '../../lib/campaign-run';
+import { brandFor } from '../../modules/knowledge/brand';
+import { DEPTS } from '../../lib/auth';
+import { SIZES } from '../../modules/design/design';
+import { TTS_VERSIONS, assetUsd, brandText, brandVoice, designSizes, drawPicture, dropAssets, isMiss, keep, ownAsset, speakText, srtOf, type AssetEnv } from '../../lib/campaign-assets';
+import { INTERNAL_KINDS, PUBLISHABLE, defaultTasks, MAX_AUTO, MAX_REGEN, MAX_RETRIES, STALE_MS, REASON_MIN, affectedTasks, cleanReason, budgetIssue, kpis, parsePosts, parseVoice, readyTask, rollup, slim, socialTargets, taskMessages, verdict, type OutputRow, type TaskRow } from '../../lib/campaign-run';
 
-type Env = AuthEnv & LlmEnv;
+type Env = AuthEnv & LlmEnv & AssetEnv;
 const MIGRATION = 'migration 030_campaigns.sql';
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 type Row = Record<string, unknown>;
@@ -41,7 +45,8 @@ export const get = { GET: handle(async (request, e: Env) => {
   if (!campaign) return json(404, { error: 'الحملة غير موجودة' });
   const t = await sb(cfg, scoped(`/rest/v1/campaign_tasks?select=id,position,agent,title,spec,depends_on,status,blocked_reason,estimate_usd,updated_at&campaign_id=eq.${id}&order=position.asc`, user.co), { admin: true });
   const o = await sb(cfg, scoped(`/rest/v1/campaign_outputs?select=id,task_id,kind,platform,body,compliance&campaign_id=eq.${id}&order=id.asc&limit=200`, user.co), { admin: true });
-  return json(200, { campaign, tasks: rows(t.data), outputs: rows(o.data), agents: AGENTS, mayApprove: mayApprove(user, cfg), capped: await overCap(usageCtx(cfg, user, TASK)!, TASK) });
+  const plat = Array.isArray((campaign['wishes'] as Row | undefined)?.['platforms']) ? ((campaign['wishes'] as Row)['platforms'] as string[]) : [];
+  return json(200, { campaign, tasks: rows(t.data), outputs: rows(o.data), assetPlan: { images: designSizes(plat).length, audio: TTS_VERSIONS, usd: assetUsd('design', plat) + assetUsd('voice', plat) }, agents: AGENTS, mayApprove: mayApprove(user, cfg), capped: await overCap(usageCtx(cfg, user, TASK)!, TASK) });
 }) };
 
 // The wishes -> a plan. One model call, saved as `planned`: the user reads the plan and its cost before anything runs.
@@ -59,7 +64,9 @@ export const create = { POST: handle(async (request, e: Env) => {
     plan = parsePlan(out.response); used_model = out.model; used_provider = out.engine;
   } catch (err) { return json(502, { error: llmMessage(err) }); }
   if (!plan) return json(502, { error: 'ما طلعت خطة أقدر أقراها، جرّب مرة ثانية أو وضّح الأمنيات أكثر' });
-  const est = estimate(plan.tasks.map(t => t.agent), used_model, used_provider);
+  const est = estimate(plan.tasks.map(t => t.agent), used_model, used_provider, plan.tasks.map(t => assetUsd(t.agent, w.wishes!.platforms)));
+  // The budget is only ever the user's: when it was not given, it is an open question (with «not set» as the assumption), never a made-up number
+  if (!w.wishes.budget && !plan.brief.questions.some(q => /ميزاني|budget/i.test(q.q))) plan.brief.questions.push({ q: 'كم ميزانية الحملة؟', assumption: 'لم تُحدَّد: الخطة بنِسب مئوية بدون أرقام ريال', affects: ['optimize'] });
   const made = await sb<Row[]>(cfg, '/rest/v1/campaigns', { method: 'POST', admin: true, headers: { Prefer: 'return=representation' },
     body: { company_id: user.co, title: plan.title, wishes: w.wishes, brief: plan.brief, status: 'planned', estimate_usd: est.usd, created_by: user.email } });
   const id = made.ok ? idOf(rows(made.data)[0]?.['id']) : null;
@@ -111,6 +118,39 @@ async function tasksOf(cfg: SbCfg, co: string, id: string): Promise<TaskRow[]> {
   return rows(t.data) as unknown as TaskRow[];
 }
 
+// ---- the files: pictures (the Design module's image maker) and speech (the Voiceover module's speech maker)
+type Made = { outs: OutputRow[]; missing: string[]; made: number };
+async function makePictures(e: Env, cfg: SbCfg, user: Parameters<typeof brandFor>[1] extends never ? never : Awaited<ReturnType<typeof requireUser>>['user'], campaign: string, wishes: Row, briefText: string, have: Set<string>): Promise<Made> {
+  const res: Made = { outs: [], missing: [], made: 0 };
+  const brand = await brandFor(cfg, user.co), platforms = Array.isArray(wishes['platforms']) ? (wishes['platforms'] as string[]) : [];
+  const input = { offer: String(wishes['offer'] || wishes['goal'] || ''), audience: String(wishes['audience'] || ''), dept: wishes['dept'] ? String(DEPTS[String(wishes['dept']) as keyof typeof DEPTS] ?? '') : '' };
+  for (const size of designSizes(platforms)) {
+    if (have.has(size)) continue;
+    const pic = await drawPicture(e, cfg, user, size, input, brand.colors, `Visual idea from the approved design brief: ${briefText.replace(/\s+/g, ' ').slice(0, 350)}`);
+    const key = isMiss(pic) ? pic : await keep(e, user.co, campaign, pic.bytes, pic.mime);
+    if (isMiss(key)) { res.outs.push({ task_id: null, kind: 'asset_missing', platform: size, body: { what: 'image', size, text: `${SIZES[size]?.label ?? size}: ${key.message}`, code: key.miss, retry: key.retry }, compliance: [] }); res.missing.push('image:' + size); break; }
+    const pic2 = pic as Exclude<typeof pic, { miss: string }>;
+    res.outs.push({ task_id: null, kind: 'design_image', platform: size, body: { key, mime: pic2.mime, w: pic2.w, h: pic2.h, size, text: SIZES[size]?.label ?? size }, compliance: [] });
+    res.made++;
+  }
+  return res;
+}
+async function makeSpeech(e: Env, cfg: SbCfg, user: Awaited<ReturnType<typeof requireUser>>['user'], campaign: string, readings: { label: string; text: string }[], have: Set<string>, hits: unknown[]): Promise<Made> {
+  const res: Made = { outs: [], missing: [], made: 0 };
+  const voice = await brandVoice(cfg, user.co);
+  for (const r of readings) {
+    if (have.has(r.label)) continue;
+    const sp = await speakText(e, cfg, user, r.text, voice);
+    const key = isMiss(sp) ? sp : await keep(e, user.co, campaign, sp.wav, 'audio/wav');
+    if (isMiss(key)) { res.outs.push({ task_id: null, kind: 'asset_missing', platform: null, body: { what: 'audio', label: r.label, text: `صوت نسخة ${r.label} ثانية: ${key.message}`, code: key.miss, retry: key.retry }, compliance: [] }); res.missing.push('audio:' + r.label); break; }
+    const seconds = (sp as { seconds: number }).seconds;
+    res.outs.push({ task_id: null, kind: 'voice_audio', platform: null, body: { key, mime: 'audio/wav', seconds, label: r.label, text: r.text }, compliance: [] });
+    res.outs.push({ task_id: null, kind: 'voice_srt', platform: null, body: { text: srtOf(r.text, seconds), label: r.label }, compliance: hits });
+    res.made++;
+  }
+  return res;
+}
+
 // One task per call. Runs the next task whose dependencies are done, by the agent it was given to; the page calls it again until it
 // says `done`. Only a campaign an approver approved runs; whoever may see it may keep it going. The claim (waiting -> running) is
 // one conditional write, so two pages never run the same task twice.
@@ -129,7 +169,7 @@ export const step = { POST: handle(async (request, e: Env) => {
   let tasks = await tasksOf(cfg, user.co, id);
   if (!tasks.length) {
     // approved before the tasks existed, or saved without them: give it the standard plan now (no AI call, no new approval)
-    const m = pick(e, TASK), est = estimate(defaultTasks().map(x => x.agent), m?.model ?? 'openai/gpt-4.1', m?.provider ?? 'openrouter');
+    const m = pick(e, TASK), est = estimate(defaultTasks().map(x => x.agent), m?.model ?? 'openai/gpt-4.1', m?.provider ?? 'openrouter', defaultTasks().map(x => assetUsd(x.agent, Array.isArray((camp['wishes'] as Row | undefined)?.['platforms']) ? ((camp['wishes'] as Row)['platforms'] as string[]) : [])));
     const made = await sb(cfg, '/rest/v1/campaign_tasks', { method: 'POST', admin: true, headers: { Prefer: 'return=minimal' },
       body: defaultTasks().map((x, i) => ({ campaign_id: id, company_id: user.co, position: i, agent: x.agent, title: x.title, spec: { detail: x.detail, backfilled: true }, depends_on: x.after, estimate_usd: est.perTask[i] })) });
     if (!made.ok) return fail(user, made, 'ما قدرت أجهّز مهام الحملة');
@@ -157,7 +197,7 @@ export const step = { POST: handle(async (request, e: Env) => {
   const entries = await loadKnowledge(cfg, user.co);
   const extra = forbiddenRules(entries);
   const out: OutputRow[] = [];
-  let status = 'review', reason: string | null = null, spec: Row = {}, fixing = 0;
+  let status = 'review', reason: string | null = null, spec: Row = {}, fixing = 0, assets = 0, missing: string[] = [];
 
   try {
     const prior = await sb(cfg, scoped(`/rest/v1/campaign_outputs?select=task_id,kind,platform,body,compliance&campaign_id=eq.${id}&order=id.asc&limit=200`, user.co), { admin: true });
@@ -165,11 +205,13 @@ export const step = { POST: handle(async (request, e: Env) => {
     if (t.agent === 'compliance') {
       // The gate before «ready»: every draft of the campaign is checked again against the rules as they are today. No AI call.
       const live = new Set(tasks.filter(x => x.status !== 'blocked' && x.status !== 'failed').map(x => x.id));
-      const passed = new Set(tasks.filter(x => x.spec?.override).map(x => x.id));   // let through by a person, with a reason: reported, not blocked again
+      const passed = new Set(tasks.filter(x => x.spec?.override).map(x => x.id));   // let through by a person, with a reason: not blocked again
+      // ...and only those that really had a refused piece are mentioned (an override on an internal reference changes nothing)
+      const overridden = new Set(outputs.filter(o => o.task_id != null && passed.has(o.task_id) && !INTERNAL_KINDS.includes(o.kind) && (o.compliance as { level?: string }[] | undefined)?.some(h => h.level === 'critical')).map(o => o.task_id));
       const texts = outputs.filter(o => o.task_id != null && live.has(o.task_id) && !passed.has(o.task_id) && !INTERNAL_KINDS.includes(o.kind)).map(o => ({ label: `${o.kind}${o.platform ? ' · ' + o.platform : ''}`, text: String(o.body.text ?? '') }));
       const v = verdict(texts, extra);
       const n = (l: string) => v.hits.filter(h => h.level === l).length;
-      out.push({ task_id: t.id, kind: 'compliance_report', body: { text: `فُحصت ${texts.length} مسودة: ${n('critical')} مخالفة، ${n('warn')} انتبه، ${n('info')} ملاحظة.${passed.size ? ` (${passed.size} مهمة متجاوزة بموافقة ومذكورة في الحزمة)` : ''}${v.hits.length ? '\n' + v.hits.slice(0, 20).map(h => `- ${h.title} «${h.match}»: ${h.fix}`).join('\n') : '\nما ظهرت ملاحظات.'}` }, compliance: slim(v.hits) });
+      out.push({ task_id: t.id, kind: 'compliance_report', body: { text: `فُحصت ${texts.length} مسودة: ${n('critical')} مخالفة، ${n('warn')} انتبه، ${n('info')} ملاحظة.${overridden.size ? ` (${overridden.size} مهمة متجاوزة بموافقة ومذكورة في الحزمة)` : ''}${v.hits.length ? '\n' + v.hits.slice(0, 20).map(h => `- ${h.title} «${h.match}»: ${h.fix}`).join('\n') : '\nما ظهرت ملاحظات.'}` }, compliance: slim(v.hits) });
       if (v.blocked) { status = 'blocked'; reason = v.reason; }
     } else {
       const run = { cfg, user, e: e as AhlamEnv };
@@ -177,8 +219,14 @@ export const step = { POST: handle(async (request, e: Env) => {
       const data = t.agent === 'knowledge' || t.agent === 'optimize' ? [await tool('performance', { days: 30 }), await tool('ads', { sort: 'best', days: 30, limit: 5 })].filter(Boolean).join('\n\n') : '';
       const funnel = t.agent === 'optimize' ? ((await loadDash(run)) as { funnel_targets?: unknown } | null)?.funnel_targets : undefined;
       const ks = kpis(funnel);
-      const gen = await generate(e, TASK, { messages: taskMessages(t.agent, { wishes: wishes as never, brief: camp['brief'], questions: ((camp['brief'] as { questions?: { q: string; assumption: string; answer?: string }[] } | null)?.questions) ?? [], task: t, outputs, knowledge: systemPrompt(entries, 'content', 4000), data, kpis: ks, platforms: wanted }), max_tokens: 2500 }, fetch, usageCtx(cfg, user, TASK));
-      const text = gen.response.trim();
+      const brand = await brandFor(cfg, user.co);
+      const stage = t.spec?.stage === 'assets' && (t.agent === 'design' || t.agent === 'voice');   // a retry of the files only: the written draft stays
+      const mine = outputs.filter(o => o.task_id === t.id);
+      let text = '';
+      if (!stage) {
+        const gen = await generate(e, TASK, { messages: taskMessages(t.agent, { brand: brandText(brand), wishes: wishes as never, brief: camp['brief'], questions: ((camp['brief'] as { questions?: { q: string; assumption: string; answer?: string }[] } | null)?.questions) ?? [], task: t, outputs, knowledge: systemPrompt(entries, 'content', 4000), data, kpis: ks, platforms: wanted }), max_tokens: 2500 }, fetch, usageCtx(cfg, user, TASK));
+        text = gen.response.trim();
+      }
       if (t.agent === 'social') {
         const posts = parsePosts(text, wanted);
         if (!posts.length) { status = 'failed'; reason = 'ما طلعت مسودات منشورات أقدر أقراها'; }
@@ -187,12 +235,43 @@ export const step = { POST: handle(async (request, e: Env) => {
           for (const p of posts) out.push({ task_id: t.id, kind: 'post', platform: p.platform, body: { text: p.body, day: p.day }, compliance: slim(v.hits.filter(h => p.body.includes(h.match))) });
           if (v.blocked) { status = 'blocked'; reason = v.reason; }
         }
+      } else if (t.agent === 'voice') {
+        const parsed = stage ? { versions: mine.filter(o => o.kind === 'voice_script').map(o => ({ label: String(o.body['label'] ?? '30'), text: String(o.body.text ?? '') })), notes: '' } : parseVoice(text);
+        if (!parsed.versions.length) { status = 'failed'; reason = 'ما طلع نص فويس أوفر أقدر أقراه'; }
+        else {
+          let hits: ReturnType<typeof slim> = [];
+          if (!stage) {
+            // the scripts are checked BEFORE anything is spoken: a refused script costs no audio
+            const v = verdict(parsed.versions.map(r => ({ label: `فويس ${r.label} ثانية`, text: r.text })), extra);
+            hits = slim(v.hits);
+            parsed.versions.forEach((r, i) => out.push({ task_id: t.id, kind: 'voice_script', body: { text: r.text, label: r.label, ...(i === 0 && parsed.notes ? { notes: parsed.notes } : {}) }, compliance: slim(v.hits.filter(h => r.text.includes(h.match))) }));
+            if (v.blocked) { status = 'blocked'; reason = v.reason; }
+          }
+          if (status === 'review') {
+            const have = new Set(mine.filter(o => o.kind === 'voice_audio').map(o => String(o.body['label'])));
+            const made = await makeSpeech(e, cfg, user, id, parsed.versions, have, hits);
+            out.push(...made.outs.map(o => ({ ...o, task_id: t.id }))); assets = made.made; missing = made.missing;
+          }
+        }
+      } else if (t.agent === 'design') {
+        const briefText = stage ? String(mine.find(o => o.kind === 'design_brief')?.body.text ?? '') : text;
+        const v = stage ? { hits: [], blocked: false, reason: '' } : verdict([{ label: AGENTS_AR[t.agent] ?? t.agent, text }], extra);
+        if (!stage) { out.push({ task_id: t.id, kind: 'design_brief', body: { text }, compliance: slim(v.hits) }); if (v.blocked) { status = 'blocked'; reason = v.reason; } }
+        // the pictures are drawn only from a brief that passed: a refused brief costs no image
+        if (status === 'review') {
+          const have = new Set(mine.filter(o => o.kind === 'design_image').map(o => String(o.platform)));
+          const made = await makePictures(e, cfg, user, id, wishes, briefText, have);
+          out.push(...made.outs.map(o => ({ ...o, task_id: t.id }))); assets = made.made; missing = made.missing;
+        }
       } else {
         // internal references (knowledge, optimization) are not ads: no rules, no stop, no repair loop
         const v = PUBLISHABLE.includes(t.agent) ? verdict([{ label: AGENTS_AR[t.agent] ?? t.agent, text }], extra) : { hits: [], blocked: false, reason: '' };
         out.push({ task_id: t.id, kind: KIND[t.agent] ?? 'text', body: { text }, compliance: slim(v.hits) });
         if (t.agent === 'optimize') out.push({ task_id: t.id, kind: 'measurement', body: { text: 'أهداف القياس (نفس أرقام الحكم في لوحة الأداء)', kpis: ks }, compliance: [] });
         if (v.blocked) { status = 'blocked'; reason = v.reason; }
+        // an amount in riyals that the user never gave is not allowed in the plan: the same repair loop asks for it to be removed
+        const bi = budgetIssue(t.agent, text, wishes as never);
+        if (bi) { status = 'blocked'; reason = bi; }
       }
     }
     if (status === 'blocked') spec = { feedback: reason };
@@ -220,8 +299,10 @@ export const step = { POST: handle(async (request, e: Env) => {
     }) });
     if (w.ok) drafts = posts.length;
   }
+  // the files: what could not be made stays listed (and shown with its reason) until a retry makes it; the stage flag is spent
+  if (t.agent === 'design' || t.agent === 'voice') spec = { ...spec, stage: undefined, missing: missing.length ? missing : undefined };
   await patchTask(cfg, user.co, t.id, { status, blocked_reason: reason, spec: { ...(t.spec ?? {}), ...spec } });
-  await audit(cfg, user, fixing ? 'campaign_task_autofix' : 'campaign_task_run', { target: { id, task: t.id, agent: t.agent, status, outputs: out.length, drafts, ...(fixing ? { attempt: fixing } : {}) } });
+  await audit(cfg, user, fixing ? 'campaign_task_autofix' : 'campaign_task_run', { target: { id, task: t.id, agent: t.agent, status, outputs: out.length, drafts, ...(assets ? { files: assets } : {}), ...(missing.length ? { missing } : {}), ...(fixing ? { attempt: fixing } : {}) } });
   tasks = await tasksOf(cfg, user.co, id);
   const r = rollup(tasks);
   if (r.status !== 'running') await setCampaign(cfg, user.co, id, r.status, 'approved,running');
@@ -257,7 +338,7 @@ export const retry = { POST: handle(async (request, e: Env) => {
   const r = await patchTask(cfg, user.co, task, { status: 'waiting', blocked_reason: null, spec: { ...spec, retries: n + 1, auto: 0 } }, `&status=eq.${cur['status']}`);
   if (!r.ok) return fail(user, r, 'ما انحفظت المحاولة');
   if (!rows(r.data).length) return json(409, { error: 'المهمة تغيّرت. حدّث الصفحة' });
-  await sb(cfg, scoped(`/rest/v1/campaign_outputs?task_id=eq.${task}&campaign_id=eq.${id}`, user.co), { method: 'DELETE', admin: true });
+  await dropAssets(cfg, e, user.co, `task_id=eq.${task}&campaign_id=eq.${id}`);
   await setCampaign(cfg, user.co, id, 'running', 'review');
   await audit(cfg, user, 'campaign_task_retry', { target: { id, task, retries: n + 1 } });
   return json(200, { ok: true });
@@ -347,10 +428,47 @@ export const answer = { POST: handle(async (request, e: Env) => {
   const saved = await sb(cfg, scoped(`/rest/v1/campaigns?id=eq.${id}`, user.co), { method: 'PATCH', admin: true, body: { brief: { ...brief, questions: qs }, updated_at: nowIso() } });
   if (!saved.ok) return fail(user, saved, 'ما انحفظ الجواب');
   for (const t of mine) {
-    await sb(cfg, scoped(`/rest/v1/campaign_outputs?task_id=eq.${t.id}&campaign_id=eq.${id}`, user.co), { method: 'DELETE', admin: true });
+    await dropAssets(cfg, e, user.co, `task_id=eq.${t.id}&campaign_id=eq.${id}`);
     await patchTask(cfg, user.co, t.id, { status: 'waiting', blocked_reason: null, spec: { ...(t.spec ?? {}), regen: (t.spec?.regen ?? 0) + 1, auto: 0, feedback: undefined, override: undefined } });
   }
   if (mine.length) await setCampaign(cfg, user.co, id, 'running', 'review,done,running');
   await audit(cfg, user, 'campaign_answer', { target: { id, index, regenerate: mine.map(x => x.id) } });   // never the answer's text
   return json(200, { ok: true, regenerate: mine.length });
+}) };
+
+// A file of the campaign (a picture or a recording), only for who may see the campaign. The key comes from the output row, never from the
+// request, and must be inside this campaign's folder. `dl=1` downloads it, else it is shown in the page.
+export const file = { GET: handle(async (request, e: Env) => {
+  const { cfg, user } = await requireUser(request, e, 'any');
+  const q = new URL(request.url).searchParams, oid = Math.round(Number(q.get('id')));
+  if (!Number.isInteger(oid) || oid < 1) return json(400, { error: 'طلب غير صحيح' });
+  const o = rows((await sb(cfg, scoped(`/rest/v1/campaign_outputs?select=campaign_id,kind,platform,body&id=eq.${oid}`, user.co), { admin: true })).data)[0];
+  const cid = idOf(o?.['campaign_id']);
+  const seen = cid ? rows((await sb(cfg, scoped(`/rest/v1/campaigns?select=id&id=eq.${cid}${visible(user, cfg)}`, user.co), { admin: true })).data)[0] : null;
+  const b = (o?.['body'] ?? {}) as Row, key = b['key'], mime = String(b['mime'] ?? '');
+  if (!o || !cid || !seen || !ownAsset(user.co, cid, key) || !['image/jpeg', 'image/png', 'audio/wav'].includes(mime) || !e.FILES) return json(404, { error: 'الملف غير موجود' });
+  const obj = await e.FILES.get(key);
+  if (!obj) return json(404, { error: 'الملف غير موجود' });
+  const name = `${String(o['kind']).replace(/[^a-z_]/g, '')}${o['platform'] ? '-' + String(o['platform']).replace(/[^a-z0-9]/g, '') : ''}${b['label'] ? '-' + String(b['label']).replace(/[^a-z0-9]/g, '') : ''}.${key.split('.').pop()}`;
+  return new Response(obj.body, { headers: { 'content-type': mime, 'cache-control': 'private, max-age=3600', 'x-content-type-options': 'nosniff', 'content-security-policy': "default-src 'none'; sandbox",
+    'content-disposition': `${q.get('dl') === '1' ? 'attachment' : 'inline'}; filename="${name}"` } });
+}) };
+
+// «ولّد الملفات» again for a task whose pictures or recordings could not be made (the cap, a refusal, no key, no storage): only the missing files
+// are made, from the draft that is already written and checked, so nothing is written or paid for twice. An approver, because it spends again.
+export const assets = { POST: handle(async (request, e: Env) => {
+  const { cfg, user } = await requireUser(request, e, 'any', { write: true });
+  if (!mayApprove(user, cfg)) return json(403, { error: NO_APPROVE });
+  const b = await readJson(request, 2000), id = idOf(b['id']), task = Math.round(Number(b['task']));
+  if (!id || !Number.isInteger(task) || task < 1) return json(400, { error: 'طلب غير صحيح' });
+  const cur = rows((await sb(cfg, scoped(`/rest/v1/campaign_tasks?select=id,agent,status,spec&id=eq.${task}&campaign_id=eq.${id}`, user.co), { admin: true })).data)[0];
+  const spec = (cur?.['spec'] ?? {}) as Row;
+  if (!cur || !['review', 'approved'].includes(String(cur['status'])) || !Array.isArray(spec['missing']) || !(spec['missing'] as unknown[]).length) return json(409, { error: 'ما فيه ملفات ناقصة في هذي المهمة' });
+  const r = await patchTask(cfg, user.co, task, { status: 'waiting', spec: { ...spec, stage: 'assets' } }, `&status=eq.${cur['status']}`);
+  if (!r.ok) return fail(user, r, 'ما انحفظ الطلب');
+  if (!rows(r.data).length) return json(409, { error: 'المهمة تغيّرت. حدّث الصفحة' });
+  await sb(cfg, scoped(`/rest/v1/campaign_outputs?task_id=eq.${task}&campaign_id=eq.${id}&kind=eq.asset_missing`, user.co), { method: 'DELETE', admin: true });
+  await setCampaign(cfg, user.co, id, 'running', 'review,done');
+  await audit(cfg, user, 'campaign_assets_retry', { target: { id, task, agent: cur['agent'] } });
+  return json(200, { ok: true });
 }) };
