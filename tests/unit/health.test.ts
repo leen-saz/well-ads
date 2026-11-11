@@ -11,7 +11,7 @@ beforeEach(() => clearHealthCache());
 describe('health', () => {
   it('reports the version and every dependency up', async () => {
     const h = await health({ ...env, AI: {} }, ok);
-    expect(h).toEqual({ ok: true, version: 'abc123', env: 'staging', checks: { supabase: 'up', storage: 'up', ai: 'up' }, migrations: { state: 'missing', missing: trackedMigrations() }, data: { level: 'unknown', warnings: [], dash_age_hours: null, crm_age_hours: null, dispatch: 'unknown', dispatch_at: null } });
+    expect(h).toEqual({ ok: true, version: 'abc123', env: 'staging', checks: { supabase: 'up', storage: 'up', ai: 'up' }, migrations: { state: 'missing', missing: trackedMigrations() }, data: { level: 'unknown', warnings: [], dash_age_hours: null, crm_age_hours: null, dispatch: 'unknown', dispatch_at: null, steps: {} } });
   });
   it('a refused Supabase key or an unreachable project is down', async () => {
     expect((await health(env, (async () => new Response('{}', { status: 401 })) as typeof fetch)).checks.supabase).toBe('down');

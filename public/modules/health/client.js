@@ -44,6 +44,13 @@ const WHYTXT = { id: 'مربوطة برقم الإعلان', name: 'مربوطة
 const attribution = A => !A || !A.paid ? '' : `<h3>وين راحت الإقفالات المدفوعة؟</h3>${table(['السبب', 'إقفالات'], Object.entries(A.why).filter(([, n]) => n).map(([k, n]) => [esc(WHYTXT[k] || k), fmt(n)]))}`
   + (Object.keys(A.unmatched_sources).length ? `<p class="muted">مصادر الإقفالات اللي بدون إعلان: ${Object.entries(A.unmatched_sources).map(([k, n]) => `<code>${esc(k)}</code> ${fmt(n)}`).join('، ')}</p>` : '');
 
+const STEP = { tiktok: 'تيك توك (MCP)', crm: 'سحب الـ CRM', suggest: 'اقتراحات لوحة القرارات', learn: 'حلقة التعلّم', critic: 'المراجع (critic)', execute: 'تنفيذ القرارات المعتمدة' };
+// Each non-blocking step of the hourly run: did it work last time, and when did it last work
+const stepsTable = S => {
+  const rows = Object.entries(S || {}).map(([k, v]) => [esc(STEP[k] || k), v.ok === false ? '<b style="color:#8A2A1B">فشلت</b>' : v.ok ? 'اشتغلت' : '—', cell(age(v.at)), cell(age(v.last_ok))]);
+  return rows.length ? table(['الخطوة', 'آخر مرة', 'وقتها', 'آخر نجاح'], rows) : '<p class="muted">ما فيه حالة خطوات للحين (تظهر بعد أول تحديث ساعي).</p>';
+};
+
 export function healthCards(h) {
   const f = h.freshness, J = h.joins;
   const warn = (h.data_status ? ownerText(h.data_status) : []).map(t => `<p class="dh-find bad">${esc(t)}</p>`).join('');
@@ -63,7 +70,7 @@ export function healthCards(h) {
     ? `<p class="dh-find bad">مايقريشنات ما انطبقت (بالترتيب): ${[...new Set(h.migrations_missing.map(m => m.migration))].map(m => `<code>${esc(m)}</code>`).join('، ')}</p>` + table(['المايقريشن', 'الجدول', 'ناقص'], h.migrations_missing.map(m => [esc(m.migration), esc(m.table), m.reason === 'table' ? 'الجدول كله' : esc(m.columns.join(', '))]))
     : '<p class="dh-find ok">كل الجداول والأعمدة اللي يقراها الكود موجودة.</p>';
   const sec = (t, body, note = '') => `<section class="card pad dh-sec"><h2>${t}</h2>${note ? `<p class="muted" style="margin:0 0 8px">${note}</p>` : ''}${body}</section>`;
-  return (warn || fresh ? sec('حالة التحديث', warn + fresh, 'عمر الأرقام، وهل بدأ التحديث الساعي. ما يلمس الداتابيس.') : '') + sec('حداثة المصادر', plat + other, 'آخر مرة وصلتنا بيانات كل منصة. الأحمر = أقدم من يومين.') + sec('الربط بين الليدز والإعلانات', joins + attr, 'من آخر ملف أرقام انرفع.')
+  return (warn || fresh ? sec('حالة التحديث', warn + fresh + (h.data_status ? stepsTable(h.data_status.steps) : ''), 'عمر الأرقام، وهل بدأ التحديث الساعي. ما يلمس الداتابيس.') : '') + sec('حداثة المصادر', plat + other, 'آخر مرة وصلتنا بيانات كل منصة. الأحمر = أقدم من يومين.') + sec('الربط بين الليدز والإعلانات', joins + attr, 'من آخر ملف أرقام انرفع.')
     + sec('المكرر', dups) + sec('اليتيم', orph, 'صفوف تشير إلى شركة ما عاد لها وجود.') + sec('عدد الصفوف', counts) + sec('المايقريشنات', miss);
 }
 
