@@ -37,9 +37,9 @@ describe('sidebar', () => {
 
 describe('sidebar groups', () => {
   const secs = (m: ReturnType<typeof me>) => sections(m, L) as { key: string; label: string; items: Item[] }[];
-  it('follows the marketing order: create, distribute, measure, optimize, govern, system', () => {
-    expect(secs(me()).map(s => s.key)).toEqual(['home', 'produce', 'distribute', 'measure', 'optimize', 'govern', 'system']);
-    expect(secs(me()).map(s => s.label)).toEqual(['الرئيسية', 'الإنتاج', 'النشر والتوزيع', 'القياس والتحليل', 'التحسين والقرارات', 'الحوكمة', 'النظام']);
+  it('follows the marketing order: create, distribute, measure, optimize, system', () => {
+    expect(secs(me()).map(s => s.key)).toEqual(['home', 'produce', 'distribute', 'measure', 'optimize', 'system']);
+    expect(secs(me()).map(s => s.label)).toEqual(['الرئيسية', 'الإنتاج', 'النشر والتوزيع', 'القياس والتحليل', 'التحسين والقرارات', 'النظام والحوكمة']);
   });
   it('puts every tab in its group', () => {
     const at = Object.fromEntries(secs(me()).flatMap(s => s.items.map(i => [i.text, s.key])));
@@ -49,7 +49,7 @@ describe('sidebar groups', () => {
       'السوشال': 'distribute', 'الرحلات والرسائل': 'distribute',
       'ملخص الأداء': 'measure', 'المواد الإعلانية': 'measure',
       'لوحة القرارات': 'optimize', 'المدير': 'optimize', 'التتبع': 'optimize',
-      'الامتثال': 'govern', 'السجل': 'govern', 'الصلاحيات': 'govern',
+      'الامتثال': 'system', 'السجل': 'system', 'الصلاحيات': 'system',
       'الربط': 'system',
     });
   });
@@ -66,7 +66,7 @@ describe('one list of groups', () => {
   it('every module sits in a group of the shared list, and each group has a tab', async () => {
     const { GROUPS } = await import('../../src/modules/registry');
     const keys = GROUPS.map(g => g.key);
-    expect(keys).toEqual(['home', 'produce', 'distribute', 'measure', 'optimize', 'govern', 'system']);
+    expect(keys).toEqual(['home', 'produce', 'distribute', 'measure', 'optimize', 'system']);
     for (const m of MODULES) expect(keys, m.key).toContain(m.group);
   });
 });
