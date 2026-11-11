@@ -693,6 +693,7 @@ export const EN = {
   "احلم (الصفحة الرئيسية)": "Ahlam (home page)",
   "السقف الشهري لتاب الامتثال": "Monthly cap for the Compliance tab",
   "السقف الشهري لتاب التتبع": "Monthly cap for the Tracking tab",
+  "السقف الشهري لتاب الميديا باير": "Monthly cap for the Media buyer tab",
   "السقف الشهري لتاب التصميم": "Monthly cap for the Design tab",
   "السقف الشهري لتاب الرحلات والرسائل": "Monthly cap for the Journeys and messages tab",
   "السقف الشهري لتاب الرصد": "Monthly cap for the Listening tab",
