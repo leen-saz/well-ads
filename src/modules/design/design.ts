@@ -2,6 +2,8 @@
 // (Workers AI when bound, fixed templates otherwise), each checked against the compliance rules.
 // Text is never baked into the photo: the page draws it as a layer on top, per size.
 import { check } from '../compliance/compliance';
+import { notEnabled } from '../../lib/auth';
+import type { ImageOut } from '../../lib/llm';
 
 export const SIZES: Record<string, { w: number; h: number; label: string }> = {
   square: { w: 1080, h: 1080, label: 'مربع 1080×1080 (بوست)' },
@@ -106,9 +108,22 @@ export function backgroundPrompt(input: { type: string; offer: string; audience:
   return `${product ? `Keep the product in this photo exactly as it is: same shape, label, colours and printed text, nothing added on it. Replace everything around it with a new scene and lighting for the ad, the product clearly the hero.
 ` : ''}${product ? 'Ad photo' : 'Background photo'} for a ${input.type === 'story' ? 'vertical story' : 'social media'} ad of Well, a home healthcare company in Saudi Arabia.
 Subject: ${input.offer || 'home healthcare visit'}${input.dept ? ` (${input.dept})` : ''}. Audience: ${input.audience || 'Saudi families'}.
-Look: clean, calm, premium, natural light, Saudi home setting${colors.length ? `, colour palette ${colors.join(' ')}` : ''}.${style ? ` Style notes: ${style}` : ''}
+Look: clean, calm, premium, warm natural light, Saudi home setting, colour palette ${(colors.length ? colors : WELL_PALETTE).join(' ')}.${style ? ` Style notes: ${style}` : ''}
+Fill the whole frame edge to edge with the scene: no empty, flat or plain areas. Keep the subject in the centre: the picture is cropped to square, portrait, story and landscape.
 Keep the lower 40% of the frame simple and fairly dark, text goes there.
-No text, letters, numbers, logos or watermarks. No before/after, no bodies or faces showing a treatment result, no syringes in skin, modest dress.`;
+No text, letters, numbers, logos or watermarks. No before/after, no bodies or faces showing a treatment result, no syringes in skin, no children as the subject, no patients as testimonials, modest dress.`;
+}
+
+// Well palette v2.1 (brand guide): ivory, white, Pulse Purple, Well Indigo, Purple Soft, Pulse Pink (one touch only), Purple Deep
+export const WELL_PALETTE = ['#F6F0E3', '#FFFFFF', '#7E57FD', '#1D1069', '#ACA6E1', '#F86080', '#221196'];
+
+// One picture for every chosen size, cropped to each in the browser: the shape that loses least.
+// Only landscape → wide; only square → square; anything vertical (story, portrait) → tall.
+export function imageSize(sizes: unknown): '1024x1536' | '1024x1024' | '1536x1024' {
+  const s = (Array.isArray(sizes) ? sizes : []).map(String).filter(k => k in SIZES);
+  if (s.length && s.every(k => k === 'landscape')) return '1536x1024';
+  if (s.length && s.every(k => k === 'square')) return '1024x1024';
+  return '1024x1536';
 }
 
 // The product photo for the image model: a JPEG or PNG data URL up to ~1.5 MB (the page sends it at 1024 px)
@@ -118,4 +133,15 @@ export function productPhoto(data: unknown): { bytes: Uint8Array<ArrayBuffer>; m
   const bin = atob(m[2]!), bytes = new Uint8Array(bin.length);
   for (let i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
   return { bytes, mime: m[1]! };
+}
+
+// Why there is no picture, in words the user can act on; retry only where trying again can help
+export function imageMiss(out: ImageOut, user: { role: string } | null | undefined): { code: string; message: string; retry: boolean } | null {
+  switch (out.miss) {
+    case undefined: return null;
+    case 'no_key': return { code: 'no_key', message: notEnabled(user, 'رسم الخلفيات بالذكاء الاصطناعي', 'OPENAI_API_KEY'), retry: false };
+    case 'capped': return { code: 'capped', message: 'وصل الصرف الشهري لتاب التصميم، فما انرسمت خلفية. النصوص جاهزة، وبلّغ الإدارة إذا تبي ترفع السقف.', retry: false };
+    case 'refused': return { code: 'refused', message: 'خدمة الصور رفضت الطلب لأنه يخالف سياسة المحتوى. غيّر وصف الإعلان أو الصورة وجرّب مرة ثانية.', retry: true };
+    default: return { code: 'failed', message: `خدمة الصور ما ردّت هالمرة${out.status ? ` (رمز ${out.status})` : ''}. جرّب مرة ثانية.`, retry: true };
+  }
 }
