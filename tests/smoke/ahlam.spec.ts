@@ -88,4 +88,23 @@ test.describe('احلم', () => {
     await page.goto('/today/?tab=campaign&c=44444444-4444-4444-4444-444444444444');
     await expect(page.locator('#cmPack')).toContainText('Safe copy');
   });
+  for (const lang of ['ar', 'en'] as const) {
+    test(`${lang}: a running campaign shows the progress bar, a pulsing dot for the agent at work, and follows the tasks without a reload`, async ({ page, context, request }) => {
+      await addSession(context, await login(request, 'owner'));
+      let n = 0;
+      const mk = (statuses: string[]) => ({ ...PACK, campaign: { ...PACK.campaign, status: 'running' }, outputs: [],
+        tasks: statuses.map((st, i) => ({ id: i + 1, position: i, agent: ['content', 'social', 'compliance'][i], title: 'T' + i, status: st, depends_on: [], spec: {}, estimate_usd: 0.01 })) });
+      await page.route('**/api/campaigns/get**', r => r.fulfill({ json: ++n < 2 ? mk(['running', 'waiting', 'waiting']) : mk(['review', 'running', 'waiting']) }));
+      await page.route('**/api/campaigns/list', r => r.fulfill({ json: { campaigns: [{ id: 'c1', title: 'Spring', status: 'running', estimate_usd: 0.05, created_at: '2026-11-01T00:00:00Z' }], mayApprove: true } }));
+      await page.goto('/today/?tab=campaign' + (lang === 'en' ? '&lang=en' : ''));
+      await page.locator('.cm-list button').first().click();
+      await expect(page.locator('.cm-bar')).toBeVisible();
+      await expect(page.locator('.cm-prog .cm-dot.run')).toHaveCount(1);
+      await expect(page.locator('.cm-prog .cm-dots')).not.toContainText(/\S/);   // dots only, no text beside them
+      await expect(page.locator('.cm-prog b')).toHaveText(lang === 'en' ? '0 of 3 tasks' : '0 من 3 مهام');
+      // the next poll: the first task moved to review, the second is running, and nothing was reloaded
+      await expect(page.locator('.cm-prog b')).toHaveText(lang === 'en' ? '1 of 3 tasks' : '1 من 3 مهام', { timeout: 10000 });
+      await expect(page.locator('.cm-prog .cm-dot.ok')).toHaveCount(1);
+    });
+  }
 });

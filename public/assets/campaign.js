@@ -82,6 +82,33 @@ export function mountCampaign(root, me, L) {
       ${hits.length ? `<ul class="cm-hits">${hits.map(h => `<li class="${esc(h.level)}">${esc(h.title)} «${esc(h.match)}» ${esc(h.fix)}</li>`).join('')}</ul>` : ''}</div>`;
   }
 
+  // A small dot per agent, no text: pulsing = working, steady = waiting (or finished), grey = stopped, red = failed
+  const dot = st => `<span class="cm-dot ${st === 'running' ? 'run' : st === 'blocked' ? 'off' : st === 'failed' ? 'bad' : st === 'review' || st === 'approved' ? 'ok' : 'wait'}" data-dot role="img" aria-label="${esc(pick(TSTATUS, st))}"></span>`;
+  // The live progress: how many tasks are finished, and one moving line for the task being worked on right now
+  function progHtml(d) {
+    const n = d.tasks.length, fin = d.tasks.filter(t => t.status === 'review' || t.status === 'approved').length, bad = d.tasks.filter(t => t.status === 'blocked' || t.status === 'failed').length;
+    const now = d.tasks.some(t => t.status === 'running');
+    const live = ['approved', 'running'].includes(d.campaign.status);
+    if (!live && !now) return '';
+    return `<div class="cm-prog" role="status" aria-live="polite"><div class="cm-bar" role="progressbar" aria-valuemin="0" aria-valuemax="${n}" aria-valuenow="${fin}"><i style="width:${n ? Math.round((fin / n) * 100) : 0}%"></i></div>
+      <b>${esc(L(`${fin} من ${n} مهام`, `${fin} of ${n} tasks`))}</b> <span class="cm-dots">${d.tasks.map(t => dot(t.status)).join('')}</span>${bad ? ` <span class="muted">${esc(L(`· ${bad} موقوفة`, `· ${bad} stopped`))}</span>` : ''}</div>`;
+  }
+  // While a step runs (it can take a while) the screen asks again every few seconds, so tasks move waiting -> running -> review by themselves
+  const watch = (id, mine, root_) => {
+    const tick = async () => {
+      if (mine !== view) return;
+      try {
+        const d = await api('/api/campaigns/get?id=' + encodeURIComponent(id));
+        if (mine !== view) return;
+        const box = $('#cmProg', root_); if (box) box.innerHTML = progHtml(d);
+        for (const t of d.tasks) { const el = root_.querySelector(`[data-st="${t.id}"]`); if (el) { el.textContent = pick(TSTATUS, t.status); el.dataset.s = t.status; const dl = el.closest('li')?.querySelector('[data-dot]'); if (dl) dl.outerHTML = dot(t.status); } }
+        if (d.campaign.status !== 'running' && d.campaign.status !== 'approved') return;
+      } catch { /* the next tick tries again */ }
+      setTimeout(tick, 2500);
+    };
+    setTimeout(tick, 2500);
+  };
+
   async function showCampaign(id, auto = false) {
     const mine = ++view;
     if (!auto) frame(`<p class="muted">${esc(L('يحمّل…', 'Loading…'))}</p>`);
@@ -92,14 +119,15 @@ export function mountCampaign(root, me, L) {
     const live = c.status === 'approved' || c.status === 'running';
     const li = a => (a || []).map(x => `<li>${esc(x)}</li>`).join('');
     const outs = t => d.outputs.filter(o => o.task_id === t.id);
-    const tasks = d.tasks.map(t => `<li><b>${esc(pick(AGENT, t.agent))}</b> · ${esc(t.title)}${t.spec?.detail && !started ? `<br><span class="muted">${esc(t.spec.detail)}</span>` : ''}
-        <br><small class="muted">${esc(pick(TSTATUS, t.status))} · ${esc(sar(t.estimate_usd))}</small>
+    const tasks = d.tasks.map(t => `<li>${dot(t.status)} <b>${esc(pick(AGENT, t.agent))}</b> · ${esc(t.title)}${t.spec?.detail && !started ? `<br><span class="muted">${esc(t.spec.detail)}</span>` : ''}
+        <br><small class="muted"><span class="cm-st" data-st="${t.id}" data-s="${esc(t.status)}">${esc(pick(TSTATUS, t.status))}</span> · ${esc(sar(t.estimate_usd))}</small>
         ${t.blocked_reason ? `<p class="msg err">${esc(t.blocked_reason)}</p>` : ''}${outs(t).map(outputHtml).join('')}
         <div class="cm-actions">${t.status === 'review' && d.mayApprove ? `<button class="btn" data-ok="${t.id}" type="button">${esc(L('اعتمد هذا الناتج', 'Approve this output'))}</button>` : ''}
         ${(t.status === 'blocked' || t.status === 'failed') && d.mayApprove && (t.spec?.retries || 0) < 2 ? `<button class="btn" data-retry="${t.id}" type="button">${esc(L('أعد الكتابة وافحص من جديد', 'Rewrite and check again'))}</button>` : ''}</div></li>`).join('');
     const stalled = d.tasks.some(t => t.status === 'waiting') && !live;
     frame(`<button class="btn" id="cmBack" type="button">${esc(L('كل الحملات', 'All campaigns'))}</button>
       <h2 class="cm-h">${esc(c.title)}</h2><p class="muted">${esc(pick(STATUS, c.status))}</p>
+      <div id="cmProg">${progHtml(d)}</div>
       <section><h3>${esc(L('ملخص الحملة', 'Campaign brief'))}</h3><p>${esc(b.summary)}</p>${b.audience ? `<p><b>${esc(L('الجمهور:', 'Audience:'))}</b> ${esc(b.audience)}</p>` : ''}
         ${(b.messages || []).length ? `<h4>${esc(L('الرسائل الرئيسية', 'Key messages'))}</h4><ul>${li(b.messages)}</ul>` : ''}${(b.risks || []).length ? `<h4>${esc(L('مخاطر وأسئلة مفتوحة', 'Risks and open questions'))}</h4><ul>${li(b.risks)}</ul>` : ''}</section>
       <section id="cmPack"><h3>${esc(started ? L('حزمة الحملة', 'Campaign pack') : L('الخطة: مين يسوي وش', 'The plan: who does what'))}</h3><ol class="cm-tasks">${tasks}</ol>
@@ -133,7 +161,8 @@ export function mountCampaign(root, me, L) {
     };
     const run = $('#cmRun', root);
     if (run) run.onclick = () => showCampaign(id, true);
-    if (auto && live) go();
+    if (auto && live) { go(); watch(id, mine, root); }
+    else if (c.status === 'running') { watch(id, mine, root); }   // another tab or person is running it: follow it without a reload
   }
   const showListLater = () => setTimeout(showList, 2500);
   const link = new URLSearchParams(location.search).get('c');
