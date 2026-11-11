@@ -23,8 +23,8 @@
       "r2_buckets": [{ "binding": "FILES", "bucket_name": "well-ads-files" }],
       "ai": { "binding": "AI" },
       "workflows": [{ "name": "journey-run", "binding": "JOURNEY", "class_name": "JourneyRun" }],
-      // Hourly data refresh (src/lib/cron.ts): GitHub's own schedule never fired for this repo; every 5 minutes: due social posts
-      "triggers": { "crons": ["7 * * * *", "*/5 * * * *"] }
+      // Hourly data refresh (src/lib/cron.ts): GitHub's own schedule never fired for this repo; every 5 minutes: due social posts; Sunday 02:17 UTC the weekly backup and the 1st at 02:47 UTC the restore test (db-backup.yml, db-restore-test.yml)
+      "triggers": { "crons": ["7 * * * *", "*/5 * * * *", "17 2 * * 0", "47 2 1 * *"] }
     }
   },
   "vars": { "APP_ENV": "local", "OWNER_EMAIL": "leen.sulaiman@wellunion.co" },
