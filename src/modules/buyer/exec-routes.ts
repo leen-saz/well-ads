@@ -16,7 +16,7 @@ export const actions = { GET: handle(async (request, e) => {
   const r = await list({ cfg, user, env });
   const approver = (() => { try { return user.role === 'owner' || user.lvl?.buyer === 'approve'; } catch { return false; } })();
   return json(200, {
-    missing: r.missing, ...(r.missing ? { message: notApplied(user, '031_buyer_actions.sql') } : {}),
+    missing: r.missing, ...(r.missing ? { message: notApplied(user, '032_buyer_actions.sql') } : {}),
     actions: r.actions, usedToday: r.usedToday,
     // booleans and limits only: never a key, never a key's name
     settings: { kill: r.settings.kill, maxPct: r.settings.maxPct, dailyCap: r.settings.dailyCap, live: r.settings.live, configured: configured(env) },
