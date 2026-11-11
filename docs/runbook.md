@@ -27,6 +27,7 @@ and every dependency `up`. A red health step means the version is live but wrong
 - Sign in as the owner: start page loads, sidebar shows every tab, open two tabs you did not change.
 - Cloudflare → Workers → well-ads → Logs: no burst of errors after the deploy time.
 - Cron: the next `*/5` run is not erroring (`scheduled` events in the same logs).
+- Watchdog (Cron minute 37, `src/lib/watchdog.ts`): alerts when `dash.json` is older than 3 hours, repeats at most every 6 hours, and says once when it recovers. Channels are the Worker secrets `ALERT_WEBHOOK_URL` and/or `RESEND_API_KEY` + `ALERT_EMAIL_FROM` + `ALERT_EMAIL_TO` (`docs/secrets/worker.env.example`). With none set it only logs: set one, or nobody is told. Its state is `site/watchdog-state.json` in R2.
 
 ## Roll back (under 5 minutes)
 Decide fast: if the health step is red, or a tab people use is broken, roll back first and debug after.
