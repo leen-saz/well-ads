@@ -54,4 +54,38 @@ test.describe('احلم', () => {
     await expect(page.locator('#cmGo')).toHaveText('Build the plan');
     await expect(page.locator('#cmForm')).not.toContainText(/[\u0600-\u06FF]/);
   });
+  // The pack screen with the API mocked at the browser (the smoke Worker has no model): the page itself is the real one.
+  const PACK = { campaign: { id: 'c1', title: 'Spring', status: 'review', estimate_usd: 0.05, brief: { summary: 'Brief', messages: ['m'], risks: [] }, approved_by: 'a@x.co' },
+    tasks: [{ id: 1, position: 0, agent: 'content', title: 'Copy', status: 'review', depends_on: [], spec: { detail: 'd', retries: 0 }, estimate_usd: 0.01 },
+      { id: 2, position: 1, agent: 'social', title: 'Posts', status: 'blocked', depends_on: [1], blocked_reason: 'blocked reason', spec: { retries: 0 }, estimate_usd: 0.01 },
+      { id: 3, position: 2, agent: 'optimize', title: 'Plan', status: 'review', depends_on: [1], spec: {}, estimate_usd: 0.01 }],
+    outputs: [{ id: 1, task_id: 1, kind: 'copy', body: { text: 'Safe copy' }, compliance: [] }, { id: 2, task_id: 3, kind: 'measurement', body: { kpis: [{ key: 'cpl', ar: 'x', target: 60, unit: 'SAR' }] }, compliance: [] }],
+    agents: {}, mayApprove: true, capped: false };
+  for (const lang of ['ar', 'en'] as const) {
+    test(`${lang}: the campaign pack shows each agent's output, approve and rewrite buttons, and download and copy`, async ({ page, context, request }) => {
+      await addSession(context, await login(request, 'owner'));
+      await page.route('**/api/campaigns/list', r => r.fulfill({ json: { campaigns: [{ id: 'c1', title: 'Spring', status: 'review', estimate_usd: 0.05, created_at: '2026-11-01T00:00:00Z' }], mayApprove: true } }));
+      await page.route('**/api/campaigns/get**', r => r.fulfill({ json: PACK }));
+      await page.goto('/today/?tab=campaign' + (lang === 'en' ? '&lang=en' : ''));
+      await page.locator('.cm-list button').first().click();
+      await expect(page.locator('.cm-tasks > li')).toHaveCount(3);
+      await expect(page.locator('[data-ok]')).toHaveCount(2);
+      await expect(page.locator('[data-retry]')).toHaveCount(1);
+      await expect(page.locator('#cmDl')).toBeVisible();
+      await expect(page.locator('#cmCp')).toBeVisible();
+      await expect(page.locator('.cm-tasks')).toContainText('Safe copy');
+      await expect(page.locator('.cm-kpis')).toContainText('60');
+      if (lang === 'en') {
+        await expect(page.locator('#cmDl')).toHaveText('Download the pack (Markdown)');
+        await expect(page.locator('[data-retry]')).toHaveText('Rewrite and check again');
+        await expect(page.locator('.cm-cost')).not.toContainText(/[\u0600-\u06FF]/);
+      } else await expect(page.locator('[data-retry]')).toContainText('أعد الكتابة');
+    });
+  }
+  test('a link ?tab=campaign&c=<id> opens that campaign\'s pack directly', async ({ page, context, request }) => {
+    await addSession(context, await login(request, 'owner'));
+    await page.route('**/api/campaigns/get**', r => r.fulfill({ json: PACK }));
+    await page.goto('/today/?tab=campaign&c=44444444-4444-4444-4444-444444444444');
+    await expect(page.locator('#cmPack')).toContainText('Safe copy');
+  });
 });
