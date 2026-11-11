@@ -15,7 +15,7 @@ Gemini (audio, video, images, speech: `src/lib/gemini.ts`, through the same adap
 
 OpenRouter calls are recorded as provider `openrouter` with the **cost OpenRouter returned** (`usage.cost`, asked for with `usage: { include: true }`), not from the price table; a call that comes back without a cost is recorded as «بدون سعر». The same monthly caps apply (see `docs/ai-providers.md`).
 
-Not recorded yet: the Debugger's Claude calls (own SDK, `src/modules/debugger/explain.ts`), Grok live search (`grokSearch`, per-search fees), and images (`openaiImage`). Callers without a user, such as cron jobs, are recorded with a null user (Listening passes its company).
+The Debugger's Claude calls are recorded (provider `anthropic`, tab `debugger`) and stop at the tab's monthly cap. Grok live search and images are recorded as estimates (flat fee per call, `estimated`). Not recorded: anything called without a company context. Callers without a user, such as cron jobs, are recorded with a null user (Listening passes its company).
 
 ## Prices
 **The prices in the table are unverified.** Nobody has matched them with a real invoice yet, so every cost on the screen is an estimate until Leen runs the invoice check (Maestro → «طابق الصرف مع الفاتورة») against a real invoice and the difference is within 5%. Until then, do not treat the totals or the caps as accurate.
@@ -37,3 +37,7 @@ What this cannot prove without real invoices: that the price table matches what 
 
 ## Secrets and migrations
 No new secrets. Migration `019_ai_usage.sql` is applied by the owner in Supabase → SQL Editor; until then the screen says so and the default cap applies (paid calls stop).
+
+
+## Recorded against expected (owner screen)
+`GET /api/maestro/usage` also returns `models`: per provider and model for the month, the recorded cost beside the cost our price table gives for the same tokens (`ai_models_spend`, migration 031). A gap is expected where the provider reports its own cost (OpenRouter) or the record is an estimate. Every price is still `verified: false` until Leen matches a real invoice with the reconcile form; this screen does not change that.
