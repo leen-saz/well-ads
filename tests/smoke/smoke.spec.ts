@@ -10,6 +10,7 @@ const TABS: { key: string; page: string; api: string }[] = [
   { key: 'overview', page: '/overview/', api: '/api/overview/data' },
   { key: 'listening', page: '/listening/', api: '/api/listening/demand' },
   { key: 'design', page: '/design/', api: '/api/design/options' },
+  { key: 'video', page: '/video/', api: '/api/video/engines' },
   { key: 'copy', page: '/copy/', api: '/api/copy/projects' },
   { key: 'voice', page: '/voice/', api: '/api/voice/guide' },
   { key: 'social', page: '/social/', api: '/api/social/posts' },

@@ -68,6 +68,25 @@ export async function overCap(ctx: UsageCtx, module: string): Promise<boolean> {
   return !!c && c.usd > 0 && (s.spent.get(tabOf(module, ctx)) || 0) >= c.usd;
 }
 
+// A flat charge that is not made of tokens (a video clip: the engine bills per second). Same table, same cap, same record rules.
+export function recordFlat(ctx: UsageCtx | undefined, module: string, u: { provider: 'higgsfield'; model: string; usd: number; priced: boolean }): Promise<void> {
+  if (!ctx) return Promise.resolve();
+  const tab = tabOf(module, ctx), usd = Math.max(0, r6(u.usd));
+  return (async () => {
+    const r = await sb(ctx.cfg, '/rest/v1/ai_usage', { method: 'POST', admin: true, headers: { Prefer: 'return=minimal' },
+      body: { company_id: ctx.co, user_id: ctx.uid ?? null, module: tab, provider: u.provider, model: u.model, tokens_in: 0, tokens_out: 0, cost_usd: usd, cost_sar: r6(usd * USD_SAR), usd_sar: USD_SAR, priced: u.priced, estimated: true } });
+    if (!r.ok) return;
+    const s = await snap(ctx), cap = s.caps.get(tab);
+    const after = (s.spent.get(tab) || 0) + usd;
+    s.spent.set(tab, after);
+    if (!cap || cap.usd <= 0) return;
+    for (const [at, action] of [[cap.pct, 'ai_budget_alert'], [100, 'ai_budget_capped']] as const) {
+      const tag = `${tab}:${at}`;
+      if (after >= (cap.usd * at) / 100 && !s.said.has(tag)) { s.said.add(tag); await audit(ctx.cfg, { co: ctx.co }, action, { target: { tab, at_pct: at } }); }
+    }
+  })().catch(() => {});
+}
+
 export interface Used { provider: Provider; model: string; usage?: { in: number; out: number } | undefined; estimated?: boolean }
 
 export function record(ctx: UsageCtx | undefined, module: string, u: Used): void {

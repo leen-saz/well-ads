@@ -12,6 +12,7 @@ const TABS = [
   { page: '/listening/', api: '**/api/listening/demand*', open: '[role="tab"]:has-text("تفاعل منشوراتنا")' },
   { page: '/content/', api: '**/api/content/plans*' },
   { page: '/copy/', api: '**/api/copy/projects*' },
+  { page: '/video/', api: '**/api/video/engines*' },
   { page: '/journeys/', api: '**/api/journeys/list*' },
   { page: '/social/', api: '**/api/social/posts*' },
   { page: '/maestro/', api: '**/api/maestro/state*' },

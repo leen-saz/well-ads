@@ -69,6 +69,9 @@ by code that is live on main; open «المدير ← صحة الداتا ← ا
 | `ai_budgets` | 019 | maestro (owner only) | yes (FK) | company_id + module PK, monthly_cap_usd (null = no cap, no default), alert_at_pct, updated_by | One row per company and tab. |
 | `library_items` | 020 | shared library (copywriter and the other tabs) | yes (FK) | id, module, kind, title, content, platform, service, compliance_result, review_status, reviewed_by, approved_by, created_by, created_by_id | Forever; the owner edits and approves. Deleting is not offered yet. |
 | `library_favorites` | 020 | shared library | yes (FK) | item_id + user_id PK, created_at | Goes with its item (cascade). |
+| `video_projects` | 024 | video | yes (FK) | id, title, source_url, brief, script, ratio, seconds, avatar_id, review_status, reviewed_by, approved_by, created_by … | Draft until the reviewer and then the approver pass it; nothing leaves the system before. Deleting is not offered yet. |
+| `video_jobs` | 024 | video (engine layer) | yes (FK) | id, project_id, shot_no, engine, params (no keys), status, attempts, upstream_ref, result_key, error_code, est_cost_usd, cost_recorded | Goes with its project (cascade). Result files in R2 `video/<company>/`. |
+| `video_settings` | 024 | video (owner only) | yes (FK, one row per company) | company_id PK, reviewers, approvers (emails of the company's users; empty = the owner only) | One row per company. |
 | `web_vitals` | 022 | vitals beacon (`/api/vitals/report`) → data-health «الأداء» card | no (global: page path and timings only, no user, no company) | id, at, path (ids collapsed to `:id`), lcp, inp, cls, ttfb, mobile | 7 days: rows older than that are deleted when the owner opens the card. |
 | `motion_versions` | 018 | design (video) | yes (FK) | id, project_id, version, parent_version, change_request, spec, engine, model | Never edited; goes with its project. |
 

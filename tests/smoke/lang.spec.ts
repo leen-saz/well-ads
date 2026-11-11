@@ -6,7 +6,7 @@ import { pageStrings, openTabs, arabicIn } from './page-text';
 
 const PAGES = [
   '/', '/today/', '/control/', '/control/new/', '/connectors/', '/account/', '/admin/', '/admin/modules/', '/library/', '/maestro/health/',
-  '/overview/', '/overview/creative/', '/listening/', '/design/', '/copy/', '/voice/', '/social/', '/content/', '/journeys/',
+  '/overview/', '/overview/creative/', '/listening/', '/design/', '/video/', '/copy/', '/voice/', '/social/', '/content/', '/journeys/',
   '/compliance/', '/maestro/', '/knowledge/', '/debugger/', '/soon/', '/welcome/',
 ];
 const PUBLIC_PAGES = ['/login/', '/reset/', '/welcome/'];
