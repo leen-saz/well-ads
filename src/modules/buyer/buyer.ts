@@ -24,6 +24,9 @@ export interface CompanyRule {
 }
 export interface Input { today: string; ads: AdRow[]; metrics: MetricRow[]; targets: Targets; plans?: Partial<Record<Plat, Plan>>; rules?: CompanyRule[] }
 
+// The machine-readable form of a recommendation that changes an account: a budget step in percent, or a status. Everything else
+// stays advice. The execution layer (actions.ts) only ever turns THIS into a proposed action; it never parses the Arabic text.
+export type Act = { op: 'budget_pct'; pct: number } | { op: 'status'; to: 'paused' | 'active' };
 export type Kind = 'resume' | 'pause' | 'budget_up' | 'budget_down' | 'refresh_creative' | 'hold' | 'review' | 'shift_budget' | 'schedule';
 export interface Rec {
   id: string; rule: RuleId; platform: Plat; campaign: string | null; kind: Kind;
@@ -32,6 +35,7 @@ export interface Rec {
   evidence: string[];
   judge: { step: 'click' | 'lead' | 'cpl'; level: Severity; line: string } | null;
   priority: number; confidence: 'high' | 'medium' | 'low';
+  act?: Act;
   owner: Owner; followUp?: string; open?: string;   // who acts, a follow-up task, and a decision still open with the owner
   readOnly: true;                 // the media buyer decides and executes; this agent only recommends
 }
@@ -104,22 +108,22 @@ function companyRules(x: Input, camps: Map<string, Camp>, end: string, verdict: 
         const j = verdict[p]?.cpl;
         if (j && j.level !== 'fine') { gated.push({ rule: 'scale_up', platform: p, campaign: c.name, reason: `حكم التسويق: ${globalThis.WELL_JUDGE.SEV[j.level][0]}` }); continue; }
         const step = rule.stepPct ?? 20, every = rule.everyDays ?? 3;
-        push({ ...base, rule: 'company', kind: 'budget_up', weight: 58, spend: c.cur.spend, judge: j ? { step: 'cpl', level: j.level, line: j.line } : null,
+        push({ ...base, act: { op: 'budget_pct', pct: step }, rule: 'company', kind: 'budget_up', weight: 58, spend: c.cur.spend, judge: j ? { step: 'cpl', level: j.level, line: j.line } : null,
           title: `${label}: الليد رخيص، ارفع الميزانية`, change: `ارفع الميزانية اليومية حوالي ${step}% كل ${every} أيام، طالما تكلفة الليد تحت ${sar(rule.maxCpl)}. أول ما تتجاوزه ارجع للميزانية السابقة.`,
           why: RULE.scale_up.why, risk: RULE.scale_up.risk, evidence: [`تكلفة الليد آخر ${T.windowDays} أيام ${sar(cc)} مقابل حد ${sar(rule.maxCpl)}`, `${r0(c.cur.leads)} نتيجة`],
           success: { metric: 'تكلفة الليد بعد الزيادة', goal: `تحت ${sar(rule.maxCpl)} بعد ${every} أيام` } });
       }
       // TikTok is judged by click rate and engagement, never by leads (the owner's decision): no lead figure is read for it
       if (rule.kind === 'resume' && !c.live && p === 'tiktok' && rule.minCtr && c.cur.impr >= T.fatigueMinImpressions && (ctr(c.cur) as number) >= rule.minCtr)
-        push({ ...base, rule: 'company', kind: 'resume', weight: 56, spend: c.cur.spend, title: `${label}: متوقفة ونسبة نقرها جيدة، شغّلها`, change: 'شغّل الحملة بميزانية صغيرة وراقب نسبة النقر والتفاعل أول 3 أيام.',
+        push({ ...base, act: { op: 'status', to: 'active' }, rule: 'company', kind: 'resume', weight: 56, spend: c.cur.spend, title: `${label}: متوقفة ونسبة نقرها جيدة، شغّلها`, change: 'شغّل الحملة بميزانية صغيرة وراقب نسبة النقر والتفاعل أول 3 أيام.',
           why: 'الحملة متوقفة وآخر نسبة نقر لها فوق الحد المقبول. تيك توك يُحكم عليه بالنقر والتفاعل مو بالليدز.', risk: 'عينة قصيرة: يوم أو يومين ما يثبتون الأداء.',
           evidence: [`نسبة النقر ${pctS(ctr(c.cur) as number)} مقابل حد ${pctS(rule.minCtr)}`, `${r0(c.cur.impr)} ظهور`], success: { metric: 'نسبة النقر والتفاعل بعد التشغيل', goal: `فوق ${pctS(rule.minCtr)} على 3 أيام` } });
       if (rule.kind === 'resume' && !c.live && p !== 'tiktok' && rule.maxCpl && cc != null && cc <= rule.maxCpl && c.cur.leads >= (rule.minResults ?? 1))
-        push({ ...base, rule: 'company', kind: 'resume', weight: 56, spend: c.cur.spend, title: `${label}: متوقفة وفيها نتائج جيدة، شغّلها`, change: 'شغّل الحملة بميزانية صغيرة وراقب أول 3 أيام.',
+        push({ ...base, act: { op: 'status', to: 'active' }, rule: 'company', kind: 'resume', weight: 56, spend: c.cur.spend, title: `${label}: متوقفة وفيها نتائج جيدة، شغّلها`, change: 'شغّل الحملة بميزانية صغيرة وراقب أول 3 أيام.',
           why: 'الحملة متوقفة وآخر أرقامها تحت الحد المقبول للتكلفة.', risk: 'عينة صغيرة: يوم أو يومين ما يثبتون الأداء.',
           evidence: [`${r0(c.cur.leads)} نتيجة بتكلفة ${sar(cc)} مقابل حد ${sar(rule.maxCpl)}`], success: { metric: 'التكلفة بعد التشغيل', goal: `تحت ${sar(rule.maxCpl)} على 3 أيام` } });
       if (rule.kind === 'stop_idle' && c.live && c.all.leads === 0 && c.days >= (rule.minIdleDays ?? 14))
-        push({ ...base, rule: 'company', kind: 'pause', weight: 88, spend: c.cur.spend, confidence: 'high', title: `${label}: ${c.days} يوم بدون نتائج، أوقفها`,
+        push({ ...base, act: { op: 'status', to: 'paused' }, rule: 'company', kind: 'pause', weight: 88, spend: c.cur.spend, confidence: 'high', title: `${label}: ${c.days} يوم بدون نتائج، أوقفها`,
           change: 'أوقف الحملة وحوّل صرفها للحملات اللي تجيب نتائج.', why: RULE.stop_cpl.why, risk: RULE.stop_cpl.risk, evidence: [`${c.days} يوم صرف بدون ولا نتيجة`],
           success: { metric: 'الصرف على حملات بلا نتائج', goal: 'صفر خلال أسبوع' } });
       if (rule.kind === 'reduce' && c.live && c.cur.spend > 0)
@@ -220,7 +224,7 @@ export function recommend(x: Input): Report {
     // Stop: the cost per lead is over the stop line with enough leads behind it
     if (decidable && cc != null && cc >= stopLine && gate('stop_cpl', p, name)) {
       const l3 = cpl(last3), pause = l3 != null && l3 >= stopLine;
-      push({ rule: 'stop_cpl', platform: p, campaign: name, kind: pause ? 'pause' : 'budget_down', weight: 90, spend: c.cur.spend, confidence: c.cur.leads >= 30 ? 'high' : 'medium', judge: judgeOf(p, 'cpl'),
+      push({ rule: 'stop_cpl', platform: p, campaign: name, kind: pause ? 'pause' : 'budget_down', act: pause ? { op: 'status', to: 'paused' } : { op: 'budget_pct', pct: -20 }, weight: 90, spend: c.cur.spend, confidence: c.cur.leads >= 30 ? 'high' : 'medium', judge: judgeOf(p, 'cpl'),
         title: pause ? `${label}: الـ CPL فوق حد الإيقاف، أوقفها` : `${label}: الـ CPL فوق حد الإيقاف، خفّض ميزانيتها`,
         change: pause ? 'أوقف الحملة وحوّل صرفها للحملات اللي تحت الحد. القرار للمشتري الإعلامي.' : 'خفّض الميزانية اليومية بحدود 20%. لو بقي الـ CPL فوق الحد 3 أيام أوقفها.',
         why: RULE.stop_cpl.why, risk: RULE.stop_cpl.risk,
@@ -235,7 +239,7 @@ export function recommend(x: Input): Report {
       const daily = c.cur.spend / T.windowDays;
       const next = plan?.ladder?.filter(v => v > daily * 1.02).sort((a, b) => a - b)[0];
       const step = next ? Math.min(T.scaleStepMax, (next - daily) / daily) : T.scaleStepMax;
-      if (step >= T.scaleStepMin) push({ rule: 'scale_up', platform: p, campaign: name, kind: 'budget_up', weight: 55, spend: c.cur.spend, confidence: c.cur.leads >= 30 ? 'high' : 'medium', judge: judgeOf(p, 'cpl'),
+      if (step >= T.scaleStepMin) push({ rule: 'scale_up', platform: p, campaign: name, kind: 'budget_up', act: { op: 'budget_pct', pct: Math.round(step * 100) }, weight: 55, spend: c.cur.spend, confidence: c.cur.leads >= 30 ? 'high' : 'medium', judge: judgeOf(p, 'cpl'),
         title: `${label}: الـ CPL تحت الهدف، وسّع الميزانية`, change: `ارفع الميزانية اليومية بنسبة ${Math.round(step * 100)}% (متوسط الصرف الحالي ${sar(daily)} باليوم)${next ? '، وهذي خطوة تقترب من الدرجة التالية في خطة الميزانية' : ''}، وانتظر 3 أيام قبل أي زيادة ثانية.`,
         why: RULE.scale_up.why, risk: RULE.scale_up.risk, evidence: [`الـ CPL آخر ${T.windowDays} أيام ${sar(cc)} مقابل هدف ${sar(tgt.cpl)}`, `تحت الهدف ${T.scaleDaysAtTarget} أيام متتالية`, `${r0(c.cur.leads)} ليد في الفترة`],
         success: { metric: 'الـ CPL بعد الزيادة', goal: `تحت ${sar(tgt.cpl)} بعد 3 أيام، والليدز ترتفع تقريباً بنفس النسبة` } });

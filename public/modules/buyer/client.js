@@ -1,5 +1,6 @@
 // الميديا باير: يقرأ التوصيات من /api/buyer/report ويعرضها مرتبة: وش يتغير، ليش، المخاطر، مقياس النجاح، ومن ينفّذ.
 import { $, api, say, esc, shell, busy, fmt, when, failure } from '/assets/common.js';
+import { mountExec, proposeOne } from '/modules/buyer/exec.js';
 
 const PLAT = { meta: 'ميتا', snapchat: 'سناب شات', tiktok: 'تيك توك', google: 'جوجل' };
 const KIND = { pause: 'إيقاف', budget_down: 'تخفيض ميزانية', budget_up: 'توسيع ميزانية', refresh_creative: 'مادة جديدة', hold: 'انتظر', review: 'افحص', shift_budget: 'نقل ميزانية', schedule: 'جدولة', resume: 'تشغيل' };
@@ -25,7 +26,8 @@ export default async function mount() {
           <div><dt>مقياس النجاح:</dt> <dd>${esc(x.success.metric)}: ${esc(x.success.goal)}. نتحقق بعد ${esc(x.success.checkAfterDays.join(' و'))} أيام.</dd></div>
           ${x.followUp ? `<div><dt>مهمة متابعة:</dt> <dd>${esc(x.followUp)}</dd></div>` : ''}
           ${x.open ? `<div><dt>قرار مفتوح عند لين:</dt> <dd>${esc(x.open)}</dd></div>` : ''}</dl>
-          <ul>${(x.evidence || []).map(e => `<li>${esc(e)}</li>`).join('')}</ul></article>`).join('')
+          <ul>${(x.evidence || []).map(e => `<li>${esc(e)}</li>`).join('')}</ul>
+          ${x.act || x.kind === 'shift_budget' ? `<div class="bar by-btns"><button class="btn sm secondary" type="button" data-propose="${esc(x.id)}">جهّز إجراء مقترح</button></div>` : ''}</article>`).join('')
         : `<div class="card pad" style="text-align:center"><b>${esc(r.note || 'ما فيه توصية الحين.')}</b><p class="muted" style="margin:6px 0 0">الأرقام ضمن القاعدة، وما فيه تغيير مطلوب.</p></div>`;
       const G = r.gated || [];
       $('#gated').hidden = !G.length;
@@ -36,7 +38,9 @@ export default async function mount() {
   }
   await shell({ active: 'buyer', title: 'الميديا باير', tools: '<button class="btn sm secondary" type="button" id="again">حلّل من جديد</button>' });
   $('#again')?.addEventListener('click', e => load(e.currentTarget));
+  $('#list').addEventListener('click', e => { const b = e.target.closest('[data-propose]'); if (b) proposeOne(b.dataset.propose, b); });
   await load();
+  mountExec();
   rules();
 }
 
