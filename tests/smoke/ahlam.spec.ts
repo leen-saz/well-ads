@@ -171,4 +171,31 @@ test.describe('احلم', () => {
       expect(sent).toMatchObject({ index: 0, answer: 'Fifty thousand' });
     });
   }
+  for (const lang of ['ar', 'en'] as const) {
+    test(`${lang}: an approved campaign with no tasks shows a clear run button above the pack; pressing it runs a step; a planned one does not show it`, async ({ page, context, request }) => {
+      await addSession(context, await login(request, 'owner'));
+      let steps = 0;
+      const old = { ...PACK, campaign: { ...PACK.campaign, status: 'approved' }, tasks: [], outputs: [] };
+      await page.route('**/api/campaigns/get**', r => r.fulfill({ json: steps ? { ...PACK, campaign: { ...PACK.campaign, status: 'done' } } : old }));
+      await page.route('**/api/campaigns/list', r => r.fulfill({ json: { campaigns: [{ id: 'c1', title: 'Old', status: 'approved', estimate_usd: 0.05, created_at: '2026-11-01T00:00:00Z' }], mayApprove: true } }));
+      await page.route('**/api/campaigns/step', r => { steps++; return r.fulfill({ json: { done: true, status: 'done' } }); });
+      await page.goto('/today/?tab=campaign' + (lang === 'en' ? '&lang=en' : ''));
+      await page.locator('.cm-list button').first().click();
+      const run = page.locator('.cm-run #cmRun');
+      await expect(run).toHaveText(lang === 'en' ? 'Run the agents' : 'شغّل الإيجنتس');
+      // above the pack, not at the bottom
+      expect(await page.evaluate(() => { const a = document.querySelector('.cm-run')!, b = document.querySelector('#cmPack')!; return !!(a.compareDocumentPosition(b) & Node.DOCUMENT_POSITION_FOLLOWING); })).toBe(true);
+      await run.click();
+      await expect.poll(() => steps).toBeGreaterThan(0);
+    });
+  }
+  test('a planned campaign has no run button (it must be approved first)', async ({ page, context, request }) => {
+    await addSession(context, await login(request, 'owner'));
+    await page.route('**/api/campaigns/get**', r => r.fulfill({ json: { ...PACK, campaign: { ...PACK.campaign, status: 'planned', approved_by: null }, tasks: [] , outputs: [] } }));
+    await page.route('**/api/campaigns/list', r => r.fulfill({ json: { campaigns: [{ id: 'c1', title: 'P', status: 'planned', estimate_usd: 0.05, created_at: '2026-11-01T00:00:00Z' }], mayApprove: true } }));
+    await page.goto('/today/?tab=campaign');
+    await page.locator('.cm-list button').first().click();
+    await expect(page.locator('#cmOk')).toBeVisible();
+    await expect(page.locator('#cmRun')).toHaveCount(0);
+  });
 });

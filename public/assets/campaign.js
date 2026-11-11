@@ -117,7 +117,9 @@ export function mountCampaign(root, me, L) {
     try { d = await api('/api/campaigns/get?id=' + encodeURIComponent(id)); } catch (err) { frame(''); say(msg(), err.message); return showListLater(); }
     if (mine !== view) return;
     const c = d.campaign, b = c.brief || {}, planned = c.status === 'planned', started = ['approved', 'running', 'review', 'done'].includes(c.status);
-    const live = c.status === 'approved' || c.status === 'running';
+    // runnable: approved (no new approval needed), or stopped with tasks left; planned/cancelled/done never
+    const live = c.status === 'approved' || c.status === 'running' || (c.status === 'review' && !!c.approved_by && d.tasks.some(t => t.status === 'waiting'));
+    const waitingN = d.tasks.filter(t => t.status === 'waiting').length;
     const li = a => (a || []).map(x => `<li>${esc(x)}</li>`).join('');
     const outs = t => d.outputs.filter(o => o.task_id === t.id);
     const tasks = d.tasks.map(t => `<li>${dot(t.status)} <b>${esc(pick(AGENT, t.agent))}</b> · ${esc(t.title)}${t.spec?.detail && !started ? `<br><span class="muted">${esc(t.spec.detail)}</span>` : ''}
@@ -137,13 +139,15 @@ export function mountCampaign(root, me, L) {
           <button class="btn" data-qs="${i}" type="button">${esc(started ? L('احفظ وأعد توليد الجزء المتأثر', 'Save and rewrite the affected part') : L('احفظ الجواب', 'Save the answer'))}</button>
           ${(x.affects || []).length ? `<small class="muted">${esc(L('يؤثر على:', 'Affects:'))} ${esc(x.affects.map(a => pick(AGENT, a)).join('، '))}</small>` : ''}</li>`).join('')}</ul>
         ${started ? `<p class="muted">${esc(L('المسودات اللي انحفظت قبل في السوشال تبقى هناك، والجديدة تنضاف جنبها.', 'Drafts already saved in Social stay there; the new ones are added beside them.'))}</p>` : ''}</section>` : ''}
+      ${live ? `<section class="cm-run"><div><b>${esc(L('الإيجنتس جاهزة للتشغيل', 'The agents are ready to run'))}</b>
+        <p class="muted">${esc(d.tasks.length ? L(`${waitingN} مهام تنتظر. التشغيل ما يحتاج اعتماد جديد، وكل شي مسودات.`, `${waitingN} tasks waiting. No new approval is needed, and everything is a draft.`) : L('ما فيه مهام محفوظة لهذي الحملة: بنجهّز الخطة القياسية أول ما تضغط، وبعدها يبدأ التنفيذ.', 'No tasks are saved for this campaign: the standard plan is prepared as soon as you press, and then the run starts.'))}</p></div>
+        <button class="btn primary" id="cmRun" type="button"${auto ? ' disabled' : ''}>${esc(auto ? L('يشتغل…', 'Running…') : L('شغّل الإيجنتس', 'Run the agents'))}</button></section>` : ''}
       <section id="cmPack"><h3>${esc(started ? L('حزمة الحملة', 'Campaign pack') : L('الخطة: مين يسوي وش', 'The plan: who does what'))}</h3><ol class="cm-tasks">${tasks}</ol>
         ${started ? `<p class="muted">${esc(L('كل شي هنا مسودات ووثائق. المنشورات تنحفظ مسودة في السوشال وما تنشر إلا بعد اعتماد المعتمد هناك. ما يتغيّر أي حساب إعلاني.', 'Everything here is drafts and documents. Posts are saved as drafts in Social and only go out once its approver approves them there. No ad account is changed.'))}</p>` : ''}</section>
       <section class="cm-cost"><b>${esc(L('التكلفة المتوقعة قبل التشغيل:', 'Expected cost before running:'))} ${esc(sar(c.estimate_usd))}</b>
         <p class="muted">${esc(L('تقدير تقريبي حسب الموديل المختار. الصرف الفعلي يظهر في «الصرف على الذكاء الاصطناعي» ويلتزم بالسقف الشهري.', 'A rough estimate for the chosen model. Actual spend shows in AI spend and follows the monthly cap.'))}</p>
         ${d.capped ? `<p class="msg err">${esc(L('وصل السقف الشهري لاحلم: التنفيذ بيكون على الموديل المجاني أو يتوقف.', "Ahlam's monthly cap is reached: the run will use the free model or stop."))}</p>` : ''}</section>
       <div class="cm-actions">${planned && d.mayApprove ? `<button class="btn primary" id="cmOk" type="button">${esc(L('اعتمد الخطة والتكلفة', 'Approve the plan and cost'))}</button>` : ''}
-        ${live ? `<button class="btn primary" id="cmRun" type="button"${auto ? ' disabled' : ''}>${esc(auto ? L('يشتغل…', 'Running…') : L('شغّل المهام', 'Run the tasks'))}</button>` : ''}
         ${started ? `<button class="btn" id="cmDl" type="button">${esc(L('نزّل الحزمة (Markdown)', 'Download the pack (Markdown)'))}</button><button class="btn" id="cmCp" type="button">${esc(L('انسخ الحزمة', 'Copy the pack'))}</button>` : ''}
         ${['planned', 'approved', 'running', 'review'].includes(c.status) ? `<button class="btn" id="cmNo" type="button">${esc(L('إلغاء الحملة', 'Cancel the campaign'))}</button>` : ''}</div>
       ${planned && !d.mayApprove ? `<p class="muted">${esc(L('الاعتماد لمن عنده صلاحية الموافقة. أرسل له الخطة.', 'Approval needs someone with approval rights. Send them the plan.'))}</p>` : ''}

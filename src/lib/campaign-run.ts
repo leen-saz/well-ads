@@ -145,3 +145,18 @@ export function affectedTasks(tasks: TaskRow[], agents: Agent[]): number[] {
   for (let grew = true; grew;) { grew = false; for (const t of tasks) if (!pos.has(t.position) && t.depends_on.some(d => pos.has(d))) { pos.add(t.position); grew = true; } }
   return tasks.filter(t => pos.has(t.position)).map(t => t.id);
 }
+
+// A campaign approved before the tasks ran (or whose tasks were never saved) has none: this is the plan it gets, the same shape the planner
+// makes (knowledge, then the writers, then the compliance gate, then the budget and measurement plan). No AI call: the brief and wishes
+// already say what the campaign is about, and each agent reads them when its task runs.
+export function defaultTasks(): { agent: Agent; title: string; detail: string; after: number[] }[] {
+  return [
+    { agent: 'knowledge', title: 'سياق الحملة وما اشتغل قبل', detail: 'اجمع من المعرفة ومن أرقام الإعلانات السابقة ما يفيد هذي الحملة.', after: [] },
+    { agent: 'content', title: 'النصوص الإعلانية والمحتوى', detail: 'ثلاث صيغ لنص إعلاني وهيكل مقال أو صفحة هبوط وكلمات مفتاحية.', after: [0] },
+    { agent: 'design', title: 'بريف التصميم', detail: 'الفكرة البصرية وقطع التصميم والمقاسات.', after: [0, 1] },
+    { agent: 'voice', title: 'سكربت الفويس أوفر', detail: 'نص فويس أوفر قصير مع ملاحظات الأداء.', after: [1] },
+    { agent: 'social', title: 'الكابشنز وجدول النشر', detail: 'مسودات منشورات للمنصات المطلوبة مع يوم النشر المقترح.', after: [1] },
+    { agent: 'compliance', title: 'فحص الامتثال لكل القطع', detail: '', after: [1, 2, 3, 4] },
+    { agent: 'optimize', title: 'تقسيم الميزانية وخطة القياس', detail: 'وثيقة للمشتري الإعلامي.', after: [5] },
+  ];
+}
