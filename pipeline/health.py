@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""فحص صحة البيانات بعد كل تحديث. إذا فيه مشكلة يفشل الـworkflow، وGitHub يرسل إيميل تنبيه تلقائياً.
+"""فحص صحة البيانات بعد كل تحديث (يشتغل دائماً: `if: always()`، حتى لو فشلت خطوة قبله). إذا فيه مشكلة يفشل الـworkflow، وGitHub يرسل إيميل تنبيه تلقائياً.
 
 يفشل (= إيميل) بس في 4 تشغيلات باليوم (9 الصبح، 1 الظهر، 5 العصر، 9 الليل بتوقيت الرياض) عشان ما يزعج كل ساعة.
 باقي الساعات يكتب المشكلة في ملخص التشغيل بس.
@@ -44,10 +44,20 @@ def check(data, now):
     return problems, notes
 
 
+def load(path="data.json"):
+    """The run's data file, or None when an earlier step failed before writing it (the step runs with `if: always()`)."""
+    try:
+        with open(path, encoding="utf-8") as f:
+            data = json.load(f)
+        return data if isinstance(data, dict) else None
+    except (OSError, ValueError):
+        return None
+
+
 def main():
-    data = json.load(open("data.json", encoding="utf-8"))
+    data = load()
     now = datetime.now(RIYADH)
-    problems, notes = check(data, now)
+    problems, notes = check(data, now) if data is not None else (["ما فيه ملف بيانات لهذا التشغيل: خطوة سابقة فشلت قبل ما تكتبه"], [])
     lines = ["## صحة البيانات", ""] + ([f"- ❌ {p}" for p in problems] or ["- ✅ كل المنصات محدّثة"]) + [""] + [f"- ⚠️ {n}" for n in notes]
     print("\n".join(lines))
     out = os.environ.get("GITHUB_STEP_SUMMARY")
