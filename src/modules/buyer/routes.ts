@@ -55,6 +55,8 @@ export const rules = {
     const b = await readJson(request, 100_000);
     const c = cleanRules(b.rules);
     if ('error' in c) return json(400, { error: c.error });
+    // A preview: the same validation, nothing saved
+    if (b.dry === true) return json(200, { ok: true, dry: true, rules: c.rules });
     const s = await settings(cfg);
     for (const p of PLATS) {
       const existing = s.rows.find(r => r.platform === DB_KEY[p]);

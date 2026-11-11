@@ -198,3 +198,11 @@ describe('learning loop', () => {
     expect(tune(Array.from({ length: 10 }, () => o('fatigue', 'refresh_creative', 10, 8)))[0]!.proposal).toContain('تخفف');
   });
 });
+
+describe('import preview', () => {
+  it('the validation behind the preview keeps the open decisions and refuses a bad file as one piece', () => {
+    const ok = cleanRules([{ id: 'x', kind: 'scale', platform: 'snapchat', match: ['a'], maxCpl: 8, open: 'مفتوح' }]);
+    expect('rules' in ok && ok.rules[0]!.open).toBe('مفتوح');
+    expect(cleanRules([{ id: 'x', kind: 'scale', platform: 'snapchat', match: ['a'], maxCpl: 8 }, { id: 'x', kind: 'reduce', platform: 'google', match: ['b'] }])).toHaveProperty('error');
+  });
+});

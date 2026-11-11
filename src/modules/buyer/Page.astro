@@ -31,6 +31,9 @@ import { ClientRouter } from 'astro:transitions';
 .by-r dl{display:grid;gap:4px;margin:0;font-size:14px}
 .by-r dt{font-weight:700;display:inline}
 .by-r dd{display:inline;margin:0}
+.by-open{background:var(--pulse);color:#fff}
+.by-prev{width:100%;border-collapse:collapse;font-size:13px}
+.by-prev th,.by-prev td{padding:6px 8px;text-align:start;border-bottom:1px solid var(--line)}
 .by-r ul{margin:0;padding-inline-start:18px;font-size:13px;color:var(--muted)}
 </style>
 </head>
@@ -45,6 +48,17 @@ import { ClientRouter } from 'astro:transitions';
       <div class="by-sum" id="sum"></div>
       <div class="bar" style="justify-content:space-between;margin:0 0 10px"><h2 style="margin:0">التوصيات</h2></div>
       <div class="by-list" id="list"><p class="muted">يحلل…</p></div>
+      <section class="card pad" id="rulesBox" hidden style="margin:16px 0 0">
+        <div class="bar" style="justify-content:space-between;margin:0 0 8px"><h2 style="margin:0">قواعد الشركة</h2><div class="bar"><button class="btn sm secondary" type="button" id="rulesExport">تصدير</button><button class="btn sm" type="button" id="rulesImport">استيراد القواعد</button></div></div>
+        <p class="muted" id="rulesInfo" style="margin:0 0 8px"></p>
+        <div id="rulesForm" hidden>
+          <p class="muted" style="margin:0 0 8px">ارفع ملف JSON أو الصق نصه. تنحفظ في قاعدة البيانات فقط، والملف ما يدخل الريبو.</p>
+          <input type="file" id="rulesFile" accept="application/json,.json" style="margin:0 0 8px">
+          <textarea id="rulesText" rows="6" dir="ltr" style="width:100%;font:13px var(--f-num,monospace)" placeholder='{"rules":[...]}'></textarea>
+          <div class="bar" style="margin:8px 0 0"><button class="btn sm secondary" type="button" id="rulesPreview">معاينة</button></div>
+          <div id="rulesPrev" style="margin:10px 0 0"></div>
+        </div>
+      </section>
       <details class="card pad" id="gated" hidden style="margin:16px 0 0"><summary><b>توصيات وقفها الحكم</b></summary><ul id="gatedList" class="muted"></ul></details>
       <div class="msg" id="msg" role="status"></div>
     </main>
