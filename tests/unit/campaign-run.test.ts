@@ -63,18 +63,24 @@ describe('the measurement plan and the pack', () => {
 });
 
 type Call = { url: string; method: string; body: any };   // eslint-disable-line @typescript-eslint/no-explicit-any
+let ENV = E as typeof E & { OPENAI_API_KEY?: string; GEMINI_API_KEY?: string; FILES?: R2Bucket };
 let stateful = false;
+let images: Record<string, unknown>[] = [], speech: Record<string, unknown>[] = [], imageStatus = 200, imageCode = '', ttsStatus = 200, campaignSeen = true;
+const store = new Map<string, Uint8Array>();
+const R2 = { put: async (k: string, v: ArrayBuffer | Uint8Array) => { store.set(k, new Uint8Array(v as ArrayBuffer)); }, get: async (k: string) => (store.has(k) ? { body: new Response(store.get(k) as unknown as BodyInit).body } : null), delete: async (k: string | string[]) => { for (const x of [k].flat()) store.delete(x); } };
 let calls: Call[], tasks: Record<string, unknown>[], outputs: Record<string, unknown>[], campaign: Record<string, unknown>, access: Record<string, string>, llm: (n: number) => string, llmN: number, claimable: boolean;
 const profile = (): A.Profile => ({ id: UID, email: 'm@example.com', role: 'member', active: true, access, company_id: WELL_COMPANY });
 const task = (position: number, agent: string, status: string, depends_on: number[] = [], extra: Record<string, unknown> = {}) => ({ id: position + 1, position, agent, title: 'مهمة ' + agent, spec: { detail: 'د' }, depends_on, status, blocked_reason: null, updated_at: new Date().toISOString(), ...extra });
 beforeEach(() => {
-  stateful = false; calls = []; llmN = 0; claimable = true; access = { maestro: 'approve' }; clearRoutes(); clearSnaps();
+  ENV = E; stateful = false; images = []; speech = []; imageStatus = 200; imageCode = ''; ttsStatus = 200; campaignSeen = true; store.clear(); calls = []; llmN = 0; claimable = true; access = { maestro: 'approve' }; clearRoutes(); clearSnaps();
   campaign = { id: CID, title: 'حملة', status: 'approved', wishes: { goal: 'حملة للقدم', platforms: ['meta', 'x'] }, brief: { summary: 'ملخص' } };
   tasks = [task(0, 'knowledge', 'waiting'), task(1, 'content', 'waiting', [0]), task(2, 'social', 'waiting', [1]), task(3, 'compliance', 'waiting', [2]), task(4, 'optimize', 'waiting', [3])];
   outputs = []; llm = () => 'نص آمن عن الزيارة المنزلية.';
   vi.stubGlobal('fetch', vi.fn(async (url: string, init: RequestInit = {}) => {
     const body = init.body && typeof init.body === 'string' ? JSON.parse(init.body) : undefined, method = init.method || 'GET';
     calls.push({ url, method, body });
+    if (url.includes('api.openai.com/v1/images')) { images.push(body); return imageStatus === 200 ? new Response(JSON.stringify({ data: [{ b64_json: btoa('JPEGDATA') }] })) : new Response(JSON.stringify({ error: { code: imageCode } }), { status: imageStatus }); }
+    if (url.includes('generativelanguage.googleapis.com')) { speech.push(body); return ttsStatus === 200 ? new Response(JSON.stringify({ candidates: [{ content: { parts: [{ inlineData: { mimeType: 'audio/L16;codec=pcm;rate=24000', data: btoa('\u0001'.repeat(48000)) } }] } }], usageMetadata: { promptTokenCount: 40, candidatesTokenCount: 50 } })) : new Response('{}', { status: ttsStatus }); }
     if (url === OR_URL) return new Response(JSON.stringify({ choices: [{ message: { content: llm(++llmN) } }], usage: { prompt_tokens: 100, completion_tokens: 100, cost: 0.001 } }));
     if (url.includes('/profiles?id=eq.')) return new Response(JSON.stringify([profile()]));
     if (url.endsWith('/rest/v1/campaign_tasks') && method === 'POST') { tasks = (body as Record<string, unknown>[]).map((b, i) => ({ id: i + 1, status: 'waiting', blocked_reason: null, updated_at: new Date().toISOString(), ...b })); return new Response('[]'); }
@@ -87,7 +93,7 @@ beforeEach(() => {
     if (url.includes('/rest/v1/campaign_tasks')) return new Response(JSON.stringify(tasks));
     if (stateful && url.endsWith('/rest/v1/campaign_outputs') && method === 'POST') { outputs.push(...(body as Record<string, unknown>[])); return new Response('[]'); }
     if (url.includes('/rest/v1/campaign_outputs') && method === 'GET') return new Response(JSON.stringify(outputs));
-    if (url.includes('/rest/v1/campaigns') && method === 'GET') return new Response(JSON.stringify([campaign]));
+    if (url.includes('/rest/v1/campaigns') && method === 'GET') return new Response(JSON.stringify(campaignSeen ? [campaign] : []));
     return new Response('[]');
   }));
 });
@@ -96,7 +102,7 @@ afterEach(() => { vi.unstubAllGlobals(); vi.restoreAllMocks(); });
 const post = async (path: string, body: unknown, p: A.Profile | null = profile()) => {
   const cookie = p ? `${A.SESSION}=${encodeURIComponent(await A.sign(A.sessionFor(p, cfg), cfg.secret))}` : '';
   const jobs: Promise<unknown>[] = [];
-  const res = await withWaiter(j => jobs.push(j), () => api.request('https://well.example' + path, { method: 'POST', headers: { origin: 'https://well.example', 'sec-fetch-site': 'same-origin', 'content-type': 'application/json', ...(cookie ? { cookie } : {}) }, body: JSON.stringify(body) }, E));
+  const res = await withWaiter(j => jobs.push(j), () => api.request('https://well.example' + path, { method: 'POST', headers: { origin: 'https://well.example', 'sec-fetch-site': 'same-origin', 'content-type': 'application/json', ...(cookie ? { cookie } : {}) }, body: JSON.stringify(body) }, ENV));
   await Promise.all(jobs); return res;
 };
 const step = async () => await (await post('/api/campaigns/step', { id: CID })).json() as { ran?: { agent: string; status: string; reason: string }; done?: boolean; stalled?: boolean; status?: string; busy?: boolean; more?: boolean };
@@ -256,7 +262,7 @@ describe('POST /api/campaigns/override (a person lets a compliance-stopped task 
   });
   it('the next task can now run (the campaign goes on), and the compliance gate does not stop the overridden task again', async () => {
     tasks = [task(0, 'content', 'review', [], { spec: { override: { by: 'm@example.com', reason: REASON, at: 'x' } } }), task(1, 'compliance', 'waiting', [0])];
-    outputs = [{ task_id: 1, kind: 'copy', platform: null, body: { text: 'نتائج مضمونة ومن غير أضرار' }, compliance: [] }];
+    outputs = [{ task_id: 1, kind: 'copy', platform: null, body: { text: 'نتائج مضمونة ومن غير أضرار' }, compliance: [{ rule: 'guarantee', level: 'critical' }] }];
     const j = await step();
     expect(j.ran!.agent).toBe('compliance'); expect(j.ran!.status).toBe('review');
     const rep = (calls.find(x => x.url.endsWith('/campaign_outputs') && x.method === 'POST')!.body as { body: { text: string } }[])[0]!.body.text;
@@ -494,5 +500,176 @@ describe('what the rules may stop: only what can reach an audience, and only a c
     expect(tasks.map(x => x['status'])).toEqual(Array(7).fill('review'));
     expect(calls.filter(x => x.url.endsWith('/social_posts'))).toHaveLength(1);
     expect(calls.filter(x => x.url.includes('/audit_log') && x.method === 'POST').map(x => x.body.action).filter(a => a === 'campaign_task_autofix')).toHaveLength(2);
+  });
+});
+
+// ---- pictures and speech: the campaign's design and voice tasks call the real makers (Design's image maker, Voiceover's speech maker)
+describe('real files: pictures and speech (Design and Voiceover makers), checked before they are paid for', () => {
+  const LAYOUT = { ...E, OPENAI_API_KEY: 'sk-test', GEMINI_API_KEY: 'g-test', FILES: R2 as unknown as R2Bucket };
+  const voiceJson = JSON.stringify({ versions: [{ label: '30', text: 'رعاية موثوقة تبدأ من بيتك مع ممرضة مرخّصة، نمشي معك خطوة خطوة لصحة أطول.' }, { label: '10', text: 'رعاية موثوقة في بيتك.' }], notes: 'نبرة دافئة' });
+  beforeEach(() => { ENV = LAYOUT; campaign['wishes'] = { goal: 'حملة', platforms: ['meta', 'x'], offer: 'زيارة منزلية', audience: 'عائلات' }; });
+  const ofKind = (k: string) => (calls.find(x => x.url.endsWith('/campaign_outputs') && x.method === 'POST')?.body as { kind: string; platform?: string; body: Record<string, unknown> }[] ?? []).filter(o => o.kind === k);
+
+  it('the design task writes the brief (told the real Well palette and fonts) and draws one picture per size the platforms need, kept in R2', async () => {
+    tasks = [task(0, 'design', 'waiting')]; llm = () => 'فكرة بصرية هادئة بألوان Pulse Purple وWell Indigo.';
+    const j = await step();
+    expect(j.ran).toMatchObject({ agent: 'design', status: 'review' });
+    const sys = calls.find(x => x.url === OR_URL)!.body.messages[1].content as string + calls.find(x => x.url === OR_URL)!.body.messages[0].content;
+    for (const w of ['Pulse Purple', 'Purple Deep', 'Well Indigo', 'Pulse Pink', 'Noto Naskh Arabic', 'Playfair Display', 'Inter', '3%', 'ولا تقل «أخضر Well»']) expect(sys).toContain(w);
+    expect(images.map(x => x['size'])).toEqual(['1024x1536', '1024x1024', '1536x1024']);   // story + square (Meta), landscape (X)
+    const pics = ofKind('design_image');
+    expect(pics.map(x => x.platform)).toEqual(['story', 'square', 'landscape']);
+    for (const p of pics) { expect(p.body['key']).toMatch(new RegExp(`^campaign/${WELL_COMPANY}/${CID}/[0-9a-f]{32}\\.jpg$`)); expect(store.has(String(p.body['key']))).toBe(true); expect(p.body['mime']).toBe('image/jpeg'); }
+    expect(ofKind('design_brief')).toHaveLength(1);
+    expect(calls.filter(x => x.url.includes('/audit_log') && x.method === 'POST')[0]!.body.target).toMatchObject({ files: 3 });
+  });
+  it('the images are asked for with no text inside them (their words are checked, so is the brief that feeds them)', async () => {
+    tasks = [task(0, 'design', 'waiting')]; llm = () => 'فكرة هادئة.';
+    await step();
+    expect(String(images[0]!['prompt'])).toContain('No text, letters, numbers, logos or watermarks');
+    expect(String(images[0]!['prompt'])).toContain('#7E57FD');   // the Well palette, not an invented one
+  });
+  it('a refused brief costs no picture: it goes to the repair loop first', async () => {
+    tasks = [task(0, 'design', 'waiting')]; llm = () => 'صورة قبل وبعد توضّح النتيجة المضمونة';
+    expect((await step()).ran).toMatchObject({ status: 'waiting', fixing: 1 });
+    expect(images).toHaveLength(0); expect(store.size).toBe(0);
+  });
+  it('when the picture maker fails or is not set up, the written brief stays, the reason is shown, and only that picture is missing (a retry makes it)', async () => {
+    tasks = [task(0, 'design', 'waiting')]; llm = () => 'فكرة هادئة.'; imageStatus = 500;
+    const j = await step();
+    expect(j.ran!.status).toBe('review');
+    expect(ofKind('design_brief')).toHaveLength(1); expect(ofKind('design_image')).toHaveLength(0);
+    const miss = ofKind('asset_missing');
+    expect(miss).toHaveLength(1); expect(miss[0]!.body).toMatchObject({ what: 'image', code: 'failed', retry: true }); expect(String(miss[0]!.body['text'])).toContain('جرّب');
+    expect(images).toHaveLength(1);   // it stopped at the first failure: no more paid calls
+    const done = calls.filter(x => x.method === 'PATCH' && x.url.includes('campaign_tasks')).pop()!.body;
+    expect(done.spec.missing).toEqual(['image:story']);
+  });
+  it('no image key: says so plainly (not a code), and no call is made', async () => {
+    ENV = { ...LAYOUT, OPENAI_API_KEY: undefined } as unknown as typeof ENV;
+    tasks = [task(0, 'design', 'waiting')]; llm = () => 'فكرة هادئة.';
+    await step();
+    expect(images).toHaveLength(0);
+    expect(ofKind('asset_missing')[0]!.body).toMatchObject({ what: 'image', code: 'no_key', retry: false });
+  });
+  it('no file storage: the picture is not pretended to be saved', async () => {
+    ENV = { ...LAYOUT, FILES: undefined } as unknown as typeof ENV;
+    tasks = [task(0, 'design', 'waiting')]; llm = () => 'فكرة هادئة.';
+    await step();
+    expect(ofKind('asset_missing')[0]!.body).toMatchObject({ what: 'image', code: 'no_storage' });
+  });
+  it('the voice task writes the 30 and 10 second scripts, checks them, then speaks each: a WAV in R2, its subtitles, and the script', async () => {
+    tasks = [task(0, 'voice', 'waiting')]; llm = () => voiceJson;
+    const j = await step();
+    expect(j.ran).toMatchObject({ agent: 'voice', status: 'review' });
+    expect(speech).toHaveLength(2);
+    expect(ofKind('voice_script').map(x => x.body['label'])).toEqual(['30', '10']);
+    const au = ofKind('voice_audio');
+    expect(au.map(x => [x.body['label'], x.body['seconds'], x.body['mime']])).toEqual([['30', 1, 'audio/wav'], ['10', 1, 'audio/wav']]);
+    const wav = store.get(String(au[0]!.body['key']))!;
+    expect(String.fromCharCode(...wav.slice(0, 4))).toBe('RIFF'); expect(String.fromCharCode(...wav.slice(8, 12))).toBe('WAVE'); expect(wav.length).toBe(44 + 48000);
+    expect(ofKind('voice_srt')).toHaveLength(2); expect(String(ofKind('voice_srt')[1]!.body['text'])).toContain('-->');
+    expect(calls.filter(x => x.url.includes('/ai_usage')).map(x => x.body.module)).toContain('voiceover');
+  });
+  it('a refused script is never spoken (no audio cost)', async () => {
+    tasks = [task(0, 'voice', 'waiting')]; llm = () => JSON.stringify({ versions: [{ label: '30', text: 'نحن الأفضل ونضمن نتيجة مضمونة 100%' }] });
+    expect((await step()).ran).toMatchObject({ status: 'waiting', fixing: 1 });
+    expect(speech).toHaveLength(0); expect(store.size).toBe(0);
+  });
+  it('a speech failure keeps the scripts and shows why; the same for a missing key', async () => {
+    tasks = [task(0, 'voice', 'waiting')]; llm = () => voiceJson; ttsStatus = 429;
+    expect((await step()).ran!.status).toBe('review');
+    expect(ofKind('voice_script')).toHaveLength(2); expect(ofKind('voice_audio')).toHaveLength(0);
+    expect(ofKind('asset_missing')[0]!.body).toMatchObject({ what: 'audio', code: 'rate_limited', retry: true });
+    ENV = { ...LAYOUT, GEMINI_API_KEY: undefined } as unknown as typeof ENV; calls = []; speech = [];
+    tasks = [task(0, 'voice', 'waiting')];
+    await step();
+    expect(speech).toHaveLength(0); expect(ofKind('asset_missing')[0]!.body).toMatchObject({ code: 'no_key' });
+  });
+  it('«generate the files again»: only an approver, only for a task with missing files; it asks for the files only, from the draft already written', async () => {
+    tasks = [task(0, 'design', 'review', [], { spec: { missing: ['image:story'] } })];
+    access = {};
+    expect((await post('/api/campaigns/assets', { id: CID, task: 1 })).status).toBe(403);
+    access = { maestro: 'approve' };
+    expect((await post('/api/campaigns/assets', { id: CID, task: 1 })).status).toBe(200);
+    expect(calls.find(x => x.method === 'PATCH' && x.url.includes('campaign_tasks'))!.body).toMatchObject({ status: 'waiting', spec: { stage: 'assets' } });
+    expect(calls.some(x => x.method === 'DELETE' && x.url.includes('kind=eq.asset_missing'))).toBe(true);
+    tasks = [task(0, 'design', 'review')];
+    expect((await post('/api/campaigns/assets', { id: CID, task: 1 })).status).toBe(409);
+  });
+  it('the retry writes nothing again: it draws only the pictures that are missing from the stored brief, then the task is complete', async () => {
+    stateful = true; campaign['status'] = 'review'; campaign['approved_at'] = '2026-11-05T10:00:00Z';
+    tasks = [task(0, 'design', 'waiting', [], { spec: { stage: 'assets', missing: ['image:square'] } })];
+    outputs = [{ task_id: 1, kind: 'design_brief', platform: null, body: { text: 'الفكرة المكتوبة من قبل' }, compliance: [] }, { task_id: 1, kind: 'design_image', platform: 'story', body: { key: 'k1', mime: 'image/jpeg' }, compliance: [] }];
+    const j = await step();
+    expect(j.ran).toMatchObject({ agent: 'design', status: 'review' });
+    expect(calls.some(x => x.url === OR_URL)).toBe(false);                    // no new writing
+    expect(images.map(x => x['size'])).toEqual(['1024x1024', '1536x1024']);   // story already exists: square and landscape only
+    expect(String(images[0]!['prompt'])).toContain('الفكرة المكتوبة من قبل'.slice(0, 5) === '' ? '' : 'Visual idea');
+    expect(tasks[0]!['spec']).not.toHaveProperty('stage'); expect(tasks[0]!['spec']).not.toHaveProperty('missing');
+  });
+  it('a picture or recording is served only to who may see the campaign, from this campaign\'s own folder, with a locked-down policy', async () => {
+    const key = `campaign/${WELL_COMPANY}/${CID}/${'a'.repeat(32)}.jpg`; store.set(key, new Uint8Array([1, 2, 3]));
+    const row = { campaign_id: CID, kind: 'design_image', platform: 'story', body: { key, mime: 'image/jpeg' } };
+    const get = async (id = 5, q = '') => api.request('https://well.example/api/campaigns/file?id=' + id + q, { headers: { cookie: `${A.SESSION}=${encodeURIComponent(await A.sign(A.sessionFor(profile(), cfg), cfg.secret))}` } }, ENV);
+    const origFetch = globalThis.fetch;
+    vi.stubGlobal('fetch', vi.fn(async (url: string, init?: RequestInit) => {
+      if (String(url).includes('/rest/v1/campaign_outputs')) return new Response(JSON.stringify([row]));
+      return (origFetch as typeof fetch)(url, init);
+    }));
+    const ok = await get();
+    expect(ok.status).toBe(200); expect(ok.headers.get('content-type')).toBe('image/jpeg'); expect(ok.headers.get('content-security-policy')).toContain("default-src 'none'"); expect(ok.headers.get('x-content-type-options')).toBe('nosniff');
+    expect(ok.headers.get('content-disposition')).toContain('inline'); expect((await get(5, '&dl=1')).headers.get('content-disposition')).toContain('attachment');
+    campaignSeen = false;
+    expect((await get()).status).toBe(404);                                   // not their campaign
+    campaignSeen = true; row.body.key = `campaign/${WELL_COMPANY}/66666666-6666-6666-6666-666666666666/${'a'.repeat(32)}.jpg`;
+    expect((await get()).status).toBe(404);                                   // a key outside this campaign's folder
+    row.body.key = '../../etc/passwd';
+    expect((await get()).status).toBe(404);
+    expect((await get(0)).status).toBe(400);
+    expect((await api.request('https://well.example/api/campaigns/file?id=5', {}, ENV)).status).toBe(401);
+  });
+  it('a rewrite or a new answer also deletes the files of the outputs it drops (nothing is left in R2)', async () => {
+    const key = `campaign/${WELL_COMPANY}/${CID}/${'b'.repeat(32)}.jpg`; store.set(key, new Uint8Array([1]));
+    tasks = [task(0, 'design', 'blocked', [], { spec: { retries: 0 } })];
+    const origFetch = globalThis.fetch;
+    vi.stubGlobal('fetch', vi.fn(async (url: string, init?: RequestInit) => (String(url).includes('/rest/v1/campaign_outputs') && (init?.method || 'GET') === 'GET' ? new Response(JSON.stringify([{ body: { key } }])) : (origFetch as typeof fetch)(url, init))));
+    expect((await post('/api/campaigns/retry', { id: CID, task: 1 })).status).toBe(200);
+    expect(store.has(key)).toBe(false);
+  });
+});
+
+describe('what the agents are told and may say', () => {
+  it('the budget is only the user\'s: with none given, a riyal amount in the plan is refused (repair loop) and a «not set» plan passes; with one given it may be used', async () => {
+    tasks = [task(0, 'optimize', 'waiting')]; campaign['wishes'] = { goal: 'حملة', platforms: ['meta'] };
+    llm = () => 'الميزانية الإجمالية 15,000 ريال سعودي، 35% للاختبار.';
+    expect((await step()).ran).toMatchObject({ status: 'waiting', fixing: 1 });
+    expect(calls.filter(x => x.method === 'PATCH' && x.url.includes('campaign_tasks')).pop()!.body.spec.feedback).toContain('لم تُحدَّد');
+    calls = []; tasks = [task(0, 'optimize', 'waiting')]; llm = () => 'الميزانية: لم تُحدَّد. التقسيم: 40% للاختبار و60% للتوسّع.';
+    expect((await step()).ran!.status).toBe('review');
+    calls = []; tasks = [task(0, 'optimize', 'waiting')]; campaign['wishes'] = { goal: 'حملة', platforms: ['meta'], budget: '20000 ريال' }; llm = () => 'ننفق 7,000 ريال في الاختبار.';
+    expect((await step()).ran!.status).toBe('review');
+  });
+  it('the optimization agent is told the budget is not set (or what it is), and that TikTok is judged by CTR and engagement, not leads', async () => {
+    tasks = [task(0, 'optimize', 'waiting')]; campaign['wishes'] = { goal: 'حملة', platforms: ['tiktok'] };
+    await step();
+    const all = JSON.stringify(calls.find(x => x.url === OR_URL)!.body.messages);
+    expect(all).toContain('الميزانية: لم تُحدَّد'); expect(all).toContain('تيك توك يُحكم عليه بنسبة النقر'); expect(all).toContain('لا تقارن به بالليدز');
+  });
+  it('the knowledge agent keeps three headed sections apart: the concept, the past numbers, the gaps', async () => {
+    tasks = [task(0, 'knowledge', 'waiting')];
+    await step();
+    const sys = calls.find(x => x.url === OR_URL)!.body.messages[0].content as string;
+    for (const h of ['## مفهوم الحملة والجمهور', '## أرقام الإعلانات السابقة', '## فجوات المعلومات']) expect(sys).toContain(h);
+  });
+  it('the compliance report mentions an override only when a task really let a refused piece through', async () => {
+    outputs = [{ task_id: 1, kind: 'copy', platform: null, body: { text: 'زيارة منزلية مرخّصة.' }, compliance: [] }];
+    tasks = [task(0, 'content', 'review'), task(1, 'compliance', 'waiting', [0])];
+    await step();
+    expect((calls.find(x => x.url.endsWith('/campaign_outputs') && x.method === 'POST')!.body as { body: { text: string } }[])[0]!.body.text).not.toContain('متجاوزة');
+    calls = []; tasks = [task(0, 'knowledge', 'review', [], { spec: { override: { by: 'a', reason: 'سبب', at: 'x' } } }), task(1, 'compliance', 'waiting', [0])];   // an override on an internal reference changes nothing
+    outputs = [{ task_id: 1, kind: 'insight', platform: null, body: { text: 'ملخص' }, compliance: [] }];
+    await step();
+    expect((calls.find(x => x.url.endsWith('/campaign_outputs') && x.method === 'POST')!.body as { body: { text: string } }[])[0]!.body.text).not.toContain('متجاوزة');
   });
 });

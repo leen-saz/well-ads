@@ -261,4 +261,35 @@ test.describe('احلم', () => {
     await expect(page.locator('.cm-prog b')).toHaveText('4 of 4 tasks');
     expect(await page.evaluate(() => (window as unknown as Record<string, unknown>)['__mark'])).toBe('same page');
   });
+  for (const lang of ['ar', 'en'] as const) {
+    test(`${lang}: the pack shows the real files: a picture preview with download, an audio player with download, subtitles, and a missing file with its reason and a button`, async ({ page, context, request }) => {
+      await addSession(context, await login(request, 'owner'));
+      let again = 0;
+      const d = { ...PACK, campaign: { ...PACK.campaign, status: 'review', brief: { summary: 'B', messages: [], risks: [], questions: [] } }, assetPlan: { images: 3, audio: 2, usd: 0.27 },
+        tasks: [{ id: 1, position: 0, agent: 'design', title: 'Design', status: 'review', depends_on: [], spec: { missing: ['image:landscape'] }, estimate_usd: 0.2 }, { id: 2, position: 1, agent: 'voice', title: 'Voice', status: 'review', depends_on: [], spec: {}, estimate_usd: 0.1 }],
+        outputs: [{ id: 11, task_id: 1, kind: 'design_brief', body: { text: 'Brief text' }, compliance: [] },
+          { id: 12, task_id: 1, kind: 'design_image', platform: 'story', body: { key: 'k', mime: 'image/jpeg', w: 1080, h: 1920, size: 'story', text: 'Story 1080x1920' }, compliance: [] },
+          { id: 13, task_id: 1, kind: 'asset_missing', platform: 'landscape', body: { what: 'image', text: 'Landscape: the image service did not answer', code: 'failed', retry: true }, compliance: [] },
+          { id: 21, task_id: 2, kind: 'voice_script', body: { text: 'Script thirty', label: '30' }, compliance: [] },
+          { id: 22, task_id: 2, kind: 'voice_audio', body: { key: 'k2', mime: 'audio/wav', seconds: 28.4, label: '30', text: 'Script thirty' }, compliance: [] },
+          { id: 23, task_id: 2, kind: 'voice_srt', body: { text: '1\n00:00:00,000 --> 00:00:02,000\nHello\n', label: '30' }, compliance: [] }] };
+      await page.route('**/api/campaigns/file**', r => r.fulfill({ status: 200, contentType: 'image/png', body: Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==', 'base64') }));
+      await page.route('**/api/campaigns/get**', r => r.fulfill({ json: d }));
+      await page.route('**/api/campaigns/list', r => r.fulfill({ json: { campaigns: [{ id: 'c1', title: 'Spring', status: 'review', estimate_usd: 0.05, created_at: '2026-11-01T00:00:00Z' }], mayApprove: true } }));
+      await page.route('**/api/campaigns/assets', r => { again++; return r.fulfill({ json: { ok: true } }); });
+      await page.goto('/today/?tab=campaign' + (lang === 'en' ? '&lang=en' : ''));
+      await page.locator('.cm-list button').first().click();
+      await page.locator('#cmAll').click();
+      await expect(page.locator('.cm-fig img[src^="/api/campaigns/file?id=12"]')).toBeVisible();
+      await expect(page.locator('.cm-fig a[href*="id=12&dl=1"]')).toHaveText(lang === 'en' ? 'Download' : 'تنزيل');
+      await expect(page.locator('.cm-aud audio[controls]')).toHaveAttribute('src', '/api/campaigns/file?id=22');
+      await expect(page.locator('.cm-aud a[href*="id=22&dl=1"]')).toBeVisible();
+      await expect(page.locator('.cm-srt')).toContainText('00:00:00,000 --> 00:00:02,000');
+      await expect(page.locator('.cm-out .msg.err')).toContainText('image service did not answer');
+      await expect(page.locator('#cmAssets')).toContainText(lang === 'en' ? 'Includes making 3 pictures and 2 audio files' : 'يشمل توليد 3 صور');
+      if (lang === 'en') await expect(page.locator('#cmAssets')).not.toContainText(/[\u0600-\u06FF]/);
+      await page.locator('[data-assets="1"]').click();
+      await expect.poll(() => again).toBe(1);
+    });
+  }
 });
