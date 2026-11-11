@@ -55,12 +55,15 @@ describe('which model', () => {
   });
 });
 
+// the campaigns tool is for everyone (a user reads his own campaigns); the others follow the permissions
+const names = (r: ReturnType<typeof run>) => toolsFor(r).map(t => t.name).filter(n => n !== 'campaigns');
 describe('the tools follow the user\'s permissions', () => {
-  it('a user with no dashboard sees no tool', () => expect(toolsFor(run(user([]))).map(t => t.name)).toEqual([]));
-  it('analytics gives the numbers, not the decision board or knowledge', () => expect(toolsFor(run(user(['ceo']))).map(t => t.name)).toEqual(['performance', 'ads']));
-  it('control and knowledge add theirs', () => expect(toolsFor(run(user(['ceo', 'control', 'knowledge']))).map(t => t.name)).toEqual(['performance', 'ads', 'decisions', 'knowledge']));
-  it('another company never gets the decision board', () => expect(toolsFor(run(user(['control'], { co: '22222222-2222-2222-2222-222222222222' }))).map(t => t.name)).toEqual([]));
-  it('a module the company switched off is not readable', () => expect(toolsFor(run(user(['knowledge'], { off: ['knowledge'] }))).map(t => t.name)).toEqual([]));
+  it('everyone can read their own campaigns and outputs (read-only)', () => expect(toolsFor(run(user([]))).map(t => t.name)).toEqual(['campaigns']));
+  it('a user with no dashboard sees no tool', () => expect(names(run(user([])))).toEqual([]));
+  it('analytics gives the numbers, not the decision board or knowledge', () => expect(names(run(user(['ceo'])))).toEqual(['performance', 'ads']));
+  it('control and knowledge add theirs', () => expect(names(run(user(['ceo', 'control', 'knowledge'])))).toEqual(['performance', 'ads', 'decisions', 'knowledge']));
+  it('another company never gets the decision board', () => expect(names(run(user(['control'], { co: '22222222-2222-2222-2222-222222222222' })))).toEqual([]));
+  it('a module the company switched off is not readable', () => expect(names(run(user(['knowledge'], { off: ['knowledge'] })))).toEqual([]));
 });
 
 describe('the plan', () => {

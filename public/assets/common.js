@@ -44,7 +44,7 @@ export async function api(path, { method = 'GET', body, timeout = 90000 } = {}) 
 // Streaming POST (the shared live-text component). The route answers JSON (a question or an error) or text/event-stream:
 // `delta` text, `reset` (the writer changed, drop what you showed), then `result` with the final payload. `onText(text)` gets the whole text so far.
 // Abort `signal` to stop. Returns the JSON, or the `result` event; a stopped run returns null.
-export async function apiStream(path, body, { onText = () => {}, signal } = {}) {
+export async function apiStream(path, body, { onText = () => {}, onStep = () => {}, signal } = {}) {
   let res;
   try { res = await fetch(path, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(body), credentials: 'same-origin', signal }); }
   catch (err) { if (signal?.aborted) return null; throw Object.assign(new Error('ما قدرت أوصل للخادم. تأكد من الاتصال وجرّب مرة ثانية'), { status: 0, retryable: true }); }
@@ -63,6 +63,7 @@ export async function apiStream(path, body, { onText = () => {}, signal } = {}) 
     let ev; try { ev = JSON.parse(line.slice(5)); } catch { return; }
     if (ev.type === 'delta') { text += ev.text; onText(text); }
     else if (ev.type === 'reset') { text = ''; onText(text); }
+    else if (ev.type === 'step') onStep(ev);
     else if (ev.type === 'result') result = ev;
     else if (ev.type === 'error') { failed = true; if (/[\u0600-\u06FF]/.test(ev.message || '')) why = ev.message; }   // an Arabic sentence is for the user; a code is not
   };
