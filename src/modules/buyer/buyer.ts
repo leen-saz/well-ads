@@ -99,6 +99,7 @@ function companyRules(x: Input, camps: Map<string, Camp>, end: string, verdict: 
           why: 'الحملة كانت تصرف قبل هالفترة وتوقف صرفها فجأة: غالباً إيقاف أو حد ميزانية أو مشكلة دفع.', risk: 'لو الإيقاف مقصود، التشغيل يصرف على شي مو مطلوب. تأكد أول.',
           evidence: [`آخر يوم (${end}) بلا صرف`], success: { metric: 'الصرف اليومي', goal: 'يرجع الصرف خلال يوم من التشغيل' } });
       }
+      if (p === 'tiktok' && (rule.kind === 'scale' || rule.kind === 'stop_idle')) continue;   // lead-based: never for TikTok
       if (rule.kind === 'scale' && c.live && rule.maxCpl && cc != null && cc <= rule.maxCpl && c.cur.leads >= (rule.minResults ?? 5) && age >= 3) {
         const j = verdict[p]?.cpl;
         if (j && j.level !== 'fine') { gated.push({ rule: 'scale_up', platform: p, campaign: c.name, reason: `حكم التسويق: ${globalThis.WELL_JUDGE.SEV[j.level][0]}` }); continue; }
@@ -108,7 +109,12 @@ function companyRules(x: Input, camps: Map<string, Camp>, end: string, verdict: 
           why: RULE.scale_up.why, risk: RULE.scale_up.risk, evidence: [`تكلفة الليد آخر ${T.windowDays} أيام ${sar(cc)} مقابل حد ${sar(rule.maxCpl)}`, `${r0(c.cur.leads)} نتيجة`],
           success: { metric: 'تكلفة الليد بعد الزيادة', goal: `تحت ${sar(rule.maxCpl)} بعد ${every} أيام` } });
       }
-      if (rule.kind === 'resume' && !c.live && rule.maxCpl && cc != null && cc <= rule.maxCpl && c.cur.leads >= (rule.minResults ?? 1))
+      // TikTok is judged by click rate and engagement, never by leads (the owner's decision): no lead figure is read for it
+      if (rule.kind === 'resume' && !c.live && p === 'tiktok' && rule.minCtr && c.cur.impr >= T.fatigueMinImpressions && (ctr(c.cur) as number) >= rule.minCtr)
+        push({ ...base, rule: 'company', kind: 'resume', weight: 56, spend: c.cur.spend, title: `${label}: متوقفة ونسبة نقرها جيدة، شغّلها`, change: 'شغّل الحملة بميزانية صغيرة وراقب نسبة النقر والتفاعل أول 3 أيام.',
+          why: 'الحملة متوقفة وآخر نسبة نقر لها فوق الحد المقبول. تيك توك يُحكم عليه بالنقر والتفاعل مو بالليدز.', risk: 'عينة قصيرة: يوم أو يومين ما يثبتون الأداء.',
+          evidence: [`نسبة النقر ${pctS(ctr(c.cur) as number)} مقابل حد ${pctS(rule.minCtr)}`, `${r0(c.cur.impr)} ظهور`], success: { metric: 'نسبة النقر والتفاعل بعد التشغيل', goal: `فوق ${pctS(rule.minCtr)} على 3 أيام` } });
+      if (rule.kind === 'resume' && !c.live && p !== 'tiktok' && rule.maxCpl && cc != null && cc <= rule.maxCpl && c.cur.leads >= (rule.minResults ?? 1))
         push({ ...base, rule: 'company', kind: 'resume', weight: 56, spend: c.cur.spend, title: `${label}: متوقفة وفيها نتائج جيدة، شغّلها`, change: 'شغّل الحملة بميزانية صغيرة وراقب أول 3 أيام.',
           why: 'الحملة متوقفة وآخر أرقامها تحت الحد المقبول للتكلفة.', risk: 'عينة صغيرة: يوم أو يومين ما يثبتون الأداء.',
           evidence: [`${r0(c.cur.leads)} نتيجة بتكلفة ${sar(cc)} مقابل حد ${sar(rule.maxCpl)}`], success: { metric: 'التكلفة بعد التشغيل', goal: `تحت ${sar(rule.maxCpl)} على 3 أيام` } });
@@ -166,7 +172,7 @@ export function recommend(x: Input): Report {
   for (const p of PLATS) {
     const P = plat[p]; if (!P || P.cur.spend <= 0) continue;
     verdict[p] = judged(P.cur, x.targets);
-    platforms[p] = { spend: P.cur.spend, leads: P.cur.leads, cpl: cpl(P.cur), ctr: ctr(P.cur), judgeCpl: lvl(verdict[p]!.cpl), judgeClick: lvl(verdict[p]!.click) };
+    platforms[p] = { spend: P.cur.spend, leads: p === 'tiktok' ? 0 : P.cur.leads, cpl: p === 'tiktok' ? null : cpl(P.cur), ctr: ctr(P.cur), judgeCpl: p === 'tiktok' ? 'na' : lvl(verdict[p]!.cpl), judgeClick: lvl(verdict[p]!.click) };
   }
   const tgt = x.targets;
   const push: Push = r => {
@@ -190,10 +196,11 @@ export function recommend(x: Input): Report {
     const stopLine = plan?.stopCpl && plan.stopCpl > 0 ? plan.stopCpl : tgt.cpl * T.pauseCplMultiple;
     const cc = cpl(c.cur), age = Math.round((Date.parse(end) - Date.parse(c.first)) / DAY) + 1;
     const learnDays = f.learningDays ?? T.windowDays;
-    const learning = age < learnDays || (f.learningEvents != null && c.cur.leads < f.learningEvents && age < 2 * learnDays);
+    const learning = age < learnDays || (p !== 'tiktok' && f.learningEvents != null && c.cur.leads < f.learningEvents && age < 2 * learnDays);
 
+    const byClicks = p === 'tiktok';   // TikTok is judged by click rate and engagement, never by leads
     // Zero leads comes first and ignores the learning hold: money with no result is checked at once
-    if (c.lead && c.cur.leads === 0 && c.cur.spend >= T.zeroLeadSpendMultiple * tgt.cpl) {
+    if (!byClicks && c.lead && c.cur.leads === 0 && c.cur.spend >= T.zeroLeadSpendMultiple * tgt.cpl) {
       push({ rule: 'zero_leads', platform: p, campaign: name, kind: 'review', weight: 85, spend: c.cur.spend, confidence: 'medium', judge: judgeOf(p, 'cpl'),
         title: `${label}: صرف بدون ولا ليد`, change: 'افحص حدث التحويل والنموذج في مدير الإعلانات (وصفحة التتبع في الداشبورد) قبل أي تغيير في الإعلان. لو التتبع سليم، وقّف الحملة.',
         why: RULE.zero_leads.why, risk: RULE.zero_leads.risk, evidence: [`الصرف آخر ${T.windowDays} أيام ${sar(c.cur.spend)} بدون ليد`, `عمر الحملة ${age} يوم`],
@@ -202,12 +209,12 @@ export function recommend(x: Input): Report {
     }
     if (learning) {
       push({ rule: 'learning_hold', platform: p, campaign: name, kind: 'hold', weight: 10, confidence: 'high', judge: null,
-        title: `${label}: لسه في مرحلة التعلّم، لا تغيّر فيها`, change: f.learningEvents ? `انتظر لين توصل ${f.learningEvents} نتيجة تقريباً (الحالي ${r0(c.cur.leads)}) ولا تعدّل الميزانية أو الجمهور أو الإعلان.` : 'انتظر أسبوع كامل من أول صرف قبل أي تعديل.',
+        title: `${label}: لسه في مرحلة التعلّم، لا تغيّر فيها`, change: f.learningEvents && p !== 'tiktok' ? `انتظر لين توصل ${f.learningEvents} نتيجة تقريباً (الحالي ${r0(c.cur.leads)}) ولا تعدّل الميزانية أو الجمهور أو الإعلان.` : 'انتظر أسبوع كامل من أول صرف قبل أي تعديل.',
         why: RULE.learning_hold.why, risk: RULE.learning_hold.risk, evidence: [`عمر الحملة ${age} يوم`, `نتائج آخر ${T.windowDays} أيام: ${r0(c.cur.leads)}`],
         success: { metric: 'خروج الحملة من التعلّم', goal: 'ثبات الـ CPL بعد الوصول للعدد المطلوب' } });
       continue;
     }
-    const decidable = c.cur.leads >= T.minLeadsToDecide;
+    const decidable = !byClicks && c.cur.leads >= T.minLeadsToDecide;
     const last3 = zero(); for (let i = 0; i < T.scaleDaysAtTarget; i++) { const d = c.byDay.get(add(end, -i)); if (d) { last3.spend += d.spend; last3.leads += d.leads; } }
 
     // Stop: the cost per lead is over the stop line with enough leads behind it
@@ -236,12 +243,13 @@ export function recommend(x: Input): Report {
 
     // Creative fatigue: the click rate fell and the cost rose against the week before
     const pc = cpl(c.prev), cr = ctr(c.cur), pr = ctr(c.prev);
-    if (cc != null && pc != null && cr != null && pr != null && c.cur.impr >= T.fatigueMinImpressions && c.prev.impr >= T.fatigueMinImpressions
-      && cr <= pr * (1 - T.fatigueCtrDrop) && cc >= pc * (1 + T.fatigueCplRise) && gate('fatigue', p, name)) {
+    const fatigued = byClicks ? cr != null && pr != null && cr <= pr * (1 - T.fatigueCtrDrop)
+      : cc != null && pc != null && cr != null && pr != null && cr <= pr * (1 - T.fatigueCtrDrop) && cc >= pc * (1 + T.fatigueCplRise) && gate('fatigue', p, name);
+    if (fatigued && cr != null && pr != null && c.cur.impr >= T.fatigueMinImpressions && c.prev.impr >= T.fatigueMinImpressions) {
       push({ rule: 'fatigue', platform: p, campaign: name, kind: 'refresh_creative', weight: 70, spend: c.cur.spend, confidence: c.cur.leads >= 30 ? 'high' : 'medium', judge: judgeOf(p, 'cpl'),
         title: `${label}: المادة تعبت، جهّز مادة جديدة`, change: 'أضف مادة جديدة (افتتاحية مختلفة وليس نفس الفكرة) جنب الحالية، وخل المنصة توزع الصرف، وأوقف القديمة لما الجديدة تثبت.',
-        why: RULE.fatigue.why, risk: RULE.fatigue.risk, evidence: [`نسبة النقر ${pctS(cr)} بعد ${pctS(pr)} الأسبوع اللي قبله`, `الـ CPL ${sar(cc)} بعد ${sar(pc)}`],
-        success: { metric: 'نسبة النقر والـ CPL', goal: `نسبة النقر ترجع قريبة من ${pctS(pr)} والـ CPL ينزل` } });
+        why: RULE.fatigue.why, risk: RULE.fatigue.risk, evidence: [`نسبة النقر ${pctS(cr)} بعد ${pctS(pr)} الأسبوع اللي قبله`, ...(byClicks || cc == null || pc == null ? [] : [`الـ CPL ${sar(cc)} بعد ${sar(pc)}`])],
+        success: { metric: byClicks ? 'نسبة النقر' : 'نسبة النقر والـ CPL', goal: byClicks ? `نسبة النقر ترجع قريبة من ${pctS(pr)}` : `نسبة النقر ترجع قريبة من ${pctS(pr)} والـ CPL ينزل` } });
     }
     // Click rate far under target, with a sample the judge accepts
     if (cr != null && c.cur.clicks >= T.minClicksForPage && cr < tgt.ctr * T.lowCtrOfTarget && gate('low_ctr', p, name)) {
@@ -252,7 +260,7 @@ export function recommend(x: Input): Report {
     }
     // Clicks that do not become leads: the page or the form, not the ad
     const c2l = c.cur.clicks > 0 ? (100 * c.cur.leads) / c.cur.clicks : null;
-    if (c2l != null && c.cur.clicks >= T.minClicksForPage && c2l < tgt.clickToLead * T.clickToLeadFloor && gate('page_leak', p, name)) {
+    if (!byClicks && c2l != null && c.cur.clicks >= T.minClicksForPage && c2l < tgt.clickToLead * T.clickToLeadFloor && gate('page_leak', p, name)) {
       push({ rule: 'page_leak', platform: p, campaign: name, kind: 'review', weight: 60, spend: c.cur.spend, confidence: 'medium', judge: judgeOf(p, 'lead'),
         title: `${label}: النقرات ما تصير ليدز`, change: 'جرّب النموذج والصفحة من جوال بنفسك: قصّر الحقول، وسرّع الصفحة، وتأكد إن رسالة الواتساب الجاهزة تفتح. لا تغيّر الإعلان لين تنحل الصفحة.',
         why: RULE.page_leak.why, risk: RULE.page_leak.risk, evidence: [`من نقرة إلى ليد ${pctS(c2l)} مقابل هدف ${pctS(tgt.clickToLead)}`, `${r0(c.cur.clicks)} نقرة`],
@@ -269,7 +277,7 @@ export function recommend(x: Input): Report {
   }
 
   // Between platforms: the dearest against the cheapest, each with enough leads, and the judge sees the dear one as off target
-  const comparable = PLATS.filter(p => plat[p] && plat[p]!.cur.leads >= T.platformMinLeads);
+  const comparable = PLATS.filter(p => p !== 'tiktok' && plat[p] && plat[p]!.cur.leads >= T.platformMinLeads);
   if (comparable.length >= 2) {
     const cp = (p: Plat) => cpl(plat[p]!.cur) as number;
     const sorted = [...comparable].sort((a, b) => cp(a) - cp(b)), best = sorted[0]!, worst = sorted[sorted.length - 1]!;

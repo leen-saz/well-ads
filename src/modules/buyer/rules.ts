@@ -18,7 +18,9 @@ export function cleanRules(input: unknown): { rules: CompanyRule[] } | { error: 
     if (!id || seen.has(id)) return { error: 'كل قاعدة لها معرّف فريد' };
     if (!KINDS.includes(kind) || !PLATS.includes(platform)) return { error: `نوع أو منصة غير معروفة في القاعدة ${id}` };
     if (!match.length) return { error: `القاعدة ${id} تحتاج اسم حملة أو إعلان تطابقه` };
-    if ((kind === 'scale' || kind === 'resume') && !pos(r.maxCpl, 10000)) return { error: `القاعدة ${id} تحتاج حد تكلفة الليد (maxCpl)` };
+    if (platform === 'tiktok' && (kind === 'scale' || kind === 'stop_idle')) return { error: `تيك توك ما يُحكم عليه بالليدز: القاعدة ${id} ما تنفع له` };
+    if (platform === 'tiktok' && kind === 'resume' && !pos(r.minCtr, 100)) return { error: `القاعدة ${id} لتيك توك تحتاج حد نسبة النقر (minCtr)` };
+    if (platform !== 'tiktok' && (kind === 'scale' || kind === 'resume') && !pos(r.maxCpl, 10000)) return { error: `القاعدة ${id} تحتاج حد تكلفة الليد (maxCpl)` };
     if (kind === 'replace_creative' && !pos(r.minCtr, 100)) return { error: `القاعدة ${id} تحتاج حد نسبة النقر (minCtr)` };
     seen.add(id);
     const owner = OWNERS.includes(r.owner as Owner) ? (r.owner as Owner) : undefined;

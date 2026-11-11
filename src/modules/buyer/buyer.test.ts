@@ -110,7 +110,7 @@ describe('company rules (names and limits come from the database)', () => {
     expect(a.kind).toBe('resume'); expect(a.title).toContain('19/11'); expect(a.priority).toBeGreaterThanOrEqual(95);
   });
   it('suggests resuming a paused campaign with good results, and stops one idle for weeks', () => {
-    const paused = recommend(base({ ads: [ad('t1', 'tiktok', 'gamma', { live: false })], metrics: series('t1', 6, 0, () => [T.cpl, 2000, 60, 2]), rules: [R({ id: 'c', kind: 'resume', platform: 'tiktok', match: ['gamma'], maxCpl: T.cpl })] }));
+    const paused = recommend(base({ ads: [ad('t1', 'tiktok', 'gamma', { live: false })], metrics: series('t1', 6, 0, () => [T.cpl, 4000, 80, 0]), rules: [R({ id: 'c', kind: 'resume', platform: 'tiktok', match: ['gamma'], minCtr: 1 })] }));
     expect(paused.recs.find(x => x.rule === 'company')!.kind).toBe('resume');
     const idle = recommend(base({ ads: [ad('s2', 'snap', 'delta')], metrics: series('s2', 20, 0, () => [T.cpl * 0.2, 1000, 5, 0]), rules: [R({ id: 'd', kind: 'stop_idle', platform: 'snapchat', match: ['delta'], minIdleDays: 14 })] }));
     expect(idle.recs.find(x => x.rule === 'company')!.kind).toBe('pause');
@@ -122,6 +122,17 @@ describe('company rules (names and limits come from the database)', () => {
     const v = r.recs.find(x => x.owner === 'video_agent')!;
     expect(v.kind).toBe('refresh_creative'); expect(v.followUp).toContain('الامتثال'); expect(v.change).toContain('نتيجة عميل حقيقي');
     expect(r.recs.find(x => x.owner === 'landing')!.followUp).toContain('الصفحة');
+  });
+  it('never judges TikTok by leads: no lead-based recommendation, and the resume rule reads the click rate', () => {
+    const noLeads = recommend(base({ ads: [ad('t1', 'tiktok', 'c1')], metrics: series('t1', 27, 0, () => [T.cpl * 9, 4000, 80, 0]) }));
+    expect(noLeads.recs.filter(x => ['zero_leads', 'stop_cpl', 'scale_up', 'page_leak', 'shift_budget'].includes(x.rule))).toEqual([]);
+    expect(noLeads.platforms.tiktok?.cpl).toBeNull();
+    const weak = recommend(base({ ads: [ad('t1', 'tiktok', 'c1')], metrics: series('t1', 27, 0, () => [T.cpl, 40000, 80, 3]) }));
+    expect(weak.recs.some(x => x.rule === 'low_ctr')).toBe(true);
+    expect(weak.recs.every(x => !x.evidence.join(' ').includes('الـ CPL'))).toBe(true);
+    expect(cleanRules([{ id: 'x', kind: 'scale', platform: 'tiktok', match: ['a'], maxCpl: 5 }])).toHaveProperty('error');
+    expect(cleanRules([{ id: 'x', kind: 'resume', platform: 'tiktok', match: ['a'], maxCpl: 5 }])).toHaveProperty('error');
+    expect('rules' in cleanRules([{ id: 'x', kind: 'resume', platform: 'tiktok', match: ['a'], minCtr: 1 }])).toBe(true);
   });
   it('validates what the owner saves', () => {
     expect('rules' in cleanRules([{ id: 'x', kind: 'scale', platform: 'snapchat', match: ['a'], maxCpl: 5 }])).toBe(true);
