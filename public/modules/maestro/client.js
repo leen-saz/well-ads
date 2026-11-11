@@ -249,6 +249,7 @@ export default async function mount() {
     $('#spendMonth').innerHTML = ms; $('#recMonth').innerHTML = ms;
     const hot = d.tabs.filter(t => t.level !== 'ok');
     $('#spendAlert').innerHTML = hot.map(t => `<div class="so-note"><b>${esc(t.ar)}</b>: ${t.level === 'capped' ? 'وصل السقف الشهري، والتاب الحين يكتب بالمجاني' : `وصل ${t.alert_pct}% من سقفه الشهري`}</div>`).join('');
+    drawModels(d.models);
     const FLAG = { alert: 'قريب من السقف', capped: 'وصل السقف' };
     $('#spendBody').innerHTML = `<p class="sp-total">${fmt(d.total.sar, 2)} <small class="muted" style="font:500 14px var(--f-ar)">ريال، ${fmt(d.total.usd, 2)} دولار (سعر الصرف ${d.rate})</small></p>
       <div class="sp-tab sp-hd"><span>التاب</span><span>الطلبات</span><span>الصرف (ر.س)</span><span>السقف الشهري (ر.س)</span><span></span></div>
@@ -257,6 +258,19 @@ export default async function mount() {
         <b class="n">${fmt(t.calls)}</b><b class="n">${fmt(t.sar, 2)}</b>
         <span><input type="number" name="cap" min="0" step="1" inputmode="decimal" dir="ltr" placeholder="بدون سقف" aria-label="السقف الشهري لتاب ${esc(t.ar)}" value="${t.cap_sar ?? ''}"${d.current ? '' : ' disabled'}>${t.level !== 'ok' ? ` <span class="sp-flag${t.level === 'capped' ? ' bad' : ''}">${FLAG[t.level]}</span>` : ''}</span>
         <button class="btn sm secondary" type="submit"${d.current ? '' : ' disabled'}>احفظ</button></form>`).join('')}`;
+  }
+  // recorded against expected (tokens priced from our table), per provider and model; the check against the real invoice is the form below
+  function drawModels(rows) {
+    const box = $('#spendModels');
+    if (!rows) { box.innerHTML = ''; return; }
+    if (!rows.length) { box.innerHTML = '<p class="muted">ما فيه طلبات مسجّلة هالشهر</p>'; return; }
+    const usd = n => (n === null || n === undefined ? '—' : fmt(n, 4));
+    box.innerHTML = `<h3 style="margin:18px 0 4px">المسجّل مقابل المتوقع</h3>
+      <p class="so-note">المتوقع = التوكنز × جدول الأسعار. لو المزوّد يرجّع تكلفته بنفسه (OpenRouter) أو التسجيل تقديري (بحث، صور) يختلف الرقمان، وهذا طبيعي. الأسعار تبقى تقديرية لين تطابقها مع فاتورة.</p>
+      <div class="sp-tab sp-hd"><span>المزوّد والموديل</span><span>الطلبات</span><span>المسجّل ($)</span><span>المتوقع ($)</span><span>الفرق</span></div>
+      ${rows.map(r => `<div class="sp-tab"><b>${esc(PNAME[r.provider] || r.provider)} <span dir="ltr" data-user-text>${esc(r.model)}</span></b>
+        <b class="n">${fmt(r.calls)}</b><b class="n">${usd(r.recorded_usd)}</b><b class="n">${usd(r.expected_usd)}</b>
+        <span>${r.diff_pct === null ? '' : `<span dir="ltr">${r.diff_pct > 0 ? '+' : ''}${fmt(r.diff_pct, 1)}%</span> `}${!r.in_table ? '<span class="sp-flag">بدون سعر</span> ' : r.verified ? '' : '<span class="sp-flag">سعر غير مثبّت</span> '}${r.estimated ? '<span class="sp-flag">تقديري</span>' : ''}</span></div>`).join('')}`;
   }
   $('#spendMonth').addEventListener('change', e => mountSpend(e.target.value));
   $('#spendBody').addEventListener('submit', async e => {

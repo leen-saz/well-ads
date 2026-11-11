@@ -8,7 +8,7 @@
 // Model ids from the providers' model pages (2026-11-03); change them with OPENAI_MODEL / XAI_MODEL, no code change.
 import { AI_MODEL, type AiRun } from '../modules/content/content';
 import { cost, overCap, record, tabOf, type UsageCtx } from './usage';
-import { cleanModel, OR_DEFAULT, OR_MODEL, routesOf, type Route } from './ai-routes';
+import { cleanModel, OR_DEFAULT, OR_MODEL, PROVIDER, routesOf, type Route } from './ai-routes';
 
 // Audio, video, image and speech calls (Gemini) live in gemini.ts and are reached through this adapter too
 export * from './gemini';
@@ -20,7 +20,7 @@ export interface LlmInput { messages: Msg[]; max_tokens: number; response_format
 export interface LlmOut { response: string; engine: Provider; model: string }
 
 export const DEFAULTS = { openai: 'gpt-6.1-sol', xai: 'grok-4.7', image: 'gpt-image-2' } as const;
-export const PROVIDER: Record<string, Provider> = { content: 'openai', design: 'openai', copy: 'openai', motion: 'openai', social: 'xai', maestro: 'xai', listening: 'xai', ahlam: 'openrouter', ahlam_campaign: 'openrouter' };
+export { PROVIDER };   // defined in ai-routes.ts: the one place a tab's default provider is written
 const URL_OF = { openai: 'https://api.openai.com/v1/responses', xai: 'https://api.x.ai/v1/responses' } as const;
 export const OR_URL = 'https://openrouter.ai/api/v1/chat/completions';
 export const OR_TIMEOUT_MS = 60_000, OR_STREAM_MS = 120_000;

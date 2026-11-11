@@ -66,7 +66,7 @@ describe('Claude plan', () => {
     const f = vi.fn(async () => new Response(JSON.stringify({ id: 'm', type: 'message', role: 'assistant', model: CLAUDE_MODEL, stop_reason: 'end_turn',
       content: [{ type: 'thinking', thinking: '', signature: 's' }, { type: 'text', text: '1. جدّد ربط سناب' }], usage: { input_tokens: 1, output_tokens: 1 } }), { status: 200, headers: { 'content-type': 'application/json' } }));
     const r = await explain({ ANTHROPIC_API_KEY: 'sk-ant-test' }, findings, platforms, f as unknown as typeof fetch);
-    expect(r).toEqual({ text: '1. جدّد ربط سناب', model: CLAUDE_MODEL });
+    expect(r).toEqual({ text: '1. جدّد ربط سناب', model: CLAUDE_MODEL, usage: { in: 1, out: 1 } });
     const [url, init] = f.mock.calls[0] as unknown as [string, RequestInit];
     expect(String(url)).toContain('/v1/messages');
     const body = JSON.parse(String(init.body));
