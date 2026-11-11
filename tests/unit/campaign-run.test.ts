@@ -76,6 +76,7 @@ beforeEach(() => {
     calls.push({ url, method, body });
     if (url === OR_URL) return new Response(JSON.stringify({ choices: [{ message: { content: llm(++llmN) } }], usage: { prompt_tokens: 100, completion_tokens: 100, cost: 0.001 } }));
     if (url.includes('/profiles?id=eq.')) return new Response(JSON.stringify([profile()]));
+    if (url.endsWith('/rest/v1/campaign_tasks') && method === 'POST') { tasks = (body as Record<string, unknown>[]).map((b, i) => ({ id: i + 1, status: 'waiting', blocked_reason: null, updated_at: new Date().toISOString(), ...b })); return new Response('[]'); }
     if (url.includes('/rest/v1/campaign_tasks') && method === 'PATCH') return new Response(JSON.stringify(claimable ? [{ id: 1 }] : []));
     if (url.includes('/rest/v1/campaign_tasks')) return new Response(JSON.stringify(tasks));
     if (url.includes('/rest/v1/campaign_outputs') && method === 'GET') return new Response(JSON.stringify(outputs));
@@ -277,6 +278,21 @@ describe('GET /api/campaigns/agents (the sidebar dots)', () => {
     tasks = [task(0, 'design', 'failed')];
     expect((await get()).agents).toEqual({ design: 'failed' });
   });
+  it('between two steps of a live run the next agent still pulses (no flicker to idle); a campaign nobody is running goes quiet', async () => {
+    campaign['status'] = 'running';
+    tasks = [task(0, 'knowledge', 'review', [], { campaign_id: CID }), task(1, 'content', 'waiting', [0], { campaign_id: CID }), task(2, 'social', 'waiting', [1], { campaign_id: CID })];
+    expect((await get()).agents).toEqual({ content: 'running' });
+    const old = new Date(Date.now() - 10 * 60_000).toISOString();
+    tasks = tasks.map(x => ({ ...x, updated_at: old }));
+    expect((await get()).agents).toEqual({});
+    campaign['status'] = 'review';   // a stopped campaign does not pulse either
+    tasks = [task(0, 'knowledge', 'review', [], { campaign_id: CID }), task(1, 'content', 'waiting', [0], { campaign_id: CID })];
+    expect((await get()).agents).toEqual({});
+  });
+  it('an old campaign (tasks backfilled on its first run) lights the dot as soon as its first task runs', async () => {
+    campaign['status'] = 'running'; tasks = [task(0, 'knowledge', 'running', [], { campaign_id: CID })];
+    expect(await get()).toEqual({ active: true, agents: { knowledge: 'running' } });
+  });
   it('a member only counts their own campaigns', async () => {
     access = {};
     await get();
@@ -382,5 +398,38 @@ describe('open questions: the agents go on with assumptions, an answer rewrites 
     expect((await post('/api/campaigns/answer', { id: CID, index: 9, answer: 'س' })).status).toBe(400);
     expect((await post('/api/campaigns/answer', { id: CID, index: 0, answer: '' })).status).toBe(400);
     expect((await post('/api/campaigns/answer', { id: CID, index: 0, answer: 'س' }, null)).status).toBe(401);
+  });
+});
+
+describe('a campaign approved before the tasks existed (no campaign_tasks) can be run, without a new approval', () => {
+  beforeEach(() => { tasks = []; campaign['approved_at'] = '2026-11-05T10:00:00Z'; campaign['approved_by'] = 'boss@example.com'; });
+  it('gets the standard plan saved (no AI call for it), is audit-logged, and the first task then runs', async () => {
+    const j = await step();
+    const made = calls.find(x => x.url.endsWith('/campaign_tasks') && x.method === 'POST')!.body as Record<string, unknown>[];
+    expect(made.map(x => x['agent'])).toEqual(['knowledge', 'content', 'design', 'voice', 'social', 'compliance', 'optimize']);
+    expect(made.every(x => x['company_id'] === WELL_COMPANY && x['campaign_id'] === CID && Number(x['estimate_usd']) > 0)).toBe(true);
+    expect(made.find(x => x['agent'] === 'compliance')!['depends_on']).toEqual([1, 2, 3, 4]);
+    expect(j.ran).toMatchObject({ agent: 'knowledge', status: 'review' });
+    expect(calls.filter(x => x.url === OR_URL)).toHaveLength(1);   // only the knowledge task's own call
+    expect(calls.filter(x => x.url.includes('/audit_log') && x.method === 'POST').map(x => x.body.action)).toEqual(['campaign_backfill', 'campaign_task_run']);
+  });
+  it('a campaign that has its tasks is never backfilled again', async () => {
+    tasks = [task(0, 'knowledge', 'waiting')];
+    await step();
+    expect(calls.some(x => x.url.endsWith('/campaign_tasks') && x.method === 'POST')).toBe(false);
+  });
+  it('a planned campaign (not approved) never runs and gets nothing created; neither does a done or cancelled one', async () => {
+    for (const st of ['planned', 'done', 'cancelled']) {
+      calls = []; campaign['status'] = st; campaign['approved_at'] = null;
+      expect((await post('/api/campaigns/step', { id: CID })).status).toBe(409);
+      expect(calls.some(x => x.method === 'POST' && x.url.includes('campaign_tasks')) || calls.some(x => x.url === OR_URL)).toBe(false);
+    }
+  });
+  it('a stopped campaign (review) that was approved and has tasks waiting continues; one that was never approved does not', async () => {
+    campaign['status'] = 'review'; tasks = [task(0, 'knowledge', 'waiting')];
+    expect((await step()).ran!.agent).toBe('knowledge');
+    expect(calls.some(x => x.method === 'PATCH' && x.url.includes('/campaigns?') && x.body.status === 'running')).toBe(true);
+    campaign['approved_at'] = null;
+    expect((await post('/api/campaigns/step', { id: CID })).status).toBe(409);
   });
 });

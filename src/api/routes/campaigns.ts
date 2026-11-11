@@ -10,7 +10,7 @@ import { TASK, PLAN_SCHEMA, PLANS_PER_DAY, AGENTS, cleanWishes, estimate, mayApp
 import { dayStart, loadDash, toolsFor, type AhlamEnv } from '../../lib/ahlam';
 import { SOCIAL } from '../../modules/social/engine';
 import { loadKnowledge, forbiddenRules, systemPrompt } from '../../modules/knowledge/knowledge';
-import { MAX_AUTO, MAX_REGEN, MAX_RETRIES, STALE_MS, REASON_MIN, affectedTasks, cleanReason, kpis, parsePosts, readyTask, rollup, slim, socialTargets, taskMessages, verdict, type OutputRow, type TaskRow } from '../../lib/campaign-run';
+import { defaultTasks, MAX_AUTO, MAX_REGEN, MAX_RETRIES, STALE_MS, REASON_MIN, affectedTasks, cleanReason, kpis, parsePosts, readyTask, rollup, slim, socialTargets, taskMessages, verdict, type OutputRow, type TaskRow } from '../../lib/campaign-run';
 
 type Env = AuthEnv & LlmEnv;
 const MIGRATION = 'migration 030_campaigns.sql';
@@ -118,13 +118,24 @@ export const step = { POST: handle(async (request, e: Env) => {
   const { cfg, user } = await requireUser(request, e, 'any', { write: true });
   const id = idOf((await readJson(request, 2000))['id']);
   if (!id) return json(400, { error: 'طلب غير صحيح' });
-  const c = await sb<Row[]>(cfg, scoped(`/rest/v1/campaigns?select=id,title,status,wishes,brief&id=eq.${id}${visible(user, cfg)}`, user.co), { admin: true });
+  const c = await sb<Row[]>(cfg, scoped(`/rest/v1/campaigns?select=id,title,status,wishes,brief,approved_at&id=eq.${id}${visible(user, cfg)}`, user.co), { admin: true });
   if (!c.ok) return fail(user, c, 'ما قدرت أقرأ الحملة');
   const camp = rows(c.data)[0];
   if (!camp) return json(404, { error: 'الحملة غير موجودة' });
   const was = String(camp['status']);
-  if (was !== 'approved' && was !== 'running') return json(409, { error: 'الحملة لازم تنعتمد أول، وما تشتغل بعد الإلغاء' });
+  // Only an approved campaign runs (approved_at is the approver's mark; «review» is a campaign that stopped and has tasks left to run). Planned,
+  // cancelled and done ones never do: nothing is spent without the approval.
+  if (was !== 'approved' && was !== 'running' && !(was === 'review' && camp['approved_at'])) return json(409, { error: 'الحملة لازم تنعتمد أول، وما تشتغل بعد الإلغاء' });
   let tasks = await tasksOf(cfg, user.co, id);
+  if (!tasks.length) {
+    // approved before the tasks existed, or saved without them: give it the standard plan now (no AI call, no new approval)
+    const m = pick(e, TASK), est = estimate(defaultTasks().map(x => x.agent), m?.model ?? 'openai/gpt-4.1', m?.provider ?? 'openrouter');
+    const made = await sb(cfg, '/rest/v1/campaign_tasks', { method: 'POST', admin: true, headers: { Prefer: 'return=minimal' },
+      body: defaultTasks().map((x, i) => ({ campaign_id: id, company_id: user.co, position: i, agent: x.agent, title: x.title, spec: { detail: x.detail, backfilled: true }, depends_on: x.after, estimate_usd: est.perTask[i] })) });
+    if (!made.ok) return fail(user, made, 'ما قدرت أجهّز مهام الحملة');
+    await audit(cfg, user, 'campaign_backfill', { target: { id, tasks: defaultTasks().length } });
+    tasks = await tasksOf(cfg, user.co, id);
+  }
   for (const t of tasks.filter(x => x.status === 'running' && x.updated_at && Date.parse(x.updated_at) < Date.now() - STALE_MS)) { await patchTask(cfg, user.co, t.id, { status: 'waiting' }, '&status=eq.running'); t.status = 'waiting'; }
   const t = readyTask(tasks);
   if (!t) {
@@ -135,7 +146,7 @@ export const step = { POST: handle(async (request, e: Env) => {
   const claim = await patchTask(cfg, user.co, t.id, { status: 'running' }, '&status=eq.waiting');
   if (!claim.ok) return fail(user, claim, 'ما قدرت أبدأ المهمة');
   if (!rows(claim.data).length) return json(200, { busy: true });
-  if (was === 'approved') await setCampaign(cfg, user.co, id, 'running', 'approved');
+  if (was === 'approved' || was === 'review') await setCampaign(cfg, user.co, id, 'running', 'approved,review');
 
   const wishes = (camp['wishes'] ?? {}) as Row, wanted = socialTargets(Array.isArray(wishes['platforms']) ? (wishes['platforms'] as string[]) : []);
   const entries = await loadKnowledge(cfg, user.co);
@@ -284,12 +295,22 @@ export const override = { POST: handle(async (request, e: Env) => {
 // active at all. Two small reads, the user's own campaigns (an approver sees the company's). No text, no ids.
 export const agents = { GET: handle(async (request, e: Env) => {
   const { cfg, user } = await requireUser(request, e, 'any');
-  const c = await sb(cfg, scoped(`/rest/v1/campaigns?select=id&status=in.(approved,running,review)&limit=50${visible(user, cfg)}`, user.co), { admin: true });
-  const ids = c.ok ? rows(c.data).map(x => idOf(x['id'])).filter((x): x is string => !!x) : [];
-  if (!ids.length) return json(200, { active: false, agents: {} });
-  const t = await sb(cfg, scoped(`/rest/v1/campaign_tasks?select=agent,status&campaign_id=in.(${ids.join(',')})&status=in.(running,failed)&limit=200`, user.co), { admin: true });
+  const c = await sb(cfg, scoped(`/rest/v1/campaigns?select=id,status&status=in.(approved,running,review)&limit=50${visible(user, cfg)}`, user.co), { admin: true });
+  const camps = c.ok ? rows(c.data).flatMap(x => { const i = idOf(x['id']); return i ? [{ id: i, status: String(x['status']) }] : []; }) : [];
+  if (!camps.length) return json(200, { active: false, agents: {} });
+  const t = await sb(cfg, scoped(`/rest/v1/campaign_tasks?select=campaign_id,position,agent,status,depends_on,updated_at&campaign_id=in.(${camps.map(x => x.id).join(',')})&limit=400`, user.co), { admin: true });
+  const all = rows(t.data) as unknown as (TaskRow & { campaign_id: string })[];
   const out: Record<string, string> = {};
-  for (const x of rows(t.data)) { const a = String(x['agent']), s = String(x['status']); if (s === 'running' || !out[a]) out[a] = s; }
+  const mark = (a: string, s: string) => { if (s === 'running' || !out[a]) out[a] = s; };
+  for (const x of all) if (x.status === 'running' || x.status === 'failed') mark(x.agent, x.status);
+  // Between two steps of a live run no task is «running» for a moment: the agent whose task is next in a campaign that moved in the last
+  // 3 minutes still shows as working, so the dot does not flicker to idle. A campaign nobody is running (page closed) goes quiet.
+  for (const k of camps.filter(x => x.status === 'running' || x.status === 'approved')) {
+    const mine = all.filter(x => x.campaign_id === k.id);
+    const recent = mine.some(x => x.updated_at && Date.parse(x.updated_at) > Date.now() - 3 * 60_000);
+    const next = recent ? readyTask(mine) : null;
+    if (next) mark(next.agent, 'running');
+  }
   return json(200, { active: true, agents: out });
 }) };
 
