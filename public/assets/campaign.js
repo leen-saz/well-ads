@@ -90,7 +90,7 @@ export function mountCampaign(root, me, L) {
     const n = d.tasks.length, fin = d.tasks.filter(t => t.status === 'review' || t.status === 'approved').length, bad = d.tasks.filter(t => t.status === 'blocked' || t.status === 'failed').length;
     const now = d.tasks.some(t => t.status === 'running');
     const live = ['approved', 'running'].includes(d.campaign.status);
-    if (!live && !now) return '';
+    if (!live && !now && !['review', 'done'].includes(d.campaign.status)) return '';   // a started campaign always shows its bar and dots
     return `<div class="cm-prog" role="status" aria-live="polite"><div class="cm-bar" role="progressbar" aria-valuemin="0" aria-valuemax="${n}" aria-valuenow="${fin}"><i style="width:${n ? Math.round((fin / n) * 100) : 0}%"></i></div>
       <b>${esc(L(`${fin} من ${n} مهام`, `${fin} of ${n} tasks`))}</b> <span class="cm-dots">${d.tasks.map(t => dot(t.status)).join('')}</span>${bad ? ` <span class="muted">${esc(L(`· ${bad} موقوفة`, `· ${bad} stopped`))}</span>` : ''}</div>`;
   }

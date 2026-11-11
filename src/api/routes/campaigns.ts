@@ -295,12 +295,22 @@ export const override = { POST: handle(async (request, e: Env) => {
 // active at all. Two small reads, the user's own campaigns (an approver sees the company's). No text, no ids.
 export const agents = { GET: handle(async (request, e: Env) => {
   const { cfg, user } = await requireUser(request, e, 'any');
-  const c = await sb(cfg, scoped(`/rest/v1/campaigns?select=id&status=in.(approved,running,review)&limit=50${visible(user, cfg)}`, user.co), { admin: true });
-  const ids = c.ok ? rows(c.data).map(x => idOf(x['id'])).filter((x): x is string => !!x) : [];
-  if (!ids.length) return json(200, { active: false, agents: {} });
-  const t = await sb(cfg, scoped(`/rest/v1/campaign_tasks?select=agent,status&campaign_id=in.(${ids.join(',')})&status=in.(running,failed)&limit=200`, user.co), { admin: true });
+  const c = await sb(cfg, scoped(`/rest/v1/campaigns?select=id,status&status=in.(approved,running,review)&limit=50${visible(user, cfg)}`, user.co), { admin: true });
+  const camps = c.ok ? rows(c.data).flatMap(x => { const i = idOf(x['id']); return i ? [{ id: i, status: String(x['status']) }] : []; }) : [];
+  if (!camps.length) return json(200, { active: false, agents: {} });
+  const t = await sb(cfg, scoped(`/rest/v1/campaign_tasks?select=campaign_id,position,agent,status,depends_on,updated_at&campaign_id=in.(${camps.map(x => x.id).join(',')})&limit=400`, user.co), { admin: true });
+  const all = rows(t.data) as unknown as (TaskRow & { campaign_id: string })[];
   const out: Record<string, string> = {};
-  for (const x of rows(t.data)) { const a = String(x['agent']), s = String(x['status']); if (s === 'running' || !out[a]) out[a] = s; }
+  const mark = (a: string, s: string) => { if (s === 'running' || !out[a]) out[a] = s; };
+  for (const x of all) if (x.status === 'running' || x.status === 'failed') mark(x.agent, x.status);
+  // Between two steps of a live run no task is «running» for a moment: the agent whose task is next in a campaign that moved in the last
+  // 3 minutes still shows as working, so the dot does not flicker to idle. A campaign nobody is running (page closed) goes quiet.
+  for (const k of camps.filter(x => x.status === 'running' || x.status === 'approved')) {
+    const mine = all.filter(x => x.campaign_id === k.id);
+    const recent = mine.some(x => x.updated_at && Date.parse(x.updated_at) > Date.now() - 3 * 60_000);
+    const next = recent ? readyTask(mine) : null;
+    if (next) mark(next.agent, 'running');
+  }
   return json(200, { active: true, agents: out });
 }) };
 

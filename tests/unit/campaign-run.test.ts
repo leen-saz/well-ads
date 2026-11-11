@@ -278,6 +278,21 @@ describe('GET /api/campaigns/agents (the sidebar dots)', () => {
     tasks = [task(0, 'design', 'failed')];
     expect((await get()).agents).toEqual({ design: 'failed' });
   });
+  it('between two steps of a live run the next agent still pulses (no flicker to idle); a campaign nobody is running goes quiet', async () => {
+    campaign['status'] = 'running';
+    tasks = [task(0, 'knowledge', 'review', [], { campaign_id: CID }), task(1, 'content', 'waiting', [0], { campaign_id: CID }), task(2, 'social', 'waiting', [1], { campaign_id: CID })];
+    expect((await get()).agents).toEqual({ content: 'running' });
+    const old = new Date(Date.now() - 10 * 60_000).toISOString();
+    tasks = tasks.map(x => ({ ...x, updated_at: old }));
+    expect((await get()).agents).toEqual({});
+    campaign['status'] = 'review';   // a stopped campaign does not pulse either
+    tasks = [task(0, 'knowledge', 'review', [], { campaign_id: CID }), task(1, 'content', 'waiting', [0], { campaign_id: CID })];
+    expect((await get()).agents).toEqual({});
+  });
+  it('an old campaign (tasks backfilled on its first run) lights the dot as soon as its first task runs', async () => {
+    campaign['status'] = 'running'; tasks = [task(0, 'knowledge', 'running', [], { campaign_id: CID })];
+    expect(await get()).toEqual({ active: true, agents: { knowledge: 'running' } });
+  });
   it('a member only counts their own campaigns', async () => {
     access = {};
     await get();
