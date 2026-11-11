@@ -1,38 +1,69 @@
-# Manual Supabase backup (public tables + Auth users) before any move or big change. Ported from the old repo.
-# The repo is PUBLIC and any signed-in GitHub account can download its Actions artifacts, so the dump (emails, ad
-# spend, leads) is encrypted before upload. Needs the environment secret BACKUP_PASSPHRASE; without it the job
-# stops before anything is written. Decrypt:  openssl enc -d -aes-256-cbc -pbkdf2 -in backup.enc | tar xz
-# The artifact deletes itself after 3 days. Download it and keep it yourself; it never goes into the repo.
+# Weekly Supabase backup (public tables + Auth users), also runnable by hand. Ported from the old repo.
+# The repo is PUBLIC and any signed-in GitHub account can download its Actions artifacts, so the dump (emails, ad spend,
+# leads) is encrypted before it leaves the job and is NEVER uploaded as an artifact or committed. It goes to a PRIVATE R2
+# bucket (well-ads-backups) that no Worker binding and no public domain points at. Needs the environment secrets
+# BACKUP_PASSPHRASE and CLOUDFLARE_API_TOKEN / CLOUDFLARE_ACCOUNT_ID; without the passphrase the job stops before anything is written.
+# Retention is a bucket lifecycle rule (90 days), set once: docs/runbook.md → Backups. Decrypt:
+#   openssl enc -d -aes-256-cbc -pbkdf2 -in backup.enc | tar xz
+# Started weekly by the production Worker's Cron Trigger (src/lib/cron.ts), because GitHub's own `schedule` has not fired for
+# this repo (see refresh.yml); the schedule below is a second path and a double run on the same day only overwrites that day's file.
 name: db-backup
 
 on:
   workflow_dispatch:
+  schedule:
+    - cron: "17 2 * * 0" # Sunday 05:17 Riyadh
 
 permissions:
   contents: read
+
+concurrency:
+  group: db-backup
+  cancel-in-progress: false
 
 jobs:
   backup:
     runs-on: ubuntu-24.04
     environment: production
-    timeout-minutes: 10
+    timeout-minutes: 15
+    env:
+      CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+      CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+      BACKUP_BUCKET: well-ads-backups
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
-      - name: Dump Supabase
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        with:
+          python-version: "3.12"
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: "24"
+          cache: npm
+      - run: npm ci
+      - name: Dump Supabase and encrypt
         env:
           SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
           SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
           BACKUP_PASSPHRASE: ${{ secrets.BACKUP_PASSPHRASE }}
         run: |
           test -n "$BACKUP_PASSPHRASE" || { echo "BACKUP_PASSPHRASE is not set: refusing to write an unencrypted dump"; exit 1; }
+          test -n "$CLOUDFLARE_API_TOKEN" || { echo "CLOUDFLARE_API_TOKEN is not set: nowhere private to keep the backup"; exit 1; }
           PYTHONPATH=pipeline python3 supabase/backup.py
           cp -r supabase/migrations backup/
           tar czf - backup | openssl enc -aes-256-cbc -pbkdf2 -salt -pass env:BACKUP_PASSPHRASE -out backup.enc
           rm -rf backup
-      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
-        with:
-          name: well-db-backup-${{ github.run_id }}
-          path: backup.enc
-          retention-days: 3
+          # Open the file we are about to keep and run the restore checks on it: a backup that does not decrypt is not uploaded
+          mkdir verify
+          openssl enc -d -aes-256-cbc -pbkdf2 -pass env:BACKUP_PASSPHRASE -in backup.enc | tar xz -C verify
+          python3 supabase/backup_check.py verify/backup
+          rm -rf verify
+      - name: Upload to the private bucket
+        run: |
+          set -euo pipefail
+          day="$(date -u +%Y-%m-%d)"
+          npx wrangler r2 object put "$BACKUP_BUCKET/weekly/$day.enc" --file backup.enc --content-type application/octet-stream --remote >/dev/null
+          npx wrangler r2 object put "$BACKUP_BUCKET/latest.enc" --file backup.enc --content-type application/octet-stream --remote >/dev/null
+          rm -f backup.enc
+          echo "::notice title=db-backup::encrypted backup stored in the private bucket (weekly/$day.enc and latest.enc)"

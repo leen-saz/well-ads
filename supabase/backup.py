@@ -4,6 +4,7 @@
 فيه بيانات شخصية (إيميلات) وأرقام أعمال، والريبو عام (وأي حساب GitHub ينزّل الـ artifacts): الـ workflow يشفّره قبل الرفع، وما ينحفظ في الريبو أبداً.
 """
 import json, os, sys, urllib.parse, urllib.request
+from datetime import datetime, timezone
 
 from modules.core.supa import Supa
 
@@ -48,18 +49,25 @@ def main():
     if not db:
         sys.exit("backup: ناقص SUPABASE_URL أو المفتاح")
     os.makedirs("backup", exist_ok=True)
-    total, bad = 0, []
+    total, bad, counts = 0, [], {}
+    debug = os.environ.get("PIPELINE_DEBUG") == "1"
     for t in TABLES:
         try:
             rows = dump(db, t)
         except Exception as ex:
             bad.append(t); print(f"backup: {t} ✗ {str(ex)[:120]}"); continue
         json.dump(rows, open(f"backup/{t}.json", "w", encoding="utf-8"), ensure_ascii=False)
-        total += len(rows); print(f"backup: {t} {len(rows)} صف")
+        total += len(rows); counts[t] = len(rows)
+        # The Actions log is public: the row counts go into the encrypted manifest, and to the log only with PIPELINE_DEBUG=1
+        print(f"backup: {t} ✓" + (f" {len(rows)} صف" if debug else ""))
     u = users(db)
     json.dump(u, open("backup/auth_users.json", "w", encoding="utf-8"), ensure_ascii=False)
-    print(f"backup: auth_users {len(u)} مستخدم")
-    print(f"backup: المجموع {total} صف" + (f" · فشل: {', '.join(bad)}" if bad else " ✓"))
+    counts["auth_users"] = len(u)
+    print("backup: auth_users ✓" + (f" {len(u)} مستخدم" if debug else ""))
+    # Read back by supabase/backup_check.py (the monthly restore test) to prove nothing was cut short
+    json.dump({"taken_at": datetime.now(timezone.utc).isoformat(timespec="seconds"), "tables": counts, "failed": bad},
+              open("backup/manifest.json", "w", encoding="utf-8"))
+    print("backup: " + (f"فشل: {', '.join(bad)}" if bad else "كل الجداول ✓") + (f" · المجموع {total} صف" if debug else ""))
     sys.exit(1 if bad else 0)
 
 

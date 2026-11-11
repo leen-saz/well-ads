@@ -18,7 +18,7 @@ Source: `docs/plan.md`. Updated with every PR. Live since 2026-11-01: **https://
 - `refresh.yml` hourly (minute 7, production): the only writer to Supabase.
 - `pipeline.yml` hourly (minute 37, staging): read-only export.
 - `deploy.yml`: staging on push to main, production manual.
-- `db-backup.yml`, `execute-smoke.yml`: manual.
+- `db-backup.yml` (weekly, started by the Worker Cron) and `db-restore-test.yml` (monthly): see docs/runbook.md → Backups. `execute-smoke.yml`: manual.
 
 ## Waiting on Leen
 - GA4: a Web OAuth client in Google Cloud with `https://well-ads.pages.dev/api/connectors/callback`, its id/secret as Worker secrets, then Connect from the connectors tab.
