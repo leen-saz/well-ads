@@ -19,7 +19,6 @@ import { meta as transcribeMeta } from './transcribe/module';
 import { meta as visionMeta } from './vision/module';
 import { meta as voiceoverMeta } from './voiceover/module';
 import { meta as buyerMeta } from './buyer/module';
-import { meta as buyerMeta } from './buyer/module';
 
 // Listed by sidebar group, in marketing order: produce, distribute, measure, optimize, system
 export const MODULES: ModuleMeta[] = [overviewMeta, listeningMeta, designMeta, contentMeta, copyMeta, voiceMeta, voiceoverMeta, transcribeMeta, visionMeta, socialMeta, journeysMeta, maestroMeta, debuggerMeta, buyerMeta, knowledgeMeta, complianceMeta];

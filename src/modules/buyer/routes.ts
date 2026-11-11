@@ -44,14 +44,14 @@ export const report = { GET: handle(async (request, e) => {
   return json(200, { ...r, targets: { cpl: targets.cpl, ctr: targets.ctr, clickToLead: targets.clickToLead }, rules: s.rules.length, checked_at: new Date().toISOString(), readOnly: true });
 }) };
 
-// The owner reads and saves the company's rules. Only the rule list changes; the stop line and ladder stay as they were.
+// Whoever has approve on the Media buyer tab (Leen) reads and saves the company's rules. Only the rule list changes; the stop line and ladder stay as they were.
 export const rules = {
   GET: handle(async (request, e) => {
-    const { cfg } = await requireUser(request, e, 'owner', { well: true });
+    const { cfg } = await requireUser(request, e, 'buyer', { approve: true, well: true });
     return json(200, { rules: (await settings(cfg)).rules });
   }),
   POST: handle(async (request, e) => {
-    const { cfg, user } = await requireUser(request, e, 'owner', { write: true, well: true });
+    const { cfg, user } = await requireUser(request, e, 'buyer', { write: true, approve: true, well: true });
     const b = await readJson(request, 100_000);
     const c = cleanRules(b.rules);
     if ('error' in c) return json(400, { error: c.error });
