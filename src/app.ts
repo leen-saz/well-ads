@@ -8,7 +8,7 @@ import { withSecurityHeaders } from './lib/headers';
 import { serveSite } from './lib/site';
 import { versionAssets } from './lib/assets';
 import { withWaiter } from './lib/usage';
-import { dispatchRefresh, type CronEnv } from './lib/cron';
+import { dispatchRefresh, dispatchWorkflow, type CronEnv } from './lib/cron';
 import { runWatchdog, type WatchdogEnv } from './lib/watchdog';
 import { runListening, type ListenEnv } from './modules/listening/fetcher';
 import { runSocial } from './modules/social/cron';
@@ -19,6 +19,9 @@ export { JourneyRun } from './modules/journeys/workflow';
 type Bindings = Env & AuthEnv;
 const SOCIAL_CRON = '*/5 * * * *';
 const WATCHDOG_CRON = '37 * * * *';
+// Sunday 02:17 UTC: the weekly encrypted backup. The 1st at 02:47 UTC: the monthly restore test (docs/runbook.md → Backups)
+const BACKUP_CRON = '17 2 * * 0';
+const RESTORE_CRON = '47 2 1 * *';
 
 // Requests produced by a gateway rewrite (department or creative copy) skip the gateway the second time.
 const REWRITTEN = new WeakSet<Request>();
@@ -80,6 +83,9 @@ export default {
   scheduled(event: ScheduledController, env: CronEnv & AuthEnv & WatchdogEnv, ctx: ExecutionContext) {
     // Minute 37: the outside watcher of the data age (src/lib/watchdog.ts). It must be matched here: anything else starts a refresh.
     if (event.cron === WATCHDOG_CRON) { ctx.waitUntil(runWatchdog(env).then(() => undefined, err => console.error('cron: watchdog failed', String(err).slice(0, 200)))); return; }
+    // These two must be matched here: any other cron falls through to starting a data refresh
+    if (event.cron === BACKUP_CRON) { ctx.waitUntil(dispatchWorkflow(env, 'db-backup.yml').then(() => undefined)); return; }
+    if (event.cron === RESTORE_CRON) { ctx.waitUntil(dispatchWorkflow(env, 'db-restore-test.yml').then(() => undefined)); return; }
     // Every 5 minutes: due social posts, then one social-listening keyword that has not been fetched in a day
     withWaiter(p => ctx.waitUntil(p), () => ctx.waitUntil(event.cron === SOCIAL_CRON ? Promise.allSettled([runSocial(env), runListening(env as ListenEnv), runTranscribe(env as Parameters<typeof runTranscribe>[0])]).then(rs => rs.forEach((r, i) => { if (r.status === 'rejected') console.error('cron: job failed', ['social', 'listening', 'transcribe'][i], String(r.reason).slice(0, 200)); })) : dispatchRefresh(env)));
   },

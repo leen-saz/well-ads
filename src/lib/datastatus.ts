@@ -8,7 +8,11 @@ export interface StatusBucket {
   get?(key: string): Promise<{ text(): Promise<string> } | null>;
   put?(key: string, value: string, o?: { httpMetadata?: { contentType: string } }): Promise<unknown>;
 }
-export type DataWarning = 'no_data' | 'data_old' | 'data_very_old' | 'crm_missing' | 'crm_old' | 'dispatch_failed';
+export type DataWarning = 'no_data' | 'data_old' | 'data_very_old' | 'crm_missing' | 'crm_old' | 'dispatch_failed' | 'step_failed';
+// The non-blocking pipeline steps (pipeline/step_status.py): the run goes on when one fails, so each reports its own result
+export const STEP_NAMES = ['tiktok', 'crm', 'suggest', 'learn', 'critic', 'execute'] as const;
+export type StepName = (typeof STEP_NAMES)[number];
+export interface StepState { ok: boolean | null; at: string | null; last_ok: string | null; age_hours: number | null; last_ok_age_hours: number | null }
 export interface DataStatus {
   level: 'ok' | 'warn' | 'stale' | 'unknown';
   warnings: DataWarning[];
@@ -16,6 +20,7 @@ export interface DataStatus {
   crm_age_hours: number | null;
   dispatch: 'ok' | 'failed' | 'unknown';
   dispatch_at: string | null;
+  steps: Partial<Record<StepName, StepState>>;
 }
 
 export const REFRESH_STATUS_KEY = 'site/refresh-status.json';
@@ -33,11 +38,11 @@ async function json<T>(b: StatusBucket, key: string): Promise<T | null> {
 }
 
 export async function dataStatus(files: StatusBucket | undefined, now = Date.now()): Promise<DataStatus> {
-  if (!files?.head) return { level: 'unknown', warnings: [], dash_age_hours: null, crm_age_hours: null, dispatch: 'unknown', dispatch_at: null };
+  if (!files?.head) return { level: 'unknown', warnings: [], dash_age_hours: null, crm_age_hours: null, dispatch: 'unknown', dispatch_at: null, steps: {} };
   let uploaded: string | null = null;
   try { uploaded = (await files.head('site/dash.json'))?.uploaded.toISOString() ?? null; } catch { /* unreadable: treated as no data */ }
   const [st, disp] = await Promise.all([
-    json<{ crm_present?: boolean; crm_synced?: string | null }>(files, 'site/data-status.json'),
+    json<{ crm_present?: boolean; crm_synced?: string | null; steps?: Record<string, { ok?: boolean | null; at?: string | null; last_ok?: string | null }> }>(files, 'site/data-status.json'),
     json<{ at?: string; ok?: boolean }>(files, REFRESH_STATUS_KEY),
   ]);
   const warnings: DataWarning[] = [];
@@ -51,8 +56,16 @@ export async function dataStatus(files: StatusBucket | undefined, now = Date.now
     if (st.crm_present === false) warnings.push('crm_missing');
     else if (crm != null && crm >= CRM_WARN_HOURS) warnings.push('crm_old');
   }
+  const steps: Partial<Record<StepName, StepState>> = {};
+  for (const name of STEP_NAMES) {
+    const x = st?.steps?.[name];
+    if (!x || typeof x !== 'object') continue;
+    const at = typeof x.at === 'string' ? x.at : null, ok_at = typeof x.last_ok === 'string' ? x.last_ok : null;
+    steps[name] = { ok: typeof x.ok === 'boolean' ? x.ok : null, at, last_ok: ok_at, age_hours: hours(at, now), last_ok_age_hours: hours(ok_at, now) };
+  }
+  if (Object.values(steps).some(x => x.ok === false)) warnings.push('step_failed');
   const dispatch = disp ? (disp.ok === false ? 'failed' : 'ok') : 'unknown';
   if (dispatch === 'failed') warnings.push('dispatch_failed');
   const level = warnings.includes('no_data') || warnings.includes('data_very_old') ? 'stale' : warnings.length ? 'warn' : 'ok';
-  return { level, warnings, dash_age_hours: dash, crm_age_hours: crm, dispatch, dispatch_at: disp?.at ?? null };
+  return { level, warnings, dash_age_hours: dash, crm_age_hours: crm, dispatch, dispatch_at: disp?.at ?? null, steps };
 }
