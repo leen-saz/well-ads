@@ -7,22 +7,33 @@ import type { Provider } from './llm';
 
 export interface Route { provider: Provider; model?: string | undefined }
 export interface Task { key: string; ar: string; en: string; def: Provider | 'anthropic' }
+
+// THE source of each tab's default provider (llm.ts, the owner screen and docs/ai-providers.md all read it). A tab with no entry is on the free Workers AI.
+export const PROVIDER: Record<string, Provider> = { content: 'openai', design: 'openai', copy: 'openai', motion: 'openai', video: 'openai', social: 'xai', maestro: 'xai', listening: 'xai', ahlam: 'openrouter', ahlam_campaign: 'openrouter' };
+// Tasks that call generate() under another module name (compliance and knowledge write with the content model)
+const ALIAS: Record<string, string> = { compliance: 'content', knowledge: 'content' };
+// The Debugger and the critic call Anthropic directly unless the owner routes them elsewhere
+const DIRECT_CLAUDE = new Set(['debugger', 'overview']);
+export const defaultOf = (key: string): Provider | 'anthropic' => DIRECT_CLAUDE.has(key) ? 'anthropic' : PROVIDER[ALIAS[key] ?? key] ?? 'workers';
+
 // Keys are the tab a call is billed to (tabOf in usage.ts), so a task's route, cost and cap all line up
-export const TASKS: Task[] = [
-  { key: 'debugger', ar: 'الديبقر: شرح التتبع', en: 'Debugger: tracking explanation', def: 'anthropic' },
-  { key: 'overview', ar: 'مراجعة المدقق (الناقد)', en: 'Auditor review (critic)', def: 'anthropic' },
-  { key: 'copy', ar: 'الكاتب', en: 'Copywriter', def: 'openai' },
-  { key: 'content', ar: 'المحتوى', en: 'Content', def: 'openai' },
-  { key: 'design', ar: 'التصميم والموشن', en: 'Design and motion', def: 'openai' },
-  { key: 'compliance', ar: 'إعادة صياغة الامتثال', en: 'Compliance rewrite', def: 'openai' },
-  { key: 'knowledge', ar: 'المعرفة', en: 'Knowledge', def: 'openai' },
-  { key: 'social', ar: 'السوشال', en: 'Social', def: 'xai' },
-  { key: 'listening', ar: 'الرصد', en: 'Listening', def: 'xai' },
-  { key: 'maestro', ar: 'المدير', en: 'Manager', def: 'xai' },
-  { key: 'journeys', ar: 'الرحلات', en: 'Journeys', def: 'workers' },
-  { key: 'ahlam_campaign', ar: 'احلم: حملة جديدة', en: 'Ahlam: new campaign', def: 'openrouter' },
-  { key: 'ahlam', ar: 'احلم (الصفحة الرئيسية)', en: 'Ahlam (home page)', def: 'openrouter' },
+const LIST: [string, string, string][] = [
+  ['debugger', 'الديبقر: شرح التتبع', 'Debugger: tracking explanation'],
+  ['overview', 'مراجعة المدقق (الناقد)', 'Auditor review (critic)'],
+  ['copy', 'الكاتب', 'Copywriter'],
+  ['content', 'المحتوى', 'Content'],
+  ['design', 'التصميم والموشن', 'Design and motion'],
+  ['video', 'الفيديو: الموجز والسكربت', 'Video: brief and script'],
+  ['compliance', 'إعادة صياغة الامتثال', 'Compliance rewrite'],
+  ['knowledge', 'المعرفة', 'Knowledge'],
+  ['social', 'السوشال', 'Social'],
+  ['listening', 'الرصد', 'Listening'],
+  ['maestro', 'المدير', 'Manager'],
+  ['journeys', 'الرحلات', 'Journeys'],
+  ['ahlam_campaign', 'احلم: حملة جديدة', 'Ahlam: new campaign'],
+  ['ahlam', 'احلم (الصفحة الرئيسية)', 'Ahlam (home page)'],
 ];
+export const TASKS: Task[] = LIST.map(([key, ar, en]) => ({ key, ar, en, def: defaultOf(key) }));
 export const TASK_KEYS = new Set(TASKS.map(t => t.key));
 export const ROUTE_PROVIDERS: Provider[] = ['openai', 'xai', 'openrouter', 'workers'];
 // OpenRouter ids are «author/model» with optional :variant (openai/gpt-5, meta-llama/llama-4:free)
