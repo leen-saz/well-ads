@@ -38,6 +38,7 @@ export const MIGRATIONS: readonly string[] = [
   '031_ai_models_spend.sql',
   '032_buyer_actions.sql',
   '033_schema_migrations.sql',
+  '034_video.sql',
 ];
 
 // Files up to this one were applied by hand before the schema_migrations table existed: they are not checked here

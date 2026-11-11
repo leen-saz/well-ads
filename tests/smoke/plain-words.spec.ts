@@ -9,7 +9,7 @@ import { TECH_WORDS } from '../shared/tech-words';
 
 const PAGES = [
   '/', '/today/', '/control/', '/control/new/', '/account/', '/library/', '/overview/', '/overview/creative/', '/listening/',
-  '/design/', '/content/?tab=copy', '/voice/', '/social/', '/content/', '/journeys/', '/compliance/', '/maestro/', '/knowledge/', '/debugger/', '/soon/',
+  '/design/', '/video/', '/content/?tab=copy', '/voice/', '/social/', '/content/', '/journeys/', '/compliance/', '/maestro/', '/knowledge/', '/debugger/', '/soon/',
 ];
 const FAKE = 'http://localhost:8788';
 

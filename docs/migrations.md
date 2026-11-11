@@ -17,6 +17,7 @@ reads or alters what the other creates, so either order gives the same schema. K
 | 7 | `014_knowledge` | `companies` |
 | 8 | `014_lessons_by_tab` | `lessons` (004), `companies` |
 | 9 | `015_copy` … `018_motion_videos` | one after the other |
+| 10 | `034_video` | `companies`, `ai_usage` (019); it also locks the `video` module for every company once |
 
 Rules going forward:
 

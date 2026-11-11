@@ -8,7 +8,7 @@ import type { Provider as LlmProvider } from './llm';
 export type Provider = LlmProvider | 'anthropic';
 
 // The providers a cost can be billed to: the text models of src/lib/llm.ts, and Gemini (audio, video, images, speech: src/lib/gemini.ts)
-export type Billed = Provider | 'gemini';
+export type Billed = Provider | 'gemini' | 'higgsfield';
 export interface Price { provider: Billed; match: string; inUsd: number; outUsd: number; audioInUsd?: number; source: string; date: string; verified: boolean }
 
 const OPENAI = 'platform.openai.com/docs/pricing';
@@ -36,3 +36,14 @@ export function priceOf(provider: Billed, model: string): Price | null {
 }
 
 export const per = (tokens: number, usdPerMillion: number): number => (tokens * usdPerMillion) / 1_000_000;
+
+// Video: US dollars per second of finished video. ESTIMATES until the owner matches an invoice (verified stays false).
+// Higgsfield's pricing page publishes credits per model, not dollars per second: check docs.higgsfield.ai / the cloud console.
+export interface VideoPrice { engine: string; usdPerSecond: Record<string, number>; source: string; date: string; verified: boolean }
+export const VIDEO_PRICES: VideoPrice[] = [
+  { engine: 'higgsfield-seedance', usdPerSecond: { '480p': 0.03, '720p': 0.06, '1080p': 0.12 }, source: 'higgsfield.ai/pricing (credits per clip; converted by the owner)', date: '2026-11-08', verified: false },
+];
+export function videoCost(engine: string, resolution: string, seconds: number): { usd: number; priced: boolean } {
+  const p = VIDEO_PRICES.find(x => x.engine === engine)?.usdPerSecond[resolution];
+  return p == null ? { usd: 0, priced: false } : { usd: Math.round(p * Math.max(0, seconds) * 1e6) / 1e6, priced: true };
+}
