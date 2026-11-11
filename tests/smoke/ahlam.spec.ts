@@ -196,6 +196,69 @@ test.describe('احلم', () => {
     await page.goto('/today/?tab=campaign');
     await page.locator('.cm-list button').first().click();
     await expect(page.locator('#cmOk')).toBeVisible();
-    await expect(page.locator('#cmRun')).toHaveCount(0);
+    await expect(page.locator('#cmRunBox')).toBeHidden();
+  });
+  // ---- the pack page is patched, never redrawn: folds, scroll and typing survive the automatic updates
+  const LONG = 'A long output line that fills the page. '.repeat(60);
+  const big = (statuses: string[], extra: Record<string, unknown> = {}) => ({ ...PACK, campaign: { ...PACK.campaign, status: 'running', brief: { summary: 'Brief', messages: [], risks: [], questions: [{ q: 'Budget?', assumption: 'Medium', affects: [] }] } },
+    tasks: statuses.map((st, i) => ({ id: i + 1, position: i, agent: ['content', 'design', 'voice', 'social', 'optimize'][i % 5], title: 'Task ' + (i + 1), status: st, depends_on: [], spec: {}, estimate_usd: 0.01, ...(st === 'blocked' ? { blocked_reason: 'blocked reason' } : {}) })),
+    outputs: statuses.flatMap((st, i) => (st === 'waiting' || st === 'running' ? [] : [{ id: i + 1, task_id: i + 1, kind: 'copy', body: { text: `Output ${i + 1}. ${LONG}` }, compliance: [] }])), ...extra });
+  const openPack = async (page: import('@playwright/test').Page, getJson: () => unknown, lang = 'en') => {
+    await page.route('**/api/campaigns/get**', r => r.fulfill({ json: getJson() }));
+    await page.route('**/api/campaigns/list', r => r.fulfill({ json: { campaigns: [{ id: 'c1', title: 'Spring', status: 'running', estimate_usd: 0.05, created_at: '2026-11-01T00:00:00Z' }], mayApprove: true } }));
+    await page.goto('/today/?tab=campaign' + (lang === 'en' ? '&lang=en' : ''));
+    await page.locator('.cm-list button').first().click();
+    await expect(page.locator('.cm-task')).not.toHaveCount(0);
+  };
+  test('each task\'s output is folded by default with a one-line summary; only a working or problem task opens by itself; the folds are remembered across updates and reloads; expand/collapse all', async ({ page, context, request }) => {
+    await addSession(context, await login(request, 'owner'));
+    let n = 0;
+    await openPack(page, () => (++n < 3 ? big(['review', 'blocked', 'review', 'waiting']) : big(['review', 'blocked', 'review', 'running'])));
+    const open = (i: number) => page.locator('.cm-task').nth(i).locator('details');
+    await expect(open(0)).not.toHaveAttribute('open', '');
+    await expect(open(1)).toHaveAttribute('open', '');          // a problem opens by itself
+    await expect(page.locator('.cm-task').nth(0).locator('.cm-one')).toContainText('Output 1');   // one line, no full output
+    await expect(page.locator('.cm-task').nth(0).locator('summary')).toContainText('Needs review');
+    await page.locator('.cm-task').nth(0).locator('summary').click();   // the user opens task 1
+    await page.locator('.cm-task').nth(1).locator('summary').click();   // and closes the problem one
+    await expect(open(3)).toHaveAttribute('open', '', { timeout: 10000 });   // the next poll: task 4 started working, so it opens
+    await expect(open(0)).toHaveAttribute('open', '');          // the user's choices survived the update
+    await expect(open(1)).not.toHaveAttribute('open', '');
+    await page.reload();
+    await page.locator('.cm-list button').first().click();
+    await expect(open(0)).toHaveAttribute('open', '');          // and survived a reload
+    await page.locator('#cmNone').click();
+    await expect(page.locator('.cm-task details[open]')).toHaveCount(0);
+    await page.locator('#cmAll').click();
+    await expect(page.locator('.cm-task details[open]')).toHaveCount(4);
+  });
+  test('the automatic update patches the page: the scroll position, the open task, the focus and what the user typed stay put, and nothing reloads', async ({ page, context, request }) => {
+    await addSession(context, await login(request, 'owner'));
+    let n = 0;
+    await openPack(page, () => (++n < 3 ? big(['review', 'review', 'review', 'running', 'waiting']) : big(['review', 'review', 'review', 'review', 'running'])));
+    await page.locator('#cmAll').click();
+    await page.locator('[data-q="0"]').fill('My own answer that is not saved yet');
+    await page.evaluate(() => { window.scrollTo(0, 500); (window as unknown as Record<string, unknown>)['__tasks'] = document.querySelector('#cmTasks'); (window as unknown as Record<string, unknown>)['__ta'] = document.querySelector('[data-q="0"]'); document.querySelector<HTMLElement>('[data-q="0"]')!.focus(); });
+    const y0 = await page.evaluate(() => window.scrollY);
+    expect(y0).toBeGreaterThan(100);
+    await expect(page.locator('.cm-task').nth(4).locator('.cm-st')).toHaveAttribute('data-s', 'running', { timeout: 10000 });   // the update arrived
+    const kept = await page.evaluate(() => ({
+      y: window.scrollY, same: document.querySelector('#cmTasks') === (window as unknown as Record<string, unknown>)['__tasks'], ta: document.querySelector('[data-q="0"]') === (window as unknown as Record<string, unknown>)['__ta'],
+      val: document.querySelector<HTMLTextAreaElement>('[data-q="0"]')!.value, focus: document.activeElement === document.querySelector('[data-q="0"]'), open: document.querySelectorAll('.cm-task details[open]').length }));
+    expect(Math.abs(kept.y - y0)).toBeLessThan(3);
+    expect(kept).toMatchObject({ same: true, ta: true, val: 'My own answer that is not saved yet', focus: true });
+    expect(kept.open).toBe(5);
+  });
+  test('the run goes on by itself, task after task, without anyone pressing anything, and without reloading the page', async ({ page, context, request }) => {
+    await addSession(context, await login(request, 'owner'));
+    let steps = 0;
+    const st = () => ['review', 'review', 'review', 'review'].map((x, i) => (i < steps ? x : i === steps ? 'running' : 'waiting'));
+    await openPack(page, () => big(st(), { campaign: { ...PACK.campaign, status: steps >= 4 ? 'review' : 'running', approved_by: 'a@x.co', brief: { summary: 'B', messages: [], risks: [] } } }));
+    await page.route('**/api/campaigns/step', async r => { await new Promise(res => setTimeout(res, 300)); steps++; return r.fulfill({ json: steps >= 4 ? { done: true, status: 'review' } : { ran: { status: 'review' }, more: true, status: 'running' } }); });
+    await page.evaluate(() => { (window as unknown as Record<string, unknown>)['__mark'] = 'same page'; });
+    await page.locator('#cmRun').click();      // ONE press
+    await expect.poll(() => steps, { timeout: 15000 }).toBe(4);   // the other steps follow by themselves
+    await expect(page.locator('.cm-prog b')).toHaveText('4 of 4 tasks');
+    expect(await page.evaluate(() => (window as unknown as Record<string, unknown>)['__mark'])).toBe('same page');
   });
 });

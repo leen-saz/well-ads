@@ -24,6 +24,11 @@ export interface TaskRow { id: number; position: number; agent: Agent; title: st
 export interface OutputRow { id?: number; task_id: number | null; kind: string; platform?: string | null; body: { text?: string; [k: string]: unknown }; compliance?: unknown[] }
 
 const DONE = ['review', 'approved'];
+// Only what can reach an audience is checked and can be stopped: ad copy, design briefs, voiceover scripts and posts. The knowledge summary and the
+// budget/measurement document are internal references for the team: they may QUOTE forbidden words ("avoid «الأفضل»") without being an ad, so
+// they are never refused by the rules and never enter the repair loop.
+export const PUBLISHABLE: Agent[] = ['content', 'design', 'voice', 'social'];
+export const INTERNAL_KINDS = ['insight', 'optimization', 'compliance_report', 'measurement'];
 
 // The next task to run: the first one waiting whose dependencies are all finished (waiting for review or approved). A blocked or
 // failed dependency keeps its dependents waiting: the run stalls there, and the page says why.

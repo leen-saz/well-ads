@@ -73,7 +73,8 @@ export function mountCampaign(root, me, L) {
 
   function outputHtml(o) {
     const k = KIND[o.kind] ? L(...KIND[o.kind]) : o.kind;
-    const hits = (o.compliance || []).filter(h => h.level !== 'info');
+    // internal references (the knowledge summary, the budget document) are not ads: no findings are shown on them, whatever an older run stored
+    const hits = ['insight', 'optimization', 'measurement'].includes(o.kind) ? [] : (o.compliance || []).filter(h => h.level !== 'info');
     const body = o.kind === 'measurement'
       ? `<ul class="cm-kpis">${(o.body.kpis || []).map(x => `<li>${esc(L(x.ar, KPI_EN[x.key] || x.ar))}: <b>${esc(x.target)} ${esc(Array.isArray(UNIT[x.unit]) ? L(...UNIT[x.unit]) : UNIT[x.unit] || '')}</b></li>`).join('')}</ul>`
       : `<div class="cm-text">${render(o.body.text || '')}</div>`;
@@ -94,113 +95,223 @@ export function mountCampaign(root, me, L) {
     return `<div class="cm-prog" role="status" aria-live="polite"><div class="cm-bar" role="progressbar" aria-valuemin="0" aria-valuemax="${n}" aria-valuenow="${fin}"><i style="width:${n ? Math.round((fin / n) * 100) : 0}%"></i></div>
       <b>${esc(L(`${fin} من ${n} مهام`, `${fin} of ${n} tasks`))}</b> <span class="cm-dots">${d.tasks.map(t => dot(t.status)).join('')}</span>${bad ? ` <span class="muted">${esc(L(`· ${bad} موقوفة`, `· ${bad} stopped`))}</span>` : ''}</div>`;
   }
-  // While a step runs (it can take a while) the screen asks again every few seconds, so tasks move waiting -> running -> review by themselves
-  const watch = (id, mine, root_) => {
-    const tick = async () => {
-      if (mine !== view) return;
-      try {
-        const d = await api('/api/campaigns/get?id=' + encodeURIComponent(id));
-        if (mine !== view) return;
-        const box = $('#cmProg', root_); if (box) box.innerHTML = progHtml(d);
-        for (const t of d.tasks) { const el = root_.querySelector(`[data-st="${t.id}"]`); if (el) { el.textContent = pick(TSTATUS, t.status); el.dataset.s = t.status; const dl = el.closest('li')?.querySelector('[data-dot]'); if (dl) dl.outerHTML = dot(t.status); } }
-        if (d.campaign.status !== 'running' && d.campaign.status !== 'approved') return;
-      } catch { /* the next tick tries again */ }
-      setTimeout(tick, 2500);
-    };
-    setTimeout(tick, 2500);
+  // ---- the campaign screen: built ONCE, then patched. Updates never redraw the page: only the nodes that changed are touched, so the
+  // scroll position, the folded tasks, the focus and anything the user is typing stay where they are.
+  const ATTN = ['running', 'blocked', 'failed'];   // a task opens by itself only while it works or has a problem
+  const flat = s => String(s || '').replace(/[#*_`>|~-]+/g, ' ').replace(/\s+/g, ' ').trim();
+  const oneLine = (t, outs) => {
+    const first = outs.find(o => o.kind !== 'measurement' && o.body?.text);
+    return flat(t.blocked_reason || first?.body?.text || t.spec?.detail || '').slice(0, 110);
+  };
+  const store = id => {
+    const k = 'cm-fold-' + id;
+    return { get: () => { try { return JSON.parse(sessionStorage.getItem(k) || '{}') || {}; } catch { return {}; } },
+      set: v => { try { sessionStorage.setItem(k, JSON.stringify(v)); } catch { /* private window: the folds last for the visit */ } } };
   };
 
-  async function showCampaign(id, auto = false) {
+  function taskBody(t, outs, d) {
+    return `${t.blocked_reason ? `<p class="msg err">${esc(t.blocked_reason)}</p>` : ''}
+      ${t.spec?.auto ? `<p class="muted cm-auto">${esc(t.status === 'blocked' ? L(`أعاد الإيجنت كتابتها تلقائياً ${t.spec.auto} من 2 بعد ملاحظات الامتثال وما نجحت: تحتاج قرارك.`, `The agent rewrote it automatically ${t.spec.auto} of 2 times after compliance feedback and it still failed: it needs your decision.`) : L(`أعاد الإيجنت كتابتها تلقائياً ${t.spec.auto} من 2 بحسب ملاحظات الامتثال.`, `The agent rewrote it automatically ${t.spec.auto} of 2 times following compliance feedback.`))}</p>` : ''}
+      ${t.spec?.override ? `<p class="cm-ovr"><b>${esc(L('تجاوز بموافقة', 'Overridden with approval'))}</b> · ${esc(t.spec.override.by)} · ${esc(t.spec.override.reason)}</p>` : ''}
+      ${t.spec?.detail && !outs.length ? `<p class="muted">${esc(t.spec.detail)}</p>` : ''}${outs.map(outputHtml).join('')}
+      <div class="cm-actions">${t.status === 'blocked' && d.mayApprove ? `<button class="btn" data-ovr="${t.id}" type="button">${esc(L('اعتمد رغم الرفض', 'Approve despite the refusal'))}</button>` : ''}
+        ${t.status === 'review' && d.mayApprove ? `<button class="btn" data-ok="${t.id}" type="button">${esc(L('اعتمد هذا الناتج', 'Approve this output'))}</button>` : ''}
+        ${(t.status === 'blocked' || t.status === 'failed') && d.mayApprove && (t.spec?.retries || 0) < 2 ? `<button class="btn" data-retry="${t.id}" type="button">${esc(L('أعد الكتابة وافحص من جديد', 'Rewrite and check again'))}</button>` : ''}</div>`;
+  }
+  function taskSummary(t, outs) {
+    return `${dot(t.status)} <b>${esc(pick(AGENT, t.agent))}</b> · ${esc(t.title)}
+      <small class="muted"><span class="cm-st" data-st="${t.id}" data-s="${esc(t.status)}">${esc(pick(TSTATUS, t.status))}</span> · ${esc(sar(t.estimate_usd))}${t.spec?.override ? ' · ' + esc(L('تجاوز بموافقة', 'Overridden')) : ''}</small>
+      <span class="cm-one">${esc(oneLine(t, outs))}</span>`;
+  }
+
+  let cur = null;   // the screen on show: { id, mine, d, fold, folds, sig, seq, looping, timer }
+  async function showCampaign(id, opts = {}) {
     const mine = ++view;
-    if (!auto) frame(`<p class="muted">${esc(L('يحمّل…', 'Loading…'))}</p>`);
+    if (cur?.timer) clearInterval(cur.timer);
+    cur = null;
+    frame(`<p class="muted">${esc(L('يحمّل…', 'Loading…'))}</p>`);
     let d;
     try { d = await api('/api/campaigns/get?id=' + encodeURIComponent(id)); } catch (err) { frame(''); say(msg(), err.message); return showListLater(); }
     if (mine !== view) return;
-    const c = d.campaign, b = c.brief || {}, planned = c.status === 'planned', started = ['approved', 'running', 'review', 'done'].includes(c.status);
-    // runnable: approved (no new approval needed), or stopped with tasks left; planned/cancelled/done never
-    const live = c.status === 'approved' || c.status === 'running' || (c.status === 'review' && !!c.approved_by && d.tasks.some(t => t.status === 'waiting'));
-    const waitingN = d.tasks.filter(t => t.status === 'waiting').length;
+    build(id, mine, d);
+    if (opts.run && cur.live) loop();
+  }
+
+  function build(id, mine, d) {
+    const c = d.campaign, b = c.brief || {};
     const li = a => (a || []).map(x => `<li>${esc(x)}</li>`).join('');
-    const outs = t => d.outputs.filter(o => o.task_id === t.id);
-    const tasks = d.tasks.map(t => `<li>${dot(t.status)} <b>${esc(pick(AGENT, t.agent))}</b> · ${esc(t.title)}${t.spec?.detail && !started ? `<br><span class="muted">${esc(t.spec.detail)}</span>` : ''}
-        <br><small class="muted"><span class="cm-st" data-st="${t.id}" data-s="${esc(t.status)}">${esc(pick(TSTATUS, t.status))}</span> · ${esc(sar(t.estimate_usd))}</small>
-        ${t.blocked_reason ? `<p class="msg err">${esc(t.blocked_reason)}</p>` : ''}${t.spec?.auto ? `<p class="muted cm-auto">${esc(t.status === 'blocked' ? L(`أعاد الإيجنت كتابتها تلقائياً ${t.spec.auto} من 2 بعد ملاحظات الامتثال وما نجحت: تحتاج قرارك.`, `The agent rewrote it automatically ${t.spec.auto} of 2 times after compliance feedback and it still failed: it needs your decision.`) : L(`أعاد الإيجنت كتابتها تلقائياً ${t.spec.auto} من 2 بحسب ملاحظات الامتثال.`, `The agent rewrote it automatically ${t.spec.auto} of 2 times following compliance feedback.`))}</p>` : ''}${t.spec?.override ? `<p class="cm-ovr"><b>${esc(L('تجاوز بموافقة', 'Overridden with approval'))}</b> · ${esc(t.spec.override.by)} · ${esc(t.spec.override.reason)}</p>` : ''}${outs(t).map(outputHtml).join('')}
-        <div class="cm-actions">${t.status === 'blocked' && d.mayApprove ? `<button class="btn" data-ovr="${t.id}" type="button">${esc(L('اعتمد رغم الرفض', 'Approve despite the refusal'))}</button>` : ''}${t.status === 'review' && d.mayApprove ? `<button class="btn" data-ok="${t.id}" type="button">${esc(L('اعتمد هذا الناتج', 'Approve this output'))}</button>` : ''}
-        ${(t.status === 'blocked' || t.status === 'failed') && d.mayApprove && (t.spec?.retries || 0) < 2 ? `<button class="btn" data-retry="${t.id}" type="button">${esc(L('أعد الكتابة وافحص من جديد', 'Rewrite and check again'))}</button>` : ''}</div></li>`).join('');
-    const stalled = d.tasks.some(t => t.status === 'waiting') && !live;
     frame(`<button class="btn" id="cmBack" type="button">${esc(L('كل الحملات', 'All campaigns'))}</button>
-      <h2 class="cm-h">${esc(c.title)}</h2><p class="muted">${esc(pick(STATUS, c.status))}</p>
-      <div id="cmProg">${progHtml(d)}</div>
+      <h2 class="cm-h">${esc(c.title)}</h2><p class="muted" id="cmStatus"></p>
+      <div id="cmProg"></div>
       <section><h3>${esc(L('ملخص الحملة', 'Campaign brief'))}</h3><p>${esc(b.summary)}</p>${b.audience ? `<p><b>${esc(L('الجمهور:', 'Audience:'))}</b> ${esc(b.audience)}</p>` : ''}
         ${(b.messages || []).length ? `<h4>${esc(L('الرسائل الرئيسية', 'Key messages'))}</h4><ul>${li(b.messages)}</ul>` : ''}${(b.risks || []).length ? `<h4>${esc(L('مخاطر وأسئلة مفتوحة', 'Risks and open questions'))}</h4><ul>${li(b.risks)}</ul>` : ''}</section>
-      ${(b.questions || []).length ? `<section id="cmQs"><h3>${esc(L('أسئلة مفتوحة', 'Open questions'))}</h3><p class="muted">${esc(L('الإيجنتس ما توقفوا عندها: أخذوا افتراضاً لكل سؤال وكمّلوا. عدّل الجواب وبنعيد كتابة الأجزاء المتأثرة بس.', 'The agents did not stop for them: they took an assumption for each question and went on. Edit an answer and only the affected parts are written again.'))}</p>
-        <ul class="cm-qs">${b.questions.map((x, i) => `<li><b>${esc(x.q)}</b> <span class="cm-asm ${x.answer ? 'ans' : ''}">${esc(x.answer ? L('إجابتك', 'Your answer') : L('افتراض', 'Assumption'))}</span>
-          <textarea data-q="${i}" rows="2" maxlength="400" aria-label="${esc(L('الجواب', 'Answer'))}">${esc(x.answer || x.assumption)}</textarea>
-          <button class="btn" data-qs="${i}" type="button">${esc(started ? L('احفظ وأعد توليد الجزء المتأثر', 'Save and rewrite the affected part') : L('احفظ الجواب', 'Save the answer'))}</button>
-          ${(x.affects || []).length ? `<small class="muted">${esc(L('يؤثر على:', 'Affects:'))} ${esc(x.affects.map(a => pick(AGENT, a)).join('، '))}</small>` : ''}</li>`).join('')}</ul>
-        ${started ? `<p class="muted">${esc(L('المسودات اللي انحفظت قبل في السوشال تبقى هناك، والجديدة تنضاف جنبها.', 'Drafts already saved in Social stay there; the new ones are added beside them.'))}</p>` : ''}</section>` : ''}
-      ${live ? `<section class="cm-run"><div><b>${esc(L('الإيجنتس جاهزة للتشغيل', 'The agents are ready to run'))}</b>
-        <p class="muted">${esc(d.tasks.length ? L(`${waitingN} مهام تنتظر. التشغيل ما يحتاج اعتماد جديد، وكل شي مسودات.`, `${waitingN} tasks waiting. No new approval is needed, and everything is a draft.`) : L('ما فيه مهام محفوظة لهذي الحملة: بنجهّز الخطة القياسية أول ما تضغط، وبعدها يبدأ التنفيذ.', 'No tasks are saved for this campaign: the standard plan is prepared as soon as you press, and then the run starts.'))}</p></div>
-        <button class="btn primary" id="cmRun" type="button"${auto ? ' disabled' : ''}>${esc(auto ? L('يشتغل…', 'Running…') : L('شغّل الإيجنتس', 'Run the agents'))}</button></section>` : ''}
-      <section id="cmPack"><h3>${esc(started ? L('حزمة الحملة', 'Campaign pack') : L('الخطة: مين يسوي وش', 'The plan: who does what'))}</h3><ol class="cm-tasks">${tasks}</ol>
-        ${started ? `<p class="muted">${esc(L('كل شي هنا مسودات ووثائق. المنشورات تنحفظ مسودة في السوشال وما تنشر إلا بعد اعتماد المعتمد هناك. ما يتغيّر أي حساب إعلاني.', 'Everything here is drafts and documents. Posts are saved as drafts in Social and only go out once its approver approves them there. No ad account is changed.'))}</p>` : ''}</section>
+      <section id="cmQs" hidden></section>
+      <section class="cm-run" id="cmRunBox" hidden><div><b>${esc(L('الإيجنتس جاهزة للتشغيل', 'The agents are ready to run'))}</b><p class="muted" id="cmRunNote"></p></div>
+        <button class="btn primary" id="cmRun" type="button"></button></section>
+      <section id="cmPack"><div class="cm-packhead"><h3 id="cmPackH"></h3><span class="cm-tools"><button class="btn" id="cmAll" type="button">${esc(L('توسيع الكل', 'Expand all'))}</button><button class="btn" id="cmNone" type="button">${esc(L('طي الكل', 'Collapse all'))}</button></span></div>
+        <ol class="cm-tasks" id="cmTasks"></ol><p class="muted" id="cmPackNote" hidden>${esc(L('كل شي هنا مسودات ووثائق. المنشورات تنحفظ مسودة في السوشال وما تنشر إلا بعد اعتماد المعتمد هناك. ما يتغيّر أي حساب إعلاني.', 'Everything here is drafts and documents. Posts are saved as drafts in Social and only go out once its approver approves them there. No ad account is changed.'))}</p></section>
       <section class="cm-cost"><b>${esc(L('التكلفة المتوقعة قبل التشغيل:', 'Expected cost before running:'))} ${esc(sar(c.estimate_usd))}</b>
         <p class="muted">${esc(L('تقدير تقريبي حسب الموديل المختار. الصرف الفعلي يظهر في «الصرف على الذكاء الاصطناعي» ويلتزم بالسقف الشهري.', 'A rough estimate for the chosen model. Actual spend shows in AI spend and follows the monthly cap.'))}</p>
-        ${d.capped ? `<p class="msg err">${esc(L('وصل السقف الشهري لاحلم: التنفيذ بيكون على الموديل المجاني أو يتوقف.', "Ahlam's monthly cap is reached: the run will use the free model or stop."))}</p>` : ''}</section>
-      <div class="cm-actions">${planned && d.mayApprove ? `<button class="btn primary" id="cmOk" type="button">${esc(L('اعتمد الخطة والتكلفة', 'Approve the plan and cost'))}</button>` : ''}
-        ${started ? `<button class="btn" id="cmDl" type="button">${esc(L('نزّل الحزمة (Markdown)', 'Download the pack (Markdown)'))}</button><button class="btn" id="cmCp" type="button">${esc(L('انسخ الحزمة', 'Copy the pack'))}</button>` : ''}
-        ${['planned', 'approved', 'running', 'review'].includes(c.status) ? `<button class="btn" id="cmNo" type="button">${esc(L('إلغاء الحملة', 'Cancel the campaign'))}</button>` : ''}</div>
-      ${planned && !d.mayApprove ? `<p class="muted">${esc(L('الاعتماد لمن عنده صلاحية الموافقة. أرسل له الخطة.', 'Approval needs someone with approval rights. Send them the plan.'))}</p>` : ''}
-      ${stalled ? `<p class="muted">${esc(L('بعض المهام تنتظر لأن مهمة قبلها موقوفة أو فاشلة. أعد كتابتها من زرها فوق.', 'Some tasks wait because an earlier one is blocked or failed. Rewrite it with its button above.'))}</p>` : ''}`);
-    $('#cmBack', root).onclick = () => { view++; showList(); };
-    const act = (el, path, body) => { if (el) el.onclick = async () => { el.disabled = true; try { await api(path, { method: 'POST', body: { id, ...body } }); showCampaign(id, path.endsWith('/approve') && !body); } catch (err) { say(msg(), err.message); el.disabled = false; } }; };
-    act($('#cmOk', root), '/api/campaigns/approve'); act($('#cmNo', root), '/api/campaigns/cancel');
-    root.querySelectorAll('[data-ok]').forEach(el => act(el, '/api/campaigns/review', { task: Number(el.dataset.ok) }));
-    root.querySelectorAll('[data-retry]').forEach(el => act(el, '/api/campaigns/retry', { task: Number(el.dataset.retry) }));
-    // The override: the approver must say why, in a few words; it is logged and marked in the pack
-    root.querySelectorAll('[data-ovr]').forEach(btn => { btn.onclick = () => {
-      const li = btn.closest('li'), tid = Number(btn.dataset.ovr);
-      if (li.querySelector('.cm-ovf')) return;
-      li.insertAdjacentHTML('beforeend', `<form class="cm-ovf"><p class="muted">${esc(L('الامتثال رفض هذي القطعة. التجاوز يتسجّل باسمك مع السبب، والمنشورات تبقى مسودات ما تنشر لين يعتمدها معتمد السوشال.', 'Compliance refused this piece. The override is logged under your name with the reason, and posts stay drafts that only go out once Social approves them.'))}</p>
-        <label class="cm-f"><span>${esc(L('سبب التجاوز (إجباري)', 'Reason for the override (required)'))}</span><textarea rows="2" maxlength="300" required minlength="5"></textarea></label>
-        <div class="cm-actions"><button class="btn primary" type="submit">${esc(L('تأكيد التجاوز', 'Confirm the override'))}</button><button class="btn" type="button" data-x>${esc(L('تراجع', 'Cancel'))}</button></div></form>`);
-      const f = li.querySelector('.cm-ovf'); f.querySelector('textarea').focus();
-      f.querySelector('[data-x]').onclick = () => f.remove();
-      f.onsubmit = async ev => {
-        ev.preventDefault();
-        const reason = f.querySelector('textarea').value.trim();
-        if (reason.length < 5) return say(msg(), L('اكتب سبب التجاوز (جملة قصيرة على الأقل)', 'Write the reason (a short sentence at least)'));
-        f.querySelector('[type=submit]').disabled = true;
-        try { await api('/api/campaigns/override', { method: 'POST', body: { id, task: tid, reason } }); window.dispatchEvent(new Event('wl-campaign-change')); showCampaign(id, false); }
-        catch (err) { say(msg(), err.message); f.querySelector('[type=submit]').disabled = false; }
-      };
-    }; });
-    root.querySelectorAll('[data-qs]').forEach(btn => { btn.onclick = async () => {
-      const i = Number(btn.dataset.qs), ta = root.querySelector(`[data-q="${i}"]`), text = ta.value.trim();
+        <p class="msg err" id="cmCap" hidden>${esc(L('وصل السقف الشهري لاحلم: التنفيذ بيكون على الموديل المجاني أو يتوقف.', "Ahlam's monthly cap is reached: the run will use the free model or stop."))}</p></section>
+      <div class="cm-actions"><button class="btn primary" id="cmOk" type="button" hidden>${esc(L('اعتمد الخطة والتكلفة', 'Approve the plan and cost'))}</button>
+        <button class="btn" id="cmDl" type="button" hidden>${esc(L('نزّل الحزمة (Markdown)', 'Download the pack (Markdown)'))}</button><button class="btn" id="cmCp" type="button" hidden>${esc(L('انسخ الحزمة', 'Copy the pack'))}</button>
+        <button class="btn" id="cmNo" type="button" hidden>${esc(L('إلغاء الحملة', 'Cancel the campaign'))}</button></div>
+      <p class="muted" id="cmHint" hidden></p><p class="muted" id="cmStall" hidden>${esc(L('بعض المهام تنتظر لأن مهمة قبلها موقوفة أو فاشلة. أعد كتابتها من زرها فوق.', 'Some tasks wait because an earlier one is blocked or failed. Rewrite it with its button above.'))}</p>`);
+    const folds = store(id);
+    cur = { id, mine, d, folds, fold: folds.get(), sig: {}, prev: {}, set: {}, qsig: '', seq: 0, looping: false, live: false, timer: 0 };
+    const R = root;
+    $('#cmBack', R).onclick = () => { view++; if (cur?.timer) clearInterval(cur.timer); cur = null; showList(); };
+    const call = async (path, body, after) => { try { await api(path, { method: 'POST', body: { id, ...body } }); window.dispatchEvent(new Event('wl-campaign-change')); await refresh(); if (after) after(); } catch (err) { say(msg(), err.message); return false; } return true; };
+    $('#cmOk', R).onclick = async ev => { ev.target.disabled = true; if (await call('/api/campaigns/approve', {}, () => cur?.live && loop())) return; ev.target.disabled = false; };
+    $('#cmNo', R).onclick = async ev => { ev.target.disabled = true; if (!(await call('/api/campaigns/cancel', {}))) ev.target.disabled = false; };
+    $('#cmRun', R).onclick = () => loop();
+    $('#cmDl', R).onclick = () => { const a = document.createElement('a'); a.href = URL.createObjectURL(new Blob([packText(cur.d.campaign, cur.d)], { type: 'text/markdown' })); a.download = 'campaign-pack.md'; a.click(); setTimeout(() => URL.revokeObjectURL(a.href), 2000); };
+    $('#cmCp', R).onclick = async () => { try { await navigator.clipboard.writeText(packText(cur.d.campaign, cur.d)); say(msg(), L('اننسخت الحزمة', 'Pack copied')); } catch { say(msg(), L('ما قدرت أنسخ، استخدم التنزيل', 'Could not copy, use download')); } };
+    // expand / collapse all: the user's choice, remembered for the visit
+    const setAll = on => { for (const t of cur.d.tasks) { cur.fold[t.id] = on; const det = R.querySelector(`[data-tid="${t.id}"] details`); if (det) { cur.set[t.id] = on; det.open = on; } } folds.set(cur.fold); };
+    $('#cmAll', R).onclick = () => setAll(true); $('#cmNone', R).onclick = () => setAll(false);
+    // one listener for everything inside the task list and the questions: the nodes inside are replaced when their task changes
+    $('#cmTasks', R).addEventListener('toggle', ev => {
+      const det = ev.target, tid = Number(det.closest('[data-tid]')?.dataset.tid);
+      if (!tid || cur.set[tid] === det.open) return;   // the page's own change, not the user's
+      cur.fold[tid] = det.open; cur.set[tid] = det.open; folds.set(cur.fold);
+    }, true);
+    $('#cmTasks', R).addEventListener('click', ev => {
+      const b = ev.target.closest('button'); if (!b) return;
+      const ok = b.dataset.ok, retry = b.dataset.retry, ovr = b.dataset.ovr;
+      if (ok) { b.disabled = true; call('/api/campaigns/review', { task: Number(ok) }); }
+      else if (retry) { b.disabled = true; call('/api/campaigns/retry', { task: Number(retry) }); }
+      else if (ovr) openOverride(b, Number(ovr));
+      else if (b.dataset.x !== undefined) b.closest('.cm-ovf')?.remove();
+    });
+    $('#cmTasks', R).addEventListener('submit', async ev => {
+      const f = ev.target.closest('.cm-ovf'); if (!f) return;
+      ev.preventDefault();
+      const reason = f.querySelector('textarea').value.trim(), tid = Number(f.dataset.task);
+      if (reason.length < 5) return say(msg(), L('اكتب سبب التجاوز (جملة قصيرة على الأقل)', 'Write the reason (a short sentence at least)'));
+      f.querySelector('[type=submit]').disabled = true;
+      f.remove();   // the form goes; the task body is then patched with the override marked
+      await call('/api/campaigns/override', { task: tid, reason });
+    });
+    $('#cmQs', R).addEventListener('click', async ev => {
+      const b = ev.target.closest('[data-qs]'); if (!b) return;
+      const i = Number(b.dataset.qs), text = R.querySelector(`[data-q="${i}"]`).value.trim();
       if (!text) return say(msg(), L('اكتب الجواب', 'Write the answer'));
-      btn.disabled = true;
-      try { const r = await api('/api/campaigns/answer', { method: 'POST', body: { id, index: i, answer: text } }); window.dispatchEvent(new Event('wl-campaign-change')); showCampaign(id, r.regenerate > 0); }
-      catch (err) { say(msg(), err.message); btn.disabled = false; }
-    }; });
-    const dl = $('#cmDl', root), cp = $('#cmCp', root);
-    if (dl) dl.onclick = () => { const a = document.createElement('a'); a.href = URL.createObjectURL(new Blob([packText(c, d)], { type: 'text/markdown' })); a.download = 'campaign-pack.md'; a.click(); setTimeout(() => URL.revokeObjectURL(a.href), 2000); };
-    if (cp) cp.onclick = async () => { try { await navigator.clipboard.writeText(packText(c, d)); say(msg(), L('اننسخت الحزمة', 'Pack copied')); } catch { say(msg(), L('ما قدرت أنسخ، استخدم التنزيل', 'Could not copy, use download')); } };
-    // One task per call, then the screen refreshes: the run is visible step by step and stops by itself on a pause, a stall or the end
-    const go = async () => {
-      try {
+      b.disabled = true;
+      try { const r = await api('/api/campaigns/answer', { method: 'POST', body: { id, index: i, answer: text } }); window.dispatchEvent(new Event('wl-campaign-change')); R.querySelector(`[data-q="${i}"]`).defaultValue = text; await refresh(); if (r.regenerate > 0 && cur?.live) loop(); }
+      catch (err) { say(msg(), err.message); } finally { b.disabled = false; }
+    });
+    patch(d);
+    // one timer for the screen: while the campaign is running (here or elsewhere) it asks again and patches; it stops with the screen
+    cur.timer = setInterval(() => { if (!cur || cur.mine !== view) return clearInterval(cur?.timer); if (cur.looping || ['running', 'approved'].includes(cur.d.campaign.status)) refresh(); }, 2500);
+  }
+
+  function openOverride(btn, tid) {
+    const li = btn.closest('li');
+    if (li.querySelector('.cm-ovf')) return;
+    li.querySelector('.cm-body').insertAdjacentHTML('beforeend', `<form class="cm-ovf" data-task="${tid}"><p class="muted">${esc(L('الامتثال رفض هذي القطعة. التجاوز يتسجّل باسمك مع السبب، والمنشورات تبقى مسودات ما تنشر لين يعتمدها معتمد السوشال.', 'Compliance refused this piece. The override is logged under your name with the reason, and posts stay drafts that only go out once Social approves them.'))}</p>
+      <label class="cm-f"><span>${esc(L('سبب التجاوز (إجباري)', 'Reason for the override (required)'))}</span><textarea rows="2" maxlength="300" required minlength="5"></textarea></label>
+      <div class="cm-actions"><button class="btn primary" type="submit">${esc(L('تأكيد التجاوز', 'Confirm the override'))}</button><button class="btn" type="button" data-x>${esc(L('تراجع', 'Cancel'))}</button></div></form>`);
+    li.querySelector('.cm-ovf textarea').focus();
+  }
+
+  // Ask the server and patch what changed. A late answer from an older request is dropped.
+  async function refresh() {
+    if (!cur) return;
+    const { id, mine } = cur, seq = ++cur.seq;
+    try {
+      const d = await api('/api/campaigns/get?id=' + encodeURIComponent(id));
+      if (!cur || mine !== view || cur.seq !== seq) return;
+      patch(d);
+    } catch { /* the next tick tries again */ }
+  }
+
+  // The patch: header, progress, questions, the run box, each task (its summary, and its body only when it changed), the buttons.
+  function patch(d) {
+    const R = root, c = d.campaign, b = c.brief || {};
+    cur.d = d;
+    const started = ['approved', 'running', 'review', 'done'].includes(c.status), planned = c.status === 'planned';
+    cur.live = c.status === 'approved' || c.status === 'running' || (c.status === 'review' && !!c.approved_by && d.tasks.some(t => t.status === 'waiting'));
+    const set = (sel, html) => { const el = $(sel, R); if (el && el.innerHTML !== html) el.innerHTML = html; };
+    const show = (sel, on) => { const el = $(sel, R); if (el) el.hidden = !on; };
+    set('#cmStatus', esc(pick(STATUS, c.status)));
+    set('#cmProg', progHtml(d));
+    set('#cmPackH', esc(started ? L('حزمة الحملة', 'Campaign pack') : L('الخطة: مين يسوي وش', 'The plan: who does what')));
+    show('#cmPackNote', started); show('#cmCap', !!d.capped);
+    show('#cmOk', planned && d.mayApprove); show('#cmDl', started); show('#cmCp', started);
+    show('#cmNo', ['planned', 'approved', 'running', 'review'].includes(c.status));
+    const waitingN = d.tasks.filter(t => t.status === 'waiting').length;
+    show('#cmRunBox', cur.live);
+    const note = d.tasks.length ? L(`${waitingN} مهام تنتظر. التشغيل ما يحتاج اعتماد جديد، وكل شي مسودات.`, `${waitingN} tasks waiting. No new approval is needed, and everything is a draft.`) : L('ما فيه مهام محفوظة لهذي الحملة: بنجهّز الخطة القياسية أول ما تضغط، وبعدها يبدأ التنفيذ.', 'No tasks are saved for this campaign: the standard plan is prepared as soon as you press, and then the run starts.');
+    set('#cmRunNote', esc(note));
+    const run = $('#cmRun', R); run.disabled = cur.looping; const rl = cur.looping ? L('يشتغل…', 'Running…') : L('شغّل الإيجنتس', 'Run the agents'); if (run.textContent !== rl) run.textContent = rl;
+    show('#cmHint', planned && !d.mayApprove); set('#cmHint', esc(L('الاعتماد لمن عنده صلاحية الموافقة. أرسل له الخطة.', 'Approval needs someone with approval rights. Send them the plan.')));
+    show('#cmStall', d.tasks.some(t => t.status === 'waiting') && !cur.live && !d.tasks.some(t => t.status === 'running'));
+    patchQuestions(b, started);
+    patchTasks(d);
+  }
+
+  function patchQuestions(b, started) {
+    const box = $('#cmQs', root), qs = b.questions || [];
+    box.hidden = !qs.length;
+    const sig = JSON.stringify(qs.map(x => [x.q, x.assumption, x.answer || '', x.affects || []])) + started;
+    // never rewrite the questions while the user is typing in one of them
+    const typing = [...box.querySelectorAll('textarea')].some(t => t === document.activeElement || t.value !== t.defaultValue);
+    if (sig === cur.qsig || typing) return;
+    cur.qsig = sig;
+    box.innerHTML = `<h3>${esc(L('أسئلة مفتوحة', 'Open questions'))}</h3><p class="muted">${esc(L('الإيجنتس ما توقفوا عندها: أخذوا افتراضاً لكل سؤال وكمّلوا. عدّل الجواب وبنعيد كتابة الأجزاء المتأثرة بس.', 'The agents did not stop for them: they took an assumption for each question and went on. Edit an answer and only the affected parts are written again.'))}</p>
+      <ul class="cm-qs">${qs.map((x, i) => `<li><b>${esc(x.q)}</b> <span class="cm-asm ${x.answer ? 'ans' : ''}">${esc(x.answer ? L('إجابتك', 'Your answer') : L('افتراض', 'Assumption'))}</span>
+        <textarea data-q="${i}" rows="2" maxlength="400" aria-label="${esc(L('الجواب', 'Answer'))}">${esc(x.answer || x.assumption)}</textarea>
+        <button class="btn" data-qs="${i}" type="button">${esc(started ? L('احفظ وأعد توليد الجزء المتأثر', 'Save and rewrite the affected part') : L('احفظ الجواب', 'Save the answer'))}</button>
+        ${(x.affects || []).length ? `<small class="muted">${esc(L('يؤثر على:', 'Affects:'))} ${esc(x.affects.map(a => pick(AGENT, a)).join('، '))}</small>` : ''}</li>`).join('')}</ul>
+      ${started ? `<p class="muted">${esc(L('المسودات اللي انحفظت قبل في السوشال تبقى هناك، والجديدة تنضاف جنبها.', 'Drafts already saved in Social stay there; the new ones are added beside them.'))}</p>` : ''}`;
+  }
+
+  function patchTasks(d) {
+    const ol = $('#cmTasks', root);
+    const ids = new Set(d.tasks.map(t => String(t.id)));
+    [...ol.children].forEach(li => { if (!ids.has(li.dataset.tid)) li.remove(); });
+    d.tasks.forEach((t, idx) => {
+      const outs = d.outputs.filter(o => o.task_id === t.id);
+      let li = ol.querySelector(`[data-tid="${t.id}"]`);
+      if (!li) {
+        li = document.createElement('li'); li.className = 'cm-task'; li.dataset.tid = String(t.id);
+        li.innerHTML = '<details><summary class="cm-sum"></summary><div class="cm-body"></div></details>';
+        ol.insertBefore(li, ol.children[idx] || null);
+      } else if (ol.children[idx] !== li) ol.insertBefore(li, ol.children[idx] || null);
+      const det = li.querySelector('details'), sum = li.querySelector('summary'), body = li.querySelector('.cm-body');
+      const sh = taskSummary(t, outs); if (sum.innerHTML !== sh) sum.innerHTML = sh;
+      // the body is rebuilt only when this task changed, and not while a form is open in it
+      const sig = JSON.stringify([t.status, t.blocked_reason, t.spec?.override, t.spec?.auto, t.spec?.retries, outs.map(o => [o.id, (o.body?.text || '').length]), d.mayApprove]);
+      if (cur.sig[t.id] !== sig && !body.querySelector('.cm-ovf')) { body.innerHTML = taskBody(t, outs, d); cur.sig[t.id] = sig; }
+      // fold: the user's own choice wins; otherwise it opens only while the task works or has a problem
+      const was = cur.prev[t.id]; cur.prev[t.id] = t.status;
+      if (was !== undefined && was !== t.status && ATTN.includes(t.status)) delete cur.fold[t.id];   // a new problem: open it again
+      const want = t.id in cur.fold ? cur.fold[t.id] : ATTN.includes(t.status);
+      if (det.open !== want) { cur.set[t.id] = want; det.open = want; } else cur.set[t.id] = want;
+    });
+    cur.folds.set(cur.fold);
+  }
+
+  // The run: one task per call, patched after each, until it ends, pauses or stalls. Nothing asks the user to press anything between tasks.
+  async function loop() {
+    if (!cur || cur.looping) return;
+    const { id, mine } = cur;
+    cur.looping = true; patch(cur.d);
+    try {
+      for (;;) {
+        if (mine !== view) return;
         window.dispatchEvent(new Event('wl-campaign-change'));
         const r = await api('/api/campaigns/step', { method: 'POST', timeout: 180000, body: { id } });
-        window.dispatchEvent(new Event('wl-campaign-change'));
         if (mine !== view) return;
-        if (r.paused) { await showCampaign(id, false); return say(msg(), r.message); }
-        if (r.busy) { setTimeout(() => mine === view && go(), 3000); return; }
-        showCampaign(id, !r.done && r.more !== false);
-      } catch (err) { if (mine === view) { await showCampaign(id, false); say(msg(), err.message); } }
-    };
-    const run = $('#cmRun', root);
-    if (run) run.onclick = () => showCampaign(id, true);
-    if (auto && live) { go(); watch(id, mine, root); }
-    else if (c.status === 'running') { watch(id, mine, root); }   // another tab or person is running it: follow it without a reload
+        window.dispatchEvent(new Event('wl-campaign-change'));
+        if (r.paused) { await refresh(); say(msg(), r.message); return; }
+        if (r.busy) { await new Promise(res => setTimeout(res, 3000)); continue; }
+        await refresh();
+        if (r.done || r.more === false) return;
+      }
+    } catch (err) { if (mine === view) { await refresh(); say(msg(), err.message); } }
+    finally { if (cur && cur.mine === mine) { cur.looping = false; patch(cur.d); } }
   }
   const showListLater = () => setTimeout(showList, 2500);
   const link = new URLSearchParams(location.search).get('c');
