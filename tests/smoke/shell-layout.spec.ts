@@ -7,7 +7,7 @@ import { login, addSession } from './helpers';
 const SHOTS = process.env['SHOTS'];
 const WIDTHS = [1920, 1440, 1280, 1024];
 for (const lang of ['ar', 'en'] as const) {
-  for (const path of ['/today/', '/social/']) {
+  for (const path of ['/today/', '/overview/', '/overview/creative/', '/social/', '/account/', '/admin/']) {
     for (const w of WIDTHS) {
       test(`shell ${path} ${lang} ${w}px`, async ({ page, context, request }) => {
         await addSession(context, await login(request, 'owner'));
