@@ -7,6 +7,7 @@ import { login, addSession } from './helpers';
 const TABS = [
   { page: '/compliance/', api: '**/api/compliance/scan*' },
   { page: '/debugger/', api: '**/api/debugger/report*' },
+  { page: '/buyer/', api: '**/api/buyer/report*' },
   { page: '/knowledge/', api: '**/api/knowledge/list*', open: '[data-tab="all"]' },
   { page: '/knowledge/', api: '**/api/knowledge/train*' },
   { page: '/listening/', api: '**/api/listening/demand*', open: '[role="tab"]:has-text("تفاعل منشوراتنا")' },

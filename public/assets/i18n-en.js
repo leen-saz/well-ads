@@ -425,6 +425,13 @@ export const EN = {
   'ليد في الـ CRM آخر 30 يوم': 'CRM leads, last 30 days', 'ليدز المنصة': 'Platform leads', 'ليدز الـ CRM': 'CRM leads',
   'آخر يوم فيه أرقام': 'Last day with numbers', 'ما فيه أرقام آخر 14 يوم.': 'No numbers in the last 14 days.',
   'ما لقيت مشاكل في التتبع.': 'No tracking issues found.', 'الأرقام توصل من كل المنصات والليدز مربوطة بإعلاناتها.': 'Numbers arrive from every platform and leads are tied to their ads.',
+  // الميديا باير (buyer)
+  'الميديا باير': 'Media buyer', 'الميديا باير · Well': 'Media buyer · Well',
+  'توصيات من أرقام الإعلانات مقارنة بقاعدة أفضل الممارسات لكل منصة ولقواعد الشركة. كل توصية تمر على حكم التسويق أول. قراءة بس: ما يغيّر أي حملة، والمشتري الإعلامي ينفّذ يدوياً.': 'Recommendations from the ad numbers against a best-practice playbook per platform and the company rules. Each one goes through the marketing judge first. Read-only: it changes no campaign, and the media buyer acts by hand.',
+  'قواعد الشركة': 'Company rules', 'تصدير': 'Export', 'استيراد القواعد': 'Import rules', 'معاينة': 'Preview', 'أكّد واحفظ': 'Confirm and save',
+  'ارفع ملف JSON أو الصق نصه. تنحفظ في قاعدة البيانات فقط، والملف ما يدخل الريبو.': 'Upload a JSON file or paste its text. Saved in the database only; the file never enters the repo.',
+  'مفتوح: يحتاج قرار لين': 'Open: needs Leen\'s decision',
+  'التوصيات': 'Recommendations', 'يحلل…': 'Analyzing…', 'توصيات وقفها الحكم': 'Recommendations the judge blocked', 'حلّل من جديد': 'Analyze again',
   // الامتثال (compliance)
   'الامتثال': 'Compliance', 'الامتثال · Well': 'Compliance · Well',
   'يفحص نصوص الإعلانات على قواعد الإعلان الصحي في السعودية وسياسات المنصات. تنويه بس، ما يمنع النشر.': 'Checks ad copy against Saudi health-ad rules and platform policies. A notice only; it never blocks publishing.',
@@ -686,6 +693,7 @@ export const EN = {
   "احلم (الصفحة الرئيسية)": "Ahlam (home page)",
   "السقف الشهري لتاب الامتثال": "Monthly cap for the Compliance tab",
   "السقف الشهري لتاب التتبع": "Monthly cap for the Tracking tab",
+  "السقف الشهري لتاب الميديا باير": "Monthly cap for the Media buyer tab",
   "السقف الشهري لتاب التصميم": "Monthly cap for the Design tab",
   "السقف الشهري لتاب الرحلات والرسائل": "Monthly cap for the Journeys and messages tab",
   "السقف الشهري لتاب الرصد": "Monthly cap for the Listening tab",

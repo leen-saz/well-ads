@@ -18,9 +18,10 @@ import { meta as overviewMeta } from './overview/module';
 import { meta as transcribeMeta } from './transcribe/module';
 import { meta as visionMeta } from './vision/module';
 import { meta as voiceoverMeta } from './voiceover/module';
+import { meta as buyerMeta } from './buyer/module';
 
 // Listed by sidebar group, in marketing order: produce, distribute, measure, optimize, system
-export const MODULES: ModuleMeta[] = [overviewMeta, listeningMeta, designMeta, contentMeta, copyMeta, voiceMeta, voiceoverMeta, transcribeMeta, visionMeta, socialMeta, journeysMeta, maestroMeta, debuggerMeta, knowledgeMeta, complianceMeta];
+export const MODULES: ModuleMeta[] = [overviewMeta, listeningMeta, designMeta, contentMeta, copyMeta, voiceMeta, voiceoverMeta, transcribeMeta, visionMeta, socialMeta, journeysMeta, maestroMeta, debuggerMeta, buyerMeta, knowledgeMeta, complianceMeta];
 export const LIVE = MODULES.filter(m => m.status === 'live').map(m => m.key);
 // The sections of a tab: the modules shown inside it (voiceover in voice, copy in content)
 export const sectionsOf = (key: string): string[] => MODULES.filter(m => m.into === key).map(m => m.key);
