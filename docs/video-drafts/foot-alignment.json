@@ -1,0 +1,27 @@
+{
+  "service": "Foot Alignment",
+  "lengthSeconds": 15,
+  "ratios": ["9:16", "1:1"],
+  "hooks": [
+    { "id": "A", "name": "سؤال", "line": "قدمك تتعب آخر اليوم؟", "onScreen": "قدمك تتعب آخر اليوم؟",
+      "scene": "لقطة قريبة لشخص يجلس في آخر يومه ويفرك قدمه بهدوء، إضاءة دافئة طبيعية داخل بيت سعودي",
+      "prompt": "Close-up, warm natural evening light inside a Saudi home, a person in modest home clothes sits and gently rubs a tired foot, shallow depth of field, slow push-in, no text in frame" },
+    { "id": "B", "name": "ملاحظة يومية", "line": "تلاحظ إن جزمتك تبلى من جهة وحدة؟", "onScreen": "جزمتك تبلى من جهة وحدة؟",
+      "scene": "لقطة قريبة لنعل حذاء رياضي من جهة واحدة مبلية، على أرضية خشب فاتحة قرب باب البيت",
+      "prompt": "Macro shot of the sole of a sports shoe worn more on one side, on a light wooden floor near a home entrance, soft daylight, slow lateral camera slide, no text in frame" },
+    { "id": "C", "name": "فضول", "line": "ألم القدم له أسباب، والفحص يبدأ منها.", "onScreen": "ألم القدم له أسباب",
+      "scene": "لقطة لأقدام تمشي على رصيف نظيف بإضاءة صباحية، ثم تتوقف عند مدخل عيادة دافئة",
+      "prompt": "Low tracking shot of feet in everyday shoes walking on a clean pavement in soft morning light, stopping at the entrance of a warm modern clinic, no faces, no text in frame" }
+  ],
+  "body": [
+    { "seconds": 5, "tail": { "line": "في ويل، أخصائي يفحص قدمك ويشرح لك الخيارات.", "onScreen": "أخصائي يفحص قدمك",
+        "scene": "أخصائية بحجاب في عيادة دافئة تشرح لمراجِع على نموذج قدم، بدون وجه مريض معروف",
+        "prompt": "A Saudi female specialist in a warm modern clinic explains a foot model to a visitor seen from behind, natural light, calm handheld feel, no text in frame" } },
+    { "seconds": 10, "line": "احجز موعدك، ونرتّب لك الزيارة بما يناسبك.", "onScreen": "احجز موعدك في ويل",
+      "scene": "لقطة بيت وعيادة تنتهي ببطاقة الشعار",
+      "prompt": "Calm sequence of a clinic reception and a person smiling while checking a phone, warm light, ends on an empty ivory background for the logo card, no text in frame" }
+  ],
+  "cta": "احجز موعدك",
+  "disclosure": "مادة إعلانية · Well · [بيانات التواصل] · [أوقات العمل] · رسوم الخدمة: [تُدخل من الإدارة] · يلزم المتابعة الطبية بعد أي إجراء",
+  "placeholders": ["[بيانات التواصل]", "[أوقات العمل]", "[تُدخل من الإدارة]"]
+}
