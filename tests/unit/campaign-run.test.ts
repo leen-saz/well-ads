@@ -7,7 +7,7 @@ import { clearRoutes } from '../../src/lib/ai-routes';
 import { clearSnaps, withWaiter } from '../../src/lib/usage';
 import { WELL_COMPANY } from '../../src/lib/tenant';
 import { companyRules } from '../../src/modules/compliance/compliance';
-import { kpis, packMarkdown, parsePosts, readyTask, rollup, socialTargets, verdict, type TaskRow } from '../../src/lib/campaign-run';
+import { affectedTasks, kpis, packMarkdown, parsePosts, readyTask, rollup, socialTargets, verdict, type TaskRow } from '../../src/lib/campaign-run';
 
 const E = { SUPABASE_URL: 'https://sb.example', SUPABASE_SERVICE_ROLE_KEY: 's', SESSION_SECRET: 'x'.repeat(40), OWNER_EMAIL: 'boss@example.com', OPENROUTER_API_KEY: 'or-test-key' };
 const cfg = A.env(E);
@@ -130,14 +130,15 @@ describe('POST /api/campaigns/step', () => {
     expect(await step()).toEqual({ done: true, status: 'review', stalled: true });
     expect(calls.some(x => x.url === OR_URL)).toBe(false);
   });
-  it('compliance STOPS a draft: the task is blocked with the reason, nothing goes to Social', async () => {
-    tasks = [task(0, 'social', 'waiting')];
+  it('compliance STOPS a draft once the automatic rewrites are used: blocked with the reason, nothing goes to Social', async () => {
+    tasks = [task(0, 'social', 'waiting', [], { spec: { auto: 2, feedback: 'ف' } })];
     llm = () => JSON.stringify({ posts: [{ platform: 'x', body: 'علاج مضمون 100% بدون أي أضرار', day: 1 }] });
     const j = await step();
     expect(j.ran!.status).toBe('blocked'); expect(j.ran!.reason.length).toBeGreaterThan(5);
     expect(calls.some(x => x.url.endsWith('/social_posts'))).toBe(false);
     const done = calls.filter(x => x.method === 'PATCH' && x.url.includes('campaign_tasks')).pop()!.body;
-    expect(done.status).toBe('blocked'); expect(done.blocked_reason).toBeTruthy(); expect(done.spec.feedback).toBeTruthy();
+    expect(done.status).toBe('blocked'); expect(done.blocked_reason).toBeTruthy(); expect(done.spec.feedback).toBeTruthy(); expect(done.spec.auto).toBe(2);
+    expect(calls.some(x => x.url.endsWith('/campaign_outputs') && x.method === 'POST')).toBe(true);   // the refused draft stays visible for the person
   });
   it('a clean social task saves its posts as DRAFT, manual, for Social\'s approvers: never scheduled, never approved', async () => {
     tasks = [task(0, 'social', 'waiting')];
@@ -213,5 +214,173 @@ describe('review and retry', () => {
     expect((await post('/api/campaigns/retry', { id: CID, task: 1 })).status).toBe(409);
     access = {};
     expect((await post('/api/campaigns/retry', { id: CID, task: 1 })).status).toBe(403);
+  });
+});
+
+describe('POST /api/campaigns/override (a person lets a compliance-stopped task through)', () => {
+  const blocked = (agent = 'content') => [task(0, agent, 'blocked', [], { blocked_reason: 'وعد بنتيجة', spec: { feedback: 'ف' } }), task(1, 'compliance', 'waiting', [0])];
+  const REASON = 'النص معتمد قانونياً من المستشار';
+  beforeEach(() => { tasks = blocked(); outputs = [{ task_id: 1, kind: 'copy', platform: null, body: { text: 'نص ممنوع سري' }, compliance: [{ rule: 'cure_claim', level: 'critical' }] }]; });
+  it('is for the owner or an approver only', async () => {
+    access = { content: 'edit' };
+    expect((await post('/api/campaigns/override', { id: CID, task: 1, reason: REASON })).status).toBe(403);
+    expect(calls.some(x => x.method === 'PATCH')).toBe(false);
+  });
+  it('needs a short written reason, a valid task, and a task that compliance actually stopped', async () => {
+    expect((await post('/api/campaigns/override', { id: CID, task: 1 })).status).toBe(400);
+    expect((await post('/api/campaigns/override', { id: CID, task: 1, reason: 'ok' })).status).toBe(400);
+    expect((await post('/api/campaigns/override', { id: CID, task: 0, reason: REASON })).status).toBe(400);
+    tasks = [task(0, 'content', 'review')];
+    expect((await post('/api/campaigns/override', { id: CID, task: 1, reason: REASON })).status).toBe(409);
+    tasks = [task(0, 'content', 'failed')];
+    expect((await post('/api/campaigns/override', { id: CID, task: 1, reason: REASON })).status).toBe(409);
+  });
+  it('marks the task «overridden» with who and why, moves it to review, and audit-logs who, why and the rules, never the text', async () => {
+    const r = await post('/api/campaigns/override', { id: CID, task: 1, reason: REASON });
+    expect(r.status).toBe(200);
+    const p = calls.find(x => x.method === 'PATCH' && x.url.includes('campaign_tasks'))!;
+    expect(p.url).toContain('status=eq.blocked');
+    expect(p.body).toMatchObject({ status: 'review', blocked_reason: null, spec: { override: { by: 'm@example.com', reason: REASON } } });
+    expect(p.body.spec.feedback).toBeUndefined();
+    const aud = calls.filter(x => x.url.includes('/audit_log') && x.method === 'POST').map(x => x.body);
+    expect(aud.map(a => a.action)).toEqual(['campaign_compliance_override']);
+    expect(JSON.stringify(aud)).toContain(REASON); expect(JSON.stringify(aud)).toContain('cure_claim'); expect(JSON.stringify(aud)).not.toContain('نص ممنوع سري');
+  });
+  it('the next task can now run (the campaign goes on), and the compliance gate does not stop the overridden task again', async () => {
+    tasks = [task(0, 'content', 'review', [], { spec: { override: { by: 'm@example.com', reason: REASON, at: 'x' } } }), task(1, 'compliance', 'waiting', [0])];
+    outputs = [{ task_id: 1, kind: 'copy', platform: null, body: { text: 'نتائج مضمونة ومن غير أضرار' }, compliance: [] }];
+    const j = await step();
+    expect(j.ran!.agent).toBe('compliance'); expect(j.ran!.status).toBe('review');
+    const rep = (calls.find(x => x.url.endsWith('/campaign_outputs') && x.method === 'POST')!.body as { body: { text: string } }[])[0]!.body.text;
+    expect(rep).toContain('متجاوزة بموافقة');
+  });
+  it('an overridden social task makes Social DRAFTS only: manual, never scheduled, approved or published', async () => {
+    tasks = blocked('social');
+    outputs = [{ task_id: 1, kind: 'post', platform: 'x', body: { text: 'مسودة', day: 2 }, compliance: [] }];
+    expect((await post('/api/campaigns/override', { id: CID, task: 1, reason: REASON })).status).toBe(200);
+    const s = calls.find(x => x.url.endsWith('/social_posts'))!.body as Record<string, unknown>[];
+    expect(s.every(p => p['status'] === 'draft' && p['mode'] === 'manual' && !('approved_by' in p))).toBe(true);
+    expect(writes().filter(w => !['campaign_tasks', 'campaigns', 'social_posts', 'audit_log'].includes(w))).toEqual([]);
+  });
+  it('the pack file says the task was overridden, by whom and why', () => {
+    const md = packMarkdown({ title: 'ح', status: 'review' }, [{ ...t(0, 'content', 'review'), spec: { override: { by: 'a@x.co', reason: 'سبب', at: 'x' } } }], []);
+    expect(md).toContain('تجاوز بموافقة a@x.co: سبب');
+  });
+});
+
+describe('GET /api/campaigns/agents (the sidebar dots)', () => {
+  const get = async () => await (await api.request('https://well.example/api/campaigns/agents', { headers: { cookie: `${A.SESSION}=${encodeURIComponent(await A.sign(A.sessionFor(profile(), cfg), cfg.secret))}` } }, E)).json() as { active: boolean; agents: Record<string, string> };
+  it('needs sign-in', async () => { expect((await api.request('https://well.example/api/campaigns/agents', {}, E)).status).toBe(401); });
+  it('says which agents are working or failed, with no text and no ids; inactive when there is no live campaign', async () => {
+    tasks = [task(0, 'content', 'running'), task(1, 'social', 'failed'), task(2, 'social', 'running')];
+    expect(await get()).toEqual({ active: true, agents: { content: 'running', social: 'running' } });
+    tasks = [task(0, 'design', 'failed')];
+    expect((await get()).agents).toEqual({ design: 'failed' });
+  });
+  it('a member only counts their own campaigns', async () => {
+    access = {};
+    await get();
+    expect(calls.find(x => x.url.includes('/rest/v1/campaigns?'))!.url).toContain('created_by=eq.m%40example.com');
+  });
+});
+
+describe('the automatic repair loop (compliance refuses -> the agent rewrites by its instructions -> checked again)', () => {
+  const BAD = 'نحن الأفضل ونضمن نتيجة مضمونة 100%';
+  it('the first refusal is NOT a stop: the task goes back to waiting with compliance\'s instructions, nothing is saved, the run goes on', async () => {
+    tasks = [task(0, 'content', 'waiting')];
+    llm = () => BAD;
+    const j = await step();
+    expect(j.ran).toMatchObject({ agent: 'content', status: 'waiting', fixing: 1 }); expect(j.more).toBe(true);
+    const p = calls.filter(x => x.method === 'PATCH' && x.url.includes('campaign_tasks')).pop()!.body;
+    expect(p.status).toBe('waiting'); expect(p.blocked_reason).toBeNull(); expect(p.spec.auto).toBe(1);
+    expect(p.spec.feedback).toContain('الأفضل'); expect(p.spec.feedback).toContain('الصياغة المعتمدة');   // what to cut and the approved wording
+    expect(calls.some(x => x.url.endsWith('/campaign_outputs') && x.method === 'POST')).toBe(false);
+    expect(calls.filter(x => x.url.includes('/audit_log') && x.method === 'POST').map(x => x.body.action)).toEqual(['campaign_task_autofix']);
+  });
+  it('the rewrite is asked with those instructions, the clean result is checked again and the campaign goes on to the next task', async () => {
+    tasks = [task(0, 'content', 'waiting', [], { spec: { auto: 1, feedback: 'احذف «الأفضل». الصياغة المعتمدة: رعاية موثوقة' } })];
+    llm = () => 'رعاية موثوقة في بيتك.';
+    const j = await step();
+    expect(calls.find(x => x.url === OR_URL)!.body.messages[1].content).toContain('احذف «الأفضل»');
+    expect(j.ran!.status).toBe('review');
+    expect(calls.some(x => x.url.endsWith('/campaign_outputs') && x.method === 'POST')).toBe(true);
+  });
+  it('at most two automatic rewrites: the third refusal stops the task (blocked) with the reason, ready for «approve despite the refusal»', async () => {
+    tasks = [task(0, 'content', 'waiting', [], { spec: { auto: 2, feedback: 'ف' } })];
+    llm = () => BAD;
+    const j = await step();
+    expect(j.ran!.status).toBe('blocked'); expect(j.ran!.reason).toContain('الأفضل');
+  });
+  it('the whole loop in a row: two refusals, then a clean text, in three steps, no person needed', async () => {
+    tasks = [task(0, 'content', 'waiting')];
+    const texts = [BAD, BAD, 'رعاية موثوقة في بيتك.'];
+    llm = n => texts[n - 1]!;
+    const seen: string[] = [];
+    for (let i = 0; i < 3; i++) {
+      llmN = 0;
+      llm = () => texts[i]!;
+      const j = await step(); seen.push(j.ran!.status);
+      // what the page would see on the next call: the task as saved
+      const last = calls.filter(x => x.method === 'PATCH' && x.url.includes('campaign_tasks')).pop()!.body;
+      tasks = [task(0, 'content', last.status, [], { spec: last.spec })];
+    }
+    expect(seen).toEqual(['waiting', 'waiting', 'review']);
+  });
+  it('every kind of finding in the screenshots is a critical one that the loop repairs: a superlative, a patient story, a guarantee, before and after', async () => {
+    for (const text of ['نحن الأفضل في المنطقة', 'قصة نجاح مريضة شفيت بعد العلاج', 'نتيجة مضمونة 100%', 'صور قبل وبعد']) {
+      expect(verdict([{ label: 'x', text }]).blocked).toBe(true);
+    }
+  });
+  it('a manual retry starts the automatic attempts again', async () => {
+    tasks = [task(0, 'content', 'blocked', [], { spec: { retries: 0, auto: 2 } })];
+    await post('/api/campaigns/retry', { id: CID, task: 1 });
+    expect(calls.find(x => x.method === 'PATCH' && x.url.includes('campaign_tasks'))!.body.spec).toMatchObject({ retries: 1, auto: 0 });
+  });
+});
+
+describe('open questions: the agents go on with assumptions, an answer rewrites only what it affects', () => {
+  const brief = { summary: 'ملخص', questions: [{ q: 'كم الميزانية؟', assumption: 'متوسطة', affects: ['optimize'] }, { q: 'أي نبرة؟', assumption: 'دافئة', affects: [] }] };
+  it('the agents get every question with its assumption (or the user\'s answer) and are told not to stop', async () => {
+    campaign['brief'] = { ...brief, questions: [brief.questions[0]!, { ...brief.questions[1]!, answer: 'رسمية' }] };
+    tasks = [task(0, 'content', 'waiting')];
+    await step();
+    const ask = calls.find(x => x.url === OR_URL)!.body.messages[1].content as string;
+    expect(ask).toContain('افتراض (كمّل عليه، لا توقف): متوسطة'); expect(ask).toContain('إجابة المستخدم: رسمية'); expect(ask).toContain('ولا تسأل ولا تتوقف');
+  });
+  it('the campaign is never held for a question: the run does not wait for any answer', async () => {
+    campaign['brief'] = brief;
+    expect((await step()).ran!.status).toBe('review');
+  });
+  it('an answer is saved in the brief, and only the tasks it affects, and what depends on them, are written again', async () => {
+    campaign['brief'] = brief; campaign['status'] = 'review';
+    tasks = [task(0, 'knowledge', 'review'), task(1, 'content', 'review', [0]), task(2, 'optimize', 'review', [1]), task(3, 'design', 'review', [0])];
+    // question 0 affects only «optimize»: that task is written again, the others stay
+    const r = await post('/api/campaigns/answer', { id: CID, index: 0, answer: 'خمسون ألف' });
+    expect(r.status).toBe(200); expect(await r.json()).toEqual({ ok: true, regenerate: 1 });
+    const brf = calls.find(x => x.method === 'PATCH' && x.url.includes('/campaigns?'))!.body.brief;
+    expect(brf.questions[0].answer).toBe('خمسون ألف');
+    const redo = calls.filter(x => x.method === 'PATCH' && x.url.includes('campaign_tasks')).map(x => [x.url.match(/id=eq\.(\d+)/)![1], x.body.status, x.body.spec.regen]);
+    expect(redo).toEqual([['3', 'waiting', 1]]);   // task ids are position + 1: «optimize» is id 3
+    expect(calls.some(x => x.method === 'DELETE' && x.url.includes('task_id=eq.3'))).toBe(true);
+    const aud = calls.filter(x => x.url.includes('/audit_log') && x.method === 'POST').map(x => x.body);
+    expect(aud.map(a => a.action)).toEqual(['campaign_answer']); expect(JSON.stringify(aud)).not.toContain('خمسون');
+  });
+  it('a question that names no agent affects all the writing agents and their followers, not the knowledge task', () => {
+    const ts = [t(0, 'knowledge', 'review'), t(1, 'content', 'review', [0]), t(2, 'social', 'review', [1]), t(3, 'compliance', 'review', [2]), t(4, 'optimize', 'review', [3])];
+    expect(affectedTasks(ts, [])).toEqual([2, 3, 4, 5]);
+    expect(affectedTasks(ts, ['social'])).toEqual([3, 4, 5]);
+  });
+  it('before the campaign is approved an answer is only saved; a running task, an exhausted task, a stranger, a cancelled campaign are refused', async () => {
+    campaign['brief'] = brief; campaign['status'] = 'planned'; tasks = [task(0, 'optimize', 'waiting')];
+    expect(((await (await post('/api/campaigns/answer', { id: CID, index: 0, answer: 'س' })).json()) as { regenerate: number }).regenerate).toBe(0);
+    campaign['status'] = 'running'; tasks = [task(0, 'optimize', 'running')];
+    expect((await post('/api/campaigns/answer', { id: CID, index: 0, answer: 'س' })).status).toBe(409);
+    tasks = [task(0, 'optimize', 'review', [], { spec: { regen: 3 } })];
+    expect((await post('/api/campaigns/answer', { id: CID, index: 0, answer: 'س' })).status).toBe(409);
+    campaign['status'] = 'cancelled';
+    expect((await post('/api/campaigns/answer', { id: CID, index: 0, answer: 'س' })).status).toBe(409);
+    expect((await post('/api/campaigns/answer', { id: CID, index: 9, answer: 'س' })).status).toBe(400);
+    expect((await post('/api/campaigns/answer', { id: CID, index: 0, answer: '' })).status).toBe(400);
+    expect((await post('/api/campaigns/answer', { id: CID, index: 0, answer: 'س' }, null)).status).toBe(401);
   });
 });

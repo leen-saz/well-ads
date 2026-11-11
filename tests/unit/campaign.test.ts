@@ -6,7 +6,7 @@ import { OR_URL, pick } from '../../src/lib/llm';
 import { clearRoutes } from '../../src/lib/ai-routes';
 import { clearSnaps, withWaiter } from '../../src/lib/usage';
 import { WELL_COMPANY } from '../../src/lib/tenant';
-import { AGENTS, cleanWishes, estimate, mayApprove, parsePlan } from '../../src/lib/campaign';
+import { AGENTS, cleanWishes, estimate, mayApprove, parsePlan, planMessages } from '../../src/lib/campaign';
 
 const E = { SUPABASE_URL: 'https://sb.example', SUPABASE_SERVICE_ROLE_KEY: 's', SESSION_SECRET: 'x'.repeat(40), OWNER_EMAIL: 'boss@example.com', OPENROUTER_API_KEY: 'or-test-key' };
 const cfg = A.env(E);
@@ -60,6 +60,17 @@ describe('parsePlan', () => {
   });
   it('there is no agent that publishes, spends or edits an ad account', () => {
     expect(Object.keys(AGENTS).sort()).toEqual(['compliance', 'content', 'design', 'knowledge', 'optimize', 'social', 'voice']);
+  });
+});
+
+describe('open questions in the plan', () => {
+  it('each keeps its assumption, the agents it affects (known ones, never compliance), capped; one without an assumption is dropped', () => {
+    const p = parsePlan(JSON.stringify({ title: 't', brief: { questions: [{ q: 'كم؟', assumption: 'متوسط', affects: ['content', 'hack', 'compliance'] }, { q: 'بدون افتراض' }, ...Array.from({ length: 9 }, (_, i) => ({ q: 'س' + i, assumption: 'ف' }))] }, tasks: [{ agent: 'content', title: 'a' }] }))!;
+    expect(p.brief.questions[0]).toEqual({ q: 'كم؟', assumption: 'متوسط', affects: ['content'] });
+    expect(p.brief.questions).toHaveLength(6);
+  });
+  it('the planner is told to give an assumption for every question and not to stop the campaign', () => {
+    expect(planMessages(cleanWishes(WISH).wishes!)[0]!.content).toContain('assumption');
   });
 });
 

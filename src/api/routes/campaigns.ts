@@ -10,7 +10,7 @@ import { TASK, PLAN_SCHEMA, PLANS_PER_DAY, AGENTS, cleanWishes, estimate, mayApp
 import { dayStart, loadDash, toolsFor, type AhlamEnv } from '../../lib/ahlam';
 import { SOCIAL } from '../../modules/social/engine';
 import { loadKnowledge, forbiddenRules, systemPrompt } from '../../modules/knowledge/knowledge';
-import { MAX_RETRIES, STALE_MS, kpis, parsePosts, readyTask, rollup, slim, socialTargets, taskMessages, verdict, type OutputRow, type TaskRow } from '../../lib/campaign-run';
+import { MAX_AUTO, MAX_REGEN, MAX_RETRIES, STALE_MS, REASON_MIN, affectedTasks, cleanReason, kpis, parsePosts, readyTask, rollup, slim, socialTargets, taskMessages, verdict, type OutputRow, type TaskRow } from '../../lib/campaign-run';
 
 type Env = AuthEnv & LlmEnv;
 const MIGRATION = 'migration 030_campaigns.sql';
@@ -141,7 +141,7 @@ export const step = { POST: handle(async (request, e: Env) => {
   const entries = await loadKnowledge(cfg, user.co);
   const extra = forbiddenRules(entries);
   const out: OutputRow[] = [];
-  let status = 'review', reason: string | null = null, spec: Row = {};
+  let status = 'review', reason: string | null = null, spec: Row = {}, fixing = 0;
 
   try {
     const prior = await sb(cfg, scoped(`/rest/v1/campaign_outputs?select=task_id,kind,platform,body,compliance&campaign_id=eq.${id}&order=id.asc&limit=200`, user.co), { admin: true });
@@ -149,10 +149,11 @@ export const step = { POST: handle(async (request, e: Env) => {
     if (t.agent === 'compliance') {
       // The gate before «ready»: every draft of the campaign is checked again against the rules as they are today. No AI call.
       const live = new Set(tasks.filter(x => x.status !== 'blocked' && x.status !== 'failed').map(x => x.id));
-      const texts = outputs.filter(o => o.task_id != null && live.has(o.task_id) && !['compliance_report', 'measurement'].includes(o.kind)).map(o => ({ label: `${o.kind}${o.platform ? ' · ' + o.platform : ''}`, text: String(o.body.text ?? '') }));
+      const passed = new Set(tasks.filter(x => x.spec?.override).map(x => x.id));   // let through by a person, with a reason: reported, not blocked again
+      const texts = outputs.filter(o => o.task_id != null && live.has(o.task_id) && !passed.has(o.task_id) && !['compliance_report', 'measurement'].includes(o.kind)).map(o => ({ label: `${o.kind}${o.platform ? ' · ' + o.platform : ''}`, text: String(o.body.text ?? '') }));
       const v = verdict(texts, extra);
       const n = (l: string) => v.hits.filter(h => h.level === l).length;
-      out.push({ task_id: t.id, kind: 'compliance_report', body: { text: `فُحصت ${texts.length} مسودة: ${n('critical')} مخالفة، ${n('warn')} انتبه، ${n('info')} ملاحظة.${v.hits.length ? '\n' + v.hits.slice(0, 20).map(h => `- ${h.title} «${h.match}»: ${h.fix}`).join('\n') : '\nما ظهرت ملاحظات.'}` }, compliance: slim(v.hits) });
+      out.push({ task_id: t.id, kind: 'compliance_report', body: { text: `فُحصت ${texts.length} مسودة: ${n('critical')} مخالفة، ${n('warn')} انتبه، ${n('info')} ملاحظة.${passed.size ? ` (${passed.size} مهمة متجاوزة بموافقة ومذكورة في الحزمة)` : ''}${v.hits.length ? '\n' + v.hits.slice(0, 20).map(h => `- ${h.title} «${h.match}»: ${h.fix}`).join('\n') : '\nما ظهرت ملاحظات.'}` }, compliance: slim(v.hits) });
       if (v.blocked) { status = 'blocked'; reason = v.reason; }
     } else {
       const run = { cfg, user, e: e as AhlamEnv };
@@ -160,7 +161,7 @@ export const step = { POST: handle(async (request, e: Env) => {
       const data = t.agent === 'knowledge' || t.agent === 'optimize' ? [await tool('performance', { days: 30 }), await tool('ads', { sort: 'best', days: 30, limit: 5 })].filter(Boolean).join('\n\n') : '';
       const funnel = t.agent === 'optimize' ? ((await loadDash(run)) as { funnel_targets?: unknown } | null)?.funnel_targets : undefined;
       const ks = kpis(funnel);
-      const gen = await generate(e, TASK, { messages: taskMessages(t.agent, { wishes: wishes as never, brief: camp['brief'], task: t, outputs, knowledge: systemPrompt(entries, 'content', 4000), data, kpis: ks, platforms: wanted }), max_tokens: 2500 }, fetch, usageCtx(cfg, user, TASK));
+      const gen = await generate(e, TASK, { messages: taskMessages(t.agent, { wishes: wishes as never, brief: camp['brief'], questions: ((camp['brief'] as { questions?: { q: string; assumption: string; answer?: string }[] } | null)?.questions) ?? [], task: t, outputs, knowledge: systemPrompt(entries, 'content', 4000), data, kpis: ks, platforms: wanted }), max_tokens: 2500 }, fetch, usageCtx(cfg, user, TASK));
       const text = gen.response.trim();
       if (t.agent === 'social') {
         const posts = parsePosts(text, wanted);
@@ -178,6 +179,11 @@ export const step = { POST: handle(async (request, e: Env) => {
       }
     }
     if (status === 'blocked') spec = { feedback: reason };
+    // The repair loop: compliance refused a draft, so its agent writes it again by compliance's own instructions (what to cut, the approved
+    // wording) and the check runs again, up to MAX_AUTO times. Only then does the task stop, with the reason, for a person.
+    if (status === 'blocked' && t.agent !== 'compliance' && (t.spec?.auto ?? 0) < MAX_AUTO) {
+      fixing = (t.spec?.auto ?? 0) + 1; out.length = 0; status = 'waiting'; spec = { auto: fixing, feedback: reason }; reason = null;
+    }
   } catch (err) {
     const m = (err as Error)?.message;
     if (m === 'cap_reached' || m === 'no_model' || m === 'llm_busy') { await patchTask(cfg, user.co, t.id, { status: 'waiting' }); return json(200, { paused: m, message: llmMessage(err) }); }
@@ -198,11 +204,11 @@ export const step = { POST: handle(async (request, e: Env) => {
     if (w.ok) drafts = posts.length;
   }
   await patchTask(cfg, user.co, t.id, { status, blocked_reason: reason, spec: { ...(t.spec ?? {}), ...spec } });
-  await audit(cfg, user, 'campaign_task_run', { target: { id, task: t.id, agent: t.agent, status, outputs: out.length, drafts } });
+  await audit(cfg, user, fixing ? 'campaign_task_autofix' : 'campaign_task_run', { target: { id, task: t.id, agent: t.agent, status, outputs: out.length, drafts, ...(fixing ? { attempt: fixing } : {}) } });
   tasks = await tasksOf(cfg, user.co, id);
   const r = rollup(tasks);
   if (r.status !== 'running') await setCampaign(cfg, user.co, id, r.status, 'approved,running');
-  return json(200, { ran: { task: t.id, agent: t.agent, status, reason }, more: r.status === 'running', status: r.status });
+  return json(200, { ran: { task: t.id, agent: t.agent, status, reason, ...(fixing ? { fixing } : {}) }, more: r.status === 'running', status: r.status });
 }) };
 
 // A person looks at a finished task and approves it (an approver). Nothing is published by this: it only marks the draft as accepted.
@@ -231,11 +237,93 @@ export const retry = { POST: handle(async (request, e: Env) => {
   if (!cur || (cur['status'] !== 'blocked' && cur['status'] !== 'failed')) return json(409, { error: 'المهمة مو موقوفة' });
   const spec = (cur['spec'] ?? {}) as Row, n = Number(spec['retries'] ?? 0);
   if (n >= MAX_RETRIES) return json(409, { error: `انعادت المحاولة ${MAX_RETRIES} مرات. عدّل الأمنيات وسوّ حملة جديدة` });
-  const r = await patchTask(cfg, user.co, task, { status: 'waiting', blocked_reason: null, spec: { ...spec, retries: n + 1 } }, `&status=eq.${cur['status']}`);
+  const r = await patchTask(cfg, user.co, task, { status: 'waiting', blocked_reason: null, spec: { ...spec, retries: n + 1, auto: 0 } }, `&status=eq.${cur['status']}`);
   if (!r.ok) return fail(user, r, 'ما انحفظت المحاولة');
   if (!rows(r.data).length) return json(409, { error: 'المهمة تغيّرت. حدّث الصفحة' });
   await sb(cfg, scoped(`/rest/v1/campaign_outputs?task_id=eq.${task}&campaign_id=eq.${id}`, user.co), { method: 'DELETE', admin: true });
   await setCampaign(cfg, user.co, id, 'running', 'review');
   await audit(cfg, user, 'campaign_task_retry', { target: { id, task, retries: n + 1 } });
   return json(200, { ok: true });
+}) };
+
+// The owner or an approver lets a stopped task through, knowing compliance refused it. A short reason is required, the override is
+// audit-logged (who, why, the rules: never the draft's text), the task shows «تجاوز بموافقة» in the pack, and the campaign goes on to
+// the next task. Posts it made become Social DRAFTS (manual): they are never scheduled or published from here.
+export const override = { POST: handle(async (request, e: Env) => {
+  const { cfg, user } = await requireUser(request, e, 'any', { write: true });
+  if (!mayApprove(user, cfg)) return json(403, { error: NO_APPROVE });
+  const b = await readJson(request, 3000), id = idOf(b['id']), task = Math.round(Number(b['task'])), reason = cleanReason(b['reason']);
+  if (!id || !Number.isInteger(task) || task < 1) return json(400, { error: 'طلب غير صحيح' });
+  if (reason.length < REASON_MIN) return json(400, { error: 'اكتب سبب التجاوز (جملة قصيرة على الأقل)' });
+  const cur = rows((await sb(cfg, scoped(`/rest/v1/campaign_tasks?select=id,agent,status,spec&id=eq.${task}&campaign_id=eq.${id}`, user.co), { admin: true })).data)[0];
+  if (!cur || cur['status'] !== 'blocked') return json(409, { error: 'المهمة مو موقوفة من الامتثال' });
+  const outs = rows((await sb(cfg, scoped(`/rest/v1/campaign_outputs?select=kind,platform,body,compliance&task_id=eq.${task}&campaign_id=eq.${id}&order=id.asc`, user.co), { admin: true })).data);
+  const ov = { by: user.email, reason, at: nowIso() };
+  const spec: Row = { ...((cur['spec'] ?? {}) as Row), override: ov };
+  delete spec['feedback'];
+  const r = await patchTask(cfg, user.co, task, { status: 'review', blocked_reason: null, spec }, '&status=eq.blocked');
+  if (!r.ok) return fail(user, r, 'ما انحفظ التجاوز');
+  if (!rows(r.data).length) return json(409, { error: 'المهمة تغيّرت. حدّث الصفحة' });
+  let drafts = 0;
+  if (cur['agent'] === 'social') {
+    const posts = outs.filter(o => o['kind'] === 'post');
+    const w = await sb(cfg, '/rest/v1/social_posts', { method: 'POST', admin: true, headers: { Prefer: 'return=minimal' }, body: posts.map(o => {
+      const at = new Date(Date.now() + Number((o['body'] as Row | null)?.['day'] ?? 1) * 864e5); at.setUTCHours(15, 0, 0, 0);
+      return { company_id: user.co, platforms: [String(o['platform'] ?? '')], body: String((o['body'] as Row | null)?.['text'] ?? ''), publish_at: at.toISOString(), mode: 'manual', status: 'draft', created_by: user.email };
+    }) });
+    if (w.ok) drafts = posts.length;
+  }
+  const rules = [...new Set(outs.flatMap(o => (Array.isArray(o['compliance']) ? (o['compliance'] as { rule?: string; level?: string }[]) : []).filter(h => h.level === 'critical').map(h => String(h.rule))))].slice(0, 10);
+  await audit(cfg, user, 'campaign_compliance_override', { target: { id, task, agent: cur['agent'], reason, rules, drafts } });
+  const roll = rollup(await tasksOf(cfg, user.co, id));
+  if (roll.status === 'running') await setCampaign(cfg, user.co, id, 'running', 'review');
+  return json(200, { ok: true, status: roll.status });
+}) };
+
+// For the sidebar's dots: which agents are working on a campaign task right now (running), which failed, and whether any campaign is
+// active at all. Two small reads, the user's own campaigns (an approver sees the company's). No text, no ids.
+export const agents = { GET: handle(async (request, e: Env) => {
+  const { cfg, user } = await requireUser(request, e, 'any');
+  const c = await sb(cfg, scoped(`/rest/v1/campaigns?select=id&status=in.(approved,running,review)&limit=50${visible(user, cfg)}`, user.co), { admin: true });
+  const ids = c.ok ? rows(c.data).map(x => idOf(x['id'])).filter((x): x is string => !!x) : [];
+  if (!ids.length) return json(200, { active: false, agents: {} });
+  const t = await sb(cfg, scoped(`/rest/v1/campaign_tasks?select=agent,status&campaign_id=in.(${ids.join(',')})&status=in.(running,failed)&limit=200`, user.co), { admin: true });
+  const out: Record<string, string> = {};
+  for (const x of rows(t.data)) { const a = String(x['agent']), s = String(x['status']); if (s === 'running' || !out[a]) out[a] = s; }
+  return json(200, { active: true, agents: out });
+}) };
+
+// An answer to an open question (the agents went on with the assumption). It is saved in the brief; when the campaign has already run, only
+// the tasks the question affects, and what depends on them, are written again (a task at most MAX_REGEN times). Whoever may see the campaign
+// may answer. Social drafts made earlier stay in Social as drafts: the new ones are added beside them.
+export const answer = { POST: handle(async (request, e: Env) => {
+  const { cfg, user } = await requireUser(request, e, 'any', { write: true });
+  const b = await readJson(request, 3000), id = idOf(b['id']), index = Math.round(Number(b['index'])), text = cleanReason(b['answer']).slice(0, 400);
+  if (!id || !Number.isInteger(index) || index < 0 || index > 5) return json(400, { error: 'طلب غير صحيح' });
+  if (!text) return json(400, { error: 'اكتب الجواب' });
+  const c = await sb<Row[]>(cfg, scoped(`/rest/v1/campaigns?select=id,status,brief&id=eq.${id}${visible(user, cfg)}`, user.co), { admin: true });
+  if (!c.ok) return fail(user, c, 'ما قدرت أقرأ الحملة');
+  const camp = rows(c.data)[0];
+  if (!camp) return json(404, { error: 'الحملة غير موجودة' });
+  const status = String(camp['status']);
+  if (status === 'cancelled') return json(409, { error: 'الحملة ملغاة' });
+  const brief = (camp['brief'] ?? {}) as { questions?: { q: string; assumption: string; affects?: string[]; answer?: string }[] };
+  const qs = brief.questions ?? [];
+  if (!qs[index]) return json(404, { error: 'السؤال غير موجود' });
+  const tasks = await tasksOf(cfg, user.co, id);
+  const started = ['approved', 'running', 'review', 'done'].includes(status);
+  const ids = started ? affectedTasks(tasks, (qs[index]!.affects ?? []).filter((a): a is Parameters<typeof affectedTasks>[1][number] => a in AGENTS)).filter(i => tasks.find(x => x.id === i)!.status !== 'waiting') : [];
+  const mine = tasks.filter(x => ids.includes(x.id));
+  if (mine.some(x => x.status === 'running')) return json(409, { error: 'فيه مهمة تشتغل الحين، جرّب بعد شوي' });
+  if (mine.some(x => (x.spec?.regen ?? 0) >= MAX_REGEN)) return json(409, { error: `انعادت كتابة بعض الأجزاء ${MAX_REGEN} مرات. أضف أمنياتك في حملة جديدة` });
+  qs[index]!.answer = text;
+  const saved = await sb(cfg, scoped(`/rest/v1/campaigns?id=eq.${id}`, user.co), { method: 'PATCH', admin: true, body: { brief: { ...brief, questions: qs }, updated_at: nowIso() } });
+  if (!saved.ok) return fail(user, saved, 'ما انحفظ الجواب');
+  for (const t of mine) {
+    await sb(cfg, scoped(`/rest/v1/campaign_outputs?task_id=eq.${t.id}&campaign_id=eq.${id}`, user.co), { method: 'DELETE', admin: true });
+    await patchTask(cfg, user.co, t.id, { status: 'waiting', blocked_reason: null, spec: { ...(t.spec ?? {}), regen: (t.spec?.regen ?? 0) + 1, auto: 0, feedback: undefined, override: undefined } });
+  }
+  if (mine.length) await setCampaign(cfg, user.co, id, 'running', 'review,done,running');
+  await audit(cfg, user, 'campaign_answer', { target: { id, index, regenerate: mine.map(x => x.id) } });   // never the answer's text
+  return json(200, { ok: true, regenerate: mine.length });
 }) };
