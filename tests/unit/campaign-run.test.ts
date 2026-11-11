@@ -63,11 +63,12 @@ describe('the measurement plan and the pack', () => {
 });
 
 type Call = { url: string; method: string; body: any };   // eslint-disable-line @typescript-eslint/no-explicit-any
+let stateful = false;
 let calls: Call[], tasks: Record<string, unknown>[], outputs: Record<string, unknown>[], campaign: Record<string, unknown>, access: Record<string, string>, llm: (n: number) => string, llmN: number, claimable: boolean;
 const profile = (): A.Profile => ({ id: UID, email: 'm@example.com', role: 'member', active: true, access, company_id: WELL_COMPANY });
 const task = (position: number, agent: string, status: string, depends_on: number[] = [], extra: Record<string, unknown> = {}) => ({ id: position + 1, position, agent, title: 'مهمة ' + agent, spec: { detail: 'د' }, depends_on, status, blocked_reason: null, updated_at: new Date().toISOString(), ...extra });
 beforeEach(() => {
-  calls = []; llmN = 0; claimable = true; access = { maestro: 'approve' }; clearRoutes(); clearSnaps();
+  stateful = false; calls = []; llmN = 0; claimable = true; access = { maestro: 'approve' }; clearRoutes(); clearSnaps();
   campaign = { id: CID, title: 'حملة', status: 'approved', wishes: { goal: 'حملة للقدم', platforms: ['meta', 'x'] }, brief: { summary: 'ملخص' } };
   tasks = [task(0, 'knowledge', 'waiting'), task(1, 'content', 'waiting', [0]), task(2, 'social', 'waiting', [1]), task(3, 'compliance', 'waiting', [2]), task(4, 'optimize', 'waiting', [3])];
   outputs = []; llm = () => 'نص آمن عن الزيارة المنزلية.';
@@ -77,8 +78,14 @@ beforeEach(() => {
     if (url === OR_URL) return new Response(JSON.stringify({ choices: [{ message: { content: llm(++llmN) } }], usage: { prompt_tokens: 100, completion_tokens: 100, cost: 0.001 } }));
     if (url.includes('/profiles?id=eq.')) return new Response(JSON.stringify([profile()]));
     if (url.endsWith('/rest/v1/campaign_tasks') && method === 'POST') { tasks = (body as Record<string, unknown>[]).map((b, i) => ({ id: i + 1, status: 'waiting', blocked_reason: null, updated_at: new Date().toISOString(), ...b })); return new Response('[]'); }
-    if (url.includes('/rest/v1/campaign_tasks') && method === 'PATCH') return new Response(JSON.stringify(claimable ? [{ id: 1 }] : []));
+    if (url.includes('/rest/v1/campaign_tasks') && method === 'PATCH') {
+      if (!stateful) return new Response(JSON.stringify(claimable ? [{ id: 1 }] : []));
+      const tid = Number(/[?&]id=eq\.(\d+)/.exec(url)?.[1]), want = /status=eq\.(\w+)/.exec(url)?.[1], row = tasks.find(x => x['id'] === tid);
+      if (!row || (want && row['status'] !== want)) return new Response('[]');
+      Object.assign(row, body); return new Response(JSON.stringify([row]));
+    }
     if (url.includes('/rest/v1/campaign_tasks')) return new Response(JSON.stringify(tasks));
+    if (stateful && url.endsWith('/rest/v1/campaign_outputs') && method === 'POST') { outputs.push(...(body as Record<string, unknown>[])); return new Response('[]'); }
     if (url.includes('/rest/v1/campaign_outputs') && method === 'GET') return new Response(JSON.stringify(outputs));
     if (url.includes('/rest/v1/campaigns') && method === 'GET') return new Response(JSON.stringify([campaign]));
     return new Response('[]');
@@ -431,5 +438,61 @@ describe('a campaign approved before the tasks existed (no campaign_tasks) can b
     expect(calls.some(x => x.method === 'PATCH' && x.url.includes('/campaigns?') && x.body.status === 'running')).toBe(true);
     campaign['approved_at'] = null;
     expect((await post('/api/campaigns/step', { id: CID })).status).toBe(409);
+  });
+});
+
+describe('what the rules may stop: only what can reach an audience, and only a critical finding', () => {
+  const QUOTE = 'ملخص فجوات المعلومات. القواعد: تجنّب «الأفضل» و«الوحيد» وأي وعد بنتيجة مضمونة، ولا تستخدم «قبل وبعد» ولا تجارب المرضى.';
+  it('a knowledge summary that quotes forbidden words is NOT refused and gets no repair loop', async () => {
+    tasks = [task(0, 'knowledge', 'waiting')]; llm = () => QUOTE;
+    const j = await step();
+    expect(j.ran).toMatchObject({ agent: 'knowledge', status: 'review' }); expect(j.ran).not.toHaveProperty('fixing');
+    const out = (calls.find(x => x.url.endsWith('/campaign_outputs') && x.method === 'POST')!.body as { compliance: unknown[] }[])[0]!;
+    expect(out.compliance).toEqual([]);
+  });
+  it('so is the budget and measurement document', async () => {
+    tasks = [task(0, 'optimize', 'waiting')]; llm = () => QUOTE;
+    expect((await step()).ran!.status).toBe('review');
+  });
+  it('the compliance gate does not scan internal references either', async () => {
+    tasks = [task(0, 'knowledge', 'review'), task(1, 'compliance', 'waiting', [0])];
+    outputs = [{ task_id: 1, kind: 'insight', platform: null, body: { text: QUOTE }, compliance: [] }];
+    expect((await step()).ran!.status).toBe('review');
+  });
+  it('a warning (price without the total) or a note never stops anything: only a critical finding does', async () => {
+    tasks = [task(0, 'content', 'waiting')]; llm = () => 'السعر 299 ريال فقط، احجز زيارة منزلية.';
+    const j = await step();
+    expect(j.ran!.status).toBe('review'); expect(j.ran).not.toHaveProperty('fixing');
+  });
+  it('a knowledge task an older version had stopped is released and the campaign goes on to the next task', async () => {
+    tasks = [task(0, 'knowledge', 'blocked', [], { blocked_reason: 'قديم' }), task(1, 'content', 'waiting', [0])];
+    const j = await step();
+    expect(j.ran!.agent).toBe('content');
+    expect(calls.filter(x => x.url.includes('/audit_log') && x.method === 'POST').map(x => x.body.action)).toContain('campaign_unblock_internal');
+  });
+  it('a whole campaign, run only by repeating the step: a violation is repaired by itself (twice at most) and every task finishes with no one pressing anything', async () => {
+    stateful = true;
+    campaign['wishes'] = { goal: 'حملة', platforms: ['x'] };
+    tasks = [
+      task(0, 'knowledge', 'waiting'), task(1, 'content', 'waiting', [0]), task(2, 'design', 'waiting', [0, 1]), task(3, 'voice', 'waiting', [1]),
+      task(4, 'social', 'waiting', [1]), task(5, 'compliance', 'waiting', [1, 2, 3, 4]), task(6, 'optimize', 'waiting', [5])];
+    let contentTries = 0;
+    llm = () => {
+      const sys = String(JSON.parse(String(calls.filter(x => x.url === OR_URL).pop()!.body && JSON.stringify(calls.filter(x => x.url === OR_URL).pop()!.body)))?.messages?.[0]?.content ?? '');
+      if (sys.includes('إيجنت «المحتوى')) return ++contentTries <= 2 ? 'نحن الأفضل وبنتيجة مضمونة 100%' : 'رعاية موثوقة في بيتك مع ممرضة مرخّصة.';
+      if (sys.includes('إيجنت «السوشال')) return JSON.stringify({ posts: [{ platform: 'x', body: 'احجز زيارتك المنزلية.', day: 1 }] });
+      return sys.includes('إيجنت «المعرفة') || sys.includes('إيجنت «التحسين') ? QUOTE : 'بريف هادئ بألوان Well.';
+    };
+    const log: string[] = [];
+    for (let i = 0; i < 20; i++) {
+      const j = await step();
+      if (j.done) { log.push('done:' + j.status); break; }
+      log.push(`${j.ran!.agent}:${j.ran!.status}`);
+    }
+    expect(log.filter(x => x.startsWith('content'))).toEqual(['content:waiting', 'content:waiting', 'content:review']);
+    expect(log.at(-1)).toBe('done:review');
+    expect(tasks.map(x => x['status'])).toEqual(Array(7).fill('review'));
+    expect(calls.filter(x => x.url.endsWith('/social_posts'))).toHaveLength(1);
+    expect(calls.filter(x => x.url.includes('/audit_log') && x.method === 'POST').map(x => x.body.action).filter(a => a === 'campaign_task_autofix')).toHaveLength(2);
   });
 });

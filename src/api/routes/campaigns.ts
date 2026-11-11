@@ -10,7 +10,7 @@ import { TASK, PLAN_SCHEMA, PLANS_PER_DAY, AGENTS, cleanWishes, estimate, mayApp
 import { dayStart, loadDash, toolsFor, type AhlamEnv } from '../../lib/ahlam';
 import { SOCIAL } from '../../modules/social/engine';
 import { loadKnowledge, forbiddenRules, systemPrompt } from '../../modules/knowledge/knowledge';
-import { defaultTasks, MAX_AUTO, MAX_REGEN, MAX_RETRIES, STALE_MS, REASON_MIN, affectedTasks, cleanReason, kpis, parsePosts, readyTask, rollup, slim, socialTargets, taskMessages, verdict, type OutputRow, type TaskRow } from '../../lib/campaign-run';
+import { INTERNAL_KINDS, PUBLISHABLE, defaultTasks, MAX_AUTO, MAX_REGEN, MAX_RETRIES, STALE_MS, REASON_MIN, affectedTasks, cleanReason, kpis, parsePosts, readyTask, rollup, slim, socialTargets, taskMessages, verdict, type OutputRow, type TaskRow } from '../../lib/campaign-run';
 
 type Env = AuthEnv & LlmEnv;
 const MIGRATION = 'migration 030_campaigns.sql';
@@ -137,6 +137,11 @@ export const step = { POST: handle(async (request, e: Env) => {
     tasks = await tasksOf(cfg, user.co, id);
   }
   for (const t of tasks.filter(x => x.status === 'running' && x.updated_at && Date.parse(x.updated_at) < Date.now() - STALE_MS)) { await patchTask(cfg, user.co, t.id, { status: 'waiting' }, '&status=eq.running'); t.status = 'waiting'; }
+  // An internal reference (knowledge, optimization) that an older version stopped for quoting forbidden words was never an ad: released
+  for (const x of tasks.filter(y => y.status === 'blocked' && y.agent !== 'compliance' && !PUBLISHABLE.includes(y.agent) && !y.spec?.override)) {
+    const rel = await patchTask(cfg, user.co, x.id, { status: 'review', blocked_reason: null }, '&status=eq.blocked');
+    if (rel.ok && rows(rel.data).length) { x.status = 'review'; await audit(cfg, user, 'campaign_unblock_internal', { target: { id, task: x.id, agent: x.agent } }); }
+  }
   const t = readyTask(tasks);
   if (!t) {
     const r = rollup(tasks);
@@ -161,7 +166,7 @@ export const step = { POST: handle(async (request, e: Env) => {
       // The gate before «ready»: every draft of the campaign is checked again against the rules as they are today. No AI call.
       const live = new Set(tasks.filter(x => x.status !== 'blocked' && x.status !== 'failed').map(x => x.id));
       const passed = new Set(tasks.filter(x => x.spec?.override).map(x => x.id));   // let through by a person, with a reason: reported, not blocked again
-      const texts = outputs.filter(o => o.task_id != null && live.has(o.task_id) && !passed.has(o.task_id) && !['compliance_report', 'measurement'].includes(o.kind)).map(o => ({ label: `${o.kind}${o.platform ? ' · ' + o.platform : ''}`, text: String(o.body.text ?? '') }));
+      const texts = outputs.filter(o => o.task_id != null && live.has(o.task_id) && !passed.has(o.task_id) && !INTERNAL_KINDS.includes(o.kind)).map(o => ({ label: `${o.kind}${o.platform ? ' · ' + o.platform : ''}`, text: String(o.body.text ?? '') }));
       const v = verdict(texts, extra);
       const n = (l: string) => v.hits.filter(h => h.level === l).length;
       out.push({ task_id: t.id, kind: 'compliance_report', body: { text: `فُحصت ${texts.length} مسودة: ${n('critical')} مخالفة، ${n('warn')} انتبه، ${n('info')} ملاحظة.${passed.size ? ` (${passed.size} مهمة متجاوزة بموافقة ومذكورة في الحزمة)` : ''}${v.hits.length ? '\n' + v.hits.slice(0, 20).map(h => `- ${h.title} «${h.match}»: ${h.fix}`).join('\n') : '\nما ظهرت ملاحظات.'}` }, compliance: slim(v.hits) });
@@ -183,7 +188,8 @@ export const step = { POST: handle(async (request, e: Env) => {
           if (v.blocked) { status = 'blocked'; reason = v.reason; }
         }
       } else {
-        const v = verdict([{ label: AGENTS_AR[t.agent] ?? t.agent, text }], extra);
+        // internal references (knowledge, optimization) are not ads: no rules, no stop, no repair loop
+        const v = PUBLISHABLE.includes(t.agent) ? verdict([{ label: AGENTS_AR[t.agent] ?? t.agent, text }], extra) : { hits: [], blocked: false, reason: '' };
         out.push({ task_id: t.id, kind: KIND[t.agent] ?? 'text', body: { text }, compliance: slim(v.hits) });
         if (t.agent === 'optimize') out.push({ task_id: t.id, kind: 'measurement', body: { text: 'أهداف القياس (نفس أرقام الحكم في لوحة الأداء)', kpis: ks }, compliance: [] });
         if (v.blocked) { status = 'blocked'; reason = v.reason; }
