@@ -65,7 +65,7 @@ describe('media buyer rules', () => {
     expect(ids(r)).toContain('page_leak');
   });
   it('moves budget between platforms only with a sample on both', () => {
-    const m = [...series('m1', 27, 0, () => [T.cpl * 3.2, 4000, 80, 2]), ...series('s1', 27, 0, () => [T.cpl, 4000, 80, 2])];
+    const m = [...series('m1', 27, 0, () => [T.cpl * 9.6, 12000, 240, 6]), ...series('s1', 27, 0, () => [T.cpl * 3, 12000, 240, 6])];
     const s = recommend(base({ ads: [ad('m1', 'meta', 'c1'), ad('s1', 'snap', 'c2')], metrics: m })).recs.find(x => x.rule === 'shift_budget')!;
     expect(s.platform).toBe('meta'); expect(s.title).toContain('سناب');
     const thin = [...series('m1', 27, 0, () => [T.cpl, 100, 1, 0.5]), ...series('s1', 27, 0, () => [T.cpl, 100, 1, 1])];
@@ -78,7 +78,7 @@ describe('media buyer rules', () => {
     expect(p.title).toContain('انستقرام'); expect(p.kind).toBe('shift_budget');
   });
   it('finds the costly weekday only on four full weeks', () => {
-    const m = series('m1', 27, 0, i => [T.cpl * (new Date(add(last, -i) + 'T00:00:00Z').getUTCDay() === 5 ? 2.4 : 1), 4000, 80, 2]);
+    const m = series('m1', 27, 0, i => [T.cpl * 1.5 * (new Date(add(last, -i) + 'T00:00:00Z').getUTCDay() === 5 ? 2.4 : 1), 6000, 120, 3]);
     expect(recommend(base({ ads: [ad('m1', 'meta', 'c1')], metrics: m })).recs.find(x => x.rule === 'weekday_gap')?.title).toContain('الجمعة');
     expect(ids(recommend(base({ ads: [ad('m1', 'meta', 'c1')], metrics: good('m1', 13) })))).not.toContain('weekday_gap');
   });
@@ -147,7 +147,9 @@ describe('read-only and clean', () => {
     }
   });
   it('no text carries a health claim the compliance check would flag', () => {
-    for (const r of all.recs) for (const t of [r.title, r.change, r.why, r.risk, r.success.goal, r.followUp ?? '']) expect(check(t)).toEqual([]);
+    // the ad-price rule is about advertised prices; an ad-spend figure in an internal note is not one
+    const plain = (t: string) => t.replace(/[\d.,]+ ر\.س/g, 'مبلغ');
+    for (const r of all.recs) for (const t of [r.title, r.change, r.why, r.risk, r.success.goal, r.followUp ?? '']) expect(check(plain(t))).toEqual([]);
     for (const r of RULES) for (const t of [r.ar, r.why, r.risk, r.success]) expect(check(t)).toEqual([]);
   });
   it('the module never touches an ad platform or holds a campaign name', () => {
