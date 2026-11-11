@@ -28,6 +28,20 @@ describe('dataStatus', () => {
     const s = await dataStatus(bucket({ dash: ago(1), refresh: { at: ago(0.2), ok: false, status: 403 } }), NOW);
     expect(s).toMatchObject({ level: 'warn', warnings: ['dispatch_failed'], dispatch: 'failed' });
   });
+  it('reports each non-blocking step with its last success, and a failed one is a warning', async () => {
+    const steps = { crm: { ok: false, at: ago(1), last_ok: ago(30) }, suggest: { ok: true, at: ago(1), last_ok: ago(1) }, rogue: { ok: false } };
+    const s = await dataStatus(bucket({ dash: ago(1), status: { crm_present: true, crm_synced: ago(1), steps } }), NOW);
+    expect(s.warnings).toEqual(['step_failed']);
+    expect(s.level).toBe('warn');
+    expect(s.steps.crm).toEqual({ ok: false, at: ago(1), last_ok: ago(30), age_hours: 1, last_ok_age_hours: 30 });
+    expect(s.steps.suggest?.ok).toBe(true);
+    expect(Object.keys(s.steps).sort()).toEqual(['crm', 'suggest']);   // unknown names are dropped
+  });
+  it('an older data-status.json without steps says nothing about them', async () => {
+    const s = await dataStatus(bucket({ dash: ago(1), status: { crm_present: true, crm_synced: ago(1) } }), NOW);
+    expect(s.steps).toEqual({});
+    expect(s.warnings).toEqual([]);
+  });
   it('without the bucket nothing is claimed; unreadable JSON is ignored', async () => {
     expect((await dataStatus(undefined, NOW)).level).toBe('unknown');
     const b = { head: async () => ({ uploaded: new Date(NOW - 36e5) }), get: async () => ({ text: async () => '{oops' }) };

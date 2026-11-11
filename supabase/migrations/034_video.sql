@@ -1,4 +1,4 @@
--- 032: موديول الفيديو (دمج DaVinci، المرحلة 4). مشروع فيديو من رابط منتج أو خدمة: الموجز، السكربت، خطة اللقطات،
+-- 034: موديول الفيديو (دمج DaVinci، المرحلة 4). مشروع فيديو من رابط منتج أو خدمة: الموجز، السكربت، خطة اللقطات،
 -- وطلبات التوليد (كل لقطة طلب بحالته وإعادة المحاولة وتكلفته). كل جدول فيه company_id. الناتج يبقى مسودة لين
 -- يمر على المراجع ثم المعتمد، وما يطلع من النظام قبل الاعتماد.
 create table if not exists public.video_projects (
@@ -75,3 +75,5 @@ with fresh as (
 )
 update public.companies c set disabled_modules = array_append(c.disabled_modules, 'video')
 from fresh where c.id = fresh.company_id and not ('video' = any (c.disabled_modules));
+
+insert into public.schema_migrations (name) values ('034_video.sql') on conflict do nothing;

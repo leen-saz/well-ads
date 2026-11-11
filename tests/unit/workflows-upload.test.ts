@@ -32,3 +32,25 @@ describe('refresh.yml health step', () => {
     expect(text.slice(at, at + 200)).toMatch(/if: always\(\)/);
   });
 });
+
+// The backup holds emails and business data on a public repo: it must never be an Actions artifact, and it must stay encrypted
+describe('backup workflows', () => {
+  const get = (n: string) => Object.entries(FILES).find(([p]) => p.endsWith(`/${n}`))?.[1] ?? '';
+  it('db-backup is scheduled, encrypted, verified before upload, and never an artifact', () => {
+    const t = get('db-backup.yml');
+    expect(t).toMatch(/schedule:/);
+    expect(t).toMatch(/workflow_dispatch:/);
+    expect(t).not.toMatch(/upload-artifact/);
+    expect(t.indexOf('openssl enc -aes-256-cbc')).toBeGreaterThan(0);
+    expect(t.indexOf('backup_check.py')).toBeGreaterThan(t.indexOf('openssl enc -aes-256-cbc'));
+    expect(t.indexOf('r2 object put')).toBeGreaterThan(t.indexOf('backup_check.py'));
+    expect(t).toMatch(/refusing to write an unencrypted dump/);
+  });
+  it('db-restore-test runs monthly and checks a decrypted copy of the latest backup', () => {
+    const t = get('db-restore-test.yml');
+    expect(t).toMatch(/cron: "\d+ \d+ 1 \* \*"/);
+    expect(t).toMatch(/r2 object get .*latest\.enc/);
+    expect(t).toMatch(/backup_check\.py/);
+    expect(t).not.toMatch(/upload-artifact/);
+  });
+});
