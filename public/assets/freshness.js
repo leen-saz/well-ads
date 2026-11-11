@@ -20,6 +20,7 @@ export function ownerText(s) {
   const w = s.warnings, out = staleText(s);
   if (w.includes('data_old')) out.push(`آخر تحديث للأرقام قبل ${AGE(s.dash_age_hours)}. التحديث يصير كل ساعة، فيمكن مرّت عدة مرات بدون ما يشتغل.`);
   if (w.includes('dispatch_failed')) out.push('آخر مرة حاول الموقع يبدأ التحديث فشل. الأرقام ما راح تتحدّث لين يتصلّح (غالباً مفتاح البدء ناقص أو منتهي).');
+  if (w.includes('step_failed')) out.push('خطوة من خطوات التحديث فشلت آخر مرة (الأرقام الأساسية وصلت، بس الجزء اللي فشل قد يكون قديماً). التفاصيل في صحة الداتا.');
   return out;
 }
 
