@@ -20,7 +20,7 @@ type Bindings = Env & AuthEnv;
 const SOCIAL_CRON = '*/5 * * * *';
 const WATCHDOG_CRON = '37 * * * *';
 // Sunday 02:17 UTC: the weekly encrypted backup. The 1st at 02:47 UTC: the monthly restore test (docs/runbook.md → Backups)
-const BACKUP_CRON = '17 2 * * 0';
+const BACKUP_CRON = '17 2 * * SUN';
 const RESTORE_CRON = '47 2 1 * *';
 
 // Requests produced by a gateway rewrite (department or creative copy) skip the gateway the second time.
