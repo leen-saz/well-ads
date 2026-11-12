@@ -41,4 +41,30 @@ export async function mountPane() {
   $('#by-list').addEventListener('click', e => { const b = e.target.closest('[data-propose]'); if (b) proposeOne(b.dataset.propose, b); });
   await load();
   mountExec();
+  outcomes();
 }
+
+// What happened after each action Leen took: measured now for what is due, then shown. The proposals to change a rule are counts
+// only and go into a development PR, never straight into the rules.
+const RES = { worked: 'نجحت', no_change: 'ما تغيّر شي', worse: 'أسوأ', unclear: 'عينة صغيرة' };
+const RULE = { scale_up: 'توسيع', stop_cpl: 'إيقاف', zero_leads: 'صرف بلا ليد', fatigue: 'تعب المادة', low_ctr: 'نقر ضعيف', page_leak: 'تسرّب الصفحة', shift_budget: 'نقل ميزانية', placement_gap: 'مواضع ميتا', weekday_gap: 'أيام الأسبوع', few_creatives: 'مواد قليلة', company: 'قاعدة الشركة', learning_hold: 'انتظر' };
+async function outcomes() {
+  try { await api('/api/buyer/outcomes', { method: 'POST' }); } catch { /* viewing only: nothing to measure from here */ }
+  let r; try { r = await api('/api/buyer/outcomes'); } catch { return; }
+  if (r.missing) return;
+  const box = $('#by-outBox'); if (!box) return;
+  box.hidden = false;
+  const rows = r.rows || [], num = v => (v == null ? '—' : fmt(Math.round(v * 10) / 10)), pair = (a, b) => `<span dir="ltr">${num(a)} ← ${num(b)}</span>`;
+  $('#by-outInfo').textContent = rows.length ? `${rows.length} نتيجة مقاسة. تيك توك يُحكم عليه بنسبة النقر مو بالليدز.` : 'ما فيه نتائج بعد. تظهر بعد 3 أيام من أول إجراء تنفّذه.';
+  $('#by-outTable').innerHTML = rows.length ? '<thead><tr><th>الحملة</th><th>القاعدة</th><th>اليوم</th><th>النتيجة</th><th>تكلفة الليد</th><th>نسبة النقر %</th><th>الصرف</th></tr></thead><tbody>'
+    + rows.map(x => `<tr><td>${esc(x.entity || '—')}</td><td>${esc(RULE[x.rec_rule] || x.rec_rule || '—')} · ${esc(PLAT[x.platform] || x.platform)}</td><td class="n">${esc(x.day)}</td><td>${esc(RES[x.result] || '')}</td>`
+      + `<td>${x.platform === 'tiktok' ? '—' : pair(x.before.cpl, x.after.cpl)}</td><td>${pair(x.before.ctr, x.after.ctr)}</td><td>${pair(x.before.spend, x.after.spend)}</td></tr>`).join('') + '</tbody>' : '';
+  const T = (r.tuning || []).filter(t => t.n > 0);
+  $('#by-tuning').innerHTML = T.length ? '<h3 style="margin:0 0 6px">وش تقول النتائج عن القواعد</h3><ul class="muted">' + T.map(t => `<li>${esc(RULE[t.rule] || t.rule)}: نجحت ${esc(t.worked)} من ${esc(t.n)} نتيجة بعد 7 أيام${t.proposal ? '. ' + esc(t.proposal) : ''}</li>`).join('') + '</ul>' : '';
+  const copy = $('#by-tuneCopy'); copy.hidden = !T.length;
+  copy.onclick = async () => {
+    const text = '## نتائج توصيات الميديا باير (أعداد فقط)\n' + T.map(t => `- ${t.rule}: ${t.worked} نجحت من ${t.n}، ${t.worse} أسوأ${t.proposal ? '. اقتراح: ' + t.proposal : ''}`).join('\n');
+    try { await navigator.clipboard.writeText(text); say($('#by-msg'), 'اننسخ الملخص: ألصقه في وصف الـPR التطويري', true); } catch { say($('#by-msg'), text); }
+  };
+}
+
