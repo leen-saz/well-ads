@@ -117,9 +117,12 @@ export default async function mount() {
     try { cbox.innerHTML = crmCard(await pC); } catch (err) { failure(cbox, err, () => location.reload()); }
     // One request per part: each stays under the platform's per-request call limit
     const h = { duplicates: {}, counts: {}, orphans: {}, migrations_missing: [], freshness: { platforms: [] }, joins: null };
-    for (const part of ['sources', 'content', 'counts', 'schema']) {
+    // The four parts are separate requests (separate Worker calls, so the per-request limit still holds) and they run TOGETHER: one
+    // after the other the page waited for the sum of four slow database reads (about 10 s). Each part is drawn as it arrives;
+    // this block is the last on the page, so a late part only grows it downwards.
+    await Promise.all(['sources', 'content', 'counts', 'schema'].map(async part => {
       try { const r = await api('/api/maestro/health?part=' + part); Object.assign(h, r, { duplicates: { ...h.duplicates, ...(r.duplicates || {}) } }); holder.innerHTML = healthCards(h); }
       catch (err) { say($('#msg'), err.message); }
-    }
+    }));
   }).catch(pageFailure);
 }

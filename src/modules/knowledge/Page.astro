@@ -51,7 +51,7 @@ import { ClientRouter } from 'astro:transitions';
       <div class="seg" role="group" aria-label="العرض" style="margin:0 0 14px"><button type="button" data-tab="train" aria-pressed="true">شات التدريب</button><button type="button" data-tab="all" aria-pressed="false">كل المعرفة</button><button type="button" data-tab="brand" aria-pressed="false">الهوية والبصريات</button></div>
       <section id="train" class="card pad">
         <p class="muted kn-prog" id="prog"></p>
-        <div class="kn-chat" id="chat"><p class="muted">يحمّل…</p></div>
+        <div class="kn-chat" id="chat"><div class="sk" style="height:44px;max-width:420px" aria-hidden="true"></div><p class="muted">يحمّل…</p></div>
         <form id="tf" novalidate style="margin-top:14px;max-width:760px" hidden>
           <label for="ans">جوابك</label><textarea id="ans" rows="4" dir="auto" maxlength="2000"></textarea>
           <div class="bar" style="margin-top:10px"><button class="btn primary" type="submit" id="send">أرسل</button><button class="btn" type="button" id="skip">تخطَّ السؤال</button></div>
@@ -76,7 +76,7 @@ import { ClientRouter } from 'astro:transitions';
           </form>
           <div class="msg" id="bmsg" role="status"></div>
         </section>
-        <section id="blist"><p class="muted">يحمّل…</p></section>
+        <section id="blist"><div class="sk" style="height:120px" aria-hidden="true"></div><p class="muted" style="margin-top:8px">يحمّل…</p></section>
       </div>
       <div class="kn-grid" id="all" hidden>
         <section class="card pad">
@@ -97,7 +97,7 @@ import { ClientRouter } from 'astro:transitions';
           <div class="bar"><select id="pv" aria-label="الموديول"></select><button class="btn" type="button" id="pvgo">اعرض</button></div>
           <pre class="kn-pre" id="pvout" hidden></pre>
         </section>
-        <section id="list"><p class="muted">يحمّل…</p></section>
+        <section id="list"><div class="sk" style="height:160px" aria-hidden="true"></div><p class="muted" style="margin-top:8px">يحمّل…</p></section>
       </div>
     </main>
   </div>

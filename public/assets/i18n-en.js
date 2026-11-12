@@ -193,6 +193,7 @@ export const EN = {
   'ليش؟': 'Why?', 'الصرف آخر 7 أيام': 'Spend, last 7 days', 'الليدز آخر 7 أيام': 'Leads, last 7 days', 'تكلفة الليد': 'Cost per lead', 'الهدف': 'Target',
   '(متوسط 30 يوم للمنصة)': '(platform 30-day average)', 'انقترح': 'Suggested', 'قبل ← بعد': 'Before → after',
   'الصرف مقابل الليدز · آخر 14 يوم': 'Spend vs leads · last 14 days', 'سجل هذا الإعلان': 'This ad\'s history', 'يحمّل…': 'Loading…',
+  'يجهّز السؤال التالي…': 'Preparing the next question…',
   'ما فيه قرارات سابقة على هذا الإعلان': 'No past decisions on this ad', 'ما قدرت أقرأ السجل': 'Couldn\'t read the log', 'حاول مرة ثانية': 'Try again',
   'اختصارات:': 'Shortcuts:', 'للتنقل،': 'to move,', 'للتحديد،': 'to select,', 'موافقة،': 'approve,', 'رفض،': 'reject,', 'التفاصيل.': 'details.',
   'ملخص': 'Summary', 'المنصات': 'Platforms', 'تفاصيل الاقتراح': 'Suggestion details', 'صرف': 'Spend', 'ليدز': 'Leads', 'تكلفة': 'Cost', 'نقر': 'CTR',

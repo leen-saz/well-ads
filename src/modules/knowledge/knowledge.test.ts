@@ -176,6 +176,17 @@ describe('training chat', () => {
     expect(run).toHaveBeenCalledOnce();
     expect(r.next.topic).toMatch(/^ai-/);
 
+    // ai=0: the answers so far come back at once and the AI is not called; later=true tells the page to ask again for the question
+    run.mockClear();
+    const quick = (await (await train.GET(req('/api/knowledge/train?ai=0', await cookieFor(ed)), { ...E, AI: { run } } as A.AuthEnv)).json()) as { next: unknown; later: boolean; history: unknown[] };
+    expect(run).not.toHaveBeenCalled();
+    expect(quick).toMatchObject({ next: null, later: true });
+    expect(quick.history).toHaveLength(QUESTIONS.length);
+    // a fixed question never waits: ai=0 changes nothing while one is left
+    stub(ed, () => [e({ topic: 'services', source: 'training', question: 'وش الخدمات؟', body: 'محاليل' })]);
+    const fixed = (await (await train.GET(req('/api/knowledge/train?ai=0', await cookieFor(ed)), { ...E, AI: { run } } as A.AuthEnv)).json()) as { next: { topic: string }; later: boolean };
+    expect(fixed.next.topic).toBe('prices'); expect(fixed.later).toBe(false);
+
     const calls = stub(ed, () => [e({ id: 9, active: false })]);
     const p = await train.POST(req('/api/knowledge/train', await cookieFor(ed), 'POST', { topic: 'tone', answer: 'سعودي ودود' }), E);
     expect(((await p.json()) as { pending: boolean }).pending).toBe(true);

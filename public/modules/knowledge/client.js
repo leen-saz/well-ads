@@ -64,16 +64,27 @@ export default async function mount() {
   // Training chat: the agent asks, the trainer answers; each answer becomes an entry (editable under "كل المعرفة")
   const skipped = [];
   let Q = null;
+  let chatSeq = 0;
   async function chat() {
-    try {
-      const r = await api(`/api/knowledge/train?skip=${encodeURIComponent(skipped.join(','))}`);
+    const mine = ++chatSeq, qs = `skip=${encodeURIComponent(skipped.join(','))}`;
+    const draw = (r, waiting) => {
       Q = r.next;
-      $('#prog').textContent = `الأسئلة الأساسية: ${r.covered} من ${r.total}` + (Q ? '' : ' · ما عندي أسئلة ثانية الحين');
+      $('#prog').textContent = `الأسئلة الأساسية: ${r.covered} من ${r.total}` + (Q || waiting ? '' : ' · ما عندي أسئلة ثانية الحين');
       $('#chat').innerHTML = r.history.map(h => `<p class="kn-q" dir="auto">${esc(h.question)}</p><p class="kn-a" dir="auto">${esc(h.answer)}${h.active ? '' : '<small>ينتظر اعتماد المدير</small>'}</p>`).join('')
-        + (Q ? `<p class="kn-q" dir="auto"><b>${esc(Q.q)}</b></p>` : `<p class="kn-q">${r.history.length ? 'المعرفة مكتملة الحين. أي شي يتغير، عدّله من «كل المعرفة».' : 'ما فيه أسئلة.'}</p>`);
+        + (Q ? `<p class="kn-q" dir="auto"><b>${esc(Q.q)}</b></p>` : waiting ? '<div class="sk" style="height:44px;max-width:420px" aria-hidden="true"></div><p class="muted">يجهّز السؤال التالي…</p>'
+          : `<p class="kn-q">${r.history.length ? 'المعرفة مكتملة الحين. أي شي يتغير، عدّله من «كل المعرفة».' : 'ما فيه أسئلة.'}</p>`);
       $('#tf').hidden = !Q || !r.canEdit;
       if (Q && r.canEdit) $('#ans').focus();
-    } catch (err) { failure($('#chat'), err, chat); }
+    };
+    try {
+      // The answers so far first; the question the AI writes (several seconds) comes after, so the page is never an empty «loading»
+      const r = await api(`/api/knowledge/train?${qs}&ai=0`);
+      if (mine !== chatSeq) return;
+      draw(r, r.later);
+      if (!r.later) return;
+      try { const r2 = await api(`/api/knowledge/train?${qs}`); if (mine === chatSeq) draw(r2, false); }
+      catch { if (mine === chatSeq) draw(r, false); }   // the history stays; only the new question is missing
+    } catch (err) { if (mine === chatSeq) failure($('#chat'), err, chat); }
   }
   function tab(t) {
     $$('[data-tab]').forEach(x => x.setAttribute('aria-pressed', String(x.dataset.tab === t)));
