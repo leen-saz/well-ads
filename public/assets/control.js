@@ -157,12 +157,12 @@ export default async function mount() {
   }
   function evidence(s) {
     const e = s.evidence || {}, b = [];
-    if (e.spend != null) b.push(`صرف <span class="num">${sar(e.spend)}</span>`);
-    if (e.leads != null) b.push(`${t(e.metric === 'chats' ? 'محادثات' : 'ليدز')} <span class="num">${fmt(e.leads)}</span>`);
-    if (e.cpl != null) b.push(`تكلفة <span class="num">${sar(e.cpl)}</span>`);
-    if (e.target_cpl != null) b.push(`الهدف <span class="num">${sar(e.target_cpl)}</span>`);
-    if (e.ctr != null) b.push(`نقر <span class="num">${fmt(e.ctr, 2)}%</span>`);
-    return b.join(' · ');
+    if (e.spend != null) b.push(`<span class="ev-i">صرف <span class="num">${sar(e.spend)}</span></span>`);
+    if (e.leads != null) b.push(`<span class="ev-i">${t(e.metric === 'chats' ? 'محادثات' : 'ليدز')} <span class="num">${fmt(e.leads)}</span></span>`);
+    if (e.cpl != null) b.push(`<span class="ev-i">تكلفة <span class="num">${sar(e.cpl)}</span></span>`);
+    if (e.target_cpl != null) b.push(`<span class="ev-i">الهدف <span class="num">${sar(e.target_cpl)}</span></span>`);
+    if (e.ctr != null) b.push(`<span class="ev-i">نقر <span class="num">${fmt(e.ctr, 2)}%</span></span>`);
+    return b.join('');
   }
   function inbox() {
     const list = rows();
@@ -174,10 +174,10 @@ export default async function mount() {
       ${list.map((s, i) => { const im = impact(s), age = ageOf(s); return `<tr data-id="${s.id}" aria-selected="${S.sel.has(s.id)}" class="${i === S.cursor ? 'cursor' : ''}">
         <td class="c-pick"><input type="checkbox" data-pick aria-label="تحديد"${S.sel.has(s.id) ? ' checked' : ''}></td>
         <td class="c-thumb">${thumb(s)}</td>
-        <td class="ad c-ad"><b>${esc(s.target_name || s.target_id)}</b><span>${esc(s.campaign || '')}</span></td>
+        <td class="ad c-ad"><b dir="auto">${esc(s.target_name || s.target_id)}</b><span dir="auto">${esc(s.campaign || '')}</span></td>
         <td class="c-plat"><span class="chip">${PLAT[s.platform]}</span></td>
-        <td class="sg c-sg"><span class="chip solid">${KIND[s.kind] || esc(s.kind)}${(s.params || {}).pct ? ` ${s.params.pct}%` : ''}</span><span>${esc(ruleOf(s))}</span>${criticChip(s)}${waChip(s)}${outcomeChip(s)}${siblingChip(s)}</td>
-        <td class="imp c-imp">${im ? `<b class="num">${esc(im.n)}</b><span>${esc(im.l)}</span>` : '<span class="muted">—</span>'}</td>
+        <td class="sg c-sg"><div class="sg-chips"><span class="chip solid">${KIND[s.kind] || esc(s.kind)}${(s.params || {}).pct ? ` ${s.params.pct}%` : ''}</span>${criticChip(s)}${waChip(s)}${outcomeChip(s)}${siblingChip(s)}</div><div class="sg-why">${esc(ruleOf(s))}</div></td>
+        <td class="imp c-imp">${im ? `<b class="num"><bdi dir="ltr">${esc(im.n)}</bdi></b><span>${esc(im.l)}</span>` : '<span class="muted">—</span>'}</td>
         <td class="ev c-ev">${evidence(s)}</td>
         <td class="num c-age">${age == null ? '—' : `${age} يوم`}</td>
         <td class="c-acts"><div class="acts"><button class="btn sm ghost" data-a="approve" data-tip="${blocked(s) ? esc(blocked(s)) : `${esc(outcome(s).t)} (a a)`}"${blocked(s) ? ' disabled' : ''}>${icon('check')}وافق</button>

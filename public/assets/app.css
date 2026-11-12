@@ -182,9 +182,13 @@ tbody tr:last-child td{border-bottom:0}
 .thumb48.ph{display:grid;place-items:center;color:var(--muted)}
 .ad b{display:block;max-width:280px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .ad span{display:block;font-size:12px;color:var(--muted);max-width:280px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-.ev{font-size:13px;color:var(--muted);white-space:nowrap}
+.ev{font-size:13px;color:var(--muted);white-space:normal;min-width:150px;max-width:280px}   /* wraps between items (each item stays whole), so the column is never cut off by the card */
+.ev-i{display:inline-block;white-space:nowrap;margin-inline-end:10px}
 .imp b{display:block;font-size:15px;white-space:nowrap}.imp span{display:block;font-size:12px;color:var(--muted);white-space:nowrap}
-.sg{min-width:170px}.sg span:last-child{display:block;font-size:12px;color:var(--muted);margin-top:4px}
+.sg{min-width:170px}
+/* the type chip and the reviewer/state chips wrap as a group; the rule's reason sits below them (a chip is never turned into a block over the text) */
+.sg-chips{display:flex;flex-wrap:wrap;gap:6px;align-items:center}.sg-chips .chip{height:auto;min-height:26px;padding-block:3px;white-space:normal}
+.sg-why{font-size:12px;color:var(--muted);margin-top:6px}
 .acts{display:flex;gap:4px;justify-content:flex-end}
 .empty{padding:56px 20px;text-align:center;color:var(--muted)}
 .empty svg.i{width:32px;height:32px;margin-bottom:8px;color:var(--soft)}
@@ -228,6 +232,24 @@ tbody tr:last-child td{border-bottom:0}
 .auth .actions .btn.primary{flex:1}
 @media (prefers-reduced-motion:reduce){*{transition:none!important;animation:none!important}}
 
+/* ---- Laptops: the decisions table needs ~1400px; when its card is narrower than that each suggestion becomes a two-column row
+   (nothing cut off, nothing scrolling sideways). Wider cards keep the plain table; phones use the card layout below. */
+#inbox{container:inbox / inline-size}
+@media (min-width:901px){
+  @container inbox (max-width:1460px){
+    #inbox table,#inbox tbody{display:block}#inbox thead{display:none}
+    #inbox tr{display:grid;grid-template-columns:28px 64px minmax(0,1.3fr) minmax(0,1fr);gap:10px 20px;align-items:start;padding:16px 18px;border-bottom:1px solid var(--line)}
+    #inbox tr:last-child{border-bottom:0}
+    #inbox td{display:block;padding:0;border:0}
+    #inbox .c-pick{grid-column:1;grid-row:1;padding-top:4px}
+    #inbox .c-thumb{grid-column:2;grid-row:1/span 3}#inbox .thumb48{width:64px;height:64px}
+    #inbox .c-ad{grid-column:3;grid-row:1}#inbox .c-imp{grid-column:4;grid-row:1}
+    #inbox .c-sg{grid-column:3;grid-row:2;min-width:0}#inbox .c-ev{grid-column:4;grid-row:2;max-width:none}
+    #inbox .c-plat{grid-column:3;grid-row:3}#inbox .c-age{grid-column:4;grid-row:3}
+    #inbox .c-acts{grid-column:3/-1;grid-row:4}#inbox .acts{justify-content:flex-start}
+  }
+}
+
 /* ---- الجوال: صندوق القرارات كروت، والشريط العلوي أصغر */
 @media (hover:none){.kbd-hint{display:none}}
 @media (max-width:900px){
@@ -258,7 +280,7 @@ tbody tr:last-child td{border-bottom:0}
 }
 
 /* عناصر التحكم والأرقام بخط Sans (مثل أزرار wellcare.sa)، والنص بخط Serif Text */
-.btn,.navi,.chip,.seg button,.tabs button,th,label,input,select,textarea,.kpi .k,.me,.menu,.muted,.sub,.ev,.imp span,.sg span,.selbar,.toast,[data-tip]::before{font-family:var(--f-ar)}
+.btn,.navi,.chip,.seg button,.tabs button,th,label,input,select,textarea,.kpi .k,.me,.menu,.muted,.sub,.ev,.imp span,.sg-why,.selbar,.toast,[data-tip]::before{font-family:var(--f-ar)}
 
 /* زر الطوارئ والمراجع */
 .kill-banner{display:flex;align-items:center;gap:10px;flex-wrap:wrap;padding:14px 18px;margin-bottom:16px;border-radius:var(--r-sm);background:var(--pulse);color:#FFFFFF;box-shadow:0 10px 30px color-mix(in srgb,var(--pulse) 30%,transparent)}
