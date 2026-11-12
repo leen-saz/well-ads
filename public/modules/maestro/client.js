@@ -165,7 +165,7 @@ export default async function mount() {
       $('#connect')?.addEventListener('click', connect);
       return;
     }
-    $('#setup').innerHTML = ''; $('#board').hidden = false;
+    $('#setup').innerHTML = ''; $('#setup').style.minHeight = '0'; $('#board').hidden = false;
     if (!$('#agent').dataset.done) { $('#agent').insertAdjacentHTML('beforeend', (S.agents || []).map(a => `<option value="${esc(a.id)}">${esc(a.name)}${a.title ? ' · ' + esc(a.title) : ''}</option>`).join('')); $('#agent').dataset.done = '1'; }
     if (!$('#tab').dataset.done) { $('#tab').insertAdjacentHTML('beforeend', (S.groups || []).map(g => { const ts = (S.tabs || []).filter(t => t.group === g.key); return ts.length ? `<optgroup label="${esc(glabel(g))}">${ts.map(t => `<option value="${esc(t.key)}">${esc(t.ar)}</option>`).join('')}</optgroup>` : ''; }).join('')); $('#tab').dataset.done = '1'; }
     draw();
@@ -353,5 +353,12 @@ export default async function mount() {
     } catch (err) { say(msg, err.message); busy(b, false); }
   });
 
-  shell({ active: 'maestro', title: 'المدير', tools: '' }).then(me => { if (me.role === 'owner') { $('#healthLink')?.removeAttribute('hidden'); $('#auditLink')?.removeAttribute('hidden'); mountModels(); } mountSpend(); return load(); }).catch(pageFailure);
+  // One after the other, in the order they sit on the page: the board, then the owner's spend and models sections below it. Started
+  // together they arrived in any order and each pushed the others down (layout shift, UX audit 2026-11-12).
+  shell({ active: 'maestro', title: 'المدير', tools: '' }).then(async me => {
+    if (me.role === 'owner') { $('#healthLink')?.removeAttribute('hidden'); $('#auditLink')?.removeAttribute('hidden'); }
+    await load();
+    await mountSpend();
+    if (me.role === 'owner') await mountModels();
+  }).catch(pageFailure);
 }

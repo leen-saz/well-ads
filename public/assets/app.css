@@ -430,3 +430,24 @@ body{background:
 
 .stale-note{margin:0 0 14px;padding:10px 14px;border-radius:var(--r-sm);background:#FFF4DB;color:#6B4A00;border:1px solid #F0D9A0;font-size:14px}
 .stale-note p{margin:0}.stale-note p+p{margin-top:4px}
+
+/* Reserved space (UX audit 2026-11-12, finding 3). Areas that are filled from an API answer keep roughly their final height from the
+   first paint, so the rest of the page does not jump when the data arrives. Sizes are a little under a typical filled area: shrinking
+   moves content too, so never reserve more than the area usually needs. tests/smoke/cls.spec.ts measures the result (target 0.1). */
+[data-page="control"] #kpis{min-height:76px}
+[data-page="control"] #modes{min-height:88px}
+[data-page="control"] #tabs{min-height:44px}
+[data-page="control"] #filters{min-height:74px}
+[data-page="control"] #inbox{min-height:240px}
+.settings-tabs{min-height:44px}
+[data-page="maestro"] #content > p.muted:first-child{min-height:22px}
+[data-page="maestro"] #setup{min-height:160px}
+[data-page="health"] #sections,[data-page="maestro-health"] #sections{min-height:600px}
+[data-page="admin"] #content > section:nth-of-type(1){min-height:800px}
+[data-page="admin"] #content > section:nth-of-type(2){min-height:890px}
+[data-page="admin"] #content > section:nth-of-type(3){min-height:150px}
+
+/* Loading placeholder: a block of the size the content will have, so nothing jumps when it arrives */
+.sk{border-radius:16px;background:linear-gradient(90deg,var(--tint) 25%,rgba(255,255,255,.65) 50%,var(--tint) 75%);background-size:200% 100%;animation:sk 1.4s linear infinite}
+@keyframes sk{to{background-position:-200% 0}}
+@media (prefers-reduced-motion:reduce){.sk{animation:none}}

@@ -1,5 +1,7 @@
 // الرصد: حساب حصة الظهور في الإشارات، والمشاعر عبر الأسابيع، والتنبيهات من الإشارات المحفوظة. يشتغل في المتصفح (بدون كلفة على السيرفر).
 const DAY = 864e5;
+// Under this many mentions in the period the share of voice moves a lot with one article: the page says so
+export const SMALL_SAMPLE = 30;
 const at = m => Date.parse(m.published_at || m.fetched_at || '') || 0;
 
 // The period is [now - days, now): `now` is where it ends (the end of its last Riyadh day), `days` how long it is.
@@ -37,7 +39,7 @@ export function summarize(watches, mentions, now = Date.now(), days = 30) {
       if (now7 - before >= 0.15) alerts.push({ level: 'critical', type: 'negative', name: r.name, now: now7, before });
     }
   }
-  return { share, weeks, step, window, alerts, rows };
+  return { share, weeks, step, window, alerts, rows, sample: { total: all, small: all < SMALL_SAMPLE, min: SMALL_SAMPLE } };
 }
 
 // قائمة الإشارات بعد الفلتر: الكل، أو جهة وحدة، أو السلبي بس

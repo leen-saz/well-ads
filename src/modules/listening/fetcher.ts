@@ -6,7 +6,7 @@ import { type AiRun } from '../content/content';
 import { generate, grokSearch, pick } from '../../lib/llm';
 import { usageCtx, type UsageCtx } from '../../lib/usage';
 import {
-  dedupe, due, parseBing, parseNews, parseReddit, parseSentiment, parseTikTok, parseX, parseYouTube, query, sentimentPrompt,
+  dedupe, due, parseBing, parseNews, parseReddit, parseSentiment, parseTikTok, parseX, parseYouTube, query, relevant, sentimentPrompt,
   terms, type Mention, type Watch,
 } from './social';
 
@@ -49,9 +49,12 @@ export function batch<T extends Watch>(list: T[], budget = BUDGET): T[] {
 }
 
 // One watch: each source on its own; a failing source never stops the others. Returns what each source gave.
-export async function collect(w: Watch & { id: number }, e: ListenEnv, f: typeof fetch = fetch, ctx?: UsageCtx): Promise<{ found: Mention[]; bySource: Record<string, number | string> }> {
+export async function collect(w: Watch & { id: number }, e: ListenEnv, f: typeof fetch = fetch, ctx?: UsageCtx): Promise<{ found: Mention[]; bySource: Record<string, number | string>; dropped: number }> {
   const q = query(w), found: Mention[] = [], bySource: Record<string, number | string> = {};
-  const add = (src: string, list: Mention[]) => { bySource[src] = list.length; found.push(...list); };
+  let dropped = 0;
+  // Only mentions that are really about the watch are kept (relevant() in social.ts); the rest are counted, not stored
+  const onTopic = (list: Mention[]) => { const keep = list.filter(m => relevant(m, w)); dropped += list.length - keep.length; return keep; };
+  const add = (src: string, list: Mention[]) => { const keep = onTopic(list); bySource[src] = keep.length; found.push(...keep); };
   const jobs: Promise<void>[] = [];
   // News: Google News, one quoted term per request (an OR of rare terms gives 0 results there), then Bing News the same way.
   // Both answer from Cloudflare (Actions > listening-probe, 2026-11-03).
@@ -61,7 +64,7 @@ export async function collect(w: Watch & { id: number }, e: ListenEnv, f: typeof
       let failed = '';
       for (const t of terms(w, NEWS_TERMS)) {
         const r = await get(f, url(t));
-        if (typeof r === 'string') failed = r; else list.push(...parse(await r.text(), w.id));
+        if (typeof r === 'string') failed = r; else list.push(...onTopic(parse(await r.text(), w.id)));
       }
       bySource[src] = list.length || !failed ? list.length : failed;
       found.push(...list);
@@ -93,7 +96,7 @@ export async function collect(w: Watch & { id: number }, e: ListenEnv, f: typeof
     if (text !== null) add('tiktok', parseTikTok(text, w.id)); else bySource.tiktok = 'Grok ما رد';
   })());
   await Promise.all(jobs);
-  return { found: dedupe(found), bySource };
+  return { found: dedupe(found), bySource, dropped };
 }
 
 // Store new mentions, then score the unscored ones of this company (one AI call, at most 20)
