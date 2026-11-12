@@ -24,6 +24,8 @@ export { PROVIDER };   // defined in ai-routes.ts: the one place a tab's default
 const URL_OF = { openai: 'https://api.openai.com/v1/responses', xai: 'https://api.x.ai/v1/responses' } as const;
 export const OR_URL = 'https://openrouter.ai/api/v1/chat/completions';
 export const OR_TIMEOUT_MS = 60_000, OR_STREAM_MS = 120_000;
+// A plain (non-stream) OpenAI or xAI call: long enough for a slow answer, short enough that a hung provider cannot hold the request open
+export const TEXT_TIMEOUT_MS = 90_000;
 const clean = (s: string | undefined) => (s || '').replace(/[^a-z0-9.\-_:]/gi, '').slice(0, 80);
 
 // The provider a tab would use now: its own if the key is there, else Workers AI if bound, else none
@@ -126,7 +128,7 @@ export async function generate(e: LlmEnv, module: string, i: LlmInput, f: typeof
         } else { busy = r.status === 429 || r.status === 402 || r.status >= 500; console.warn('llm_failed', p.provider, r.status); }
       } else {
         const key = p.provider === 'openai' ? e.OPENAI_API_KEY : e.XAI_API_KEY;
-        const r = await f(URL_OF[p.provider], { method: 'POST', headers: { authorization: `Bearer ${key}`, 'content-type': 'application/json' }, body: JSON.stringify(body(p.provider, p.model, i)) });
+        const r = await f(URL_OF[p.provider], { method: 'POST', signal: AbortSignal.timeout(TEXT_TIMEOUT_MS), headers: { authorization: `Bearer ${key}`, 'content-type': 'application/json' }, body: JSON.stringify(body(p.provider, p.model, i)) });
         if (r.ok) {
           const j = await r.json(), text = textOf(j).trim();
           if (text) {
@@ -136,7 +138,7 @@ export async function generate(e: LlmEnv, module: string, i: LlmInput, f: typeof
             return { response: text, engine: p.provider, model: p.model };
           }
           console.warn('llm_empty', p.provider);
-        } else console.warn('llm_failed', p.provider, r.status);   // the status only: the body may echo the request
+        } else { busy = r.status === 429 || r.status >= 500; console.warn('llm_failed', p.provider, r.status); }   // the status only: the body may echo the request
       }
     } catch (err) { busy = (err as Error).name === 'TimeoutError'; console.warn('llm_failed', p.provider, (err as Error).message); }
     if (!e.AI) throw new Error(busy ? 'llm_busy' : 'llm_failed');
