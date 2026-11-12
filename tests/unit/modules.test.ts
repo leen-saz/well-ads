@@ -45,7 +45,9 @@ describe('locked modules', () => {
     expect(A.can(s, 'social', cfg)).toBe(true);
     const cookie = await cookieFor(leen);
     const page = await gate(req('/journeys/', cookie), E);
-    expect(page instanceof Response && page.status).toBe(403);
+    // A page is a screen in Well's own shell that says the section is off, not a bare white page with a «sign in» link
+    expect(page instanceof Response && page.status).toBe(302);
+    expect(page instanceof Response && page.headers.get('location')).toBe('https://well.example/soon/?t=journeys&why=locked');
     stubProfile(leen);
     const { ROUTES: R } = await import('../../src/modules/routes');
     const res = await R.journeys.list.GET(req('/api/journeys/list', cookie), E);
@@ -88,7 +90,7 @@ describe('tabs with sections (voiceover in voice, copy in content)', () => {
   });
   it('a locked section stays locked, at the old address and inside the tab', async () => {
     const cookie = await cookieFor({ ...leen, company: { disabled_modules: ['voiceover'] } });
-    for (const p of ['/voiceover/', '/voice/?tab=voiceover']) { const r = await gate(req(p, cookie), E); expect(r instanceof Response && r.status).toBe(403); }
+    for (const p of ['/voiceover/', '/voice/?tab=voiceover']) { const r = await gate(req(p, cookie), E); expect(r instanceof Response && r.status).toBe(302); expect(r instanceof Response && r.headers.get('location')).toContain('/soon/?t=voiceover&why=locked'); }
     expect(await gate(req('/voice/', cookie), E)).toEqual({ pass: true });
   });
   it('the sections have no sidebar entry; the tab opens its only section for a user who has just that', async () => {

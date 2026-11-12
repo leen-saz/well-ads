@@ -22,13 +22,16 @@ describe('gate: Well pages and data', () => {
     const cookie = await cookieOf(profile(OTHER));
     for (const p of PATHS) {
       const d = await gate(new Request('https://x.test' + p, { headers: { cookie } }), E);
-      expect(d instanceof Response ? d.status : 'pass', p).toBe(403);
+      // a page goes to the «not available for your company» screen; data files and the API keep a plain 403
+      const page = !/\.[a-z0-9]+$/i.test(p) && !p.startsWith('/api/');
+      expect(d instanceof Response ? d.status : 'pass', p).toBe(page ? 302 : 403);
+      if (page) expect((d as Response).headers.get('location'), p).toContain('/soon/?t=');
     }
   });
   it('a department manager of another company gets no Well department page by a rewrite', async () => {
     const cookie = await cookieOf(profile(OTHER, { departments: ['iv'] }));
     const d = await gate(new Request('https://x.test/anything', { headers: { cookie } }), E);
-    expect(d instanceof Response ? d.status : 'pass').toBe(403);
+    expect(d instanceof Response ? d.status : 'pass').toBe(302);   // to the same screen; no department page is rewritten
   });
   it("still opens them for Well's users, and the other company keeps its own tabs", async () => {
     const well = await cookieOf(profile(WELL_COMPANY));
