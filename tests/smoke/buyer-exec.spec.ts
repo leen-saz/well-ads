@@ -82,3 +82,35 @@ test('a blocked action shows its guards in the dialog and offers no real executi
   await expect(page.locator('#by-dlgLive')).toBeHidden();
   await expect(page.locator('#by-dlg')).not.toContainText(/[؀-ۿ]/);
 });
+
+// «قواعد الإدارة»: the owner's own section of the decisions board. Import preview, editing a limit and the open decision, save.
+// Nothing real: the rules API answer is stubbed and the save request is only recorded.
+test('the owner edits a limit and an open decision in «قواعد الإدارة», and the saved list carries the edit', async ({ page, context, request }) => {
+  await addSession(context, await login(request, 'owner'));
+  const RULES = [{ id: 'r-scale', kind: 'scale', platform: 'snapchat', match: ['alpha'], maxCpl: 8, stepPct: 20, everyDays: 3, open: 'الحد مو محسوم' },
+    { id: 'r-resume', kind: 'resume', platform: 'tiktok', match: ['beta'], minCtr: 0.5 }];
+  const sent: { rules: { id: string; maxCpl?: number; open?: string }[] }[] = [];
+  await page.route('**/api/buyer/rules', async r => {
+    if (r.request().method() === 'GET') return r.fulfill({ json: { rules: RULES } });
+    sent.push(r.request().postDataJSON()); return r.fulfill({ json: { ok: true, rules: 2 } });
+  });
+  await page.goto('/control/?tab=rules');
+  const row = page.locator('#by-rulesEdit tr[data-i="0"]');
+  await expect(row).toBeVisible();
+  await expect(page.locator('#by-rulesInfo')).toContainText('1');
+  await row.locator('[data-f="maxCpl"]').fill('9');
+  await row.locator('[data-f="open"]').fill('');
+  await page.locator('#by-rulesSaveEdit').click();
+  await expect.poll(() => sent.length).toBe(1);
+  expect(sent[0]!.rules[0]).toMatchObject({ id: 'r-scale', maxCpl: 9 });
+  expect(sent[0]!.rules[0]!.open).toBeUndefined();
+  expect(sent[0]!.rules[1]).toMatchObject({ id: 'r-resume', minCtr: 0.5 });
+});
+
+test('a member who is not the owner has no «قواعد الإدارة» tab, even with ?tab=rules', async ({ page, context, request }) => {
+  await addSession(context, await login(request, 'member'));
+  await page.goto('/control/?tab=rules');
+  await expect(page.locator('#tabs')).toBeVisible();
+  await expect(page.locator('#tabs [data-t="rules"]')).toHaveCount(0);
+  await expect(page.locator('#by-rulesBox')).toBeHidden();
+});

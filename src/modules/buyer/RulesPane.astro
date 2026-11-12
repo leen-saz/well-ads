@@ -1,0 +1,16 @@
+---
+// «قواعد الإدارة»: the owner's rules of the Media buyer (import, export, edit the limits and the open decisions), as a pane of the
+// decisions board. Markup only; the script is public/modules/buyer/rules.js (mountRules). Ids are prefixed by-.
+---
+<div id="by-rulesBox" hidden></div>
+<style is:global>
+.by-edit{width:100%;border-collapse:collapse;font-size:13px}
+.by-edit th,.by-edit td{padding:6px 8px;text-align:start;border-bottom:1px solid var(--line);vertical-align:top}
+.by-edit input,.by-edit select{width:100%;min-width:70px;font:inherit;padding:4px 6px}
+.by-edit input[type=number]{max-width:90px;font-family:var(--f-num,inherit)}
+.by-edit .by-lim{display:grid;gap:4px}
+.by-edit .by-lim label{display:grid;grid-template-columns:auto 1fr;gap:6px;align-items:center}
+.by-open{background:var(--pulse);color:#fff}
+.by-prev{width:100%;border-collapse:collapse;font-size:13px}
+.by-prev th,.by-prev td{padding:6px 8px;text-align:start;border-bottom:1px solid var(--line)}
+</style>

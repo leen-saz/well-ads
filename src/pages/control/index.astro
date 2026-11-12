@@ -2,6 +2,7 @@
 import { ClientRouter } from 'astro:transitions';
 // Ported as-is from well-ads-dashboard web/public/control/index.html
 import Pane from '../../modules/buyer/Pane.astro';
+import RulesPane from '../../modules/buyer/RulesPane.astro';
 ---
 <!doctype html>
 <html lang="ar" dir="rtl">
@@ -31,6 +32,7 @@ import Pane from '../../modules/buyer/Pane.astro';
       <div class="tools-row" id="filters"></div>
       <section class="card tbl" id="inbox" aria-live="polite"></section>
       <Pane />
+      <RulesPane />
       <p class="muted kbd-hint" style="margin-top:12px">اختصارات: <span class="kbd">j</span> <span class="kbd">k</span> للتنقل، <span class="kbd">x</span> للتحديد، <span class="kbd">a</span> موافقة، <span class="kbd">r</span> رفض، <span class="kbd">Enter</span> التفاصيل.</p>
     </main>
   </div>
