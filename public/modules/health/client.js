@@ -25,7 +25,7 @@ export function crmCard(d) {
   return `<section class="card pad dh-sec"><h2>ليدز الـ CRM والدفع</h2><p class="muted" style="margin:0">الإقفالة = حالة الدفع «paid» ومبلغ أكبر من صفر.</p>${finds}
     <div class="dh-kpis">${kpi(fmt(d.leads), 'ليدز مخزّنة')}${kpi(fmt(p.count), 'إقفالات (مدفوع ومبلغ)')}${kpi(fmt(p.amount_sar) + ' ر.س', 'مبلغ الإقفالات')}
       ${kpi(fmt(d.paid_status_no_amount), 'مدفوع بمبلغ صفر أو فاضي')}${kpi(fmt(p.linked), 'إقفالات مربوطة بإعلان')}${kpi(fmt(p.unlinked), 'إقفالات بدون إعلان')}</div>
-    <div class="dh-kpis">${kpi(when(d.newest_updated_at), 'أحدث تحديث (updated_at)')}${kpi(when(d.newest_paid_at), 'أحدث دفع (paid_at)')}</div>
+    <div class="dh-kpis">${kpi(when(d.newest_updated_at), 'أحدث تحديث')}${kpi(when(d.newest_paid_at), 'أحدث دفع')}</div>
     <h3>الليدز حسب حالة الدفع</h3>${status.length ? table(['الحالة', 'ليدز'], status) : '<p class="muted">لا شي.</p>'}
     ${other.length ? `<h3>مبلغ مدفوع تحت حالة غير «مدفوع»</h3>${table(['الحالة', 'ليدز'], other)}` : ''}
     <h3>الإقفالات والمبالغ حسب شهر الدفع</h3>${months.length ? table(['الشهر', 'إقفالات', 'المبلغ (ر.س)'], months) : '<p class="muted">لا شي.</p>'}
@@ -44,7 +44,7 @@ const WHYTXT = { id: 'مربوطة برقم الإعلان', utm: 'مربوطة 
 const attribution = A => !A || !A.paid ? '' : `<h3>وين راحت الإقفالات المدفوعة؟</h3>${table(['السبب', 'إقفالات'], Object.entries(A.why).filter(([, n]) => n).map(([k, n]) => [esc(WHYTXT[k] || k), fmt(n)]))}`
   + (Object.keys(A.unmatched_sources).length ? `<p class="muted">مصادر الإقفالات اللي بدون إعلان: ${Object.entries(A.unmatched_sources).map(([k, n]) => `<code>${esc(k)}</code> ${fmt(n)}`).join('، ')}</p>` : '');
 
-const STEP = { tiktok: 'تيك توك (MCP)', crm: 'سحب الـ CRM', suggest: 'اقتراحات لوحة القرارات', learn: 'حلقة التعلّم', critic: 'المراجع (critic)', execute: 'تنفيذ القرارات المعتمدة' };
+const STEP = { tiktok: 'تيك توك', crm: 'سحب الـ CRM', suggest: 'اقتراحات لوحة القرارات', learn: 'حلقة التعلّم', critic: 'المراجع', execute: 'تنفيذ القرارات المعتمدة' };
 // Each non-blocking step of the hourly run: did it work last time, and when did it last work
 const stepsTable = S => {
   const rows = Object.entries(S || {}).map(([k, v]) => [esc(STEP[k] || k), v.ok === false ? '<b style="color:#8A2A1B">فشلت</b>' : v.ok ? 'اشتغلت' : '—', cell(age(v.at)), cell(age(v.last_ok))]);

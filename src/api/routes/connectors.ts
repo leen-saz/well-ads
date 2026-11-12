@@ -180,7 +180,7 @@ export const callback = {
         if (!st.c || !tokenSecret) throw new Error('no verifier');
         const t = await exchangeCode({ clientId: st.c, code, verifier: tokenSecret, redirect: redirectFor(request) });
         await saveValues(cfg, user, p, 'oauth', { TIKTOK_MCP_CLIENT_ID: st.c, TIKTOK_MCP_REFRESH_TOKEN: t.refresh },
-          { expiresIn: TIKTOK_MCP_DAYS * 86400, checked: 'انربط مع سيرفر MCP حق تيك توك' });
+          { expiresIn: TIKTOK_MCP_DAYS * 86400, checked: 'انربط الحساب مع تيك توك' });
       } catch (err) {
         console.error('connector mcp oauth', p.id, err instanceof Error ? err.message : 'error');
         return back(`/connectors/?err=exchange&p=${encodeURIComponent(p.id)}`, true);
