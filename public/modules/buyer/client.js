@@ -1,7 +1,6 @@
 // الميديا باير: يقرأ التوصيات من /api/buyer/report ويعرضها مرتبة: وش يتغير، ليش، المخاطر، مقياس النجاح، ومن ينفّذ.
-import { $, api, say, esc, shell, busy, fmt, when, failure } from '/assets/common.js';
+import { $, api, say, esc, busy, fmt, when, failure } from '/assets/common.js';
 import { mountExec, proposeOne } from '/modules/buyer/exec.js';
-import { mountRules } from '/modules/buyer/rules.js';
 
 const PLAT = { meta: 'ميتا', snapchat: 'سناب شات', tiktok: 'تيك توك', google: 'جوجل' };
 const KIND = { pause: 'إيقاف', budget_down: 'تخفيض ميزانية', budget_up: 'توسيع ميزانية', refresh_creative: 'مادة جديدة', hold: 'انتظر', review: 'افحص', shift_budget: 'نقل ميزانية', schedule: 'جدولة', resume: 'تشغيل' };
@@ -42,11 +41,4 @@ export async function mountPane() {
   $('#by-list').addEventListener('click', e => { const b = e.target.closest('[data-propose]'); if (b) proposeOne(b.dataset.propose, b); });
   await load();
   mountExec();
-}
-
-// The standalone page (/buyer/, until the tab is removed): the page chrome, the pane, and the rules section
-export default async function mount() {
-  await shell({ active: 'buyer', title: 'الميديا باير' });
-  await mountPane();
-  mountRules();
 }

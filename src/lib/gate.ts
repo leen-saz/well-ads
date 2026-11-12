@@ -17,7 +17,7 @@ const PUBLIC = [/^\/login\/?$/, /^\/reset\/?$/, /^\/welcome\/?$/, /^\/api\/auth\
 export const HUBS: Record<string, [Need, string][]> = {
   performance: [['ceo', '/'], ['creative', '/?view=creative'], ['listening', '/listening/']],
   create: [['design', '/design/'], ['voice', '/voice/'], ['voiceover', '/voice/?tab=voiceover'], ['social', '/social/'], ['content', '/content/'], ['copy', '/content/?tab=copy'], ['journeys', '/journeys/']],
-  review: [['control', '/control/'], ['buyer', '/buyer/'], ['compliance', '/compliance/'], ['maestro', '/maestro/']],
+  review: [['control', '/control/'], ['compliance', '/compliance/'], ['maestro', '/maestro/']],
   system: [['connectors', '/connectors/'], ['knowledge', '/knowledge/'], ['debugger', '/debugger/']],
 };
 // What the pipeline builds and the control board and connectors keep is Well's alone (R2 pages and data, decisions, keys):
@@ -39,6 +39,8 @@ export function need(pathname: string, search: string): Need | null {
   // Data health (a sub-page of the Manager): the owner only
   if (/^\/(api\/)?maestro\/(health|crm|vitals|audit|critique)(\/|$)/.test(pathname)) return 'owner';
   if (/^\/(api\/)?control(\/|$)/.test(pathname)) return 'control';
+  // The Media buyer is a tab of the decisions board («توصيات القواعد»): its API asks for the same dashboard
+  if (/^\/api\/buyer(\/|$)/.test(pathname)) return 'control';
   if (/^\/(api\/)?connectors(\/|$)/.test(pathname)) return 'connectors';
   // Dashboard data: the route picks the user's copy (analytics, creative or their department)
   if (/^\/api\/dash\//.test(pathname)) return 'any';
@@ -82,6 +84,8 @@ export async function gate(request: Request, e: AuthEnv): Promise<Decision> {
 
 async function decide(request: Request, e: AuthEnv, renewed: { cookie?: string }): Promise<Decision> {
   const url = new URL(request.url);
+  // The standalone Media buyer page is gone: its place is a tab of the decisions board
+  if (/^\/buyer\/?$/.test(url.pathname)) return new Response(null, { status: 301, headers: { location: '/control/?tab=buyer', 'cache-control': 'public, max-age=3600' } });
   const want = need(url.pathname, url.search);
   if (!want) return { pass: true };
   const api = url.pathname.startsWith('/api/');

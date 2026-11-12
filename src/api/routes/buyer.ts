@@ -1,15 +1,15 @@
-// /api/buyer/*: the media buyer's recommendations for the user's company, computed from stored numbers, and the approved-execution
-// layer on top of them (exec-routes.ts). `report` and `rules` below never talk to an ad platform; only exec/ does, and only after
+// /api/buyer/* (the «توصيات القواعد» tab of the decisions board, so it asks for the `control` dashboard): the media buyer's recommendations for the user's company, computed from stored numbers, and the approved-execution
+// layer on top of them (src/modules/buyer/exec-routes.ts). `report` and `rules` below never talk to an ad platform; only exec/ does, and only after
 // the owner's own approval. The company's rules and limits are saved by the owner into control_settings.guardrails.buyer (database, never the repo).
 import { json, readJson, handle, requireUser, audit, sb } from '../../lib/auth';
-import { cleanRules } from './rules';
-import { PLATS } from './playbook';
-import { buildReport, DB_KEY, settings } from './report';
+import { cleanRules } from '../../modules/buyer/rules';
+import { PLATS } from '../../modules/buyer/playbook';
+import { buildReport, DB_KEY, settings } from '../../modules/buyer/report';
 
-export { actions, propose, decide, apply, rollback, execution } from './exec-routes';
+export { actions, propose, decide, apply, rollback, execution } from '../../modules/buyer/exec-routes';
 
 export const report = { GET: handle(async (request, e) => {
-  const { cfg, user } = await requireUser(request, e, 'buyer');
+  const { cfg, user } = await requireUser(request, e, 'control');
   const b = await buildReport(cfg, user);
   if (!b.ok) return json(500, { error: 'ما قدرت أقرأ أرقام الإعلانات' });
   return json(200, { ...b.report, readOnly: true });

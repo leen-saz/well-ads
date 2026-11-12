@@ -114,3 +114,12 @@ test('a member who is not the owner has no «قواعد الإدارة» tab, ev
   await expect(page.locator('#tabs [data-t="rules"]')).toHaveCount(0);
   await expect(page.locator('#by-rulesBox')).toBeHidden();
 });
+
+// The standalone page is gone: /buyer/ goes to the decisions board's tab, and the sidebar has no Media buyer entry
+test('/buyer/ redirects to the decisions board tab, and the sidebar has no Media buyer link', async ({ page, context, request }) => {
+  await addSession(context, await login(request, 'owner'));
+  await page.goto('/buyer/');
+  await expect(page).toHaveURL(/\/control\/\?tab=buyer$/);
+  await expect(page.locator('#by-execBox')).toBeVisible();
+  expect(await page.locator('#side a[href^="/buyer"]').count()).toBe(0);
+});
