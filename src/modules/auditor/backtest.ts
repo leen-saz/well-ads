@@ -34,8 +34,8 @@ export function backtest(d: Dash & Raw, last: string, opt: { len?: number; hop?:
     out.windows++;
     const problem = c.verdict.level !== 'ok' && c.verdict.step != null;
     out.said[problem ? 'problem' : 'ok']++;
-    out[r.status]++;
-    if (r.status === 'contradicted') out[problem ? 'wrong' : 'silent']++;
+    out[r.verdict.status]++;   // the back-test grades the headline alone, as before
+    if (r.verdict.status === 'contradicted') out[problem ? 'wrong' : 'silent']++;
     for (const f of r.verdict.findings) if (f.effect !== 'info') out.byCheck[f.id] = (out.byCheck[f.id] ?? 0) + 1;
     if (prev !== undefined && prev !== c.verdict.step) out.flips++;
     prev = c.verdict.step;

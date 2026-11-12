@@ -22,7 +22,8 @@ test('the owner sees the audit badge next to the verdict, linking to the audit p
   const badge = page.getByTestId('audit-badge');
   await expect(badge).toBeVisible();
   await expect(badge).toContainText('تدقيق');
-  await expect(badge).toContainText('مؤكَّد');
+  // one status for the whole screen: the fixture's lead step is weak on some platforms, so the badge is not «confirmed»
+  await expect(badge).toContainText('أضعف مما يبدو');
   await expect(badge).toHaveAttribute('href', '/maestro/audit/');
 });
 
@@ -34,7 +35,7 @@ test('a «no problem» the data does not carry gets a warning badge', async ({ p
 
 test('the badge follows the page language', async ({ page, request }) => {
   await open(page, request, 'owner', '/overview/?lang=en');
-  await expect(page.getByTestId('audit-badge')).toContainText('Confirmed');
+  await expect(page.getByTestId('audit-badge')).toContainText('Weaker than it looks');
   await expect(page.getByTestId('audit-badge')).toHaveAttribute('href', '/maestro/audit/?lang=en');
 });
 
