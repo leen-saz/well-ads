@@ -13,8 +13,9 @@ describe('focus ring survives forced-colors mode', () => {
     expect(css.length).toBeGreaterThan(0);
     expect(css).not.toMatch(/outline:\s*(none|0)\b/);
   });
-  it('keeps a transparent outline on the global focus rules', () => {
-    expect(css).toMatch(/:focus-visible\{outline:2px solid transparent;/);
+  it('has an outline on the global focus rules', () => {
+    // the keyboard ring is a real accent outline (3:1 on any surface, and repainted in forced colours), not only a glow
+    expect(css).toMatch(/:focus-visible\{outline:2px solid var\(--accent\);/);
     expect(css).toMatch(/select:focus\{outline:2px solid transparent;/);
   });
 });
