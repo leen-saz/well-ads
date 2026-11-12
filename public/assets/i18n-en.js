@@ -1302,6 +1302,8 @@ export const EN = {
   'اختر الملف أول': 'Choose the file first',
   'انرفع الملف، يبدأ التفريغ.': 'File uploaded, transcribing starts.',
   'ما اكتمل تجهيزه، بلّغ الإدارة': 'Not fully set up yet, tell the admin',
+  'حالة التجهيز (للمالكة فقط)': 'Setup status (owner only)',
+  'هذي الأشياء لسا ناقصة عشان يشتغل الفيديو.': 'These are still missing for Video to work.',
   'الخدمة مشغولة الحين، جرّب بعد دقيقة': 'The service is busy now, try again in a minute',
   'وصل الصرف الشهري لهالتاب، بلّغ الإدارة': 'This tab reached its monthly spend limit, tell the admin',
   'الخدمة ما ردت، جرّب بعد شوي': 'The service didn\'t answer, try again shortly',
