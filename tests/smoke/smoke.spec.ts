@@ -237,7 +237,7 @@ test.describe('connectors: a platform pulled through GitHub secrets is not «not
     expect(platforms.find(p => p.id === 'meta')?.lastPull).toMatch(/^\d{4}-\d{2}-\d{2}T/);
     expect(platforms.find(p => p.id === 'google_ads')?.lastPull).toBeNull();
   });
-  for (const [lang, on, off] of [['ar', 'يعمل عبر GitHub', 'مو مربوط'], ['en', 'Active via GitHub', 'Not connected']] as const) {
+  for (const [lang, on, off] of [['ar', 'يشتغل تلقائياً', 'مو مربوط'], ['en', 'Runs automatically', 'Not connected']] as const) {
     test(`the page shows the chip in ${lang}, distinct from the not-connected one`, async ({ page, context, request }) => {
       await addSession(context, await login(request, 'owner'));
       await page.goto(`/connectors/?lang=${lang}`);

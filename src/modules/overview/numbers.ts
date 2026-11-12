@@ -23,7 +23,7 @@ export interface AdRow extends Totals { key: string; name: string; campaign: str
 export const HIDDEN = new Set(['audience_network', 'meta_whatsapp']);
 
 export const PLATFORM: Record<string, string> = {
-  facebook: 'فيسبوك', instagram: 'إنستغرام', messenger: 'ماسنجر', threads: 'ثريدز', meta: 'ميتا',
+  facebook: 'فيسبوك', instagram: 'انستقرام', messenger: 'ماسنجر', threads: 'ثريدز', meta: 'ميتا',
   snap: 'سناب شات', tiktok: 'تيك توك', google: 'جوجل', google_search: 'جوجل · بحث', google_pmax: 'جوجل · أداء أقصى',
   google_display: 'جوجل · شبكة العرض', google_video: 'جوجل · يوتيوب', google_demand_gen: 'جوجل · توليد الطلب',
 };

@@ -27,16 +27,16 @@ export function ShareCard({ data, from, to }: Props) {
   );
   return (
     <Card>
-      <CardHeader><CardTitle>{T('حصة كل منصة من الصرف ومن النتايج', 'Each platform’s share of spend and results')}</CardTitle>
-        <CardDescription>{T('لما تكون حصة النتايج أكبر من حصة الصرف، المنصة تجيب أكثر من نصيبها.', 'When a platform’s share of results is bigger than its share of spend, it brings more than its share.')}</CardDescription></CardHeader>
+      <CardHeader><CardTitle>{T('حصة كل منصة من الصرف ومن النتائج', 'Each platform’s share of spend and results')}</CardTitle>
+        <CardDescription>{T('لما تكون حصة النتائج أكبر من حصة الصرف، المنصة تجيب أكثر من نصيبها.', 'When a platform’s share of results is bigger than its share of spend, it brings more than its share.')}</CardDescription></CardHeader>
       <CardContent className="grid gap-3">
         {list.length ? (<>
-          <div className="grid grid-cols-[4rem_1fr] items-center gap-2 text-sm"><span>{T('الصرف', 'Spend')}</span>{bar('spendShare')}<span>{T('النتايج', 'Results')}</span>{bar('resultShare')}</div>
+          <div className="grid grid-cols-[4rem_1fr] items-center gap-2 text-sm"><span>{T('الصرف', 'Spend')}</span>{bar('spendShare')}<span>{T('النتائج', 'Results')}</span>{bar('resultShare')}</div>
           <ul className="flex flex-wrap gap-x-4 gap-y-1 text-sm">
             {list.map((s, i) => (
               <li key={s.platform} className="flex items-center gap-1.5">
                 <span className="size-2.5 rounded-full" style={{ background: COLORS[i % COLORS.length] }} />
-                {platformName(s.platform)}: {T(`${p0(s.spendShare)} صرف · ${p0(s.resultShare)} نتايج`, `${p0(s.spendShare)} spend · ${p0(s.resultShare)} results`)}
+                {platformName(s.platform)}: {T(`${p0(s.spendShare)} صرف · ${p0(s.resultShare)} نتائج`, `${p0(s.spendShare)} spend · ${p0(s.resultShare)} results`)}
               </li>))}
           </ul></>) : <p className="text-sm text-muted-foreground">{T('ما فيه بيانات.', 'No data.')}</p>}
       </CardContent>
@@ -49,10 +49,10 @@ export function PaceCard({ data, from, to }: Props) {
   const wait = p.waitDays ? T('يطلع بعد 3 أيام', 'Shows after 3 days') : '—';
   const items: [string, string, (string | undefined)?][] = [
     [p.partialToday ? T('صرف اليوم الجزئي', 'Spend today (partial)') : T(`صرف ${month(p.month)} حتى الآن (${p.done} من ${p.days} يوم)`, `${month(p.month)} spend so far (${p.done} of ${p.days} days)`), sar(p.spend)],
-    [T('نتايج حتى الآن', 'Results so far'), p.results == null ? '—' : qty(p.results)],
+    [T('نتائج حتى الآن', 'Results so far'), p.results == null ? '—' : qty(p.results)],
     [T('توقع الصرف لنهاية الشهر', 'Spend forecast for the month'), p.forecast ? sar(p.forecast.spend) : wait],
-    [T('توقع النتايج لنهاية الشهر', 'Results forecast for the month'), p.forecast ? qty(p.forecast.results) : wait],
-    [T(`مقارنة بنفس الأيام من ${month(p.prevMonth)}`, `Against the same days of ${month(p.prevMonth)}`), p.vs ? T(`صرف ${ch(p.vs.spend)} · نتايج ${ch(p.vs.results)}`, `spend ${ch(p.vs.spend)} · results ${ch(p.vs.results)}`) : '—'],
+    [T('توقع النتائج لنهاية الشهر', 'Results forecast for the month'), p.forecast ? qty(p.forecast.results) : wait],
+    [T(`مقارنة بنفس الأيام من ${month(p.prevMonth)}`, `Against the same days of ${month(p.prevMonth)}`), p.vs ? T(`صرف ${ch(p.vs.spend)} · نتائج ${ch(p.vs.results)}`, `spend ${ch(p.vs.spend)} · results ${ch(p.vs.results)}`) : '—'],
     [p.prev?.full ? T(`${month(p.prevMonth)} كامل`, `All of ${month(p.prevMonth)}`) : T(`نفس الأيام من ${month(p.prevMonth)}`, `The same days of ${month(p.prevMonth)}`), p.prev ? T(`${qty(p.prev.results)} نتيجة`, `${qty(p.prev.results)} results`) : '—',
       p.prev ? T(`${sar(p.prev.spend)} · تكلفة النتيجة ${p.prev.results ? sar(p.prev.spend / p.prev.results) : '—'}`, `${sar(p.prev.spend)} · cost per result ${p.prev.results ? sar(p.prev.spend / p.prev.results) : '—'}`) : undefined],
   ];

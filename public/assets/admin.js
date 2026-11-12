@@ -96,7 +96,7 @@ export default async function mount() {
     const r = { log: q ? LOG.filter(x => [x.email, nameOf[String(x.email || '').toLowerCase()], x.action, ACT[x.action], JSON.stringify(x.target || {}), x.note].join(' ').toLowerCase().includes(q)) : LOG };
     $('#logN').textContent = `${r.log.length} فعل`;
     $('#log').innerHTML = r.log.length ? `<table><thead><tr><th>الوقت</th><th>مين</th><th>الفعل</th><th>على</th><th>ملاحظة</th></tr></thead><tbody>${r.log.map(x => `
-      <tr style="cursor:default"><td class="num">${esc(when(x.at))}</td><td>${esc(x.email || '')}</td><td>${esc(ACT[x.action] || x.action)}</td><td>${esc(x.target ? (x.target.target_name || x.target.email || x.target.platform || '') : '')}</td><td>${esc(x.note || '')}</td></tr>`).join('')}</tbody></table>` : `<div class="empty">${LOG.length ? 'ما فيه نتايج لهالبحث' : logRange && logRange.key !== 'all' ? 'ما فيه أفعال في هالفترة' : 'ما فيه أفعال لين الحين'}</div>`;
+      <tr style="cursor:default"><td class="num">${esc(when(x.at))}</td><td>${esc(x.email || '')}</td><td>${esc(ACT[x.action] || x.action)}</td><td>${esc(x.target ? (x.target.target_name || x.target.email || x.target.platform || '') : '')}</td><td>${esc(x.note || '')}</td></tr>`).join('')}</tbody></table>` : `<div class="empty">${LOG.length ? 'ما فيه نتائج لهالبحث' : logRange && logRange.key !== 'all' ? 'ما فيه أفعال في هالفترة' : 'ما فيه أفعال لين الحين'}</div>`;
   }
   // The same period bar as the other pages (saved in this browser); a change reloads the log
   mountPeriod($('#logPeriod'), { id: 'admin-log', def: 'all', url: false, onChange: r => { logRange = r; if (logReady) loadLog().catch(err => say($('#usersMsg'), err.message)); } });

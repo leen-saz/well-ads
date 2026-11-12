@@ -34,7 +34,7 @@ export default async function mount() {
     meta: [
       C('destination', 'وين يروح العميل', 'seg', { options: { whatsapp: 'واتساب', form: 'نموذج فوري', site: 'الموقع' }, value: 'whatsapp' }),
       C('optimization', 'التحسين على', 'select', { options: { conversations: 'المحادثات', leads: 'الليدز', purchase: 'الشراء' }, value: 'conversations' }),
-      C('placements', 'أماكن الظهور', 'checks', { options: { fb_feed: 'فيسبوك فيد', ig_feed: 'إنستغرام فيد', ig_stories: 'ستوري', ig_reels: 'ريلز' }, value: ['ig_feed', 'ig_stories', 'ig_reels'], hint: 'يدوي. Advantage+ ممنوع.' }),
+      C('placements', 'أماكن الظهور', 'checks', { options: { fb_feed: 'فيسبوك فيد', ig_feed: 'انستقرام فيد', ig_stories: 'ستوري', ig_reels: 'ريلز' }, value: ['ig_feed', 'ig_stories', 'ig_reels'], hint: 'يدوي. Advantage+ ممنوع.' }),
       C('budget_type', 'نوع الميزانية', 'seg', { options: { abo: 'على المجموعة (ABO)', cbo: 'على الحملة (CBO)' }, value: 'abo' }),
       C('partnership', 'إعلان شراكة مع حساب المؤثرة', 'toggle'),
       C('radius', 'نصف القطر', 'locked', { value: '10 ميل حول الرياض' }),

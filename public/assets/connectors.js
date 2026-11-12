@@ -10,7 +10,7 @@ export default async function mount() {
   const GROUP = { ads: 'منصات الإعلانات', analytics: 'التحليلات والقياس' };
   const STATUS = {
     ok: ['ok', 'check', 'مربوط'], partial: ['warn', 'alert', 'ناقص'], expired: ['warn', 'alert', 'انتهى الربط'],
-    none: ['line', 'plug', 'مو مربوط'], mcp: ['ok', 'check', 'مربوط عن طريق MCP'], github: ['ok', 'check', 'يعمل عبر GitHub'],
+    none: ['line', 'plug', 'مو مربوط'], mcp: ['ok', 'check', 'مربوط'], github: ['ok', 'check', 'يشتغل تلقائياً'],
   };
   const ERR = { state: 'انتهت مهلة الربط، جرّب مرة ثانية.', denied: 'انلغى الربط من صفحة المنصة.', access: 'ما عندك صلاحية الربط أو بيانات التطبيق ناقصة.', exchange: 'المنصة ما رجّعت مفتاح صالح. تأكد إن رابط الرجوع مضاف في إعدادات التطبيق.' };
 
@@ -51,10 +51,10 @@ export default async function mount() {
       : `<button class="btn sm primary" data-key="${p.id}" aria-expanded="${S.open === p.id}">${icon('plug')}${label}</button>`;
     // بعد زر الربط: إذا ناقص رقم الحساب نطلبه بدون ما نرجع للمفاتيح
     const needIds = direct && p.status === 'partial' && p.fields.some(f => !f.manual && !f.saved && !f.optional);
-    const meta = [p.fetch ? 'أرقامها تظهر في الداشبورد' : 'ربط بس، سحب أرقامها لسا ما انبنى'];
+    const meta = [p.fetch ? 'أرقامها تظهر في الداشبورد' : 'يخدم النشر أو تتبع التحويلات'];
     if (p.at) meta.push(`آخر ربط ${when(p.at)}${p.by ? ` · ${esc(p.by)}` : ''}`);
     if (p.expires) meta.push(`ينتهي ${when(p.expires)}`);
-    if (p.status === 'github' && p.lastPull) meta.push(`آخر سحب ناجح ${when(p.lastPull)} · المفاتيح في أسرار GitHub، مو مربوطة من هذي الصفحة`);
+    if (p.status === 'github' && p.lastPull) meta.push(`آخر سحب ناجح ${when(p.lastPull)} · يشتغل تلقائياً من إعدادات النظام، مو من هذي الصفحة`);
     if (p.checked) meta.push(esc(p.checked));
     const drop = !['none', 'mcp', 'github'].includes(p.status) && !p.fields.length
       ? `<button class="btn sm ghost" type="button" data-drop="${p.id}">${icon('x')}فك الربط</button>` : '';
@@ -67,11 +67,15 @@ export default async function mount() {
   }
   function render() {
     const q = S.q.trim().toLowerCase();
-    const list = S.list.filter(p => !q || p.name.toLowerCase().includes(q) || p.id.includes(q));
+    // Platforms nothing is built for yet (no numbers pulled, no publishing, no conversions) are not listed: a long list of
+    // «مو مربوط» suggests abilities that do not exist. One that is already connected, or that the system needs, stays.
+    const BUILT = new Set(['meta_pages', 'postiz', 'meta_capi', 'tiktok_events', 'snap_capi', 'search_console']);
+    const shown = S.list.filter(p => p.fetch || p.core || BUILT.has(p.id) || p.status !== 'none');
+    const list = shown.filter(p => !q || p.name.toLowerCase().includes(q) || p.id.includes(q));
     const isOn = p => ['ok', 'mcp', 'github'].includes(p.status);
-    const ok = S.list.filter(isOn).length;
-    const core = S.list.filter(p => p.core), coreOk = core.filter(isOn).length;
-    $('#sum').textContent = `الأساسية ${coreOk} من ${core.length} · الكل ${ok} من ${S.list.length}`;
+    const ok = shown.filter(isOn).length;
+    const core = shown.filter(p => p.core), coreOk = core.filter(isOn).length;
+    $('#sum').textContent = `الأساسية ${coreOk} من ${core.length} · الكل ${ok} من ${shown.length}`;
     const coreList = list.filter(p => p.core);
     $('#list').innerHTML = (coreList.length ? `<h2 class="cx-h">أساسية لتشغيل النظام <span class="muted">(${coreOk} من ${core.length} مربوطة)</span></h2><div class="cx-list">${coreList.map(card).join('')}</div>` : '') + Object.entries(GROUP).map(([g, t]) => {
       const items = list.filter(p => p.group === g && !p.core);

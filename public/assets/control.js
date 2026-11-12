@@ -225,7 +225,7 @@ export default async function mount() {
     const b = S.tab === 'buyer', r = S.tab === 'rules'; $('#inbox').hidden = b || r; if ($('#buyerPane')) $('#buyerPane').hidden = !b || !S.buyerLoaded; if ($('#by-rulesBox')) $('#by-rulesBox').hidden = !r || !S.rulesLoaded;
     kpis(); tabs(); filters(); r ? rulesPane() : b ? buyerPane() : S.tab === 'log' ? history() : S.tab === 'learn' ? learning() : inbox();
   }
-  // التعلّم: الدروس، وحركات الفريق داخل المنصات، ونتايج القرارات بعد 3 و7 أيام
+  // التعلّم: الدروس، وحركات الفريق داخل المنصات، ونتائج القرارات بعد 3 و7 أيام
   async function learning() {
     $('#filters').innerHTML = ''; $('#selbar').hidden = true;
     $('#inbox').innerHTML = `<div class="empty">يحمّل…</div>`;
@@ -241,8 +241,8 @@ export default async function mount() {
     const O = r.outcomes.length ? `<table><thead><tr><th>القرار</th><th>بعد</th><th>تكلفة الليد قبل ← بعد</th><th>التغيّر</th></tr></thead><tbody>${r.outcomes.map(o => `<tr style="cursor:default">
         <td>#${o.suggestion_id} · ${esc(STATUS[o.metrics.decision] || o.metrics.decision)}</td><td class="num">${o.day} أيام</td>
         <td class="num">${sar(o.metrics.before.cpl)} ← ${sar(o.metrics.after.cpl)}</td><td class="num">${o.vs_expect && o.vs_expect.cpl_change_pct != null ? `${o.vs_expect.cpl_change_pct > 0 ? '+' : ''}${o.vs_expect.cpl_change_pct}%` : '—'}</td></tr>`).join('')}</tbody></table>`
-      : '<div class="empty">النتايج تطلع بعد 3 أيام من أول قرار.</div>';
-    $('#inbox').innerHTML = `<div class="pad"><h2>الدروس</h2><p class="muted" style="margin-top:-6px">من قرارات الفريق وملاحظاته ونتايجها، ومن حركاتهم داخل المنصات. المراجع والاقتراحات يقرونها كل ساعة.</p><ul class="lessons">${L}</ul></div>
+      : '<div class="empty">النتائج تطلع بعد 3 أيام من أول قرار.</div>';
+    $('#inbox').innerHTML = `<div class="pad"><h2>الدروس</h2><p class="muted" style="margin-top:-6px">من قرارات الفريق وملاحظاته ونتائجها، ومن حركاتهم داخل المنصات. المراجع والاقتراحات يقرونها كل ساعة.</p><ul class="lessons">${L}</ul></div>
       <div class="pad"><h2>حركات الفريق داخل المنصات · آخر 7 أيام</h2><p class="muted" style="margin-top:-6px">Meta وGoogle. Snap وTikTok ما يعطون سجل نشاط.</p></div><div class="tbl">${A}</div>
       <div class="pad"><h2>نتيجة القرارات</h2></div><div class="tbl">${O}</div>`;
   }
@@ -356,7 +356,7 @@ export default async function mount() {
       ar: 'عربي', en: 'إنجليزي', whatsapp: 'واتساب', form: 'نموذج فوري', site: 'الموقع', conversations: 'المحادثات', purchase: 'الشراء', abo: 'على المجموعة (ABO)', cbo: 'على الحملة (CBO)',
       single: 'صورة أو فيديو', story: 'ستوري', collection: 'كولكشن', lead_form: 'نموذج ليد داخل سناب', website: 'سوايب للموقع', pixel_purchase: 'شراء (Pixel)', auto: 'تلقائي', target: 'تكلفة مستهدفة',
       complete_payment: 'Complete Payment', max_conv: 'أكبر عدد تحويلات', tcpa: 'تكلفة تحويل مستهدفة', book: 'احجز الآن', learn: 'اعرف أكثر', signup: 'سجّل', '65': '65+',
-      fb_feed: 'فيسبوك فيد', ig_feed: 'إنستغرام فيد', ig_stories: 'ستوري', ig_reels: 'ريلز' };
+      fb_feed: 'فيسبوك فيد', ig_feed: 'انستقرام فيد', ig_stories: 'ستوري', ig_reels: 'ريلز' };
     const lab = v => VAL[v] || v;
     const val = (k, v) => pend.has(k) ? '<span class="chip line">ناقص</span>' : v === '' || v == null ? '—' : Array.isArray(v) ? esc(v.map(lab).join('، ')) : typeof v === 'string' && VAL[v] && k !== 'creative' ? esc(lab(v)) : Array.isArray(v) ? esc(v.join('، ')) : typeof v === 'boolean' ? (v ? 'نعم' : 'لا')
       : k === 'creative' || k === 'final_url' ? `<a href="${/^https?:/i.test(v) ? esc(v) : '#'}" target="_blank" rel="noopener">${esc(v)}</a>` : esc(v);
