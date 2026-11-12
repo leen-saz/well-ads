@@ -56,6 +56,8 @@ export default function Overview() {
         <p className="text-sm text-muted-foreground">{period ? T(`من ${longDay(from)} إلى ${longDay(end)}، مقارنة بنفس المدة اللي قبلها`, `${longDay(from)} to ${longDay(end)}, compared with the same length before`) : ''}</p>
         <PeriodFilter id="overview" def="30" ctx={ctx} onChange={setPeriod} />
       </div>
+      {/* The full dashboard (campaigns, platforms, organic) lives on «/»: it is not in the menu when this page is on, so it is linked here */}
+      <p className="text-sm"><a className="underline underline-offset-4" href="/">{T('افتح اللوحة الكاملة (الحملات والمنصات والعضوي) ←', 'Open the full dashboard (campaigns, platforms, organic) →')}</a></p>
       {period && <>
       <SectionCards data={data} from={from} to={end} />
       <OutcomeCards data={data} from={from} to={end} />
