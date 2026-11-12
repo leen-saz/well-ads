@@ -983,6 +983,7 @@ export const EN = {
   "الشهر": "Month",
   "الصرف (ر.س)": "Spend (SAR)",
   "الصرف على الذكاء الاصطناعي": "AI spend",
+  "العينة صغيرة (أقل من 30 إشارة): الحصة تقريبية، لا تبني قرار عليها.": "Small sample (under 30 mentions): the share is approximate, do not base a decision on it.",
   "موديلات الذكاء الاصطناعي لكل مهمة": "AI model for each task",
   "ما فيه طلبات مسجّلة هالشهر": "No calls recorded this month", "المسجّل مقابل المتوقع": "Recorded vs expected",
   "المتوقع = التوكنز × جدول الأسعار. لو المزوّد يرجّع تكلفته بنفسه (OpenRouter) أو التسجيل تقديري (بحث، صور) يختلف الرقمان، وهذا طبيعي. الأسعار تبقى تقديرية لين تطابقها مع فاتورة.": "Expected = tokens × our price table. When the provider reports its own cost (OpenRouter) or the record is an estimate (search, images) the two differ, which is normal. Prices stay estimates until matched with an invoice.",
