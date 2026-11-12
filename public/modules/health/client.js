@@ -51,6 +51,9 @@ const stepsTable = S => {
   return rows.length ? table(['الخطوة', 'آخر مرة', 'وقتها', 'آخر نجاح'], rows) : '<p class="muted">ما فيه حالة خطوات للحين (تظهر بعد أول تحديث ساعي).</p>';
 };
 
+// Same sentence as LINKED_DEF_AR in src/lib/linked.ts (the performance summary and the tracking page use that definition too)
+const LINKED_DEF = 'مربوط بإعلان = ليد (أو إقفالة) انطبق مع إعلان من إعلاناتنا برقم الإعلان أو باسمه الفريد، أو عبر نفس العميل لإعلان سابق. الباقي «غير منسوب».';
+
 export function healthCards(h) {
   const f = h.freshness, J = h.joins;
   const warn = (h.data_status ? ownerText(h.data_status) : []).map(t => `<p class="dh-find bad">${esc(t)}</p>`).join('');
@@ -61,7 +64,7 @@ export function healthCards(h) {
     ['جلب الرصد', cell(age(f.listening_last_fetch))], ['رفع ملف الأرقام (dash.json)', cell(age(f.dash_json_uploaded))]]);
   const counts = table(['الجدول', 'الصفوف'], Object.entries(h.counts).map(([t, n]) => [esc(TABLE[t] || t), n == null ? '<span class="muted">ما انقرا</span>' : fmt(n)]));
   const joins = J ? table(['الربط', 'العدد', 'النسبة'], [['ليدز CRM', fmt(J.leads), ''], ['مربوطة بإعلان', fmt(J.matched), J.matched_pct == null ? '—' : J.matched_pct + '%'], ['بدون إعلان', fmt(J.unmatched), ''],
-    ['كل الإقفالات', fmt(J.closings_all), ''], ['إقفالات مربوطة بإعلان', fmt(J.closings_with_ad), J.closings_pct == null ? '—' : J.closings_pct + '%'], ['منسوبة بالعميل لإعلان سابق', fmt(J.credited_via_customer), '']])
+    ['كل الإقفالات', fmt(J.closings_all), ''], ['إقفالات مربوطة بإعلان', fmt(J.closings_with_ad), J.closings_pct == null ? '—' : J.closings_pct + '%'], ['إقفالات غير منسوبة لإعلان', fmt(J.closings_unattributed), ''], ['منسوبة بالعميل لإعلان سابق', fmt(J.credited_via_customer), '']])
     : '<p class="muted">ما فيه dash.json مرفوع للحين.</p>';
   const attr = J ? attribution(J.attribution) : '';
   const dups = table(['المكرر', 'الصفوف الزايدة'], Object.entries(h.duplicates).map(([k, n]) => [esc(DUP[k] || k), cell([fmt(n), n > 0])]));
@@ -70,7 +73,7 @@ export function healthCards(h) {
     ? `<p class="dh-find bad">مايقريشنات ما انطبقت (بالترتيب): ${[...new Set(h.migrations_missing.map(m => m.migration))].map(m => `<code>${esc(m)}</code>`).join('، ')}</p>` + table(['المايقريشن', 'الجدول', 'ناقص'], h.migrations_missing.map(m => [esc(m.migration), esc(m.table), m.reason === 'table' ? 'الجدول كله' : esc(m.columns.join(', '))]))
     : '<p class="dh-find ok">كل الجداول والأعمدة اللي يقراها الكود موجودة.</p>';
   const sec = (t, body, note = '') => `<section class="card pad dh-sec"><h2>${t}</h2>${note ? `<p class="muted" style="margin:0 0 8px">${note}</p>` : ''}${body}</section>`;
-  return (warn || fresh ? sec('حالة التحديث', warn + fresh + (h.data_status ? stepsTable(h.data_status.steps) : ''), 'عمر الأرقام، وهل بدأ التحديث الساعي. ما يلمس الداتابيس.') : '') + sec('حداثة المصادر', plat + other, 'آخر مرة وصلتنا بيانات كل منصة. الأحمر = أقدم من يومين.') + sec('الربط بين الليدز والإعلانات', joins + attr, 'من آخر ملف أرقام انرفع.')
+  return (warn || fresh ? sec('حالة التحديث', warn + fresh + (h.data_status ? stepsTable(h.data_status.steps) : ''), 'عمر الأرقام، وهل بدأ التحديث الساعي. ما يلمس الداتابيس.') : '') + sec('حداثة المصادر', plat + other, 'آخر مرة وصلتنا بيانات كل منصة. الأحمر = أقدم من يومين.') + sec('الربط بين الليدز والإعلانات', joins + attr + `<p class="muted">${LINKED_DEF}</p>`, 'من آخر ملف أرقام انرفع.')
     + sec('المكرر', dups) + sec('اليتيم', orph, 'صفوف تشير إلى شركة ما عاد لها وجود.') + sec('عدد الصفوف', counts) + sec('المايقريشنات', miss);
 }
 

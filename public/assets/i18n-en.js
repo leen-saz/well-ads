@@ -114,6 +114,8 @@ export const EN = {
   'آخر مرة حاول الموقع يبدأ التحديث فشل. الأرقام ما راح تتحدّث لين يتصلّح (غالباً مفتاح البدء ناقص أو منتهي).': 'The last attempt to start the update failed. The numbers will not refresh until it is fixed (usually the start key is missing or expired).',
   'حالة التحديث': 'Update status', 'عمر الأرقام، وهل بدأ التحديث الساعي. ما يلمس الداتابيس.': 'How old the numbers are, and whether the hourly update started. Does not touch the database.',
   'الأرقام محدّثة والتحديث الساعي يشتغل.': 'The numbers are up to date and the hourly update is running.',
+  'إقفالات غير منسوبة لإعلان': 'Closings not tied to an ad',
+  'مربوط بإعلان = ليد (أو إقفالة) انطبق مع إعلان من إعلاناتنا برقم الإعلان أو باسمه الفريد، أو عبر نفس العميل لإعلان سابق. الباقي «غير منسوب».': 'Linked to an ad = a lead (or closing) matched one of our ads by ad id, by its unique name, or through the same customer\'s earlier ad lead. The rest is «unattributed».',
   'تيك توك (MCP)': 'TikTok (MCP)', 'سحب الـ CRM': 'CRM pull', 'اقتراحات لوحة القرارات': 'Decision board suggestions', 'حلقة التعلّم': 'Learning loop', 'المراجع (critic)': 'Reviewer (critic)', 'تنفيذ القرارات المعتمدة': 'Approved decisions execution',
   'الخطوة': 'Step', 'وقتها': 'When', 'آخر نجاح': 'Last success', 'فشلت': 'Failed', 'اشتغلت': 'Worked',
   'ما فيه حالة خطوات للحين (تظهر بعد أول تحديث ساعي).': 'No step status yet (it appears after the first hourly update).',

@@ -8,10 +8,19 @@ import { addDays, type Dash } from './numbers';
 // A healthy period: CTR 1.5%, 3% of clicks become a lead or chat, 10% of ad-linked leads close, 50 SAR a lead
 const base: Outcome = {
   spend: 15000, impr: 200000, clicks: 3000, leads: 70, conv: 20, crm: true, crmLinked: true, crmLeads: 60, booked: 6, value: 9000,
-  closings: 8, paid: 12000, cpm: 75, cpc: 5, ctr: 1.5, cpl: 50, clickToResult: 3, closeRate: 10, roas: 0.6, mer: 0.8, cac: 1875, closingsAll: 8, bookedAll: 6,
+  closings: 8, paid: 12000, cpm: 75, cpc: 5, ctr: 1.5, cpl: 50, clickToResult: 3, closeRate: 10, roas: 0.6, mer: 0.8, cac: 1875, closingsAll: 8, bookedAll: 6, closingsUnattributed: 2,
   closeRateAll: 8.9,
 };
 const as = (o: Partial<Outcome>): Outcome => ({ ...base, ...o });
+
+describe('overview: closings not tied to an ad are marked', () => {
+  it('shows the unattributed count beside the ad-linked one, in both languages, and not when there are none', () => {
+    const ar = journey(as({ closingsAll: 45, bookedAll: 0, booked: 0, closings: 45, closingsUnattributed: 45 }), 'ar').stages[3]!.sub.find(x => x.key === 'closingsUnattributed');
+    expect([ar?.label, ar?.now]).toEqual(['إقفالات غير منسوبة لإعلان', 45]);
+    expect(journey(as({ closingsUnattributed: 3 }), 'en').stages[3]!.sub.find(x => x.key === 'closingsUnattributed')?.label).toBe('Closings not tied to an ad');
+    expect(journey(as({ closingsUnattributed: 0 }), 'ar').stages[3]!.sub.some(x => x.key === 'closingsUnattributed')).toBe(false);
+  });
+});
 
 describe('overview: funnel in English', () => {
   const arabic = /[\u0600-\u06FF]/;
