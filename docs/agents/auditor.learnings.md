@@ -6,7 +6,11 @@
 
 ## الدروس
 
-لا دروس بعد. أول جولة تضيف هنا.
+### 2026-11-12 · فحص بلا اختبار يمرّ صامتاً لو انكسر
+- **الدرس:** ثمانية فحوصات في `checks.ts` (`mismatch_prev`، `mismatch_median`، `sar_negative`، `sar_recompute`، `named_step_not_weak`، `level_mismatch`، `owner_mismatch_step`، `confidence_vs_coverage`) ما كان يستدعيها أي اختبار؛ تعطيل أي منها كان يبقي الاختبارات خضراء. الاختبار الذي لا يفشل عند كسر الكود ما يحرس شي. كل فحص الآن له حالة تفعّله، وجرّبنا تعطيل خمسة منها يدوياً فانكسر اختبار في كل مرة.
+- **المصدر:** Google Engineering Practices، مراجعة الكود، قسم Tests («Will the tests actually fail when the code is broken?»): https://google.github.io/eng-practices/review/reviewer/looking-for.html (قُرئ 2026-11-12، الصفحة بلا تاريخ تحديث).
+- **الأثر:** PR هذه الجولة. مؤجل: اختبار خصائص (fast-check) على هوية `chain_product`، واختبار يطابق قائمة معرّفات الفحوصات في `checks.ts` مع الاختبارات تلقائياً.
+
 
 <!-- القالب:
 ### YYYY-MM-DD · عنوان قصير
