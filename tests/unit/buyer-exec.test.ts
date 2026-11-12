@@ -12,9 +12,9 @@ const ENV = { SUPABASE_URL: 'https://db.test', SUPABASE_SERVICE_ROLE_KEY: 'sb_se
 const ORIGIN = 'https://well.test';
 type Profile = { id: string; email: string; role: string; dashboards: string[]; access?: Record<string, string>; active: boolean };
 const OWNER: Profile = { id: 'u0', email: 'leen@x.co', role: 'owner', dashboards: [], active: true };
-const APPROVER: Profile = { id: 'u1', email: 'a@x.co', role: 'member', dashboards: ['buyer'], access: { buyer: 'approve' }, active: true };
-const EDITOR: Profile = { id: 'u2', email: 'e@x.co', role: 'member', dashboards: ['buyer'], access: { buyer: 'edit' }, active: true };
-const VIEWER: Profile = { id: 'u3', email: 'v@x.co', role: 'member', dashboards: ['buyer'], access: { buyer: 'view' }, active: true };
+const APPROVER: Profile = { id: 'u1', email: 'a@x.co', role: 'member', dashboards: ['control'], access: { control: 'approve' }, active: true };
+const EDITOR: Profile = { id: 'u2', email: 'e@x.co', role: 'member', dashboards: ['control'], access: { control: 'edit' }, active: true };
+const VIEWER: Profile = { id: 'u3', email: 'v@x.co', role: 'member', dashboards: ['control'], access: { control: 'view' }, active: true };
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 type Row = Record<string, any>;
@@ -172,7 +172,7 @@ describe('no execution without the owner pressing the button', () => {
   });
   it('a cross-site request cannot apply', async () => {
     await propose(); as(APPROVER);
-    const now = Date.now(), token = await sign({ uid: APPROVER.id, email: APPROVER.email, name: '', role: 'member', dash: ['buyer'], depts: [], exp: now + 3600e3, chk: now }, ENV.SESSION_SECRET as string);
+    const now = Date.now(), token = await sign({ uid: APPROVER.id, email: APPROVER.email, name: '', role: 'member', dash: ['control'], depts: [], exp: now + 3600e3, chk: now }, ENV.SESSION_SECRET as string);
     const raw = await api.request(ORIGIN + '/api/buyer/apply', { method: 'POST', headers: { cookie: `${SESSION}=${token}`, origin: 'https://evil.test', 'content-type': 'application/json' }, body: JSON.stringify(applyBody(open())) }, ENV);
     expect(raw.status).toBe(403);
     expect(writes()).toEqual([]);

@@ -1,6 +1,6 @@
 // /api/buyer/{actions,propose,decide,apply,rollback,execution}: approval-gated execution on top of the media buyer's advice.
-// Who may do what: anyone with the tab sees the queue; proposing needs edit; deciding, applying and rolling back need APPROVE on
-// the Media buyer tab (Leen, or someone she gave approve) and the Well company; the stop line, the per-platform real-execution
+// Who may do what: anyone with the board sees the queue; proposing needs edit; deciding, applying and rolling back need APPROVE on
+// the decisions board (Leen, or someone she gave approve) and the Well company; the stop line, the per-platform real-execution
 // switch and the limits are the owner's. Every mutating call needs the same-origin check (requireUser write:true).
 import { json, readJson, handle, requireUser, isOwner, notApplied } from '../../lib/auth';
 import { configured, type ExecEnv } from './exec/adapters';
@@ -11,10 +11,10 @@ const send = (o: Out) => json(o.status, o.body);
 const idOf = (b: Record<string, unknown>) => String(b.id ?? '');
 
 export const actions = { GET: handle(async (request, e) => {
-  const { cfg, user } = await requireUser(request, e, 'buyer');
+  const { cfg, user } = await requireUser(request, e, 'control');
   const env = e as unknown as ExecEnv;
   const r = await list({ cfg, user, env });
-  const approver = (() => { try { return user.role === 'owner' || user.lvl?.buyer === 'approve'; } catch { return false; } })();
+  const approver = (() => { try { return user.role === 'owner' || user.lvl?.control === 'approve'; } catch { return false; } })();
   return json(200, {
     missing: r.missing, ...(r.missing ? { message: notApplied(user, '032_buyer_actions.sql') } : {}),
     actions: r.actions, usedToday: r.usedToday,
@@ -27,7 +27,7 @@ export const actions = { GET: handle(async (request, e) => {
 // A recommendation becomes a proposed action. The server re-derives the recommendation from its own analysis by id: nothing
 // about the action's content (platform, value, size) comes from the browser.
 export const propose = { POST: handle(async (request, e) => {
-  const { cfg, user } = await requireUser(request, e, 'buyer', { write: true, well: true });
+  const { cfg, user } = await requireUser(request, e, 'control', { write: true, well: true });
   const body = await readJson(request);
   const built = await buildReport(cfg, user);
   if (!built.ok) return json(500, { error: 'ما قدرت أقرأ أرقام الإعلانات' });
@@ -44,7 +44,7 @@ export const propose = { POST: handle(async (request, e) => {
 
 // Reject, or mark a manual action as done by hand. Approve-level only.
 export const decide = { POST: handle(async (request, e) => {
-  const { cfg, user } = await requireUser(request, e, 'buyer', { write: true, approve: true, well: true });
+  const { cfg, user } = await requireUser(request, e, 'control', { write: true, approve: true, well: true });
   const body = await readJson(request), ctx: Ctx = { cfg, user, env: e as unknown as ExecEnv };
   if (body.decision === 'reject') return send(await reject(ctx, idOf(body)));
   if (body.decision === 'manual_done') return send(await manualDone(ctx, idOf(body)));
@@ -54,20 +54,20 @@ export const decide = { POST: handle(async (request, e) => {
 // «اعتمد وطبّق»: the only way anything reaches an ad platform. `confirm: true` is the modal's second confirmation, `expect` the
 // figures the modal showed, `mode: 'live'` the explicit «تنفيذ حقيقي» (anything else is a dry run that writes nothing).
 export const apply = { POST: handle(async (request, e) => {
-  const { cfg, user } = await requireUser(request, e, 'buyer', { write: true, approve: true, well: true });
+  const { cfg, user } = await requireUser(request, e, 'control', { write: true, approve: true, well: true });
   const body = await readJson(request);
   return send(await applyAction({ cfg, user, env: e as unknown as ExecEnv }, idOf(body), { confirm: body.confirm, mode: body.mode, expect: (body.expect ?? undefined) as never }));
 }) };
 
 export const rollback = { POST: handle(async (request, e) => {
-  const { cfg, user } = await requireUser(request, e, 'buyer', { write: true, approve: true, well: true });
+  const { cfg, user } = await requireUser(request, e, 'control', { write: true, approve: true, well: true });
   const body = await readJson(request);
   return send(await rollbackAction({ cfg, user, env: e as unknown as ExecEnv }, idOf(body), { confirm: body.confirm }));
 }) };
 
 // The emergency stop (any approver may press it; it is the same flag the old pipeline executor reads) and the owner's limits.
 export const execution = { POST: handle(async (request, e) => {
-  const { cfg, user } = await requireUser(request, e, 'buyer', { write: true, approve: true, well: true });
+  const { cfg, user } = await requireUser(request, e, 'control', { write: true, approve: true, well: true });
   const body = await readJson(request);
   return send(await saveSettings({ cfg, user, env: e as unknown as ExecEnv }, body as never, isOwner(user, cfg)));
 }) };

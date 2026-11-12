@@ -103,3 +103,17 @@ describe('tabs with sections (voiceover in voice, copy in content)', () => {
     expect(only.find(i => i.key === 'content')).toMatchObject({ href: '/content/?tab=copy', state: 'ok' });
   });
 });
+
+describe('the Media buyer is a tab of the decisions board, not a module of its own', () => {
+  it('is in no module registry, route list or dashboard list; its API asks for the decisions board; its old page redirects', async () => {
+    expect(MODULES.some(m => m.key === 'buyer')).toBe(false);
+    expect(LIVE).not.toContain('buyer');
+    expect(Object.keys(ROUTES)).not.toContain('buyer');
+    expect(Object.keys(A.DASHBOARDS)).not.toContain('buyer');
+    expect(need('/api/buyer/report', '')).toBe('control');
+    expect(need('/api/buyer/apply', '')).toBe('control');
+    const d = await gate(req('/buyer/', ''), E);
+    expect(d instanceof Response && d.status).toBe(301);
+    expect(d instanceof Response && d.headers.get('location')).toBe('/control/?tab=buyer');
+  });
+});

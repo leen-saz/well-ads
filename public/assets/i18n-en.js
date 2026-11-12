@@ -542,7 +542,7 @@ export const EN = {
   'القاعدة': 'Rule', 'تطابق': 'Matches', 'الحدود': 'Limits', 'ينفّذ': 'Acts', 'قرار مفتوح': 'Open decision', 'فاضي = محسوم': 'Empty = decided', 'ما فيه قواعد للتعديل.': 'No rules to edit.',
   'أقصى تكلفة ليد': 'Max cost per lead', 'أقل نسبة نقر %': 'Min click rate %', 'خطوة الرفع %': 'Raise step %', 'كل كم يوم': 'Every how many days', 'أقل عدد نتائج': 'Min results', 'أيام بلا نتائج': 'Days with no results',
   'ما فيه صرف في آخر 7 أيام عشان نحلله.': 'No spend in the last 7 days to analyze.', 'الأرقام ضمن القاعدة، وما فيه تغيير مطلوب.': 'The numbers are within the rules; no change needed.', 'ما فيه توصية الحين.': 'No recommendation right now.',
-  'الميديا باير': 'Media buyer', 'الميديا باير · Well': 'Media buyer · Well',
+  'الميديا باير': 'Media buyer',
   'توصيات من أرقام الإعلانات مقارنة بقاعدة أفضل الممارسات لكل منصة ولقواعد الشركة. كل توصية تمر على حكم التسويق أول. قراءة بس: ما يغيّر أي حملة، والمشتري الإعلامي ينفّذ يدوياً.': 'Recommendations from the ad numbers against a best-practice playbook per platform and the company rules. Each one goes through the marketing judge first. Read-only: it changes no campaign, and the media buyer acts by hand.',
   'قواعد الشركة': 'Company rules', 'تصدير': 'Export', 'استيراد القواعد': 'Import rules', 'معاينة': 'Preview', 'أكّد واحفظ': 'Confirm and save',
   'ارفع ملف JSON أو الصق نصه. تنحفظ في قاعدة البيانات فقط، والملف ما يدخل الريبو.': 'Upload a JSON file or paste its text. Saved in the database only; the file never enters the repo.',
