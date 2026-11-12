@@ -16,8 +16,8 @@ import { type Raw, dayAdd, rowsOf } from './facts';
 type Env = AuthEnv & CriticEnv & { FILES?: R2Bucket };
 const DAY = /^\d{4}-\d{2}-\d{2}$/;
 
-async function load(e: Env, url: URL): Promise<{ d: Dash & Raw; from: string; to: string; plat?: string; by: 'lead' | 'paid' } | Response> {
-  const obj = e.FILES ? await e.FILES.get('site/dash.json') : null;
+async function load(e: Env, url: URL, pre?: Promise<R2ObjectBody | null>): Promise<{ d: Dash & Raw; from: string; to: string; plat?: string; by: 'lead' | 'paid' } | Response> {
+  const obj = pre ? await pre : e.FILES ? await e.FILES.get('site/dash.json') : null;
   if (!obj) return json(404, { error: 'ما فيه أرقام للحين' });
   const raw = (await obj.json()) as Raw & Dash;
   const d = { ...raw, rows: rowsOf(raw) } as Dash & Raw;
@@ -33,10 +33,14 @@ async function load(e: Env, url: URL): Promise<{ d: Dash & Raw; from: string; to
 }
 
 export const auditRoute = { GET: handle(async (request, e: Env) => {
+  // The big dash.json read starts together with the sign-in check instead of after it (one round trip less). Its result is only
+  // used after the owner and company checks below: nothing from it reaches anyone else.
+  const pre = e.FILES ? e.FILES.get('site/dash.json') : undefined;
+  pre?.catch(() => {});
   const { cfg, user } = await requireUser(request, e, 'owner');
   // dash.json is Well's own numbers: another company's owner gets nothing
   if (user.co !== WELL_COMPANY) return json(404, { error: 'ما فيه أرقام لشركتك للحين' });
-  const url = new URL(request.url), L = await load(e, url);
+  const url = new URL(request.url), L = await load(e, url, pre);
   if (L instanceof Response) return L;
   const { d, from, to, plat, by } = L;
   const claim = claimFromJudge(d, from, to, by, plat), r = audit(d, claim), head = judgeHeadline(d, from, to, by, plat);

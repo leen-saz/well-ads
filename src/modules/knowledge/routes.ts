@@ -82,13 +82,15 @@ export const train = {
     const skip = (new URL(request.url).searchParams.get('skip') || '').split(',').filter(Boolean).slice(0, 50);
     const history = entries.filter(x => x.source === 'training').sort((a, b) => String(a.created_at).localeCompare(String(b.created_at)))
       .map(x => ({ id: x.id, question: x.question, answer: x.body, active: x.active, topic: x.topic }));
-    let next = nextQuestion(entries, skip);
-    // The AI asks only for someone who can answer, and only after the fixed questions
+    let next = nextQuestion(entries, skip), later = false;
+    // The AI asks only for someone who can answer, and only after the fixed questions. That call takes several seconds, so the page
+    // first asks with ai=0: the answers so far come back at once with later=true, and a second request (without ai=0) brings the question.
     if (!next && atLeast(user, 'knowledge', 'edit', cfg)) {
-      next = await followUp(aiFor(e, 'content', usageCtx(cfg, user, 'knowledge')), entries.filter(x => x.active), history.map(h => String(h.question || '')));
+      if (new URL(request.url).searchParams.get('ai') === '0') later = true;
+      else next = await followUp(aiFor(e, 'content', usageCtx(cfg, user, 'knowledge')), entries.filter(x => x.active), history.map(h => String(h.question || '')));
     }
     const covered = QUESTIONS.filter(q => entries.some(x => x.topic === q.topic)).length;
-    return json(200, { history, next, covered, total: QUESTIONS.length, canEdit: atLeast(user, 'knowledge', 'edit', cfg) });
+    return json(200, { history, next, later, covered, total: QUESTIONS.length, canEdit: atLeast(user, 'knowledge', 'edit', cfg) });
   }),
   POST: handle(async (request, e) => {
     const { cfg, user } = await requireUser(request, e, 'knowledge', { write: true });
