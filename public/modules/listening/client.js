@@ -147,7 +147,7 @@ async function listening() {
       <div class="tbl"><table class="lx-legend"><thead><tr><th>الجهة</th><th>الإشارات</th><th>الحصة</th><th>إيجابي</th><th>سلبي</th><th>محايد</th></tr></thead><tbody>
       ${sum.share.map(r => `<tr><td><span class="lx-dot" style="background:${colour.get(r.id)}"></span>${esc(r.name)}${r.kind === 'brand' ? ' <span class="muted">(نحن)</span>' : ''}</td><td class="n">${fmt(r.total)}</td><td class="n">${pctS(r.share)}</td>
         <td class="n">${r.total ? pctS(r.positive / r.total) : '—'}</td><td class="n">${r.total ? pctS(r.negative / r.total) : '—'}</td><td class="n">${r.total ? pctS(r.neutral / r.total) : '—'}</td></tr>`).join('')}</tbody></table></div>
-      <p class="muted" style="margin:8px 0 0;font-size:13px"><span class="lx-dot" style="background:var(--deep)"></span>إيجابي <span class="lx-dot" style="background:var(--soft)"></span>محايد <span class="lx-dot" style="background:var(--pulse)"></span>سلبي</p>`;
+      <p class="muted" style="margin:8px 0 0;font-size:13px"><span class="lx-dot" style="background:var(--deep)"></span>إيجابي <span class="lx-dot" style="background:var(--soft)"></span>محايد <span class="lx-dot" style="background:var(--pulse)"></span>سلبي</p>${sum.sample?.small ? `<p class="so-note" role="status" style="margin:8px 0 0">العينة صغيرة (أقل من 30 إشارة): الحصة تقريبية، لا تبني قرار عليها.</p>` : ''}`;
   }
 
   function drawTrend(sum) {

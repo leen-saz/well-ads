@@ -1,6 +1,6 @@
 // Social listening: source parsing, dedupe, sentiment parsing, watch cleaning, the cron/refresh flow and scoping.
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { adLibraryUrl, cleanWatch, dedupe, due, missingTable, normUrl, parseBing, parseGdelt, parseNews, isHttps, parseReddit, parseSentiment, parseTikTok, parseX, parseYouTube, query, sentimentPrompt, sources, terms } from './social';
+import { adLibraryUrl, cleanWatch, dedupe, due, missingTable, normUrl, parseBing, parseGdelt, parseNews, isHttps, parseReddit, parseSentiment, parseTikTok, parseX, parseYouTube, mentionsTerm, query, relevant, sentimentPrompt, sources, terms } from './social';
 import { batch, collect, cost, store } from './fetcher';
 import { raw } from './probe';
 // The page's own maths (plain JS in public/)
@@ -11,6 +11,8 @@ afterEach(() => vi.unstubAllGlobals());
 const RSS = `<rss><channel><item><title><![CDATA[ويل للرعاية المنزلية تطلق خدمة]]></title><link>https://news.example.com/a?utm_source=x</link>
 <pubDate>Sun, 01 Nov 2026 10:00:00 GMT</pubDate><description>&lt;b&gt;خبر&lt;/b&gt; جديد</description><source url="https://s">صحيفة</source></item>
 <item><title>بدون رابط</title></item></channel></rss>`;
+// The same feed with the watch names in the text: collect() keeps only mentions that are about the watch
+const RSS_ON = RSS.replace('جديد</description>', 'جديد عن ويل يونيون و Well و wellcare</description>');
 
 describe('sources', () => {
   it('reads Google News RSS without an XML parser', () => {
@@ -88,7 +90,7 @@ describe('fetch flow', () => {
   it('collects the news and skips the keyed sources without keys', async () => {
     const seen: string[] = [];
     const f = (async (u: string) => { seen.push(String(u));
-      if (String(u).includes('news.google')) return new Response(RSS, { status: 200 });
+      if (String(u).includes('news.google')) return new Response(RSS_ON, { status: 200 });
       return new Response('', { status: 500 }); }) as unknown as typeof fetch;
     const r = await collect({ id: 9, kind: 'brand', name: 'Well', keywords: [] }, {} as never, f);
     expect(r.bySource).toEqual({ google: 1 });
@@ -96,7 +98,7 @@ describe('fetch flow', () => {
   });
   it('falls back to Bing, one term each, when Google refuses, and says why', async () => {
     const seen: string[] = [];
-    const bing = (n: number) => `<rss><item><title>t${n}</title><link>http://www.bing.com/news/apiclick.aspx?url=https%3a%2f%2fn.example%2f${n}</link></item></rss>`;
+    const bing = (n: number) => `<rss><item><title>evercare t${n}</title><link>http://www.bing.com/news/apiclick.aspx?url=https%3a%2f%2fn.example%2f${n}</link></item></rss>`;
     let n = 0;
     const f = (async (u: string) => { seen.push(String(u));
       if (String(u).includes('news.google')) return new Response('', { status: 503 });
@@ -110,7 +112,7 @@ describe('fetch flow', () => {
   it('asks Google one quoted term at a time and keeps what each gives', async () => {
     const seen: string[] = [];
     const f = (async (u: string) => { seen.push(decodeURIComponent(String(u)));
-      if (String(u).includes('news.google')) return new Response(seen.length === 1 ? RSS : '<rss></rss>', { status: 200 });
+      if (String(u).includes('news.google')) return new Response(seen.length === 1 ? RSS_ON : '<rss></rss>', { status: 200 });
       return new Response('', { status: 500 }); }) as unknown as typeof fetch;
     const r = await collect({ id: 9, kind: 'brand', name: 'ويل يونيون', keywords: ['wellcare', 'تطبيق ويل', 'رابع'] }, {} as never, f);
     expect(r.bySource).toEqual({ google: 1 });
@@ -119,7 +121,7 @@ describe('fetch flow', () => {
   it('searches every term of a 4-term brand watch, and Refresh keeps its calls under the Worker limit', async () => {
     const seen: string[] = [];
     const f = (async (u: string) => { seen.push(decodeURIComponent(String(u)));
-      return new Response(String(u).includes('wellcare') ? RSS : '<rss></rss>', { status: 200 }); }) as unknown as typeof fetch;
+      return new Response(String(u).includes('wellcare') ? RSS_ON : '<rss></rss>', { status: 200 }); }) as unknown as typeof fetch;
     const brand = { id: 1, kind: 'brand' as const, name: 'ويل يونيون', keywords: ['تطبيق ويل', 'wellunion', 'wellcare'] };
     const r = await collect(brand, {} as never, f);
     expect(seen.filter(u => u.includes('news.google')).map(u => u.match(/q=([^&]*)/)![1])).toEqual(['"ويل يونيون"', '"تطبيق ويل"', 'wellunion', 'wellcare']);
@@ -146,8 +148,8 @@ describe('fetch flow', () => {
     const seen: { u: string; auth: string }[] = [];
     const f = (async (u: string, init?: RequestInit) => { seen.push({ u: String(u), auth: String((init?.headers as Record<string, string>)?.authorization || '') });
       if (String(u).includes('access_token')) return new Response(JSON.stringify({ access_token: 'tok' }), { status: 200 });
-      if (String(u).includes('oauth.reddit.com')) return new Response(JSON.stringify({ data: { children: [{ data: { permalink: '/r/x/1', title: 'a' } }] } }), { status: 200 });
-      if (String(u).includes('news.google')) return new Response(RSS, { status: 200 });
+      if (String(u).includes('oauth.reddit.com')) return new Response(JSON.stringify({ data: { children: [{ data: { permalink: '/r/x/1', title: 'Well a' } }] } }), { status: 200 });
+      if (String(u).includes('news.google')) return new Response(RSS_ON, { status: 200 });
       return new Response('', { status: 500 }); }) as unknown as typeof fetch;
     const r = await collect({ id: 9, kind: 'brand', name: 'Well', keywords: [] }, { REDDIT_CLIENT_ID: 'id', REDDIT_CLIENT_SECRET: 'sec' } as never, f);
     expect(r.bySource).toEqual({ google: 1, reddit: 1 });
@@ -188,6 +190,11 @@ describe('page maths', () => {
     expect(s.share[0]?.share).toBeCloseTo(10 / 11);
     expect(s.weeks).toHaveLength(5); // 30 days: five bars of a week, the last one shorter
     expect(s.alerts.map((a: { type: string }) => a.type).sort()).toEqual(['keyword', 'negative']);
+  });
+  it('says when the sample is small', () => {
+    expect(summarize(W, M, now, 30).sample).toEqual({ total: 11, small: true, min: 30 });
+    const big = Array.from({ length: 30 }, () => ({ watch_id: 1, published_at: d(2), sentiment: 'positive' }));
+    expect(summarize(W, big, now, 30).sample.small).toBe(false);
   });
   it('filters mentions', () => {
     expect(filterMentions(M, { sentiment: 'negative' })).toHaveLength(3);
@@ -230,5 +237,34 @@ describe('listening: only https links are kept', () => {
   });
   it('gdelt and bing drop plain http too', () => {
     expect(parseGdelt(JSON.stringify({ articles: [{ url: 'http://a.example/1', title: 't' }] }), 1)).toEqual([]);
+  });
+});
+
+describe('only mentions about the watch are kept', () => {
+  it('Arabic: diacritics, alef and taa marbuta forms, and attached prefixes', () => {
+    expect(mentionsTerm('تعلن ويل للرعاية المنزلية عن خدمة', 'ويل')).toBe(true);
+    expect(mentionsTerm('عيادة الرِّعايه', 'الرعاية')).toBe(true);
+    expect(mentionsTerm('اتفاق سياسي دولي', 'ويل')).toBe(false);
+  });
+  it('Latin: whole words only, and a short name keeps its capital', () => {
+    expect(mentionsTerm('Well Care launches a service', 'Well')).toBe(true);
+    expect(mentionsTerm('WELL announces', 'Well')).toBe(true);
+    expect(mentionsTerm('as well as stocks', 'Well')).toBe(false);
+    expect(mentionsTerm('Wellington markets', 'Well')).toBe(false);
+    expect(mentionsTerm('everything is wellcare', 'wellcare')).toBe(true);
+    expect(mentionsTerm('x', '')).toBe(false);
+  });
+  it('relevant() looks at the title and the snippet for the name or any keyword', () => {
+    const w = { kind: 'brand' as const, name: 'Well', keywords: ['ويل'] };
+    expect(relevant({ title: 'أسهم وأخبار دولية', snippet: 'Stocks fell as well as bonds' }, w)).toBe(false);
+    expect(relevant({ title: 'ويل تفتح فرع', snippet: '' }, w)).toBe(true);
+    expect(relevant({ title: 'a', snippet: 'Well is hiring' }, w)).toBe(true);
+  });
+  it('collect drops off-topic news and says how many', async () => {
+    const rss = (t: string) => `<rss><channel><item><title>${t}</title><link>https://n.example/${encodeURIComponent(t)}</link></item></channel></rss>`;
+    const f = (async (u: string) => new Response(String(u).includes('news.google') ? rss(String(u).includes('%D9%88%D9%8A%D9%84') ? 'ويل تطلق خدمة' : 'Stocks rally as well as bonds') : '', { status: 200 })) as unknown as typeof fetch;
+    const r = await collect({ id: 9, kind: 'brand', name: 'Well', keywords: ['ويل'] }, {} as never, f);
+    expect(r.found.map(m => m.title)).toEqual(['ويل تطلق خدمة']);
+    expect(r.dropped).toBe(1);
   });
 });

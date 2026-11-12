@@ -137,6 +137,24 @@ export function terms(w: Watch, max = 3): string[] {
   return [...new Set([w.name, ...(w.keywords || [])].map(t => t.replace(/"/g, '').trim()).filter(Boolean))].slice(0, max);
 }
 
+// Is this mention really about the watch? News search matches the article body fuzzily, so a short brand name brings in world news and
+// stocks. A mention is kept only when its title or snippet holds the name or one of the keywords as a word (Arabic: after dropping
+// diacritics and unifying alef, yaa and taa marbuta, with prefixes allowed; Latin: whole word, and a name of 5 letters or fewer must
+// keep its capital letter, so «well» in «as well as» does not count).
+const arNorm = (s: string) => s.replace(/[\u064B-\u0652\u0640]/g, '').replace(/[أإآ]/g, 'ا').replace(/ى/g, 'ي').replace(/ة/g, 'ه').toLowerCase();
+const esc = (s: string) => s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+export function mentionsTerm(text: string, term: string): boolean {
+  const t = term.replace(/"/g, '').trim();
+  if (!t) return false;
+  if (/[\u0600-\u06FF]/.test(t)) return arNorm(text).includes(arNorm(t));
+  const word = (s: string, flags: string) => new RegExp(`(?<![\\p{L}\\p{N}])${esc(s)}(?![\\p{L}\\p{N}])`, flags).test(text);
+  return t.length <= 5 ? word(t, 'u') || word(t.toUpperCase(), 'u') : word(t, 'iu');
+}
+export function relevant(m: Pick<Mention, 'title' | 'snippet'>, w: Watch): boolean {
+  const text = `${m.title} ${m.snippet}`;
+  return terms(w, 8).some(t => mentionsTerm(text, t));
+}
+
 // Reddit search JSON: data.children[].data
 export function parseReddit(j: unknown, watchId: number): Mention[] {
   const kids = ((j as { data?: { children?: { data?: Record<string, unknown> }[] } })?.data?.children) || [];
