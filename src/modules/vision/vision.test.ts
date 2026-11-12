@@ -137,7 +137,7 @@ describe('describing an image', () => {
     expect((await send(viewer)).status).toBe(403);
     delete E.GEMINI_API_KEY;
     const nokey = await send(writer); expect(nokey.status).toBe(503); expect((await json(nokey)).error).toBe('ما اكتمل تجهيزه، بلّغ الإدارة');
-    expect((await json(await call(V.recent.GET, owner))).why).toContain('GEMINI_API_KEY');
+    expect((await json(await call(V.recent.GET, owner))).why).toContain('صفحة الربط');
     E.GEMINI_API_KEY = 'k';
     expect((await send(writer, { mime: 'application/pdf' })).status).toBe(400);
     capRows = [{ module: 'vision', monthly_cap_usd: 1 }]; spendRows = [{ module: 'vision', cost_usd: 3 }];

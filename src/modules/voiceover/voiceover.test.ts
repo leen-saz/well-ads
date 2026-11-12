@@ -109,7 +109,7 @@ describe('the brand voice', () => {
     expect(g.voices.length).toBeGreaterThan(5); expect(Object.keys(g.accents)).toContain('janoubi'); expect(Object.keys(g.paces)).toEqual(['slow', 'normal', 'fast']); expect(g).toMatchObject({ ready: true, why: '', max_chars: MAX_CHARS });
     delete E.GEMINI_API_KEY;
     expect((await json(await call(V.guide.GET, writer))).why).toBe('ما اكتمل تجهيزه، بلّغ الإدارة');
-    expect((await json(await call(V.guide.GET, owner))).why).toContain('GEMINI_API_KEY');
+    expect((await json(await call(V.guide.GET, owner))).why).toContain('صفحة الربط');
   });
 });
 

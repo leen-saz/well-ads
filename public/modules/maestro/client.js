@@ -243,7 +243,7 @@ export default async function mount() {
   async function mountSpend(month = '') {
     let d;
     try { d = await api('/api/maestro/usage' + (month ? `?month=${encodeURIComponent(month)}` : '')); }
-    catch (err) { if (/مشاهدة|صلاحية|مقفل/.test(err.message)) return; if (/الجدول ناقص/.test(err.message)) { $('#spend').hidden = false; $('#spendBody').innerHTML = `<p class="muted">${esc(err.message)}</p>`; } return; }
+    catch (err) { if (/مشاهدة|صلاحية|مقفل/.test(err.message)) return; if (/ما اكتمل تجهيزه/.test(err.message)) { $('#spend').hidden = false; $('#spendBody').innerHTML = `<p class="muted">${esc(err.message)}</p>`; } return; }
     $('#spend').hidden = false;
     const ms = d.months.map(m => `<option value="${esc(m.month)}"${m.month === d.month ? ' selected' : ''}>${esc(m.month)}</option>`).join('');
     $('#spendMonth').innerHTML = ms; $('#recMonth').innerHTML = ms;
@@ -333,7 +333,7 @@ export default async function mount() {
   async function mountModels(done) {
     let d;
     try { d = await api('/api/maestro/models'); }
-    catch (err) { if (/الجدول ناقص/.test(err.message)) { $('#models').hidden = false; $('#modelsBody').innerHTML = `<p class="muted">${esc(err.message)}</p>`; } return; }
+    catch (err) { if (/ما اكتمل تجهيزه/.test(err.message)) { $('#models').hidden = false; $('#modelsBody').innerHTML = `<p class="muted">${esc(err.message)}</p>`; } return; }
     $('#models').hidden = false;
     $('#modelsProv').innerHTML = d.providers.map(p => `<span class="sp-flag${p.on ? '' : ' bad'}"><span>${esc(PNAME[p.key] || p.ar)}</span> <span>${p.on ? 'مفعّل' : 'غير مفعّل'}</span></span>`).join('');
     $('#modelsBody').innerHTML = `<datalist id="mxOr">${OR_PICKS.map(x => `<option value="${esc(x)}"></option>`).join('')}</datalist>

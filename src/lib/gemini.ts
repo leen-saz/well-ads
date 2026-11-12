@@ -73,8 +73,10 @@ export async function gemini(e: GeminiEnv, module: string, i: GeminiInput, f: ty
 }
 
 // What a person sees when the key is missing: plain words for everyone, the secret's name only for the owner
-export const notReady = (user: { role: string } | null | undefined, key = 'GEMINI_API_KEY'): string =>
-  user?.role === 'owner' ? `ما اكتمل تجهيزه: أضف ${key} في Cloudflare ← Workers ← well-ads ← Settings ← Variables and Secrets.` : 'ما اكتمل تجهيزه، بلّغ الإدارة';
+export const notReady = (user: { role: string } | null | undefined, key = 'GEMINI_API_KEY'): string => {
+  console.warn('not_enabled', key);
+  return user?.role === 'owner' ? 'ما اكتمل تجهيزه. التفاصيل في صفحة الربط.' : 'ما اكتمل تجهيزه، بلّغ الإدارة';
+};
 // Plain words for a failed call, the same on every tab
 export const WHY: Record<GeminiError['code'], string> = {
   no_key: 'ما اكتمل تجهيزه، بلّغ الإدارة', capped: 'وصل الصرف الشهري لهالتاب، بلّغ الإدارة', rate_limited: 'الخدمة مشغولة الحين، جرّب بعد دقيقة',

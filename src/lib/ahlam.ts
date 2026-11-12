@@ -100,7 +100,7 @@ const TOOLS: Tool[] = [
     async run(r, a) {
       const own = mayApprove(r.user, r.cfg) ? '' : `&created_by=eq.${encodeURIComponent(r.user.email)}`;
       const list = await sb<Record<string, unknown>[]>(r.cfg, scoped(`/rest/v1/campaigns?select=id,title,status,estimate_usd,created_at,brief&order=created_at.desc&limit=30${own}`, r.user.co), { admin: true });
-      if (!list.ok) return 'ميزة الحملات ما انفعّلت للشركة بعد: جداول الحملات (migration 030_campaigns.sql) ما انطبقت في Supabase. الناقص: تطبيقها من SQL Editor.';
+      if (!list.ok) return 'ميزة الحملات ما اكتمل تجهيزها للشركة بعد. الناقص: إدارة النظام تكمل تجهيزها.';
       const all = Array.isArray(list.data) ? list.data : [];
       if (!all.length) return 'ما فيه أي حملة مسجّلة لك الحين. الناقص: تكتب أمنياتك في «حملة جديدة» (/today/?tab=campaign) وتعتمد الخطة عشان تنتج المخرجات.';
       const link = (id: unknown) => `/today/?tab=campaign&c=${String(id)}`;
