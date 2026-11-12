@@ -23,6 +23,10 @@ describe('security headers', () => {
     for (const [k, v] of Object.entries(SECURITY_HEADERS)) expect(res.headers.get(k)).toBe(v);
   });
 
+  it('isolates the browsing context from cross-origin windows', () => {
+    expect(withSecurityHeaders(new Response('x')).headers.get('Cross-Origin-Opener-Policy')).toBe('same-origin');
+  });
+
   it('locks down responses that have no CSP', () => {
     const res = withSecurityHeaders(new Response('{}'));
     expect(res.headers.get('Content-Security-Policy')).toBe("default-src 'none'; frame-ancestors 'none'");
