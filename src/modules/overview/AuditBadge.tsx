@@ -20,9 +20,9 @@ export function AuditBadge({ data, from, to, by, plat }: { data: Dash; from: str
   React.useEffect(() => { let on = true; isOwner().then(v => { if (on) setOwns(v); }); return () => { on = false; }; }, []);
   const r = React.useMemo(() => (owns ? audit(data as Dash & Raw, claimFromJudge(data, from, to, by, plat)) : null), [owns, data, from, to, by, plat]);
   if (!r) return null;
-  const l = pageLang(), t = TEXT[l], first = r.verdict.findings.find(f => f.effect !== 'info');
+  const l = pageLang(), t = TEXT[l], first = r.verdict.findings.find(f => f.effect !== 'info') ?? r.findings.find(f => f.effect !== 'info');
   return (
-    <a href={`/maestro/audit/${l === 'en' ? '?lang=en' : ''}`} data-astro-reload title={first ? first.text[l] : pick(l, 'ما لقينا شي يناقض الحكم', 'Nothing found against the verdict')}
+    <a href={`/maestro/audit/${l === 'en' ? '?lang=en' : ''}`} data-astro-reload title={first ? first.text[l] : pick(l, 'ما لقينا شي يناقض الحكم أو الخطوات', 'Nothing found against the verdict or its steps')}
       className={`inline-flex w-fit items-center gap-1.5 rounded-full border px-2.5 py-0.5 text-xs no-underline ${TONE[r.status]}`} data-testid="audit-badge">
       <span className="text-muted-foreground">{t.label}:</span><b>{t[r.status]}</b>
     </a>

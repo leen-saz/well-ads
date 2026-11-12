@@ -70,6 +70,15 @@ describe('auditor: Leen\'s proportions', () => {
   });
 });
 
+describe('auditor: one status for the whole screen', () => {
+  it('an honest verdict with every step confirmed stays confirmed, with nothing listed under others', () => {
+    const d = synth(), c = structuredClone(claimFromJudge(d, from, to));
+    const r = audit(d, c);
+    if (r.status === 'confirmed') expect(r.others).toEqual({ contradicted: [], weakened: [] });
+    expect(['confirmed', 'weakened', 'contradicted'].indexOf(r.status)).toBeGreaterThanOrEqual(['confirmed', 'weakened', 'contradicted'].indexOf(r.verdict.status));
+  });
+});
+
 describe('auditor: a deliberately corrupted verdict is caught', () => {
   const d = synth();
   const honest = (): Claim => claimFromJudge(d, from, to);
@@ -80,6 +89,10 @@ describe('auditor: a deliberately corrupted verdict is caught', () => {
     // The headline names the sale step, so the wrong click figure shows on the click step's own audit
     expect(r.steps.click!.status).toBe('contradicted');
     expect(ids(r)).toContain('mismatch_now');
+    // One status for the screen: never «confirmed» while a step is contradicted, even though the headline's own findings are clean
+    expect(r.verdict.status).not.toBe('contradicted');
+    expect(r.status).toBe('contradicted');
+    expect(r.others.contradicted).toContain('click');
     // (chain_product needs the sale figure, which the adapter leaves out: the judge reads it on the whole CRM)
   });
   it('a wrong owner', () => {

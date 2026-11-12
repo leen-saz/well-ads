@@ -1,6 +1,6 @@
 // «المدقق»: runs both parts on a claim and returns one result: the headline verdict's status (confirmed / weakened /
 // contradicted), the status of each step, and every finding once. Pure: no network, no key, no clock.
-import { type AuditConfig, type AuditResult, type Claim, type Finding, type StepAudit, type StepKey, DEFAULT_CONFIG, statusOf } from './contract';
+import { type AuditConfig, type AuditResult, type Claim, type Finding, type Status, type StepAudit, type StepKey, DEFAULT_CONFIG, rankStatus, statusOf } from './contract';
 import { type Raw, recompute } from './facts';
 import { integrity } from './checks';
 import { advocate } from './advocate';
@@ -14,5 +14,8 @@ export function audit(data: Raw, c: Claim, cfg: AuditConfig = DEFAULT_CONFIG): A
   // The headline: its own findings, and those of the step it names
   const vf = findings.filter(x => x.step === 'verdict' || (c.verdict.step != null && x.step === c.verdict.step));
   const verdict = { status: statusOf(vf), findings: vf };
-  return { status: verdict.status, verdict, steps, findings, checked: a.checked + b.checked };
+  // One status for the whole screen: never «confirmed» while any step is weakened or contradicted. The headline's own status stays in `verdict`.
+  const others = (['contradicted', 'weakened'] as const).map(st => ({ status: st, steps: (Object.entries(steps) as [StepKey, StepAudit][]).filter(([k, s]) => s.status === st && k !== c.verdict.step).map(([k]) => k) }));
+  const worst = [verdict.status, ...Object.values(steps).map(s => s!.status)].reduce<Status>((m, s) => (rankStatus[s] > rankStatus[m] ? s : m), 'confirmed');
+  return { status: worst, verdict, steps, others: { contradicted: others[0]!.steps, weakened: others[1]!.steps }, findings, checked: a.checked + b.checked };
 }

@@ -46,8 +46,9 @@ export interface Finding {
 }
 export interface StepAudit { status: Status; findings: Finding[] }
 export interface AuditResult {
-  status: Status;                       // the headline verdict's status
-  verdict: StepAudit;
+  status: Status;                       // the worst of the headline and every step: «confirmed» only when nothing is weakened or contradicted
+  verdict: StepAudit;                   // the headline's own findings and status
+  others: { contradicted: StepKey[]; weakened: StepKey[] };   // steps other than the one the headline names that are not confirmed
   steps: Partial<Record<StepKey, StepAudit>>;
   findings: Finding[];                  // every finding, once
   checked: number;                      // how many individual checks ran (a skipped check is not counted)

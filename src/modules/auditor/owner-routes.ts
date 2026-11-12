@@ -43,7 +43,7 @@ export const auditRoute = { GET: handle(async (request, e: Env) => {
   const bt = backtest(d, d.range!.end!, { back: Math.min(180, Math.max(28, Number(url.searchParams.get('back')) || 90)) });
 
   // The log of disagreements: one row per (period, platform, step, status, set of checks), written once. Ids only.
-  const checks = [...new Set(r.verdict.findings.filter(f => f.effect !== 'info').map(f => f.id))].sort();
+  const checks = [...new Set(r.findings.filter(f => f.effect !== 'info').map(f => f.id))].sort();
   if (r.status !== 'confirmed') {
     const key = [to, plat ?? 'all', claim.verdict.step ?? 'none', r.status, checks.join(',')].join('|');
     const seen = await sb<unknown[]>(cfg, scoped(`/rest/v1/audit_log?select=id&action=eq.verdict_audit&target->>key=eq.${encodeURIComponent(key)}&limit=1`, user.co), { admin: true });
@@ -52,7 +52,7 @@ export const auditRoute = { GET: handle(async (request, e: Env) => {
   }
   const log = await sb<{ at: string; target: Record<string, unknown> | null }[]>(cfg, scoped('/rest/v1/audit_log?select=at,target&action=eq.verdict_audit&order=at.desc&limit=30', user.co), { admin: true });
   return json(200, {
-    period: { from, to, plat: plat ?? null }, headline: head, status: r.status, checked: r.checked,
+    period: { from, to, plat: plat ?? null }, headline: head, status: r.status, headlineStatus: r.verdict.status, others: r.others, checked: r.checked,
     verdict: { step: claim.verdict.step, level: claim.verdict.level, findings: r.verdict.findings },
     steps: Object.fromEntries(Object.entries(r.steps).map(([k, v]) => [k, { status: v!.status, findings: v!.findings }])),
     backtest: bt, critic: !!e.ANTHROPIC_API_KEY,
