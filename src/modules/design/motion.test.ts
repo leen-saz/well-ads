@@ -6,7 +6,7 @@ import { pick } from '../../lib/llm';
 import { checkUpload, cleanSpec, editPrompt, fileKey, ownKey, parseSpec, specPrompt, templateSpec, type Spec } from './motion';
 import { videoapprove, videoedit, video, videos } from './video';
 // The page's own frame logic (public/modules/design/frame.js), so the preview tested here is the one drawn
-import { frame } from '../../../public/modules/design/frame.js';
+import { anchors, frame } from '../../../public/modules/design/frame.js';
 
 const CO = '00000000-0000-0000-0000-000000000001';
 const KEY = (x: string, ext: string) => `motion/${CO}/${x.repeat(32)}.${ext}`;
@@ -78,6 +78,18 @@ describe('frames', () => {
     expect(pop[0].scale).toBeCloseTo(1, 2);
     expect(frame(spec, 7.9).cta).toBeNull();
     expect(frame(spec, 9.5).cta?.alpha).toBeCloseTo(1, 2);
+  });
+  it('keeps text and the CTA inside the Reels/Stories safe band on 9:16, and leaves other sizes as they were', () => {
+    const [W, H] = [720, 1280], a = anchors(W, H), px = (k: number) => k * H;
+    // 14% top and 35% bottom stay free; a one-line large caption is ~0.09*W*1.35 high, the CTA ~0.11*W
+    const half = (0.092 * W * 1.35 + 0.046 * W) / 2;
+    for (const k of ['top', 'center', 'bottom'] as const) {
+      expect(px(a[k]) - half).toBeGreaterThanOrEqual(0.14 * H);
+      expect(px(a[k]) + half).toBeLessThanOrEqual(0.65 * H);
+    }
+    expect(px(a.cta) + 0.054 * W).toBeLessThanOrEqual(0.68 * H);
+    expect(anchors(1080, 1080)).toEqual({ top: 0.18, center: 0.5, bottom: 0.78, cta: 0.9 });
+    expect(anchors(1280, 720).bottom).toBe(0.78);
   });
   it('zooms the design in over the whole video', () => {
     expect(frame(spec, 0).bg.scale).toBe(1);

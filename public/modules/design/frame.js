@@ -36,8 +36,14 @@ function wrap(ctx, text, max) {
   return out;
 }
 
+// Where text and the CTA sit (fractions of the height). Reels and Stories cover the top ~14% and bottom ~35% with the platform's
+// own UI, so on a tall canvas (9:16) the text moves up into the safe band; square and wide keep the old places.
+export function anchors(W, H) {
+  return H / W > 1.5 ? { top: 0.2, center: 0.45, bottom: 0.52, cta: 0.63 } : { top: 0.18, center: 0.5, bottom: 0.78, cta: 0.9 };
+}
+
 export function draw(ctx, spec, f, img, font = '"Thmanyah Sans", sans-serif') {
-  const { width: W, height: H } = ctx.canvas, m = Math.min(W, H);
+  const { width: W, height: H } = ctx.canvas, m = Math.min(W, H), A = anchors(W, H);
   ctx.save();
   ctx.fillStyle = '#000'; ctx.fillRect(0, 0, W, H);
   if (img?.width) {
@@ -49,7 +55,7 @@ export function draw(ctx, spec, f, img, font = '"Thmanyah Sans", sans-serif') {
     const px = Math.round(m * { s: 0.05, m: 0.068, l: 0.092 }[l.size]);
     ctx.font = `700 ${px}px ${font}`;
     const lines = wrap(ctx, l.text.slice(0, l.chars), W * 0.8), lh = px * 1.35;
-    const y0 = H * { top: 0.18, center: 0.5, bottom: 0.78 }[l.pos] + l.dy * H, x = W / 2 + l.dx * W;
+    const y0 = H * A[l.pos] + l.dy * H, x = W / 2 + l.dx * W;
     const bw = Math.max(...lines.map(s => ctx.measureText(s).width)) + px, bh = lines.length * lh + px * 0.5;
     ctx.save();
     ctx.globalAlpha = l.alpha;
@@ -65,7 +71,7 @@ export function draw(ctx, spec, f, img, font = '"Thmanyah Sans", sans-serif') {
     ctx.font = `700 ${px}px ${font}`;
     const bw = ctx.measureText(f.cta.text).width + px * 1.6, bh = px * 1.8;
     ctx.save();
-    ctx.globalAlpha = f.cta.alpha; ctx.translate(W / 2, H * 0.9); ctx.scale(f.cta.scale, f.cta.scale);
+    ctx.globalAlpha = f.cta.alpha; ctx.translate(W / 2, H * A.cta); ctx.scale(f.cta.scale, f.cta.scale);
     ctx.fillStyle = spec.colors.accent; ctx.beginPath(); ctx.roundRect(-bw / 2, -bh / 2, bw, bh, bh / 2); ctx.fill();
     ctx.fillStyle = spec.colors.text; ctx.fillText(f.cta.text, 0, 0);
     ctx.restore();

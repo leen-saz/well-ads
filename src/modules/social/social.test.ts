@@ -1,5 +1,6 @@
 // Social: validation, due rule, publishing to Facebook/Instagram with a stubbed Graph API, and company scoping.
 import { afterEach, describe, expect, it, vi } from 'vitest';
+import { textLength } from './engine';
 import { validate, due, publishPost, canApprove, cleanApprovers } from './social';
 import { runSocial } from './cron';
 import { WELL_COMPANY } from '../../lib/tenant';
@@ -18,6 +19,16 @@ describe('validate', () => {
     expect(validate({ platforms: ['facebook'], publish_at: later }, NOW).error).toBeTruthy();
     expect(validate({ platforms: ['x'], body: 'ا'.repeat(281), publish_at: later }, NOW).error).toContain('X');
     expect(validate({ platforms: ['instagram'], body: 'x', publish_at: later }, NOW).error).toContain('انستقرام');
+  });
+  it('counts X text the way X does: a link is 23, an emoji is 2, other platforms count characters', () => {
+    const link = 'https://well.example/book/' + 'a'.repeat(120);
+    expect(textLength('x', 'ا'.repeat(10) + ' ' + link)).toBe(10 + 1 + 23);
+    expect(validate({ platforms: ['x'], body: 'ا'.repeat(250) + ' ' + link, publish_at: later }, NOW).error).toBeUndefined();
+    expect(validate({ platforms: ['x'], body: 'ا'.repeat(260) + ' ' + link, publish_at: later }, NOW).error).toContain('X');
+    expect(textLength('x', '👨‍👩‍👧‍👦')).toBe(2);
+    expect(textLength('x', '👍🏽')).toBe(2);
+    expect(textLength('x', '日本')).toBe(4);
+    expect(textLength('facebook', link)).toBe(link.length);
   });
   it('warns on MOH claims precisely without blocking, and defaults to manual', () => {
     const v = validate({ platforms: ['facebook'], body: 'علاج نهائي ومضمون', publish_at: later }, NOW);

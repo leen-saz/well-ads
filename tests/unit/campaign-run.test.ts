@@ -65,14 +65,15 @@ describe('the measurement plan and the pack', () => {
 type Call = { url: string; method: string; body: any };   // eslint-disable-line @typescript-eslint/no-explicit-any
 let ENV = E as typeof E & { OPENAI_API_KEY?: string; GEMINI_API_KEY?: string; FILES?: R2Bucket };
 let stateful = false;
-let images: Record<string, unknown>[] = [], speech: Record<string, unknown>[] = [], imageStatus = 200, imageCode = '', ttsStatus = 200, campaignSeen = true;
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+let motion: { table: string; body: any }[] = [], images: Record<string, unknown>[] = [], speech: Record<string, unknown>[] = [], imageStatus = 200, imageCode = '', ttsStatus = 200, campaignSeen = true;
 const store = new Map<string, Uint8Array>();
-const R2 = { put: async (k: string, v: ArrayBuffer | Uint8Array) => { store.set(k, new Uint8Array(v as ArrayBuffer)); }, get: async (k: string) => (store.has(k) ? { body: new Response(store.get(k) as unknown as BodyInit).body } : null), delete: async (k: string | string[]) => { for (const x of [k].flat()) store.delete(x); } };
+const R2 = { put: async (k: string, v: ArrayBuffer | Uint8Array) => { store.set(k, new Uint8Array(v as ArrayBuffer)); }, get: async (k: string) => (store.has(k) ? { body: new Response(store.get(k) as unknown as BodyInit).body, arrayBuffer: async () => store.get(k)!.slice().buffer } : null), delete: async (k: string | string[]) => { for (const x of [k].flat()) store.delete(x); } };
 let calls: Call[], tasks: Record<string, unknown>[], outputs: Record<string, unknown>[], campaign: Record<string, unknown>, access: Record<string, string>, llm: (n: number) => string, llmN: number, claimable: boolean;
 const profile = (): A.Profile => ({ id: UID, email: 'm@example.com', role: 'member', active: true, access, company_id: WELL_COMPANY });
 const task = (position: number, agent: string, status: string, depends_on: number[] = [], extra: Record<string, unknown> = {}) => ({ id: position + 1, position, agent, title: 'مهمة ' + agent, spec: { detail: 'د' }, depends_on, status, blocked_reason: null, updated_at: new Date().toISOString(), ...extra });
 beforeEach(() => {
-  ENV = E; stateful = false; images = []; speech = []; imageStatus = 200; imageCode = ''; ttsStatus = 200; campaignSeen = true; store.clear(); calls = []; llmN = 0; claimable = true; access = { maestro: 'approve' }; clearRoutes(); clearSnaps();
+  ENV = E; stateful = false; motion = []; images = []; speech = []; imageStatus = 200; imageCode = ''; ttsStatus = 200; campaignSeen = true; store.clear(); calls = []; llmN = 0; claimable = true; access = { maestro: 'approve' }; clearRoutes(); clearSnaps();
   campaign = { id: CID, title: 'حملة', status: 'approved', wishes: { goal: 'حملة للقدم', platforms: ['meta', 'x'] }, brief: { summary: 'ملخص' } };
   tasks = [task(0, 'knowledge', 'waiting'), task(1, 'content', 'waiting', [0]), task(2, 'social', 'waiting', [1]), task(3, 'compliance', 'waiting', [2]), task(4, 'optimize', 'waiting', [3])];
   outputs = []; llm = () => 'نص آمن عن الزيارة المنزلية.';
@@ -84,6 +85,8 @@ beforeEach(() => {
     if (url === OR_URL) return new Response(JSON.stringify({ choices: [{ message: { content: llm(++llmN) } }], usage: { prompt_tokens: 100, completion_tokens: 100, cost: 0.001 } }));
     if (url.includes('/profiles?id=eq.')) return new Response(JSON.stringify([profile()]));
     if (url.endsWith('/rest/v1/campaign_tasks') && method === 'POST') { tasks = (body as Record<string, unknown>[]).map((b, i) => ({ id: i + 1, status: 'waiting', blocked_reason: null, updated_at: new Date().toISOString(), ...b })); return new Response('[]'); }
+    if (url.endsWith('/rest/v1/motion_projects') && method === 'POST') { motion.push({ table: 'projects', body }); return new Response(JSON.stringify([{ id: 7 }])); }
+    if (url.endsWith('/rest/v1/motion_versions') && method === 'POST') { motion.push({ table: 'versions', body }); return new Response('[]'); }
     if (url.includes('/rest/v1/campaign_tasks') && method === 'PATCH') {
       if (!stateful) return new Response(JSON.stringify(claimable ? [{ id: 1 }] : []));
       const tid = Number(/[?&]id=eq\.(\d+)/.exec(url)?.[1]), want = /status=eq\.(\w+)/.exec(url)?.[1], row = tasks.find(x => x['id'] === tid);
@@ -419,9 +422,10 @@ describe('a campaign approved before the tasks existed (no campaign_tasks) can b
   it('gets the standard plan saved (no AI call for it), is audit-logged, and the first task then runs', async () => {
     const j = await step();
     const made = calls.find(x => x.url.endsWith('/campaign_tasks') && x.method === 'POST')!.body as Record<string, unknown>[];
-    expect(made.map(x => x['agent'])).toEqual(['knowledge', 'content', 'design', 'voice', 'social', 'compliance', 'optimize']);
+    expect(made.map(x => x['agent'])).toEqual(['knowledge', 'content', 'design', 'voice', 'design', 'social', 'compliance', 'optimize']);
+    expect(made[4]!['spec']).toMatchObject({ kind: 'motion' }); expect(made[4]!['depends_on']).toEqual([2, 3]);   // the motion comes after the picture and the recording
     expect(made.every(x => x['company_id'] === WELL_COMPANY && x['campaign_id'] === CID && Number(x['estimate_usd']) > 0)).toBe(true);
-    expect(made.find(x => x['agent'] === 'compliance')!['depends_on']).toEqual([1, 2, 3, 4]);
+    expect(made.find(x => x['agent'] === 'compliance')!['depends_on']).toEqual([1, 2, 3, 4, 5]);
     expect(j.ran).toMatchObject({ agent: 'knowledge', status: 'review' });
     expect(calls.filter(x => x.url === OR_URL)).toHaveLength(1);   // only the knowledge task's own call
     expect(calls.filter(x => x.url.includes('/audit_log') && x.method === 'POST').map(x => x.body.action)).toEqual(['campaign_backfill', 'campaign_task_run']);
@@ -671,5 +675,67 @@ describe('what the agents are told and may say', () => {
     outputs = [{ task_id: 1, kind: 'insight', platform: null, body: { text: 'ملخص' }, compliance: [] }];
     await step();
     expect((calls.find(x => x.url.endsWith('/campaign_outputs') && x.method === 'POST')!.body as { body: { text: string } }[])[0]!.body.text).not.toContain('متجاوزة');
+  });
+});
+
+// ---- the motion task: the Design module's motion planner over the campaign's own picture and recording
+describe('«موشن جرافيك» in the campaign: a real motion project from the campaign\'s picture and recording', () => {
+  const LAYOUT = { ...E, OPENAI_API_KEY: undefined, GEMINI_API_KEY: 'g', FILES: R2 as unknown as R2Bucket };
+  const IMG = `campaign/${WELL_COMPANY}/${CID}/${'a'.repeat(32)}.jpg`, WAV = `campaign/${WELL_COMPANY}/${CID}/${'b'.repeat(32)}.wav`;
+  const ready = () => [
+    { id: 41, task_id: 3, kind: 'design_image', platform: 'story', body: { key: IMG, mime: 'image/jpeg', w: 1080, h: 1920 }, compliance: [] },
+    { id: 42, task_id: 4, kind: 'voice_audio', platform: null, body: { key: WAV, mime: 'audio/wav', seconds: 28.4, label: '30', text: 'رعاية موثوقة تبدأ من بيتك. نمشي معك خطوة خطوة.' }, compliance: [] }];
+  beforeEach(() => { ENV = LAYOUT as unknown as typeof ENV; store.set(IMG, new Uint8Array([9, 9, 9])); store.set(WAV, new Uint8Array([7, 7])); campaign['title'] = 'حملة العافية'; tasks = [task(0, 'design', 'waiting', [], { id: 5, spec: { kind: 'motion', detail: 'x' } })]; outputs = ready(); });
+  const ofKind = (k: string) => (calls.find(x => x.url.endsWith('/campaign_outputs') && x.method === 'POST')?.body as { kind: string; body: Record<string, unknown> }[] ?? []).filter(o => o.kind === k);
+
+  it('makes a motion PROJECT (the Design tab\'s own tables and file folder) from the story picture and the 30-second recording, with a scene plan', async () => {
+    const j = await step();
+    expect(j.ran).toMatchObject({ agent: 'design', status: 'review' });
+    const proj = motion.find(m => m.table === 'projects')!.body;
+    expect(proj).toMatchObject({ company_id: WELL_COMPANY, ratio: '9:16', title: 'حملة العافية', voice_seconds: 28.4, voice_mime: 'audio/wav', design_mime: 'image/jpeg', created_by: 'm@example.com' });
+    expect(proj.design_key).toMatch(new RegExp(`^motion/${WELL_COMPANY}/[0-9a-f]{32}\\.jpg$`)); expect(proj.voice_key).toMatch(new RegExp(`^motion/${WELL_COMPANY}/[0-9a-f]{32}\\.wav$`));
+    expect([...store.get(proj.design_key)!]).toEqual([9, 9, 9]); expect([...store.get(proj.voice_key)!]).toEqual([7, 7]);   // copied, not moved: the pack keeps its own files
+    expect(store.has(IMG) && store.has(WAV)).toBe(true);
+    const ver = motion.find(m => m.table === 'versions')!.body;
+    expect(ver).toMatchObject({ project_id: 7, version: 1, engine: 'templates' }); expect(ver.spec.scenes.length).toBeGreaterThan(1); expect(ver.spec.ratio).toBe('9:16');
+    const board = ofKind('motion_storyboard')[0]!.body;
+    expect(board).toMatchObject({ project: 7, version: 1, ratio: '9:16', image_id: 41, audio_id: 42 });
+    expect(calls.filter(x => x.url.includes('/audit_log') && x.method === 'POST').map(x => x.body.action)).toEqual(['motion_create', 'campaign_task_run']);
+  });
+  it('without a picture or a recording it says exactly which is missing and why; no project is made', async () => {
+    outputs = [ready()[1]!];
+    const j = await step();
+    expect(j.ran!.status).toBe('review');
+    expect(motion).toHaveLength(0);
+    const m = ofKind('asset_missing')[0]!.body;
+    expect(m).toMatchObject({ what: 'motion', code: 'needs_inputs' }); expect(String(m['text'])).toContain('صورة التصميم');
+    expect(calls.filter(x => x.method === 'PATCH' && x.url.includes('campaign_tasks')).pop()!.body.spec.missing).toEqual(['motion:needs_inputs']);
+  });
+  it('no file storage: says so, nothing is pretended', async () => {
+    ENV = { ...LAYOUT, FILES: undefined } as unknown as typeof ENV;
+    await step();
+    expect(ofKind('asset_missing')[0]!.body).toMatchObject({ code: 'no_storage' }); expect(motion).toHaveLength(0);
+  });
+  it('the words on the video are checked first: a refused one stops it before any project exists (repair loop)', async () => {
+    campaign['title'] = 'علاج مضمون 100% بدون أي أضرار';
+    const j = await step();
+    expect(j.ran).toMatchObject({ status: 'waiting', fixing: 1 }); expect(motion).toHaveLength(0); expect(store.size).toBe(2);
+  });
+  it('the retry of a missing motion builds it once the picture and recording exist', async () => {
+    outputs = [];
+    await step();
+    expect(motion).toHaveLength(0);
+    calls = []; outputs = ready(); tasks = [task(0, 'design', 'waiting', [], { id: 5, spec: { kind: 'motion', stage: 'assets', missing: ['motion:needs_inputs'] } })];
+    expect((await step()).ran!.status).toBe('review');
+    expect(motion.map(m => m.table)).toEqual(['projects', 'versions']);
+    expect(calls.filter(x => x.method === 'PATCH' && x.url.includes('campaign_tasks')).pop()!.body.spec).not.toHaveProperty('missing');
+  });
+  it('the plan may hold ONE motion task, only as a design task; the standard plan puts it after the design and the voice, before compliance', async () => {
+    const { parsePlan } = await import('../../src/lib/campaign');
+    const p = parsePlan(JSON.stringify({ title: 't', brief: {}, tasks: [{ agent: 'design', title: 'a' }, { agent: 'voice', title: 'b' }, { agent: 'design', title: 'موشن', kind: 'motion', after: [0, 1] }, { agent: 'design', title: 'ثاني', kind: 'motion' }, { agent: 'content', title: 'c', kind: 'motion' }] }))!;
+    expect(p.tasks.map(t => t.kind)).toEqual([undefined, undefined, 'motion', undefined, undefined]);
+    const { defaultTasks } = await import('../../src/lib/campaign-run');
+    const d = defaultTasks(), mi = d.findIndex(x => x.kind === 'motion');
+    expect(d[mi]!.agent).toBe('design'); expect(d[mi]!.after).toEqual([2, 3]); expect(d.findIndex(x => x.agent === 'compliance')).toBeGreaterThan(mi);
   });
 });

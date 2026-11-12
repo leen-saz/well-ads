@@ -14,6 +14,7 @@ import { brandFor } from '../../modules/knowledge/brand';
 import { DEPTS } from '../../lib/auth';
 import { SIZES } from '../../modules/design/design';
 import { TTS_VERSIONS, assetUsd, brandText, brandVoice, designSizes, drawPicture, dropAssets, isMiss, keep, ownAsset, speakText, srtOf, type AssetEnv } from '../../lib/campaign-assets';
+import { buildMotion, isMotionTask } from '../../lib/campaign-motion';
 import { INTERNAL_KINDS, PUBLISHABLE, defaultTasks, MAX_AUTO, MAX_REGEN, MAX_RETRIES, STALE_MS, REASON_MIN, affectedTasks, cleanReason, budgetIssue, kpis, parsePosts, parseVoice, readyTask, rollup, slim, socialTargets, taskMessages, verdict, type OutputRow, type TaskRow } from '../../lib/campaign-run';
 
 type Env = AuthEnv & LlmEnv & AssetEnv;
@@ -72,7 +73,7 @@ export const create = { POST: handle(async (request, e: Env) => {
   const id = made.ok ? idOf(rows(made.data)[0]?.['id']) : null;
   if (!id) return fail(user, made, 'ما انحفظت الحملة');
   const tasks = await sb(cfg, '/rest/v1/campaign_tasks', { method: 'POST', admin: true, headers: { Prefer: 'return=minimal' },
-    body: plan.tasks.map((t, i) => ({ campaign_id: id, company_id: user.co, position: i, agent: t.agent, title: t.title, spec: { detail: t.detail }, depends_on: t.after, estimate_usd: est.perTask[i] })) });
+    body: plan.tasks.map((t, i) => ({ campaign_id: id, company_id: user.co, position: i, agent: t.agent, title: t.title, spec: { detail: t.detail, ...(t.kind ? { kind: t.kind } : {}) }, depends_on: t.after, estimate_usd: est.perTask[i] })) });
   if (!tasks.ok) { await sb(cfg, scoped(`/rest/v1/campaigns?id=eq.${id}`, user.co), { method: 'DELETE', admin: true }); return fail(user, tasks, 'ما انحفظت مهام الحملة'); }
   await audit(cfg, user, 'campaign_create', { target: { id, tasks: plan.tasks.length, estimate_usd: est.usd } });   // never the wishes' text
   return json(200, { id, rough: est.rough });
@@ -171,7 +172,7 @@ export const step = { POST: handle(async (request, e: Env) => {
     // approved before the tasks existed, or saved without them: give it the standard plan now (no AI call, no new approval)
     const m = pick(e, TASK), est = estimate(defaultTasks().map(x => x.agent), m?.model ?? 'openai/gpt-4.1', m?.provider ?? 'openrouter', defaultTasks().map(x => assetUsd(x.agent, Array.isArray((camp['wishes'] as Row | undefined)?.['platforms']) ? ((camp['wishes'] as Row)['platforms'] as string[]) : [])));
     const made = await sb(cfg, '/rest/v1/campaign_tasks', { method: 'POST', admin: true, headers: { Prefer: 'return=minimal' },
-      body: defaultTasks().map((x, i) => ({ campaign_id: id, company_id: user.co, position: i, agent: x.agent, title: x.title, spec: { detail: x.detail, backfilled: true }, depends_on: x.after, estimate_usd: est.perTask[i] })) });
+      body: defaultTasks().map((x, i) => ({ campaign_id: id, company_id: user.co, position: i, agent: x.agent, title: x.title, spec: { detail: x.detail, backfilled: true, ...(x.kind ? { kind: x.kind } : {}) }, depends_on: x.after, estimate_usd: est.perTask[i] })) });
     if (!made.ok) return fail(user, made, 'ما قدرت أجهّز مهام الحملة');
     await audit(cfg, user, 'campaign_backfill', { target: { id, tasks: defaultTasks().length } });
     tasks = await tasksOf(cfg, user.co, id);
@@ -200,7 +201,7 @@ export const step = { POST: handle(async (request, e: Env) => {
   let status = 'review', reason: string | null = null, spec: Row = {}, fixing = 0, assets = 0, missing: string[] = [];
 
   try {
-    const prior = await sb(cfg, scoped(`/rest/v1/campaign_outputs?select=task_id,kind,platform,body,compliance&campaign_id=eq.${id}&order=id.asc&limit=200`, user.co), { admin: true });
+    const prior = await sb(cfg, scoped(`/rest/v1/campaign_outputs?select=id,task_id,kind,platform,body,compliance&campaign_id=eq.${id}&order=id.asc&limit=200`, user.co), { admin: true });
     const outputs = rows(prior.data) as unknown as OutputRow[];
     if (t.agent === 'compliance') {
       // The gate before «ready»: every draft of the campaign is checked again against the rules as they are today. No AI call.
@@ -213,6 +214,10 @@ export const step = { POST: handle(async (request, e: Env) => {
       const n = (l: string) => v.hits.filter(h => h.level === l).length;
       out.push({ task_id: t.id, kind: 'compliance_report', body: { text: `فُحصت ${texts.length} مسودة: ${n('critical')} مخالفة، ${n('warn')} انتبه، ${n('info')} ملاحظة.${overridden.size ? ` (${overridden.size} مهمة متجاوزة بموافقة ومذكورة في الحزمة)` : ''}${v.hits.length ? '\n' + v.hits.slice(0, 20).map(h => `- ${h.title} «${h.match}»: ${h.fix}`).join('\n') : '\nما ظهرت ملاحظات.'}` }, compliance: slim(v.hits) });
       if (v.blocked) { status = 'blocked'; reason = v.reason; }
+    } else if (isMotionTask(t)) {
+      // a motion task is not written by the campaign model: the Design module's motion planner makes the scenes over the campaign's own picture and recording
+      const m = await buildMotion(e, cfg, user, { id, title: String(camp['title'] ?? 'حملة') }, outputs, t.spec?.feedback, extra);
+      out.push(...m.outs.map(o => ({ ...o, task_id: t.id }))); status = m.status; reason = m.reason; missing = m.missing; if (m.project) assets = 1;
     } else {
       const run = { cfg, user, e: e as AhlamEnv };
       const tool = async (n: string, a: Record<string, unknown>): Promise<string> => { try { return (await toolsFor(run).find(x => x.name === n)?.run(run, a)) ?? ''; } catch { return ''; } };
