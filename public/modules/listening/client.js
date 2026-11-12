@@ -179,9 +179,18 @@ async function listening() {
 
   function drawAll() { if (!range) return; const [, to] = rangeMs(range.from, range.to); const sum = summarize(W, M, to, diffDays(range.from, range.to) + 1); drawWatch(); drawBrand(); drawVoice(sum); drawTrend(sum); drawAlerts(sum); drawMentions(); }
 
+  // The watch list and the mentions are asked for together and drawn together: drawn one after the other, the first answer's notices
+  // (sources, brand) were inserted above content that was already on screen and pushed it down.
   async function load() {
-    const d = await api('/api/listening/watch'); setup(d); W = d.watches || [];
-    if (!d.missing) await loadMentions(); else drawAll();
+    const wp = api('/api/listening/watch');
+    const mine = ++mseq;
+    const mp = range ? api(`/api/listening/mentions?from=${range.from}&to=${range.to}`) : null;
+    if (mp) mp.catch(() => {});
+    const d = await wp; W = d.watches || [];
+    if (d.missing || !mp) { setup(d); if (!d.missing) await loadMentions(); else drawAll(); return; }
+    const m = await mp;
+    if (mine !== mseq) { setup(d); return; }   // a newer period was asked for meanwhile: its answer draws
+    setup(d); M = m.mentions || []; shown = 15; drawAll();
   }
   // The mentions of the chosen period (the server cuts them to it); a slower answer for an earlier period is dropped
   async function loadMentions() {
@@ -232,6 +241,7 @@ async function listening() {
   // One period bar for the whole tab: the shares, the trend, the alerts and the list all follow it. In the address and saved in this browser
   mountPeriod($('#lxPeriod'), { id: 'listening', def: '30', onChange: r => { range = r; if (ready) loadMentions().catch(err => say($('#lmsg'), err.message)); } });
   try { await load(); } catch (err) { say($('#lmsg'), err.message); }
+  $('#paneListen').classList.add('lx-ready');
   ready = true;
 }
 

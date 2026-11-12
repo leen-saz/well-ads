@@ -37,6 +37,8 @@ npm run build && npm run test:smoke      # locally, with Chrome installed: PW_CH
   A route that needs a setup step uses `notApplied(user, file)` / `notEnabled(user, …)` from `src/lib/auth.ts`: the owner gets the
   step, everyone else "tell the admin".
 
+- **Layout stability** (`cls.spec.ts`): the control, maestro, health, audit, admin, listening, knowledge, today and overview pages are loaded with every API answer held back 400 ms (the way late data arrives on the live site) and the Cumulative Layout Shift must stay at 0.1 or less. A failure names the element that moved most. The fixture's «numbers are old» notice is switched off for this test (it is a deliberate, rare shift). New late-filled areas get their space reserved in `public/assets/app.css` («Reserved space») or a `.sk` placeholder.
+
 ## What it does not cover
 - Real Supabase (RLS, migrations, the real `profiles` shape beyond what the fake returns): the migrations job covers schema only.
 - Anything an AI model, Paperclip, Meta/TikTok/Google, R2 uploads or the Workflow actually does; only the permission gate and the

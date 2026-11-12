@@ -52,6 +52,7 @@ import { ClientRouter } from 'astro:transitions';
 /* Social listening */
 .lx-tabs{margin:0 0 16px}
 .lx-period{margin:0 0 14px}
+#paneListen:not(.lx-ready) > :not(#lxSk){display:none}.lx-ready > #lxSk{display:none}
 .lx-head{display:flex;flex-wrap:wrap;gap:10px;align-items:center;justify-content:space-between;margin:0 0 14px}
 .lx-src{display:flex;flex-wrap:wrap;gap:6px}
 .lx-src span{font-size:13px;padding:4px 10px;border-radius:999px;background:var(--tint)}
@@ -119,6 +120,8 @@ import { ClientRouter } from 'astro:transitions';
       </div>
 
       <section id="paneListen" role="tabpanel" aria-labelledby="tabL">
+        <!-- Until the first answer arrives the cards stay hidden behind this placeholder: shown early, they were pushed down by the notices above them -->
+        <div class="sk" id="lxSk" aria-hidden="true" style="height:700px"></div>
         <div id="setup"></div>
         <div id="brand"></div>
         <div id="keys"></div>

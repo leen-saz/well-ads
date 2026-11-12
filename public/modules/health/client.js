@@ -92,33 +92,34 @@ export function vitalsCard(d) {
 export default async function mount() {
   shell({ active: 'maestro', title: 'صحة الداتا' }).then(async () => {
     const box = $('#sections');
-    try { box.innerHTML = crmCard(await api('/api/maestro/crm')); } catch (err) { failure(box, err, () => location.reload()); }
-    const vbox = document.createElement('div');
-    box.prepend(vbox);
-    const loadVitals = async () => { try { vbox.innerHTML = vitalsCard(await api('/api/maestro/vitals')); } catch (err) { failure(vbox, err, loadVitals); } };
+    // The cards sit in their final order from the start, and every request starts at once, but each card is FILLED in that order.
+    // A card that arrives early waits for the ones above it: filling out of order (or prepending) pushed the visible ones down (layout shift).
+    const vbox = document.createElement('div'), lbox = document.createElement('div'), cbox = document.createElement('div'), holder = document.createElement('div');
+    box.replaceChildren(vbox, lbox, cbox, holder);
     // Listening sources that are off, with the key names and where to get them (owner only: the Listening tab shows plain words)
-    const lbox = document.createElement('div');
-    vbox.after(lbox);
     const LISTEN = [
       { src: 'youtube', label: 'يوتيوب', keys: 'YOUTUBE_API_KEY', where: 'Google Cloud ← APIs ← YouTube Data API v3 ← Credentials ← API key' },
       { src: 'x', label: 'X وتيك توك عن طريق Grok', keys: 'XAI_API_KEY', where: 'console.x.ai ← API keys' },
       { src: 'reddit', label: 'ريديت', keys: 'REDDIT_CLIENT_ID و REDDIT_CLIENT_SECRET', where: 'reddit.com/prefs/apps ← create app ← نوع script' },
     ];
-    const loadListen = async () => {
+    const loadVitals = async (first) => { try { vbox.innerHTML = vitalsCard(await (first || api('/api/maestro/vitals'))); } catch (err) { failure(vbox, err, () => loadVitals()); } };
+    const loadListen = async (first) => {
       try {
-        const d = await api('/api/listening/watch');
+        const d = await (first || api('/api/listening/watch'));
         const off = d.missing ? [] : LISTEN.filter(k => !d.sources?.[k.src]);
         lbox.innerHTML = d.missing ? `<section class="card pad"><h2 style="margin:0 0 6px">الرصد: ما اكتمل تجهيزه</h2><p class="muted" style="margin:0">جداول الرصد ناقصة. شغّل <code>013_listening.sql</code> من مجلد supabase/migrations في Supabase ← SQL Editor، وبعدها ارجع هنا.</p></section>`
           : off.length ? `<section class="card pad"><h2 style="margin:0 0 6px">الرصد: مصادر ما انفعّلت</h2><p class="muted" style="margin:0 0 8px">أسرار في Cloudflare: Workers ← well-ads ← Settings ← Variables and Secrets ← Add ← Secret.</p>
             <ul>${off.map(k => `<li><b>${esc(k.label)}</b>: <code>${esc(k.keys)}</code> · من ${esc(k.where)}</li>`).join('')}</ul></section>` : '';
-      } catch (err) { failure(lbox, err, loadListen); }
+      } catch (err) { failure(lbox, err, () => loadListen()); }
     };
-    loadListen();
-    loadVitals();
+    // The requests start together; the cards fill top to bottom
+    const pV = api('/api/maestro/vitals'), pL = api('/api/listening/watch'), pC = api('/api/maestro/crm');
+    for (const p of [pV, pL, pC]) p.catch(() => {});
+    await loadVitals(pV);
+    await loadListen(pL);
+    try { cbox.innerHTML = crmCard(await pC); } catch (err) { failure(cbox, err, () => location.reload()); }
     // One request per part: each stays under the platform's per-request call limit
     const h = { duplicates: {}, counts: {}, orphans: {}, migrations_missing: [], freshness: { platforms: [] }, joins: null };
-    const holder = document.createElement('div');
-    box.append(holder);
     for (const part of ['sources', 'content', 'counts', 'schema']) {
       try { const r = await api('/api/maestro/health?part=' + part); Object.assign(h, r, { duplicates: { ...h.duplicates, ...(r.duplicates || {}) } }); holder.innerHTML = healthCards(h); }
       catch (err) { say($('#msg'), err.message); }

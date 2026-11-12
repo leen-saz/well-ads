@@ -108,6 +108,27 @@ import { ClientRouter } from 'astro:transitions';
     <header class="topbar" id="top"></header>
     <main class="content" id="content">
       <p class="muted" style="margin:0 0 12px"><a id="healthLink" href="/maestro/health/" hidden>صحة الداتا ←</a> <a id="auditLink" href="/maestro/audit/" hidden style="margin-inline-start:12px">تدقيق القرارات ←</a></p>
+      <div id="setup"></div>
+      <div id="board" hidden>
+        <div class="mx-bar">
+          <nav class="mx-tabs" role="tablist" aria-label="المدير">
+            <button role="tab" data-view="overview">لوحة</button>
+            <button role="tab" data-view="inbox">الوارد <span class="mx-cnt" id="inboxCnt"></span></button>
+            <button role="tab" data-view="tasks">المهام</button>
+            <button role="tab" data-view="agents">الإيجنتس</button>
+            <button role="tab" data-view="chat">المحادثة</button>
+          </nav>
+          <div class="mx-tools">
+            <label class="mx-search"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></svg><input type="search" id="q" placeholder="ابحث… (/)" aria-label="بحث"></label>
+            <div class="seg mx-layout" role="group" aria-label="العرض"><button type="button" data-layout="list" aria-pressed="true" title="قائمة">☰</button><button type="button" data-layout="board" aria-pressed="false" title="لوحة">▦</button></div>
+            <button class="btn primary sm" id="newTask" title="مهمة جديدة (C)">+ مهمة جديدة</button>
+          </div>
+        </div>
+        <div class="mx-filters" id="filters"></div>
+        <div id="view"></div>
+        <div class="msg" id="msg" role="status"></div>
+      </div>
+      <!-- Owner-only sections come AFTER the board: they appear late, and above it they pushed the whole board down -->
       <section class="card pad" id="spend" hidden aria-labelledby="spendH">
         <div class="mx-bar" style="border:0;margin:0"><h2 id="spendH" style="margin:0">الصرف على الذكاء الاصطناعي</h2>
           <label class="sr" for="spendMonth"><select id="spendMonth" aria-label="الشهر"></select></label></div>
@@ -133,26 +154,6 @@ import { ClientRouter } from 'astro:transitions';
         <div id="modelsBody"></div>
         <div class="msg" id="modelsMsg" role="status"></div>
       </section>
-      <div id="setup"></div>
-      <div id="board" hidden>
-        <div class="mx-bar">
-          <nav class="mx-tabs" role="tablist" aria-label="المدير">
-            <button role="tab" data-view="overview">لوحة</button>
-            <button role="tab" data-view="inbox">الوارد <span class="mx-cnt" id="inboxCnt"></span></button>
-            <button role="tab" data-view="tasks">المهام</button>
-            <button role="tab" data-view="agents">الإيجنتس</button>
-            <button role="tab" data-view="chat">المحادثة</button>
-          </nav>
-          <div class="mx-tools">
-            <label class="mx-search"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></svg><input type="search" id="q" placeholder="ابحث… (/)" aria-label="بحث"></label>
-            <div class="seg mx-layout" role="group" aria-label="العرض"><button type="button" data-layout="list" aria-pressed="true" title="قائمة">☰</button><button type="button" data-layout="board" aria-pressed="false" title="لوحة">▦</button></div>
-            <button class="btn primary sm" id="newTask" title="مهمة جديدة (C)">+ مهمة جديدة</button>
-          </div>
-        </div>
-        <div class="mx-filters" id="filters"></div>
-        <div id="view"></div>
-        <div class="msg" id="msg" role="status"></div>
-      </div>
       <dialog id="dlg" class="mx-dlg">
         <form id="f" method="dialog" novalidate>
           <h2>مهمة جديدة</h2>
