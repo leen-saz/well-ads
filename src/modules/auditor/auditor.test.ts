@@ -111,6 +111,52 @@ describe('auditor: a deliberately corrupted verdict is caught', () => {
   });
 });
 
+describe('auditor: every integrity check has a test that trips it', () => {
+  const d = synth();
+  const honest = (): Claim => claimFromJudge(d, from, to);
+  const corrupt = (f: (c: Claim) => void, data = d, base: Claim = honest()) => { const c = structuredClone(base); f(c); return audit(data, c); };
+
+  it('a quoted earlier-period figure or usual level that is off', () => {
+    expect(ids(corrupt(c => { c.steps.find(s => s.key === 'click')!.prev = 99; }))).toContain('mismatch_prev');
+    expect(ids(corrupt(c => { c.steps.find(s => s.key === 'click')!.median = 99; }))).toContain('mismatch_median');
+  });
+  it('a negative SAR at stake', () => {
+    expect(ids(corrupt(c => { c.steps[0]!.sarAtStake = -5; }))).toContain('sar_negative');
+  });
+  it('a SAR at stake that is not the shortfall formula when the judge states that method', () => {
+    const r = corrupt(c => { c.sarMethod = 'shortfall'; const s = c.steps.find(x => x.key === 'click')!; s.target = 0.7; s.sarAtStake = 123456; });
+    expect(ids(r)).toContain('sar_recompute');
+  });
+  it('a named step that is itself fine, and a verdict level that differs from its step', () => {
+    const named = corrupt(c => { c.verdict = { step: 'click', level: 'bad', owner: OWNER_RULE.click.ar }; c.steps.find(s => s.key === 'click')!.level = 'ok'; });
+    expect(ids(named)).toContain('named_step_not_weak');
+    const lvl = corrupt(c => { c.verdict = { step: 'click', level: 'watch', owner: OWNER_RULE.click.ar }; c.steps.find(s => s.key === 'click')!.level = 'bad'; });
+    expect(ids(lvl)).toContain('level_mismatch');
+  });
+  it('a step owner that is not the rule table\'s', () => {
+    expect(ids(corrupt(c => { c.steps[0]!.owner = 'nobody'; }))).toContain('owner_mismatch_step');
+  });
+  it('confidence above «low» when coverage is under the low line', () => {
+    const poor = synth({ tied: 0.12, paidTied: 4 });
+    const base = claimFromJudge(poor, from, to);
+    const r = corrupt(c => { c.verdict.confidence = 'medium'; }, poor, base);
+    expect(recompute(poor, from, to).crm.coverage!).toBeLessThan(0.3);
+    expect(ids(r)).toContain('confidence_vs_coverage');
+    expect(r.findings.find(f => f.id === 'confidence_vs_coverage')!.effect).toBe('weakens');
+  });
+  it('the rates must multiply to the end to end rate (chain_product), and an exact set passes', () => {
+    const f = recompute(d, from, to);
+    const click = f.scope.ctr!, lead = f.scope.c2r!;
+    const exact = (f.crm.booked / f.scope.impr / f.crm.coverage!) / ((click / 100) * (lead / 100)) * 100;
+    const set = (sale: number) => (c: Claim) => {
+      c.steps.find(s => s.key === 'click')!.now = click; c.steps.find(s => s.key === 'lead')!.now = lead;
+      const x = c.steps.find(s => s.key === 'sale')!; x.now = sale; x.unattributed = false;
+    };
+    expect(ids(corrupt(set(exact)))).not.toContain('chain_product');
+    expect(ids(corrupt(set(exact * 1.5)))).toContain('chain_product');
+  });
+});
+
 describe('auditor: the devil\'s advocate', () => {
   const claimWith = (d: ReturnType<typeof synth>, level: 'bad' | 'ok', step: Claim['verdict']['step'], tweak?: (c: Claim) => void): Claim => {
     const c = claimFromJudge(d, from, to);
