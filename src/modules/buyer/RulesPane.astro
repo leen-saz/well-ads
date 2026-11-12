@@ -1,0 +1,33 @@
+---
+// «قواعد الإدارة»: the owner's rules of the Media buyer (import, export, edit the limits and the open decisions), as a pane of the
+// decisions board. Markup only; the script is public/modules/buyer/rules.js (mountRules). Ids are prefixed by-.
+---
+<div id="by-rulesBox" hidden>
+  <section class="card pad" style="margin:0 0 12px">
+    <div class="bar" style="justify-content:space-between;margin:0 0 8px"><h2 style="margin:0">قواعد الإدارة</h2><div class="bar"><button class="btn sm secondary" type="button" id="by-rulesExport">تصدير</button><button class="btn sm" type="button" id="by-rulesImport">استيراد القواعد</button></div></div>
+    <p class="muted" id="by-rulesInfo" style="margin:0 0 8px"></p>
+    <div id="by-rulesForm" hidden>
+      <p class="muted" style="margin:0 0 8px">ارفع ملف JSON أو الصق نصه. تنحفظ في قاعدة البيانات فقط، والملف ما يدخل الريبو.</p>
+      <input type="file" id="by-rulesFile" accept="application/json,.json" style="margin:0 0 8px">
+      <textarea id="by-rulesText" rows="6" dir="ltr" style="width:100%;font:13px var(--f-num,monospace)" placeholder='{"rules":[...]}'></textarea>
+      <div class="bar" style="margin:8px 0 0"><button class="btn sm secondary" type="button" id="by-rulesPreview">معاينة</button></div>
+      <div id="by-rulesPrev" style="margin:10px 0 0"></div>
+    </div>
+  </section>
+  <section class="card pad">
+    <div class="bar" style="justify-content:space-between;margin:0 0 8px"><h3 style="margin:0">تعديل الحدود والقرارات المفتوحة</h3><button class="btn sm" type="button" id="by-rulesSaveEdit">احفظ التعديلات</button></div>
+    <div id="by-rulesEdit"></div>
+  </section>
+  <div class="msg" id="by-rulesMsg" role="status"></div>
+</div>
+<style is:global>
+.by-edit{width:100%;border-collapse:collapse;font-size:13px}
+.by-edit th,.by-edit td{padding:6px 8px;text-align:start;border-bottom:1px solid var(--line);vertical-align:top}
+.by-edit input,.by-edit select{width:100%;min-width:70px;font:inherit;padding:4px 6px}
+.by-edit input[type=number]{max-width:90px;font-family:var(--f-num,inherit)}
+.by-edit .by-lim{display:grid;gap:4px}
+.by-edit .by-lim label{display:grid;grid-template-columns:auto 1fr;gap:6px;align-items:center}
+.by-open{background:var(--pulse);color:#fff}
+.by-prev{width:100%;border-collapse:collapse;font-size:13px}
+.by-prev th,.by-prev td{padding:6px 8px;text-align:start;border-bottom:1px solid var(--line)}
+</style>

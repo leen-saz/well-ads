@@ -1,6 +1,7 @@
 ---
 import { ClientRouter } from 'astro:transitions';
 import Pane from './Pane.astro';
+import RulesPane from './RulesPane.astro';
 // الميديا باير: توصيات مرتبة من أرقام الإعلانات، وتنفيذ بموافقة لين على كل إجراء (تجربة بدون تنفيذ أول، وزر طوارئ).
 ---
 <!doctype html>
@@ -27,17 +28,7 @@ import Pane from './Pane.astro';
     <header class="topbar" id="top"></header>
     <main class="content" id="content">
       <Pane />
-      <section class="card pad" id="by-rulesBox" hidden style="margin:16px 0 0">
-        <div class="bar" style="justify-content:space-between;margin:0 0 8px"><h2 style="margin:0">قواعد الشركة</h2><div class="bar"><button class="btn sm secondary" type="button" id="by-rulesExport">تصدير</button><button class="btn sm" type="button" id="by-rulesImport">استيراد القواعد</button></div></div>
-        <p class="muted" id="by-rulesInfo" style="margin:0 0 8px"></p>
-        <div id="by-rulesForm" hidden>
-          <p class="muted" style="margin:0 0 8px">ارفع ملف JSON أو الصق نصه. تنحفظ في قاعدة البيانات فقط، والملف ما يدخل الريبو.</p>
-          <input type="file" id="by-rulesFile" accept="application/json,.json" style="margin:0 0 8px">
-          <textarea id="by-rulesText" rows="6" dir="ltr" style="width:100%;font:13px var(--f-num,monospace)" placeholder='{"rules":[...]}'></textarea>
-          <div class="bar" style="margin:8px 0 0"><button class="btn sm secondary" type="button" id="by-rulesPreview">معاينة</button></div>
-          <div id="by-rulesPrev" style="margin:10px 0 0"></div>
-        </div>
-      </section>
+      <RulesPane />
     </main>
   </div>
 </div>

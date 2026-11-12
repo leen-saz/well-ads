@@ -15,7 +15,7 @@ export default async function mount() {
 
   // ?tab=log opens the past decisions (the «السجل» link in the sidebar, and /history/)
   const urlTab = new URLSearchParams(location.search).get('tab');
-  const S = { kill: { kill: false }, tab: ['log', 'learn', 'buyer'].includes(urlTab) ? urlTab : 'all', q: '', kind: '', level: '', sort: 'impact', open: [], done: [], ads: {}, gen: null, settings: [], owner: false, sel: new Set(), cursor: 0, hist: { status: '' } };
+  const S = { kill: { kill: false }, tab: ['log', 'learn', 'buyer', 'rules'].includes(urlTab) ? urlTab : 'all', q: '', kind: '', level: '', sort: 'impact', open: [], done: [], ads: {}, gen: null, settings: [], owner: false, sel: new Set(), cursor: 0, hist: { status: '' } };
 
   // الأثر بالريال لكل أسبوع: الإيقاف يوفر صرف آخر 7 أيام، والرفع يضيف نسبة منه
   function impact(s) {
@@ -127,7 +127,8 @@ export default async function mount() {
       `<button role="tab" data-t="${k}" aria-selected="${S.tab === k}">${t}<span class="cnt">${n(k)}</span></button>`).join('')
       + `<button role="tab" data-t="log" aria-selected="${S.tab === 'log'}">${icon('clock')}القرارات السابقة<span class="cnt">${S.done.length}</span></button>`
       + `<button role="tab" data-t="learn" aria-selected="${S.tab === 'learn'}">${icon('refresh')}التعلّم</button>`
-      + `<button role="tab" data-t="buyer" aria-selected="${S.tab === 'buyer'}">${icon('check')}توصيات القواعد</button>`;
+      + `<button role="tab" data-t="buyer" aria-selected="${S.tab === 'buyer'}">${icon('check')}توصيات القواعد</button>`
+      + (S.owner ? `<button role="tab" data-t="rules" aria-selected="${S.tab === 'rules'}">${icon('gavel')}قواعد الإدارة</button>` : '');
   }
   function filters() {
     if (S.tab === 'log') {
@@ -212,9 +213,17 @@ export default async function mount() {
     S.buyerLoaded = true;
     import('/modules/buyer/client.js').then(m => m.mountPane()).catch(err => { S.buyerLoaded = false; $('#buyerPane').hidden = false; $('#by-list').innerHTML = `<div class="empty">${icon('alert')}<div>${esc(err.message || 'ما قدرت أحمّل التوصيات')}</div></div>`; });
   }
+  // قواعد الإدارة: للمالكة بس (public/modules/buyer/rules.js)
+  function rulesPane() {
+    $('#filters').innerHTML = ''; $('#selbar').hidden = true;
+    if (S.rulesLoaded) { $('#by-rulesBox').hidden = false; return; }
+    S.rulesLoaded = true;
+    import('/modules/buyer/rules.js').then(m => m.mountRules()).catch(() => { S.rulesLoaded = false; });
+  }
   function render() {
-    const b = S.tab === 'buyer'; $('#inbox').hidden = b; if ($('#buyerPane')) $('#buyerPane').hidden = !b || !S.buyerLoaded;
-    kpis(); tabs(); filters(); b ? buyerPane() : S.tab === 'log' ? history() : S.tab === 'learn' ? learning() : inbox();
+    if (S.tab === 'rules' && !S.owner) S.tab = 'all';           // the owner's section: nobody else gets it, even with ?tab=rules
+    const b = S.tab === 'buyer', r = S.tab === 'rules'; $('#inbox').hidden = b || r; if ($('#buyerPane')) $('#buyerPane').hidden = !b || !S.buyerLoaded; if ($('#by-rulesBox')) $('#by-rulesBox').hidden = !r || !S.rulesLoaded;
+    kpis(); tabs(); filters(); r ? rulesPane() : b ? buyerPane() : S.tab === 'log' ? history() : S.tab === 'learn' ? learning() : inbox();
   }
   // التعلّم: الدروس، وحركات الفريق داخل المنصات، ونتايج القرارات بعد 3 و7 أيام
   async function learning() {
