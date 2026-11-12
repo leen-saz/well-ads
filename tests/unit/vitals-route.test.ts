@@ -60,6 +60,6 @@ describe('vitals card', () => {
   it('a table that is not created yet says which migration to run', async () => {
     world(owner, { code: '42P01', message: 'missing' }, 404);
     const j = await (await call('/api/maestro/vitals', owner)).json() as { missing?: string };
-    expect(j.missing).toContain('022_web_vitals.sql');
+    expect(j.missing).not.toMatch(/022_web_vitals|Supabase|SQL/); expect(j.missing).toContain('صحة الداتا');
   });
 });

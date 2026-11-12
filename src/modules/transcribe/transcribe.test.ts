@@ -190,7 +190,7 @@ describe('the Gemini adapter', () => {
   });
   it('plain words for a missing key: the secret name only for the owner', () => {
     expect(notReady({ role: 'member' })).toBe('ما اكتمل تجهيزه، بلّغ الإدارة');
-    expect(notReady({ role: 'owner' })).toContain('GEMINI_API_KEY');
+    expect(notReady({ role: 'owner' })).toContain('صفحة الربط');
     expect(new GeminiError('empty').code).toBe('empty');
   });
   it('uploads in two calls (start, then the bytes with their length), and only touches files/<id> names', async () => {
@@ -314,7 +314,7 @@ describe('routes', () => {
   it('the list says whether it is ready, in plain words for a member and with the secret name for the owner', async () => {
     delete E.GEMINI_API_KEY;
     expect(await json(await call(T.jobs.GET, writer))).toMatchObject({ ready: false, why: 'ما اكتمل تجهيزه، بلّغ الإدارة' });
-    expect((await json(await call(T.jobs.GET, owner))).why).toContain('GEMINI_API_KEY');
+    expect((await json(await call(T.jobs.GET, owner))).why).toContain('صفحة الربط');
     E.GEMINI_API_KEY = 'k';
     expect(await json(await call(T.jobs.GET, writer))).toMatchObject({ ready: true, why: '', max_mb: 95 });
   });

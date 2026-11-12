@@ -116,10 +116,10 @@ describe('saving', () => {
     expect(said).not.toMatch(/020_library|Supabase|SQL/);
     expect(said).toContain('بلّغ الإدارة');
   });
-  it('the owner is told which migration to run', async () => {
+  it('the owner is pointed to the Data health page, with no file name', async () => {
     vi.stubGlobal('fetch', vi.fn(async (url: string) => new Response(JSON.stringify(url.includes('/profiles') ? [owner] : { code: 'PGRST205' }), { status: url.includes('/profiles') ? 200 : 404 })));
     const r = await call(root.GET, owner);
-    expect(((await r.json()) as { error: string }).error).toContain('020_library.sql');
+    expect(((await r.json()) as { error: string }).error).not.toMatch(/020_library|Supabase|SQL/);
   });
 });
 

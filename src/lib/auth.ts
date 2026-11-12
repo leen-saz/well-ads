@@ -194,15 +194,17 @@ export async function sb<T = unknown>(cfg: Cfg, path: string,
 // A table or column a migration adds, read before that migration is applied (PostgREST / Postgres error codes)
 export const missingSchema = (r: SbResult<unknown>): boolean =>
   !r.ok && ['PGRST205', 'PGRST204', '42P01', '42703'].includes(String((r.data as { code?: unknown } | null)?.code ?? ''));
-// A table a migration adds is not there yet: only the owner hears which file (a normal user gets a plain sentence)
-export const notApplied = (user: { role: string } | null | undefined, file: string) =>
-  user?.role === 'owner' ? `الجدول ناقص في قاعدة البيانات: شغّل ${file} في Supabase ← SQL Editor`
-    : 'جزء من النظام ما اكتمل تجهيزه. بلّغ الإدارة.';
+// A table a migration adds is not there yet: plain words for everyone; the owner is pointed to the Data health page
+export const notApplied = (user: { role: string } | null | undefined, file: string) => {
+  console.warn('not_applied', file);   // the file to apply is for the logs and the data-health page, never for a page's text
+  return user?.role === 'owner' ? 'جزء من النظام ما اكتمل تجهيزه. التفاصيل في صفحة صحة الداتا.' : 'جزء من النظام ما اكتمل تجهيزه. بلّغ الإدارة.';
+};
 
-// A feature waiting for a key: the owner gets the exact step, everyone else a plain sentence
-export const notEnabled = (user: { role: string } | null | undefined, what: string, key: string) =>
-  user?.role === 'owner' ? `${what} يحتاج تفعيل: أضف ${key} في Cloudflare ← Workers ← well-ads ← Settings ← Variables and Secrets.`
-    : `${what} يحتاج تفعيل من الإدارة. بلّغ مالك الحساب.`;
+// A feature waiting for a key: plain words for everyone; the key's name stays in the logs and on the Connectors page
+export const notEnabled = (user: { role: string } | null | undefined, what: string, key: string) => {
+  console.warn('not_enabled', key);
+  return user?.role === 'owner' ? `${what} يحتاج تفعيل. التفاصيل في صفحة الربط.` : `${what} يحتاج تفعيل من الإدارة. بلّغ مالك الحساب.`;
+};
 
 // Diagnostics: the kind of key in use, never the key. JWT keys expose only their role claim.
 export function keyKind(k: string): string {
