@@ -4,13 +4,21 @@
 import { T, type RuleId } from './playbook';
 import type { Kind } from './buyer';
 
-export interface Outcome { rule: RuleId; platform: string; kind: Kind; days: number; before: { cpl: number | null; leads: number; spend: number }; after: { cpl: number | null; leads: number; spend: number }; acted: boolean }
+export interface Window { cpl: number | null; ctr?: number | null; leads: number; spend: number; impr?: number }
+export interface Outcome { rule: RuleId; platform: string; kind: Kind; days: number; before: Window; after: Window; acted: boolean }
 export type Result = 'worked' | 'no_change' | 'worse' | 'unclear' | 'not_acted';
 
 // Spend changes are the media buyer's, so an outcome only counts when the recommendation was acted on
 export function judgeOutcome(o: Outcome): Result {
   if (!o.acted) return 'not_acted';
   const { before: b, after: a } = o;
+  // TikTok is judged by click rate and engagement, never by leads (the owner's decision)
+  if (o.platform === 'tiktok') {
+    if (b.ctr == null || a.ctr == null || (b.impr ?? 0) < 2000 || (a.impr ?? 0) < 2000) return 'unclear';
+    if (o.kind === 'pause') return a.spend < b.spend * 0.2 ? 'worked' : 'unclear';
+    const d = (a.ctr - b.ctr) / b.ctr;
+    return d >= 0.1 ? 'worked' : d <= -0.1 ? 'worse' : 'no_change';
+  }
   if (b.cpl == null || a.cpl == null || a.leads + b.leads < 5) return 'unclear';
   const d = (a.cpl - b.cpl) / b.cpl;
   if (o.kind === 'budget_up') return a.cpl <= b.cpl * 1.15 && a.leads > b.leads ? 'worked' : a.cpl > b.cpl * 1.3 ? 'worse' : 'no_change';
