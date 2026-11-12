@@ -281,6 +281,19 @@ describe('the mandatory guards', () => {
     expect(W.audit.map(x => x.action)).toContain('buyer_kill_on');
     expect((await call('/api/buyer/apply', { method: 'POST', body: applyBody(open(), { mode: 'dry' }) })).body.blocks).toEqual(['kill']);
   });
+  it('one emergency stop: the decisions board button (same flag) stops this layer too, is audited, and only the owner lifts it', async () => {
+    await propose(); as(APPROVER);
+    expect((await call('/api/control/kill', { method: 'POST', body: { on: true } })).status).toBe(200);
+    expect(W.audit.map(x => x.action)).toContain('kill_on');
+    const r = await call('/api/buyer/apply', { method: 'POST', body: applyBody(open()) });
+    expect(r.status).toBe(409); expect(r.body.code).toBe('kill'); expect(writes()).toEqual([]);
+    expect((await call('/api/buyer/actions')).body.settings.kill).toBe(true);
+    expect((await call('/api/control/kill', { method: 'POST', body: { on: false } })).status).toBe(403);          // an approver cannot lift it
+    as(OWNER);
+    expect((await call('/api/control/kill', { method: 'POST', body: { on: false } })).status).toBe(200);
+    expect(W.audit.map(x => x.action)).toContain('kill_off');
+    expect((await call('/api/buyer/actions')).body.settings.kill).toBe(false);
+  });
   it('anyone who may approve can press the stop; only the owner lifts it or changes the limits and switches', async () => {
     as(APPROVER);
     for (const body of [{ kill: false }, { maxPct: 40 }, { dailyCap: 500 }, { live: { platform: 'meta', on: true } }]) expect((await call('/api/buyer/execution', { method: 'POST', body })).status, JSON.stringify(body)).toBe(403);

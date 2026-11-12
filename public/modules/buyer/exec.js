@@ -56,8 +56,6 @@ function render() {
   if (missing) { $('#by-execStateMsg').innerHTML = `<p class="muted">${esc(state.message)}</p>`; $('#by-actions').innerHTML = ''; $('#by-execCtl').hidden = true; return; }
   $('#by-execCtl').hidden = false; $('#by-execStateMsg').innerHTML = '';
   $('#by-killBanner').hidden = !s.kill;
-  $('#by-killBtn').hidden = s.kill || !can.approve;
-  $('#by-unkillBtn').hidden = !s.kill || !can.owner;
   const plats = ['meta', 'snapchat'];
   $('#by-execState').innerHTML = plats.map(p => `<div class="by-plat"><b>${esc(PLAT[p])}</b>
       <span class="by-st ${s.configured[p] ? 'ok' : 'off'}"><i></i><span>${s.configured[p] ? 'مفتاح التنفيذ مضاف' : 'مفتاح التنفيذ ناقص'}</span></span>
@@ -117,6 +115,8 @@ export async function mountExec({ afterChange } = {}) {
   onChange = afterChange || (() => {});
   try { await reload(); } catch { return; }          // no access to the tab's actions: the section stays hidden
   const act = async (fn, btn, okMsg) => { busy(btn, true); try { await fn(); if (okMsg) say($('#by-msg'), okMsg, true); await reload(); } catch (err) { say($('#by-msg'), err.message); await reload().catch(() => {}); } busy(btn, false); };
+  // One emergency stop for everything: the board's own button (public/assets/control.js). It tells this pane to reread the state.
+  window.addEventListener('buyer-reload', () => { reload().catch(() => {}); }, { signal: pageSignal() });
   document.addEventListener('click', e => {
     const b = e.target.closest('button'); if (!b || !$('#by-execBox') || !$('#by-execBox').contains(b)) return;
     const id = b.dataset.apply || b.dataset.reject || b.dataset.done || b.dataset.back;
@@ -133,8 +133,6 @@ export async function mountExec({ afterChange } = {}) {
     }
     else if (b.dataset.live) act(() => api('/api/buyer/execution', { method: 'POST', body: { live: { platform: b.dataset.live, on: b.dataset.on === '1' } } }), b);
   }, { signal: pageSignal() });
-  $('#by-killBtn').addEventListener('click', e => act(() => api('/api/buyer/execution', { method: 'POST', body: { kill: true } }), e.currentTarget, 'تم إيقاف التنفيذ لكل المنصات'));
-  $('#by-unkillBtn').addEventListener('click', e => act(() => api('/api/buyer/execution', { method: 'POST', body: { kill: false } }), e.currentTarget, 'انرفع الإيقاف. التنفيذ الحقيقي يبقى مقفل لين تفعّله لكل منصة'));
   $('#by-limitsSave').addEventListener('click', e => act(() => {
     const body = {}, p = $('#by-limPct').value.trim(), d = $('#by-limDaily').value.trim();
     if (p) body.maxPct = Number(p); if (d) body.dailyCap = Number(d);

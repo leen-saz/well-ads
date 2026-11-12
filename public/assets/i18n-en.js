@@ -492,6 +492,7 @@ export const EN = {
   'ما لقيت مشاكل في التتبع.': 'No tracking issues found.', 'الأرقام توصل من كل المنصات والليدز مربوطة بإعلاناتها.': 'Numbers arrive from every platform and leads are tied to their ads.',
   // الميديا باير (buyer)
   'توصيات القواعد': 'Rule recommendations',
+  'التنفيذ موقوف لكل المنصات (إيقاف الطوارئ مفعّل). الرفع من زر «إيقاف الطوارئ» فوق، ولين بس ترفعه.': 'Execution is halted for every platform (the emergency stop is on). Lift it with the «Emergency stop» button above; only Leen can.',
   'ما فيه نتائج بعد. تظهر بعد 3 أيام من أول إجراء تنفّذه.': 'No results yet. They appear 3 days after the first action you take.',
   'نتائج الإجراءات بعد 3 و7 أيام': 'Action results after 3 and 7 days', 'انسخ ملخص اقتراحات القواعد': 'Copy the rule-proposal summary', 'وش تقول النتائج عن القواعد': 'What the results say about the rules',
   'الحملة': 'Campaign', 'القاعدة': 'Rule', 'النتيجة': 'Result', 'نسبة النقر %': 'Click rate %',
