@@ -4,6 +4,10 @@
 import { test, expect } from '@playwright/test';
 import { login, addSession } from './helpers';
 
+// The Media buyer is hidden (src/modules/buyer/flag.ts, Leen's decision 2026-11-12), so these tests are skipped. When the tab
+// comes back, flip the flag and change `test.describe.skip` below to a plain run (the tests stay as they were).
+test.describe.skip('Media buyer (hidden for now)', () => {
+
 const TEXT = {
   ar: { box: 'التنفيذ بموافقتك', stop: 'إيقاف طوارئ', trial: 'تجربة بدون تنفيذ', missing: 'مفتاح التنفيذ ناقص', hand: 'ينفّذ يدوياً' },
   en: { box: 'Execution with your approval', stop: 'Emergency stop', trial: 'Trial without execution', missing: 'Execution key missing', hand: 'Applied by hand' },
@@ -81,4 +85,5 @@ test('a blocked action shows its guards in the dialog and offers no real executi
   await expect(page.locator('#dlg')).toContainText('Exceeds the change-rate cap');
   await expect(page.locator('#dlgLive')).toBeHidden();
   await expect(page.locator('#dlg')).not.toContainText(/[؀-ۿ]/);
+});
 });

@@ -10,6 +10,9 @@
 // A new route is picked up automatically. A route that is public on purpose, or reads only with a POST, is listed below
 // with its reason; anything else that does not fit fails here.
 import { afterEach, describe, expect, it, vi } from 'vitest';
+// The Media buyer is hidden in the app (src/modules/buyer/flag.ts); the matrix still walks its routes as if it were on, so they
+// keep their guards while dormant.
+vi.mock('../../src/modules/buyer/flag', () => ({ BUYER_ENABLED: true }));
 import * as A from '../../src/lib/auth';
 import { need } from '../../src/lib/gate';
 import { WELL_COMPANY } from '../../src/lib/tenant';

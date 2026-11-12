@@ -103,3 +103,24 @@ describe('tabs with sections (voiceover in voice, copy in content)', () => {
     expect(only.find(i => i.key === 'content')).toMatchObject({ href: '/content/?tab=copy', state: 'ok' });
   });
 });
+
+describe('Media buyer is hidden (src/modules/buyer/flag.ts)', () => {
+  it('is out of the registry, the routes and the dashboards, and its code is still there', async () => {
+    const { BUYER_ENABLED } = await import('../../src/modules/buyer/flag');
+    expect(BUYER_ENABLED).toBe(false);
+    expect(MODULES.some(m => m.key === 'buyer')).toBe(false);
+    expect(LIVE).not.toContain('buyer');
+    expect(Object.keys(ROUTES)).not.toContain('buyer');
+    expect(Object.keys(A.DASHBOARDS)).not.toContain('buyer');
+    expect(typeof (await import('../../src/modules/buyer/routes')).report.GET).toBe('function');   // kept, just not mounted
+  });
+  it('the gate answers 404 for the page and every API, the owner included, before any login', async () => {
+    const owner = await cookieFor(leen);
+    for (const path of ['/buyer/', '/api/buyer/report', '/api/buyer/rules', '/api/buyer/apply', '/api/buyer/rollback', '/api/buyer/execution']) {
+      for (const cookie of [owner, '']) {
+        const d = await gate(req(path, cookie), E);
+        expect(d instanceof Response && d.status, path).toBe(404);
+      }
+    }
+  });
+});

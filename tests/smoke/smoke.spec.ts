@@ -23,7 +23,6 @@ const TABS: { key: string; page: string; api: string }[] = [
   { key: 'maestro', page: '/maestro/', api: '/api/maestro/state' },
   { key: 'knowledge', page: '/knowledge/', api: '/api/knowledge/list' },
   { key: 'debugger', page: '/debugger/', api: '/api/debugger/report' },
-  { key: 'buyer', page: '/buyer/', api: '/api/buyer/report' },
 ];
 const hasArabic = (s: string) => /[؀-ۿ]/.test(s);
 

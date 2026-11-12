@@ -3,6 +3,8 @@
 // answers only the two fake hosts and throws on anything else.
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import '../../pipeline/dash/00-judge.js';
+// The tab is hidden in the app (src/modules/buyer/flag.ts); these tests keep the dormant execution layer honest, so they mount it.
+vi.mock('../../src/modules/buyer/flag', () => ({ BUYER_ENABLED: true }));
 import { api } from '../../src/api/index';
 import { sign, SESSION, type AuthEnv } from '../../src/lib/auth';
 
