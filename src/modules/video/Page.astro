@@ -23,6 +23,7 @@ import { ClientRouter } from 'astro:transitions';
 @media (max-width:640px){.vd-two{grid-template-columns:1fr}}
 .vd-note{font-size:13px;color:var(--muted);margin:0}
 .vd-notready{padding:12px 14px;border-radius:12px;background:color-mix(in srgb,var(--pulse) 12%,transparent);font-size:14px;margin:0 0 14px}
+.vd-owner{margin-top:16px}
 .vd-hint{font-size:13px;margin:6px 0 0;color:var(--muted);direction:ltr;text-align:start}
 .vd-jobs{display:grid;gap:10px;margin-top:14px}
 .vd-job{padding:12px 14px;display:grid;gap:6px;border:1px solid var(--line);border-radius:var(--r-sm)}
@@ -75,6 +76,11 @@ import { ClientRouter } from 'astro:transitions';
           <div class="vd-jobs" id="jobs" aria-live="polite"></div>
         </section>
       </div>
+      <details class="card pad vd-owner" id="ownerSetup" data-owner-only hidden>
+        <summary>حالة التجهيز (للمالكة فقط)</summary>
+        <p class="vd-note">هذي الأشياء لسا ناقصة عشان يشتغل الفيديو.</p>
+        <ul id="ownerList" class="vd-hint"></ul>
+      </details>
     </main>
   </div>
 </div>

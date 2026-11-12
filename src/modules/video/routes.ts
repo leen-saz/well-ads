@@ -1,6 +1,6 @@
 // /api/video/*: video projects of the user's company and their clip jobs. Reads need the `video` dashboard, writes edit level.
 // Nothing here publishes anything: a result is a draft inside the system (approval: later in this tab).
-import { sb, json, readJson, handle, requireUser, audit, atLeast, isOwner, notEnabled, missingSchema, notApplied, type Cfg } from '../../lib/auth';
+import { sb, json, readJson, handle, requireUser, audit, atLeast, isOwner, missingSchema, type Cfg } from '../../lib/auth';
 import { scoped } from '../../lib/tenant';
 import { usageCtx } from '../../lib/usage';
 import { AD_SECONDS, AVATARS, RATIOS, avatarOf } from './engine';
@@ -11,6 +11,7 @@ type VEnv = Parameters<typeof requireUser>[1] & JobEnv;
 const MIG = '034_video.sql';
 const P_COLS = 'id,title,source_url,brief,script,ratio,seconds,avatar_id,review_status,reviewed_by,reviewed_at,review_note,approved_by,approved_at,created_by,created_at,updated_at';
 const rows = <T>(d: unknown): T[] => (Array.isArray(d) ? d : []) as T[];
+// The one sentence everybody reads when something is not set up. What to set up goes to the owner's status card only (engines GET).
 const NOT_READY = 'ما اكتمل تجهيزه، بلّغ الإدارة';
 const POLL_MAX = 6;
 
@@ -31,8 +32,10 @@ export const engines = { GET: handle(async (request, e: VEnv) => {
   const owner = isOwner(user, cfg);
   return json(200, {
     ratios: RATIOS, seconds: AD_SECONDS, avatars: AVATARS.map(a => ({ id: a.id, ar: a.ar, en: a.en, does: a.does, doesEn: a.doesEn })),
-    engines: ENGINES.map(g => ({ id: g.id, label: g.label, ready: g.configured(e), caps: g.caps, ...(owner && !g.configured(e) ? { secrets: g.secrets } : {}) })),
+    engines: ENGINES.map(g => ({ id: g.id, label: g.label, ready: g.configured(e), caps: g.caps })),
     ready: ENGINES.some(g => g.configured(e)), canEdit: atLeast(user, 'video', 'edit', cfg), owner,
+    // the owner's status card: what is still to set up (names only, never values)
+    ...(owner ? { setup: { secrets: ENGINES.filter(g => !g.configured(e)).flatMap(g => g.secrets), migration: MIG } } : {}),
   });
 }) };
 
@@ -42,7 +45,7 @@ export const projects = {
     const id = new URL(request.url).searchParams.get('id');
     if (id) { const p = await projectOf(cfg, user.co, id); return p ? json(200, { project: p }) : json(404, { error: 'الفيديو مو موجود' }); }
     const r = await sb(cfg, scoped(`/rest/v1/video_projects?select=${P_COLS}&order=created_at.desc&limit=50`, user.co), { admin: true });
-    if (missingSchema(r)) return json(200, { projects: [], setup: notApplied(user, MIG) });
+    if (missingSchema(r)) return json(200, { projects: [], notReady: true });
     return json(200, { projects: rows(r.data) });
   }),
   POST: handle(async (request, e: VEnv) => {
@@ -55,7 +58,7 @@ export const projects = {
     const title = String(b.title || '').replace(/\s+/g, ' ').trim().slice(0, 120) || 'فيديو جديد';
     const r = await sb<Record<string, unknown>[]>(cfg, '/rest/v1/video_projects', { method: 'POST', admin: true, headers: { Prefer: 'return=representation' },
       body: { company_id: user.co, title, ratio, seconds, avatar_id: avatar, created_by: user.email, created_by_id: user.uid } });
-    if (missingSchema(r)) return json(503, { error: notApplied(user, MIG) });
+    if (missingSchema(r)) return json(503, { error: NOT_READY });
     const p = rows<Record<string, unknown>>(r.data)[0];
     if (!r.ok || !p) return json(500, { error: 'ما انحفظ الفيديو' });
     await audit(cfg, user, 'video_created', { target: { id: p.id, ratio, seconds } });
@@ -83,7 +86,7 @@ export const jobs = {
     const engine = engineOf(b.engine || DEFAULT_ENGINE);
     if (!engine) return json(400, { error: 'المحرك غير معروف' });
     // Not set up: said now, nothing queued (the owner also gets the step)
-    if (!engine.configured(e)) return json(503, { error: user.role === 'owner' ? notEnabled(user, 'توليد الفيديو', engine.secrets.join(' و ')) : NOT_READY });
+    if (!engine.configured(e)) return json(503, { error: NOT_READY });
     const p = await projectOf(cfg, user.co, b.project);
     if (!p) return json(404, { error: 'الفيديو مو موجود' });
     const clips = (Array.isArray(b.clips) ? b.clips : []).filter((c): c is Record<string, unknown> => !!c && typeof c === 'object');

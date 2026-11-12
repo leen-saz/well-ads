@@ -5,7 +5,7 @@ const KINDS = { 'text-to-video': 'من وصف', 'image-to-video': 'من صورة
 const STATE = { queued: 'بالانتظار', running: 'يتولّد', done: 'جاهزة', failed: 'ما تمت', cancelled: 'موقوفة' };
 
 export default async function mount() {
-  let META = null, LIST = [], CUR = null, JOBS = [], timer = 0;
+  let META = null, NOT_READY = false, LIST = [], CUR = null, JOBS = [], timer = 0;
   const sig = pageSignal();
   const stop = () => { clearTimeout(timer); timer = 0; };
   sig.addEventListener('abort', stop);
@@ -15,9 +15,11 @@ export default async function mount() {
   function draw() {
     const e = META.engines[0];
     const note = $('#notready');
-    note.hidden = META.ready;
-    // Normal people read one plain sentence; the owner also gets the names of what to set up
-    note.innerHTML = META.ready ? '' : `<b>ما اكتمل تجهيزه، بلّغ الإدارة.</b>${META.owner && e?.secrets ? `<span class="vd-hint">${esc(e.secrets.join(' · '))}</span>` : ''}`;
+    // Everyone reads one plain sentence; what is still to set up is in the owner's status card, apart from the work area
+    const off = !META.ready || NOT_READY;
+    note.hidden = !off;
+    note.innerHTML = off ? '<b>ما اكتمل تجهيزه، بلّغ الإدارة.</b>' : '';
+    drawOwner();
     fillSelect($('#pick'), [['', '+ فيديو جديد'], ...LIST.map(p => [p.id, p.title])], CUR?.id || '');
     $('#title').value = CUR?.title || '';
     fillSelect($('#ratio'), META.ratios.map(r => [r, r]), CUR?.ratio || '9:16');
@@ -31,7 +33,15 @@ export default async function mount() {
     fillSelect($('#clip'), (caps?.clipSeconds || []).map(s => [s, `${s} ثواني`]), 5);
     kindBoxes();
     $('#cf').hidden = !CUR; $('#noproj').hidden = !!CUR;
-    $('#go').disabled = !META.canEdit || !META.ready;
+    $('#go').disabled = !META.canEdit || off;
+    $('#save').disabled = NOT_READY;
+  }
+  // The owner's status card (outside the work area): what is still to set up, names only
+  function drawOwner() {
+    const box = $('#ownerSetup'); const st = META.setup;
+    const todo = st ? [...(st.secrets || []), ...(NOT_READY ? [st.migration] : [])] : [];
+    box.hidden = !todo.length;
+    $('#ownerList').innerHTML = todo.map(k => `<li><code>${esc(k)}</code></li>`).join('');
   }
   const avatarNote = () => { const a = META.avatars.find(x => x.id === $('#avatar').value); $('#avatarDoes').textContent = a ? (LANG === 'en' ? a.doesEn : a.does) : ''; };
   const kindBoxes = () => { const k = $('#kind').value; $('#imgBox').hidden = k !== 'image-to-video'; $('#voiceBox').hidden = k !== 'avatar'; };
@@ -53,7 +63,7 @@ export default async function mount() {
   }
 
   async function load(keep) {
-    LIST = (await api('/api/video/projects')).projects;
+    const pr = await api('/api/video/projects'); LIST = pr.projects; NOT_READY = !!pr.notReady;
     CUR = LIST.find(p => p.id === keep) || (keep === undefined ? LIST[0] : null) || null;
     draw(); JOBS = []; drawJobs(); poll();
   }
