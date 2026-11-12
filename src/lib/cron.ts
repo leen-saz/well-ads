@@ -14,21 +14,31 @@ async function note(e: CronEnv, ok: boolean, status: number): Promise<void> {
   catch { console.error('cron: could not save the dispatch status'); }
 }
 
-export async function dispatchRefresh(e: CronEnv, f: typeof fetch = fetch): Promise<number> {
-  const token = (e.GH_DISPATCH_TOKEN || '').trim();
-  if (!token) { console.error('cron: GH_DISPATCH_TOKEN missing, refresh not started'); await note(e, false, 0); return 0; }
-  let status = 0;
+// The cron runs inside ctx.waitUntil, which Cloudflare cuts after 30 seconds. A GitHub call that hangs must give up well before
+// that, so the failure is still saved to R2 and shown in the health page instead of vanishing with the killed invocation.
+export const DISPATCH_TIMEOUT_MS = 10_000;
+
+async function post(file: string, token: string, f: typeof fetch): Promise<number> {
   try {
-    const res = await f(DISPATCH_URL, {
+    return (await f(dispatchUrl(file), {
       method: 'POST',
       headers: {
         authorization: `Bearer ${token}`, accept: 'application/vnd.github+json',
         'x-github-api-version': '2022-11-28', 'user-agent': 'well-ads-cron', 'content-type': 'application/json',
       },
       body: JSON.stringify({ ref: 'main' }),
-    });
-    status = res.status;
-  } catch { console.error('cron: dispatch request failed'); }
+      signal: AbortSignal.timeout(DISPATCH_TIMEOUT_MS),
+    })).status;
+  } catch (err) {
+    console.error('cron:', file, (err as Error)?.name === 'TimeoutError' ? 'dispatch timed out' : 'dispatch request failed');
+    return 0;
+  }
+}
+
+export async function dispatchRefresh(e: CronEnv, f: typeof fetch = fetch): Promise<number> {
+  const token = (e.GH_DISPATCH_TOKEN || '').trim();
+  if (!token) { console.error('cron: GH_DISPATCH_TOKEN missing, refresh not started'); await note(e, false, 0); return 0; }
+  const status = await post('refresh.yml', token, f);
   if (status !== 204) console.error('cron: dispatch failed', status);
   else console.log('cron: refresh started');
   await note(e, status === 204, status);
@@ -40,14 +50,7 @@ export async function dispatchRefresh(e: CronEnv, f: typeof fetch = fetch): Prom
 export async function dispatchWorkflow(e: CronEnv, file: string, f: typeof fetch = fetch): Promise<number> {
   const token = (e.GH_DISPATCH_TOKEN || '').trim();
   if (!token) { console.error('cron: GH_DISPATCH_TOKEN missing,', file, 'not started'); return 0; }
-  let status = 0;
-  try {
-    status = (await f(dispatchUrl(file), {
-      method: 'POST',
-      headers: { authorization: `Bearer ${token}`, accept: 'application/vnd.github+json', 'x-github-api-version': '2022-11-28', 'user-agent': 'well-ads-cron', 'content-type': 'application/json' },
-      body: JSON.stringify({ ref: 'main' }),
-    })).status;
-  } catch { console.error('cron:', file, 'dispatch request failed'); }
+  const status = await post(file, token, f);
   if (status !== 204) console.error('cron:', file, 'dispatch failed', status);
   else console.log('cron:', file, 'started');
   return status;
