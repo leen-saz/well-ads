@@ -491,6 +491,8 @@ export const EN = {
   'آخر يوم فيه أرقام': 'Last day with numbers', 'ما فيه أرقام آخر 14 يوم.': 'No numbers in the last 14 days.',
   'ما لقيت مشاكل في التتبع.': 'No tracking issues found.', 'الأرقام توصل من كل المنصات والليدز مربوطة بإعلاناتها.': 'Numbers arrive from every platform and leads are tied to their ads.',
   // الميديا باير (buyer)
+  'توصيات القواعد': 'Rule recommendations',
+  'ما فيه صرف في آخر 7 أيام عشان نحلله.': 'No spend in the last 7 days to analyze.', 'الأرقام ضمن القاعدة، وما فيه تغيير مطلوب.': 'The numbers are within the rules; no change needed.', 'ما فيه توصية الحين.': 'No recommendation right now.',
   'الميديا باير': 'Media buyer', 'الميديا باير · Well': 'Media buyer · Well',
   'توصيات من أرقام الإعلانات مقارنة بقاعدة أفضل الممارسات لكل منصة ولقواعد الشركة. كل توصية تمر على حكم التسويق أول. قراءة بس: ما يغيّر أي حملة، والمشتري الإعلامي ينفّذ يدوياً.': 'Recommendations from the ad numbers against a best-practice playbook per platform and the company rules. Each one goes through the marketing judge first. Read-only: it changes no campaign, and the media buyer acts by hand.',
   'قواعد الشركة': 'Company rules', 'تصدير': 'Export', 'استيراد القواعد': 'Import rules', 'معاينة': 'Preview', 'أكّد واحفظ': 'Confirm and save',
@@ -1475,7 +1477,7 @@ export const pat = t => [
   [/^أهلاً (.+)\. هذي صورة اليوم للي تشتغل عليه\.$/, "Welcome $1. This is today's picture of what you work on."],
   [/^خيارات (.+)$/, '$1 options'],
   [/^اربط (.+)$/, (m, x) => 'Connect ' + x.replace(' و ', ' and ')], [/^بدونها يوقف: (.+)\.$/, (m, x) => 'Without it these stop: ' + needs(x) + '.'],
-  [/^آخر فحص: (.+)$/, 'Last check: $1'], [/^أهلاً (.+)\. هذي صورة اليوم للنظام كله\.$/, "Welcome $1. This is today's picture for the whole system."],
+  [/^آخر تحليل: (.+)$/, 'Last analysis: $1'], [/^آخر فحص: (.+)$/, 'Last check: $1'], [/^أهلاً (.+)\. هذي صورة اليوم للنظام كله\.$/, "Welcome $1. This is today's picture for the whole system."],
   [/^احذف (.+)$/, (m, x) => 'Delete ' + t(x)],
   [/^(?:(?:الحملات|المواد الإعلانية|لوحة القرارات|التحليلات العضوية|المحتوى و SEO|النشر في السوشال)(?: و?)?)+$/, (m) => needs(m)],
   [/^(يحتاجه|يوقف): (.+)$/, (m, k, x) => (k === 'يحتاجه' ? 'Needed for: ' : 'Without it these stop: ') + needs(x)],
