@@ -60,6 +60,16 @@ describe('generate', () => {
     }
     await expect(generate({ XAI_API_KEY: 'k' }, 'social', { messages: MSG, max_tokens: 10 }, (async () => { throw new Error('down'); }) as unknown as typeof fetch)).rejects.toThrow();
   });
+  it('a provider that is rate-limited, down or too slow says so (llm_busy) when there is no fallback, and every call has a timeout', async () => {
+    for (const r of [new Response('', { status: 429 }), new Response('', { status: 503 })])
+      await expect(generate({ OPENAI_API_KEY: 'k' }, 'content', { messages: MSG, max_tokens: 10 }, (async () => r) as unknown as typeof fetch)).rejects.toThrow('llm_busy');
+    await expect(generate({ OPENAI_API_KEY: 'k' }, 'content', { messages: MSG, max_tokens: 10 }, (async () => new Response('', { status: 400 })) as unknown as typeof fetch)).rejects.toThrow('llm_failed');
+    const slow = Object.assign(new Error('t'), { name: 'TimeoutError' });
+    await expect(generate({ XAI_API_KEY: 'k' }, 'social', { messages: MSG, max_tokens: 10 }, (async () => { throw slow; }) as unknown as typeof fetch)).rejects.toThrow('llm_busy');
+    const f = vi.fn(async () => ok({ output_text: 'x' }));
+    await generate({ OPENAI_API_KEY: 'k' }, 'content', { messages: MSG, max_tokens: 10 }, f as unknown as typeof fetch);
+    expect((f.mock.calls[0] as unknown as [string, RequestInit])[1].signal).toBeInstanceOf(AbortSignal);
+  });
   it('live search goes to Grok only and never falls back', async () => {
     const f = vi.fn(async () => ok({ output_text: '[]' }));
     expect(await grokSearch({ XAI_API_KEY: 'k', AI }, MSG, ['x'], 100, f as unknown as typeof fetch)).toBe('[]');
