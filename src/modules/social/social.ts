@@ -2,7 +2,7 @@
 // وتيك توك وX ولينكدإن عبر Postiz كمحرك نشر إضافي (postiz.ts)؛ كلهم بعد اعتماد المعتمد بس. الباقي يتحفظ كتذكير (ADR-0006).
 // التوكنات من الخزنة (صفحة الربط) بأسماء المتغيرات، وما ترجع للمتصفح أبداً.
 import { check, notice, type Rule } from '../compliance/compliance';
-import { SOCIAL, Fail, capCheck, engineOf, type Code, type Ctx, type Draft, type Media, type Result, type Results, type SocialPlatform, type Tokens } from './engine';
+import { SOCIAL, Fail, capCheck, engineOf, textLength, type Code, type Ctx, type Draft, type Media, type Result, type Results, type SocialPlatform, type Tokens } from './engine';
 import { postizPublish, platformLive, type EngineStatus } from './postiz';
 export { SOCIAL, capCheck, engineOf };
 export type { Code, Ctx, Draft, Media, Result, Results, SocialPlatform };
@@ -32,7 +32,7 @@ export function validate(input: Record<string, unknown>, now = Date.now(), extra
   if (at < now - 60_000) return { error: 'وقت النشر راح', notices };
   for (const p of platforms) {
     const s = SOCIAL[p];
-    if (body.length > s.max) return { error: `النص أطول من حد ${s.name} (${s.max} حرف)`, notices };
+    if (textLength(p, body) > s.max) return { error: `النص أطول من حد ${s.name} (${s.max} حرف)`, notices };
     if ('needsMedia' in s && s.needsMedia && !media.length) return { error: `${s.name} يحتاج صورة أو فيديو`, notices };
     // What the platform accepts of the media (count, video format), said now and not at the post's time
     const fit = capCheck(p, { body, media });

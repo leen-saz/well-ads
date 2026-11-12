@@ -57,13 +57,28 @@ export const CAPS: Record<SocialPlatform, Cap> = {
   // the Postiz upload accepts mp4 for video (not mov or webm)
   tiktok: { images: 35, mp4Only: true }, x: { images: 4, mp4Only: true }, linkedin: { images: 9, mp4Only: true },
 };
+// How a platform counts a text against its limit. Only X differs from a plain character count: any link counts 23 whatever its
+// length (t.co), an emoji counts 2 however it is built (skin tone, joiner), and a CJK character counts 2
+// (https://docs.x.com/fundamentals/counting-characters, read 2026-11-12). Counting by .length would refuse a post X accepts
+// whenever it carries a long booking link, and would over-count joined emoji.
+const URL_RE = /https?:\/\/[^\s]+/gi, EMOJI_RE = /\p{Extended_Pictographic}|\p{Regional_Indicator}/u, CJK_RE = /[\p{Script=Han}\p{Script=Hiragana}\p{Script=Katakana}\p{Script=Hangul}]/u;
+const GRAPHEMES = new Intl.Segmenter(undefined, { granularity: 'grapheme' });
+export function textLength(platform: SocialPlatform, body: string): number {
+  if (platform !== 'x') return body.length;
+  let n = 0;
+  for (const part of body.split(URL_RE).flatMap((t, i, a) => (i < a.length - 1 ? [t, null] : [t]))) {
+    if (part === null) { n += 23; continue; }
+    for (const { segment: g } of GRAPHEMES.segment(part)) n += EMOJI_RE.test(g) || CJK_RE.test(g) ? 2 : [...g].length;
+  }
+  return n;
+}
 const BAD_VIDEO = /\.(mov|webm|m4v|avi)(\?|#|$)/i;
 
 // Before any upstream call: does this post fit the platform? '' = yes, else the plain reason (Arabic, the user's words).
 export function capCheck(platform: SocialPlatform, post: Pick<Draft, 'body' | 'media'>): string {
   const s = SOCIAL[platform], c = CAPS[platform];
   const imgs = post.media.filter(m => m.type === 'image'), vids = post.media.filter(m => m.type === 'video');
-  if (post.body.length > s.max) return `النص أطول من حد ${s.name} (${s.max} حرف)`;
+  if (textLength(platform, post.body) > s.max) return `النص أطول من حد ${s.name} (${s.max} حرف)`;
   if (vids.length > 1) return 'فيديو واحد بس لكل منشور';
   if (vids.length && imgs.length) return 'فيديو واحد أو صور، مو الاثنين مع بعض';
   if (imgs.length > c.images) return `${s.name} يقبل ${c.images} ${c.images === 1 ? 'صورة' : 'صور'} على الأكثر`;
