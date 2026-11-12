@@ -216,7 +216,7 @@ describe('the cost record', () => {
 });
 
 describe('routes', () => {
-  type Rsp = { ready?: boolean; error?: string; jobs: { ready: boolean }[]; engines: { secrets?: string[] }[] };
+  type Rsp = { ready?: boolean; error?: string; jobs: { ready: boolean }[]; engines: { secrets?: string[] }[]; setup?: { secrets: string[]; migration: string } };
   const owner = { id: '33333333-3333-3333-3333-333333333333', email: 'boss@example.com', role: 'owner', active: true, access: { video: 'approve' }, company_id: WELL_COMPANY } as A.Profile;
   async function call(path: string, p: A.Profile, method = 'GET', body?: unknown, e: Record<string, unknown> = E) {
     profile = p;
@@ -227,10 +227,14 @@ describe('routes', () => {
   it('the owner is told which secrets are missing; a member only gets a plain sentence', async () => {
     const bare = { ...E, HIGGSFIELD_API_KEY: '', HIGGSFIELD_API_SECRET: '' };
     const o = await call('/api/video/engines', owner, 'GET', undefined, bare);
-    expect(o.body.ready).toBe(false); expect(o.body.engines[0]!.secrets).toEqual(['HIGGSFIELD_API_KEY', 'HIGGSFIELD_API_SECRET']);
+    expect(o.body.ready).toBe(false); expect(o.body.setup?.secrets).toEqual(['HIGGSFIELD_API_KEY', 'HIGGSFIELD_API_SECRET']);
+    expect(o.body.engines[0]!.secrets).toBeUndefined();   // names live in the owner's status card, not in the engine list
     const member = { ...owner, email: 'm@example.com', role: 'member', access: { video: 'edit' } } as A.Profile;
     const m = await call('/api/video/engines', member, 'GET', undefined, bare);
-    expect(m.body.engines[0]!.secrets).toBeUndefined();
+    expect(m.body.engines[0]!.secrets).toBeUndefined(); expect(m.body.setup).toBeUndefined();
+    // the owner too gets the plain sentence when working: the steps are in the status card
+    const oq = await call('/api/video/jobs', owner, 'POST', { project: 1, clips: [CLIP] }, bare);
+    expect(oq.status).toBe(503); expect(oq.body.error).toBe('ما اكتمل تجهيزه، بلّغ الإدارة');
     const q = await call('/api/video/jobs', member, 'POST', { project: 1, clips: [CLIP] }, bare);
     expect(q.status).toBe(503); expect(q.body.error).toBe('ما اكتمل تجهيزه، بلّغ الإدارة');
   });

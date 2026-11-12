@@ -1,13 +1,14 @@
 // /api/lessons/list. Learning loop per tab (docs/learning-loops.md, L1): the "what I learned" card of any tab.
 // GET ?module=<tab> reads that tab's lessons (its view level); PATCH { id, action: approve | ignore } decides one
 // (its approve level). Every query is scoped to the user's company.
-import { sb, json, readJson, handle, requireUser, audit, can, atLeast, missingSchema, notApplied, NO_APPROVE } from '../../lib/auth';
+import { sb, json, readJson, handle, requireUser, audit, can, atLeast, missingSchema, NO_APPROVE } from '../../lib/auth';
 import { scoped } from '../../lib/tenant';
 import { needOf, decision } from '../../lib/lessons';
 
 type Row = Record<string, unknown>;
 const KEY = /^[a-z]+$/;
 
+// A missing table is one plain sentence on every tab; the file to run is named on the owner's schema check (Maestro), not here.
 export const list = {
   GET: handle(async (request, e) => {
     const { cfg, user } = await requireUser(request, e, 'any');
@@ -16,7 +17,7 @@ export const list = {
     if (!need) return json(400, { error: 'تاب غير معروف' });
     if (!can(user, need, cfg)) return json(403, { error: 'ما عندك صلاحية' });
     const r = await sb<Row[]>(cfg, scoped(`/rest/v1/lessons?select=id,kind,lesson,evidence,confidence,source,status,decided_by,decided_at,created_at&module=eq.${module}&active=eq.true&status=in.(new,reviewed,approved)&order=created_at.desc&limit=50`, user.co), { admin: true });
-    if (!r.ok) return json(missingSchema(r) ? 503 : 500, { error: missingSchema(r) ? notApplied(user, 'migration 014_lessons_by_tab.sql') : 'ما قدرت أقرأ الدروس' });
+    if (!r.ok) return json(missingSchema(r) ? 503 : 500, { error: missingSchema(r) ? 'جزء من النظام ما اكتمل تجهيزه. بلّغ الإدارة.' : 'ما قدرت أقرأ الدروس' });
     return json(200, { lessons: r.data, canDecide: atLeast(user, need, 'approve', cfg) });
   }),
   PATCH: handle(async (request, e) => {
