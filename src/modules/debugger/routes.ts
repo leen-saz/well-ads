@@ -7,6 +7,7 @@ import { diagnose, type AdRow, type ConnRow, type LeadRow, type MetricRow } from
 import { explain as claude, explainViaOpenRouter, type ClaudeEnv } from './explain';
 import { viaOpenRouter, type LlmEnv } from '../../lib/llm';
 import { overCap, record, usageCtx } from '../../lib/usage';
+import { linkedShare } from '../../lib/linked';
 
 async function build(cfg: Cfg, user: Session) {
   const today = new Date(Date.now() + 3 * 3600e3).toISOString().slice(0, 10);
@@ -23,9 +24,17 @@ async function build(cfg: Cfg, user: Session) {
   return { ...r, checked_at: new Date().toISOString(), counts: { ads: ads.rows.length, metrics: metrics.rows.length, leads: leads.rows.length } };
 }
 
-export const report = { GET: handle(async (request, e) => {
+// The same linked-to-an-ad numbers as the performance summary and the data-health page: from dash.json's crm block (R2)
+async function linked(e: { FILES?: R2Bucket }) {
+  try {
+    const obj = await e.FILES?.get('site/dash.json');
+    return obj ? linkedShare(((await obj.json()) as { crm?: unknown }).crm) : null;
+  } catch { return null; }
+}
+
+export const report = { GET: handle(async (request, e: AuthEnv & { FILES?: R2Bucket }) => {
   const { cfg, user } = await requireUser(request, e, 'debugger');
-  return json(200, await build(cfg, user));
+  return json(200, { ...(await build(cfg, user)), linked: await linked(e) });
 }) };
 
 // The findings are read again on the server: Claude gets this company's data, never what the page sends

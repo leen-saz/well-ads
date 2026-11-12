@@ -122,6 +122,8 @@ export interface Outcome {
   // The CRM as a whole in the period, whatever the platform filter: every paid closing, and those tied to an ad.
   // A platform's 0 closings only means something when the CRM ties closings to ads at all.
   closingsAll: number; bookedAll: number;
+  // Paid closings in the period that no ad got (the CRM total minus the ad-linked ones): shown beside the ad-linked count
+  closingsUnattributed: number;
   // Lead to closing across the whole CRM: every paid closing ÷ the ads' leads and chats. Judged even when the closings
   // aren't tied to their ads (only the per-ad split is «غير مربوط» then). null with a platform filter: the CRM can't split it.
   closeRateAll: number | null;
@@ -158,7 +160,7 @@ export function outcome(d: Dash, from: string, to: string, by: CrmBy = 'lead', p
     spend, impr, clicks, leads, conv, crm: !plat && !!crmData?.paid_all, crmLinked: !!crmData, crmLeads, booked, value, closings, paid,
     cpm: impr ? (1000 * spend) / impr : null, cpc: ratio(spend, clicks), ctr: impr ? (100 * clicks) / impr : null, cpl: ratio(ls, ln),
     clickToResult: clicks ? (100 * (leads + conv)) / clicks : null, closeRate: crmLeads ? (100 * booked) / crmLeads : null,
-    roas: spend && value ? value / spend : null, mer: ratio(paid, spend), cac: ratio(spend, closings), closingsAll, bookedAll,
+    roas: spend && value ? value / spend : null, mer: ratio(paid, spend), cac: ratio(spend, closings), closingsAll, bookedAll, closingsUnattributed: Math.max(0, closingsAll - bookedAll),
     closeRateAll: !plat && crmData?.paid_all && leads + conv ? (100 * closings) / (leads + conv) : null,
   };
 }
@@ -211,6 +213,7 @@ export function journey(a: Outcome, l: Lang = 'ar'): { stages: JStage[]; noCrm: 
       // Same as the main dashboard: every paid closing in the CRM, or the ad-linked ones when that list is missing
       main: st(t('إقفالات مدفوعة', 'Paid closings'), a.crm ? 'closings' : 'booked', 'qty', false, linked),
       sub: [amount, ...(a.crm ? [ad(t('المبيعات من الإعلانات', 'Sales from ads'), 'value', 'sar')] : []), ad(t('إقفالات من الإعلانات', 'Closings from ads'), 'booked', 'qty'),
+        ...(a.crm && a.closingsUnattributed > 0 ? [st(t('إقفالات غير منسوبة لإعلان', 'Closings not tied to an ad'), 'closingsUnattributed', 'qty')] : []),
         ad(t('العائد من الإعلانات', 'Return from ads'), 'roas', 'x'), cac],
       // CRM-wide when the CRM has its paid list (judged even when not tied to ads); else the ad-linked rate or «غير مربوط»
       rate: a.closeRateAll != null ? st(t('من ليد إلى إقفالة', 'Lead to closing'), 'closeRateAll', 'pct') : ad(t('من ليد إلى إقفالة', 'Lead to closing'), 'closeRate', 'pct'), cost: cac, amount },

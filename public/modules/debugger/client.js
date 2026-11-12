@@ -11,7 +11,10 @@ export default async function mount() {
       const r = await api('/api/debugger/report');
       const s = r.summary || {};
       $('#sum').innerHTML = [['critical', 'خطير'], ['warn', 'تنبيه'], ['info', 'معلومة']].map(([k, l]) => `<div class="card"><b>${fmt(s[k] || 0)}</b><span>${l}</span></div>`).join('')
-        + `<div class="card"><b>${fmt(r.counts?.leads || 0)}</b><span>ليد في الـ CRM آخر 30 يوم</span></div>`;
+        + `<div class="card"><b>${fmt(r.counts?.leads || 0)}</b><span>ليد في الـ CRM آخر 30 يوم</span></div>`
+        // The same two numbers as the performance summary and «صحة الداتا» (src/lib/linked.ts)
+        + (r.linked ? `<div class="card"><b>${r.linked.leadsPct == null ? '—' : r.linked.leadsPct + '%'}</b><span>ليدز الـ CRM المربوطة بإعلان (${fmt(r.linked.linked)} من ${fmt(r.linked.leads)})</span></div>`
+          + `<div class="card"><b>${r.linked.closingsPct == null ? '—' : r.linked.closingsPct + '%'}</b><span>إقفالات مربوطة بإعلان (${fmt(r.linked.closingsLinked)} من ${fmt(r.linked.closings)}، غير منسوبة ${fmt(r.linked.closingsUnlinked)})</span></div>` : '');
       const P = Object.entries(r.platforms || {});
       $('#plat').innerHTML = P.length ? `<thead><tr><th>المنصة</th><th>الصرف</th><th>ليدز المنصة</th><th>ليدز الـ CRM</th><th>آخر يوم فيه أرقام</th></tr></thead><tbody>`
         + P.map(([p, v]) => `<tr><td>${esc(PLAT[p] || p)}</td><td class="n">${fmt(v.spend7)}</td><td class="n">${fmt(v.leads7)}</td><td class="n">${fmt(v.crm7)}</td><td class="n">${esc(v.lastDay || '—')}</td></tr>`).join('') + '</tbody>'
