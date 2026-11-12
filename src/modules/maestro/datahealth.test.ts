@@ -26,7 +26,7 @@ describe('pure checks', () => {
   });
   it('passes the attribution reasons through as counts only', () => {
     const j = joinRates({ total: 1, rows: [], paid_all: [], attribution: { paid: 3, why: { id: 1, source: 2, evil: 9 }, unmatched_sources: { whatsapp_organic: 2, 'Bad Name!': 5 } } });
-    expect(j.attribution).toEqual({ paid: 3, why: { id: 1, name: 0, via_customer: 0, source: 2, no_id: 0, broken_id: 0, not_in_ads: 0 }, unmatched_sources: { whatsapp_organic: 2 } });
+    expect(j.attribution).toEqual({ paid: 3, why: { id: 1, utm: 0, name: 0, via_customer: 0, source: 2, no_id: 0, broken_id: 0, not_in_ads: 0 }, unmatched_sources: { whatsapp_organic: 2 } });
     expect(joinRates({}).attribution).toBeNull();
   });
   it('probes every table once per migration and names real files', () => {

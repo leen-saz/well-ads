@@ -39,7 +39,7 @@ export function freshness(ads: AdRow[], metrics: MetricRow[], conns: ConnRow[]):
 }
 
 // Why each paid closing did or did not reach an ad (pipeline/crm/join.py attach): counts per reason, source words cleaned
-const WHY = ['id', 'name', 'via_customer', 'source', 'no_id', 'broken_id', 'not_in_ads'];
+const WHY = ['id', 'utm', 'name', 'via_customer', 'source', 'no_id', 'broken_id', 'not_in_ads'];
 function cleanAttribution(a: { paid?: number; why?: Record<string, number>; unmatched_sources?: Record<string, number> } | undefined) {
   if (!a || typeof a !== 'object') return null;
   const why = Object.fromEntries(WHY.map(k => [k, Number(a.why?.[k]) || 0]));

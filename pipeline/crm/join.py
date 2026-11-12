@@ -15,6 +15,8 @@ import supabase_store  # noqa: E402
 RIYADH = timezone(timedelta(hours=3))
 PREFIX = {"meta_form": "m", "meta_ctwa": "m", "whatsapp_ad_prefill": "m", "snapchat_form": "s", "tiktok_form": "t"}
 COLUMNS = "lead_id,customer_id,created_at,platform_created_at,source_platform,ad_id,ad_id_quality,ad_name,status,booked_at,amount_paid_sar,booking_value_sar,paid_at,payment_status"
+# Fields the CRM owner may add (ad id, UTM): read from the stored CRM row (`doc`) so no migration is needed. Absent = null = ignored.
+COLUMNS += ",doc_ad_id:doc->>ad_id,utm_id:doc->>utm_id,utm_content:doc->>utm_content,utm_source:doc->>utm_source"
 CAVEATS = ["الاقفالة = ليد دفع، وقيمتها = المبلغ المدفوع", "الدفع من ميسّر بس (تابي والكاش ما يطلعون للحين)",
            "اقفالة بدون إعلان (يدوي، واتساب عضوي…) تنحسب لآخر إعلان جاب نفس العميل خلال 90 يوم قبلها"]
 LOOKBACK_DAYS = 90
@@ -73,10 +75,23 @@ def index(ads):
     return by_id, tt_names
 
 
+TOKEN = re.compile(r"^[A-Za-z0-9_-]{6,64}$")
+UTM_FAMILY = (("m", ("facebook", "instagram", "meta", "fb", "ig")), ("s", ("snapchat", "snap")), ("t", ("tiktok",)), ("g", ("google",)))
+
+
+def utm_family(row):
+    """The family named by utm_source, for leads whose CRM source does not say (a WhatsApp lead that came from an ad link)."""
+    u = str(row.get("utm_source") or "").strip().lower()
+    for prefix, words in UTM_FAMILY:
+        if u and any(u == w or u.startswith(w) for w in words):
+            return prefix
+    return None
+
+
 def match_how(row, by_id, tt_names):
     """(key, how): how is 'id' or 'name' when matched, else why not: 'source' (not an ad source), 'no_id', 'broken_id',
     'not_in_ads' (an id that is not among the ads we pulled)."""
-    prefix = family(row.get("source_platform"))
+    prefix = family(row.get("source_platform")) or utm_family(row)
     if not prefix:
         return None, "source"
     ad_id = str(row.get("ad_id") or "").strip()
@@ -85,6 +100,11 @@ def match_how(row, by_id, tt_names):
         key = by_id.get(prefix + ad_id)
         if key:
             return key, "id"
+    # Newer CRM fields (ad id or UTM id carried by the form or the WhatsApp link): used only when they name one of our ads
+    for extra in (row.get("doc_ad_id"), row.get("utm_id"), row.get("utm_content")):
+        token = str(extra or "").strip()
+        if token and TOKEN.match(token) and by_id.get(prefix + token):
+            return by_id[prefix + token], "utm"
     name = str(row.get("ad_name") or "").strip()
     if name:
         key = tt_names.get(name) if prefix == "t" else tt_names.get((prefix, name))
@@ -149,7 +169,7 @@ def by_customer(r, ad_leads):
 def attach(data, leads):
     by_id, tt_names = index(data.get("ads"))
     out, unmatched, matched_ids, ad_leads, later = [], 0, set(), {}, []
-    why = {k: 0 for k in ('id', 'name', 'via_customer', 'source', 'no_id', 'broken_id', 'not_in_ads')}
+    why = {k: 0 for k in ('id', 'utm', 'name', 'via_customer', 'source', 'no_id', 'broken_id', 'not_in_ads')}
     sources = {}
     for r in leads:
         key, how = match_how(r, by_id, tt_names)
