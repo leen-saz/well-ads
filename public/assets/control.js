@@ -15,7 +15,7 @@ export default async function mount() {
 
   // ?tab=log opens the past decisions (the «السجل» link in the sidebar, and /history/)
   const urlTab = new URLSearchParams(location.search).get('tab');
-  const S = { kill: { kill: false }, tab: ['log', 'learn'].includes(urlTab) ? urlTab : 'all', q: '', kind: '', level: '', sort: 'impact', open: [], done: [], ads: {}, gen: null, settings: [], owner: false, sel: new Set(), cursor: 0, hist: { status: '' } };
+  const S = { kill: { kill: false }, tab: ['log', 'learn', 'buyer'].includes(urlTab) ? urlTab : 'all', q: '', kind: '', level: '', sort: 'impact', open: [], done: [], ads: {}, gen: null, settings: [], owner: false, sel: new Set(), cursor: 0, hist: { status: '' } };
 
   // الأثر بالريال لكل أسبوع: الإيقاف يوفر صرف آخر 7 أيام، والرفع يضيف نسبة منه
   function impact(s) {
@@ -126,7 +126,8 @@ export default async function mount() {
     $('#tabs').innerHTML = [['all', 'كل المنصات'], ...Object.entries(PLAT)].map(([k, t]) =>
       `<button role="tab" data-t="${k}" aria-selected="${S.tab === k}">${t}<span class="cnt">${n(k)}</span></button>`).join('')
       + `<button role="tab" data-t="log" aria-selected="${S.tab === 'log'}">${icon('clock')}القرارات السابقة<span class="cnt">${S.done.length}</span></button>`
-      + `<button role="tab" data-t="learn" aria-selected="${S.tab === 'learn'}">${icon('refresh')}التعلّم</button>`;
+      + `<button role="tab" data-t="learn" aria-selected="${S.tab === 'learn'}">${icon('refresh')}التعلّم</button>`
+      + `<button role="tab" data-t="buyer" aria-selected="${S.tab === 'buyer'}">${icon('check')}توصيات القواعد</button>`;
   }
   function filters() {
     if (S.tab === 'log') {
@@ -204,7 +205,17 @@ export default async function mount() {
           catch (err) { busy(ev.currentTarget, false); m.className = 'msg err'; m.textContent = err.message; } };
       }); });
   }
-  function render() { kpis(); tabs(); filters(); S.tab === 'log' ? history() : S.tab === 'learn' ? learning() : inbox(); }
+  // توصيات القواعد: توصيات الميديا باير وتنفيذها بموافقة لين، داخل اللوحة (public/modules/buyer/client.js). تتحمّل أول ما ينفتح التبويب
+  function buyerPane() {
+    $('#filters').innerHTML = ''; $('#selbar').hidden = true;
+    if (S.buyerLoaded) { $('#buyerPane').hidden = false; return; }
+    S.buyerLoaded = true;
+    import('/modules/buyer/client.js').then(m => m.mountPane()).catch(err => { S.buyerLoaded = false; $('#buyerPane').hidden = false; $('#by-list').innerHTML = `<div class="empty">${icon('alert')}<div>${esc(err.message || 'ما قدرت أحمّل التوصيات')}</div></div>`; });
+  }
+  function render() {
+    const b = S.tab === 'buyer'; $('#inbox').hidden = b; if ($('#buyerPane')) $('#buyerPane').hidden = !b || !S.buyerLoaded;
+    kpis(); tabs(); filters(); b ? buyerPane() : S.tab === 'log' ? history() : S.tab === 'learn' ? learning() : inbox();
+  }
   // التعلّم: الدروس، وحركات الفريق داخل المنصات، ونتايج القرارات بعد 3 و7 أيام
   async function learning() {
     $('#filters').innerHTML = ''; $('#selbar').hidden = true;
