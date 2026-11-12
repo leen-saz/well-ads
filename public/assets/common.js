@@ -286,10 +286,12 @@ function warmAnalytics(app) {
 export function settingsTabs(current, me) {
   const tabs = [['/account/', 'حسابي', 'user', 'account', true], ['/admin/', 'الصلاحيات والدخول', 'users', 'admin', me.role === 'owner'],
     ['/admin/modules/', 'الموديولات', 'grid', 'modules', me.role === 'owner']];
-  const nav = document.createElement('nav');
+  // The pages carry an empty <nav id="settingsTabs"> so the row has its height from the first paint; it is filled here
+  const slot = $('#settingsTabs'), nav = document.createElement('nav');
   nav.className = 'tabs settings-tabs'; nav.setAttribute('aria-label', 'الإعدادات');
   nav.innerHTML = tabs.filter(x => x[4]).map(([h, t, ic, k]) => `<a href="${h}"${k === current ? ' aria-current="page"' : ''}>${icon(ic)}<span>${t}</span></a>`).join('');
-  $('#content').prepend(nav);
+  // A new element replaces the placeholder (the English page translates new nodes, not attributes changed on old ones)
+  if (slot) slot.replaceWith(nav); else $('#content').prepend(nav);
 }
 
 // One tab with sections (voice: text and voiceover, content: content and copywriter): a switch at the top of the page.

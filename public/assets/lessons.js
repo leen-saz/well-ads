@@ -6,9 +6,24 @@ const ST = { new: 'جديد', reviewed: 'راجعه المدير', approved: 'م
 const when = s => new Intl.DateTimeFormat(LANG === 'en' ? 'en-GB' : 'ar-SA-u-nu-latn', { day: 'numeric', month: 'short', timeZone: 'Asia/Riyadh' }).format(new Date(s));
 const pct = n => Number.isFinite(Number(n)) && Number(n) > 0 ? `${Math.round(Number(n) * 100)}%` : '';
 
+// The card goes in LAST, once the page's own content has stopped changing (500 ms without a change, 5 s at most). Added at once it
+// sat near the top of a still-empty page and was pushed down by every table and card that arrived after it: the layout jumped
+// (UX audit 2026-11-12, finding 3).
+function settled(content) {
+  return new Promise(done => {
+    let t; const end = () => { obs.disconnect(); clearTimeout(t); clearTimeout(cap); done(); };
+    const arm = () => { clearTimeout(t); t = setTimeout(end, 500); };
+    const obs = new MutationObserver(arm), cap = setTimeout(end, 5000);
+    obs.observe(content, { childList: true, subtree: true, characterData: true });
+    arm();
+  });
+}
+
 export async function lessonsCard(module) {
   const content = $('#content');
   if (!content || $('#learned', content)) return;
+  await settled(content);
+  if ($('#learned', content)) return;
   const card = document.createElement('details');
   card.className = 'card learned'; card.id = 'learned';
   card.innerHTML = '<summary class="pad"><h2>وش تعلّمت</h2><span class="muted" id="learnedN"></span></summary><div class="pad" id="learnedBody"></div>';
