@@ -193,10 +193,10 @@ export default async function mount() {
   // Who approves: named in the tab by the owner; the form says who will approve the post
   async function loadApprovers() {
     APPR = await api('/api/social/approvers');
-    const names = APPR.approvers.map(e => APPR.people.find(p => p.email === e)?.name || e);
-    $('#who').textContent = APPR.approvers.length ? `ينتظر اعتماد ${names.join(' أو ')} قبل ما ينشر.` : 'ينتظر اعتماد المالك قبل ما ينشر.';
+    const names = APPR.who || [];
+    $('#who').textContent = names.length ? `ينتظر اعتماد ${names.join(' أو ')} قبل ما ينشر.` : 'ينتظر اعتماد المالك قبل ما ينشر.';
     $('#appr').hidden = !APPR.owner;
-    if (APPR.owner) $('#apprList').innerHTML = APPR.people.map(p => `<label><input type="checkbox" name="ap" value="${esc(p.email)}"${APPR.approvers.includes(p.email) ? ' checked' : ''}> ${esc(p.name || p.email)} <span class="muted" dir="ltr">${esc(p.email)}</span></label>`).join('');
+    if (APPR.owner) $('#apprList').innerHTML = APPR.people.map(p => `<label><input type="checkbox" name="ap" value="${esc(p.email)}"${APPR.approvers.includes(p.email) ? ' checked' : ''}> ${esc(p.name || p.email)}</label>`).join('');
   }
   $('#apprSave').onclick = async e => {
     const btn = e.currentTarget;
