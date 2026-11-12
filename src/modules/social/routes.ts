@@ -1,6 +1,6 @@
 // /api/social/*: the post calendar of the user's company. Reads need the `social` dashboard, writes are same-origin.
 // Publishing itself runs from the Worker cron (src/modules/social/cron.ts), never from the browser.
-import { sb, json, readJson, handle, requireUser, audit, isOwner, type Cfg } from '../../lib/auth';
+import { sb, json, readJson, handle, requireUser, audit, isOwner, levelsOf, type Cfg, type Profile } from '../../lib/auth';
 import { scoped, WELL_COMPANY } from '../../lib/tenant';
 import { SOCIAL, readiness, validate, canApprove, cleanApprovers, suggestPrompt, cleanSuggestion, retryPlan, checkConnection, type SocialPlatform, type Results } from './social';
 import { saveValues } from '../../lib/vault';
@@ -122,6 +122,17 @@ export const posts = {
   }),
 };
 
+// Only people who hold «approve» on the Social tab (or the owner) can be named as approvers, so nobody else is listed or shown.
+const maskEmail = (e: string) => e.replace(/^(.).*(@.*)$/, '$1***$2');
+type Person = { email: string; name: string; eligible: boolean };
+async function peopleOf(cfg: Cfg, company: string): Promise<Person[]> {
+  const r = await sb<Profile[]>(cfg, scoped('/rest/v1/profiles?select=email,name,role,dashboards,access&active=eq.true&order=name.asc', company), { admin: true });
+  return (r.ok && Array.isArray(r.data) ? r.data : []).map(p => {
+    const email = String(p.email || '').toLowerCase();
+    return { email, name: p.name || '', eligible: p.role === 'owner' || email === cfg.owner || levelsOf(p).social === 'approve' };
+  });
+}
+
 // Who approves posts. Everyone in the tab reads it (the form says who will approve); only the owner changes it,
 // and only to people of the same company.
 export const approvers = {
@@ -129,22 +140,21 @@ export const approvers = {
     const { cfg, user } = await requireUser(request, e, 'social');
     const list = await approversOf(cfg, user.co);
     const owner = isOwner(user, cfg);
-    let people: { email: string; name: string }[] = [];
-    if (owner) {
-      const r = await sb<{ email: string; name?: string | null }[]>(cfg, scoped('/rest/v1/profiles?select=email,name&active=eq.true&order=name.asc', user.co), { admin: true });
-      people = r.ok && Array.isArray(r.data) ? r.data.map(p => ({ email: String(p.email || '').toLowerCase(), name: p.name || '' })) : [];
-    }
-    return json(200, { approvers: list, canApprove: canApprove(user.email, list, owner), owner, people });
+    const all = await peopleOf(cfg, user.co);
+    // `who`: what the form shows to everyone (a name, else a masked address); the addresses themselves go to the owner only
+    const who = list.map(e => all.find(p => p.email === e)?.name || maskEmail(e));
+    // The owner picks from eligible people only, so other accounts are neither listed nor one click from approving
+    const people = owner ? all.filter(p => p.eligible).map(({ email, name }) => ({ email, name })) : [];
+    return json(200, { approvers: owner ? list : [], who, canApprove: canApprove(user.email, list, owner), owner, people });
   }),
   PUT: handle(async (request, e) => {
     const { cfg, user } = await requireUser(request, e, 'social', { write: true });
     if (!isOwner(user, cfg)) return json(403, { error: 'تحديد المعتمد للمالك بس' });
     const want = cleanApprovers((await readJson(request)).approvers);
     // Only people of this company
-    const r = await sb<{ email: string }[]>(cfg, scoped('/rest/v1/profiles?select=email&active=eq.true', user.co), { admin: true });
-    const mine = new Set(r.ok && Array.isArray(r.data) ? r.data.map(p => String(p.email || '').toLowerCase()) : []);
+    const mine = new Set((await peopleOf(cfg, user.co)).filter(p => p.eligible).map(p => p.email));
     const bad = want.filter(x => !mine.has(x));
-    if (bad.length) return json(400, { error: `مو من يوزرز الشركة: ${bad.join('، ')}` });
+    if (bad.length) return json(400, { error: `مو من اللي عندهم صلاحية الموافقة في السوشال: ${bad.join('، ')}` });
     const u = await sb(cfg, `/rest/v1/companies?id=eq.${user.co}`, { method: 'PATCH', admin: true, body: { social_approvers: want } });
     if (!u.ok) return json(500, { error: 'ما انحفظ المعتمد' });
     await audit(cfg, user, 'social_approvers_set', { target: { approvers: want } });
