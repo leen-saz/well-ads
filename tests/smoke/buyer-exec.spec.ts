@@ -19,7 +19,9 @@ for (const lang of ['ar', 'en'] as const) {
     await expect(box.locator('.by-plat').first()).toContainText(TEXT[lang].missing);
     await expect(box.locator('.by-plat').first()).toContainText(TEXT[lang].trial);
     await expect(box).toContainText(TEXT[lang].hand);
-    await expect(page.locator('#by-killBtn')).toContainText(TEXT[lang].stop);
+    // one emergency stop for everything: the board's own button, and the pane has no second one
+    await expect(page.locator('#killBtn')).toContainText(TEXT[lang].stop);
+    await expect(page.locator('#by-killBtn')).toHaveCount(0);
     // with no key, the real-execution switch cannot be turned on
     await expect(box.locator('button[data-live="meta"]')).toBeDisabled();
     if (lang === 'en') await expect(box).not.toContainText(/[؀-ۿ]/);
@@ -30,8 +32,9 @@ test('a member (approver, not the owner) can press the stop but has no limits fo
   await addSession(context, await login(request, 'member'));
   await page.goto('/control/?tab=buyer');
   await expect(page.locator('#by-execBox')).toBeVisible();
-  await expect(page.locator('#by-killBtn')).toBeVisible();
-  await expect(page.locator('#by-unkillBtn')).toBeHidden();
+  await expect(page.locator('#killBtn')).toBeVisible();
+  await expect(page.locator('#by-killBtn')).toHaveCount(0);
+  await expect(page.locator('#by-unkillBtn')).toHaveCount(0);
   await expect(page.locator('#by-limitsForm')).toBeHidden();
   await expect(page.locator('button[data-live]')).toHaveCount(0);
 });

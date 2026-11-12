@@ -74,7 +74,7 @@ export default async function mount() {
       popover(b, `<h3>${on ? 'تفعيل إيقاف الطوارئ؟' : 'إلغاء إيقاف الطوارئ؟'}</h3><p class="muted" style="margin:0 0 12px">${on ? 'يوقف أي تنفيذ على حسابات الإعلانات فوراً. لين بس تقدر توقفه بعدين.' : 'يرجع التنفيذ حسب الحدود والموافقات.'}</p>
         <div class="bar" style="justify-content:flex-end"><button class="btn sm ghost" data-x>إلغاء</button><button class="btn sm ${on ? 'danger' : 'primary'}" data-go>${on ? 'فعّل الإيقاف' : 'ألغِ الإيقاف'}</button></div><div class="msg"></div>`, pop => {
         $('[data-x]', pop).onclick = closePop;
-        $('[data-go]', pop).onclick = async e => { busy(e.currentTarget, true); try { S.kill = await api('/api/control/kill', { method: 'POST', body: { on } }); closePop(); drawTop(); toast(on ? 'إيقاف الطوارئ مفعّل' : 'انلغى إيقاف الطوارئ'); } catch (err) { busy(e.currentTarget, false); const m = $('.msg', pop); m.className = 'msg err'; m.textContent = err.message; } };
+        $('[data-go]', pop).onclick = async e => { busy(e.currentTarget, true); try { S.kill = await api('/api/control/kill', { method: 'POST', body: { on } }); closePop(); drawTop(); window.dispatchEvent(new Event('buyer-reload')); toast(on ? 'إيقاف الطوارئ مفعّل' : 'انلغى إيقاف الطوارئ'); } catch (err) { busy(e.currentTarget, false); const m = $('.msg', pop); m.className = 'msg err'; m.textContent = err.message; } };
       });
     };
   }
