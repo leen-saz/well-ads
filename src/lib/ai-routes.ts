@@ -9,7 +9,7 @@ export interface Route { provider: Provider; model?: string | undefined }
 export interface Task { key: string; ar: string; en: string; def: Provider | 'anthropic' }
 
 // THE source of each tab's default provider (llm.ts, the owner screen and docs/ai-providers.md all read it). A tab with no entry is on the free Workers AI.
-export const PROVIDER: Record<string, Provider> = { content: 'openai', design: 'openai', copy: 'openai', motion: 'openai', social: 'xai', maestro: 'xai', listening: 'xai', ahlam: 'openrouter', ahlam_campaign: 'openrouter' };
+export const PROVIDER: Record<string, Provider> = { content: 'openai', design: 'openai', copy: 'openai', motion: 'openai', video: 'openai', social: 'xai', maestro: 'xai', listening: 'xai', ahlam: 'openrouter', ahlam_campaign: 'openrouter' };
 // Tasks that call generate() under another module name (compliance and knowledge write with the content model)
 const ALIAS: Record<string, string> = { compliance: 'content', knowledge: 'content' };
 // The Debugger and the critic call Anthropic directly unless the owner routes them elsewhere
@@ -23,6 +23,7 @@ const LIST: [string, string, string][] = [
   ['copy', 'الكاتب', 'Copywriter'],
   ['content', 'المحتوى', 'Content'],
   ['design', 'التصميم والموشن', 'Design and motion'],
+  ['video', 'الفيديو: الموجز والسكربت', 'Video: brief and script'],
   ['compliance', 'إعادة صياغة الامتثال', 'Compliance rewrite'],
   ['knowledge', 'المعرفة', 'Knowledge'],
   ['social', 'السوشال', 'Social'],

@@ -32,7 +32,8 @@ export default async function mount() {
     fillSelect($('#kind'), (caps?.kinds || []).filter(k => k !== 'avatar' || CUR?.avatar_id).map(k => [k, KINDS[k] || k]), $('#kind').value || 'text-to-video');
     fillSelect($('#clip'), (caps?.clipSeconds || []).map(s => [s, `${s} ثواني`]), 5);
     kindBoxes();
-    $('#cf').hidden = !CUR; $('#noproj').hidden = !!CUR;
+    $('#manual').hidden = !CUR; $('#noproj').hidden = !!CUR; $('#briefBox').hidden = !CUR;
+    drawBrief(); drawScript();
     $('#go').disabled = !META.canEdit || off;
     $('#save').disabled = NOT_READY;
   }
@@ -43,6 +44,31 @@ export default async function mount() {
     box.hidden = !todo.length;
     $('#ownerList').innerHTML = todo.map(k => `<li><code>${esc(k)}</code></li>`).join('');
   }
+  const editable = () => CUR && ['draft', 'returned'].includes(CUR.review_status) && META.canEdit;
+  function drawBrief() {
+    const b = CUR?.brief || {};
+    $('#url').value = CUR?.source_url || '';
+    $('#b_service').value = b.service || ''; $('#b_price').value = b.price || ''; $('#b_audience').value = b.audience || ''; $('#b_cta').value = b.cta || '';
+    $('#b_offer').value = b.offer || ''; $('#b_benefits').value = (b.benefits || []).join('\n');
+    for (const id of ['url', 'read', 'b_service', 'b_price', 'b_audience', 'b_cta', 'b_offer', 'b_benefits', 'bsave', 'wscript']) $('#' + id).disabled = !editable();
+  }
+  const briefBody = () => ({ service: $('#b_service').value, price: $('#b_price').value, audience: $('#b_audience').value, cta: $('#b_cta').value, offer: $('#b_offer').value,
+    benefits: $('#b_benefits').value.split('\n').map(x => x.trim()).filter(Boolean) });
+  function drawScript() {
+    const sc = CUR?.script, shots = sc?.shots || [];
+    $('#scriptBox').hidden = !shots.length;
+    if (!shots.length) return;
+    $('#fit').textContent = CUR.fit || '';
+    $('#shots').innerHTML = shots.map((x, k) => `<article class="vd-shot" data-k="${k}"><header><b>لقطة ${x.no}</b><span class="chip line">${esc(x.seconds)} ثواني</span></header>
+      <span class="muted">${esc(x.scene)}</span>
+      <label for="sl${k}">الجملة المنطوقة</label><textarea id="sl${k}" rows="2" maxlength="300" dir="auto" data-f="line">${esc(x.line)}</textarea>
+      <label for="so${k}">نص على الشاشة</label><input type="text" id="so${k}" maxlength="60" data-f="onScreen" value="${esc(x.onScreen)}">
+      <details><summary>وصف المشهد للمحرك</summary><textarea rows="3" maxlength="900" dir="ltr" data-f="prompt" aria-label="وصف المشهد للمحرك">${esc(x.prompt)}</textarea></details></article>`).join('');
+    $('#notices').innerHTML = (CUR.notices || []).map(n => `<div class="vd-notice"><b>${esc(n.where)}: ${esc(n.title)}</b><span>«${esc(n.match)}»</span><span class="muted">${esc(n.fix)}</span></div>`).join('');
+    $('#avBox').hidden = !CUR.avatar_id; $('#avvoice').value = sc.voice_url || '';
+    for (const el of $('#scriptBox').querySelectorAll('textarea,input,button')) el.disabled = !editable();
+  }
+  const scriptBody = () => ({ shots: (CUR.script.shots || []).map((x, k) => { const row = $(`.vd-shot[data-k="${k}"]`); const f = n => row.querySelector(`[data-f="${n}"]`).value; return { ...x, line: f('line'), onScreen: f('onScreen'), prompt: f('prompt') }; }), cta: CUR.script.cta });
   const avatarNote = () => { const a = META.avatars.find(x => x.id === $('#avatar').value); $('#avatarDoes').textContent = a ? (LANG === 'en' ? a.doesEn : a.does) : ''; };
   const kindBoxes = () => { const k = $('#kind').value; $('#imgBox').hidden = k !== 'image-to-video'; $('#voiceBox').hidden = k !== 'avatar'; };
 
@@ -62,13 +88,15 @@ export default async function mount() {
     if (!sig.aborted && JOBS.some(j => j.status === 'queued' || j.status === 'running')) timer = setTimeout(poll, 5000);
   }
 
+  // The list has the rows; the detail adds the compliance notices of the script
+  async function open(p) { if (!p) return null; const r = await api('/api/video/projects?id=' + p.id); return { ...r.project, notices: r.notices, fit: r.fit }; }
   async function load(keep) {
     const pr = await api('/api/video/projects'); LIST = pr.projects; NOT_READY = !!pr.notReady;
-    CUR = LIST.find(p => p.id === keep) || (keep === undefined ? LIST[0] : null) || null;
+    CUR = await open(LIST.find(p => p.id === keep) || (keep === undefined ? LIST[0] : null) || null);
     draw(); JOBS = []; drawJobs(); poll();
   }
 
-  $('#pick').onchange = () => { CUR = LIST.find(p => p.id === Number($('#pick').value)) || null; draw(); JOBS = []; drawJobs(); poll(); };
+  $('#pick').onchange = async () => { CUR = await open(LIST.find(p => p.id === Number($('#pick').value))).catch(err => { say($('#pmsg'), err.message); return null; }); draw(); JOBS = []; drawJobs(); poll(); };
   $('#avatar').onchange = avatarNote; $('#kind').onchange = kindBoxes;
   $('#pf').addEventListener('submit', async e => {
     e.preventDefault(); const b = e.submitter; busy(b, true);
@@ -78,6 +106,38 @@ export default async function mount() {
     } catch (err) { say($('#pmsg'), err.message); }
     busy(b, false);
   });
+  const keepProject = r => { CUR = { ...r.project, notices: r.notices, fit: r.fit }; LIST = LIST.map(p => p.id === CUR.id ? r.project : p); draw(); };
+  const withVoice = () => (CUR.avatar_id ? { voice_url: $('#avvoice').value } : {});
+  $('#uf').addEventListener('submit', async e => {
+    e.preventDefault(); const b = e.submitter; busy(b, true); say($('#umsg'), '');
+    try { const r = await api('/api/video/brief', { method: 'POST', body: { url: $('#url').value, project: CUR.id } }); CUR = { ...CUR, brief: r.brief, source_url: r.source }; drawBrief();
+      say($('#umsg'), r.from === 'model' ? 'قرأنا الصفحة، راجع الموجز وعدّله.' : 'قرأنا عنوان الصفحة ووصفها بس، كمّل الموجز بإيدك.', true); } catch (err) { say($('#umsg'), err.message); }
+    busy(b, false);
+  });
+  $('#bf').addEventListener('submit', async e => {
+    e.preventDefault(); const b = e.submitter; busy(b, true);
+    try { keepProject(await api('/api/video/projects', { method: 'PATCH', body: { id: CUR.id, brief: briefBody() } })); say($('#bmsg'), 'انحفظ.', true); } catch (err) { say($('#bmsg'), err.message); }
+    busy(b, false);
+  });
+  $('#wscript').onclick = async () => {
+    const b = $('#wscript'); busy(b, true);
+    try { await api('/api/video/projects', { method: 'PATCH', body: { id: CUR.id, brief: briefBody() } }); keepProject(await api('/api/video/script', { method: 'POST', body: { id: CUR.id } })); say($('#bmsg'), 'انكتب السكربت، راجعه تحت.', true); }
+    catch (err) { say($('#bmsg'), err.message); }
+    busy(b, false);
+  };
+  $('#ssave').onclick = async () => {
+    const b = $('#ssave'); busy(b, true);
+    try { keepProject(await api('/api/video/projects', { method: 'PATCH', body: { id: CUR.id, script: scriptBody(), ...withVoice() } })); say($('#smsg'), 'انحفظ.', true); } catch (err) { say($('#smsg'), err.message); }
+    busy(b, false);
+  };
+  $('#render').onclick = async () => {
+    const b = $('#render'); busy(b, true);
+    try {
+      keepProject(await api('/api/video/projects', { method: 'PATCH', body: { id: CUR.id, script: scriptBody(), ...withVoice() } }));
+      await api('/api/video/render', { method: 'POST', body: { id: CUR.id } }); say($('#smsg'), 'بدأت اللقطات، تتولّد بالخلفية.', true); poll();
+    } catch (err) { say($('#smsg'), err.message); }
+    busy(b, false);
+  };
   $('#cf').addEventListener('submit', async e => {
     e.preventDefault(); const b = e.submitter; busy(b, true);
     try {
