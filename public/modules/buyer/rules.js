@@ -8,13 +8,30 @@ const OWNER = { media_buyer: 'المشتري الإعلامي', video_agent: 'إ
 const LIMIT = r => [r.maxCpl != null && `تكلفة الليد ≤ ${r.maxCpl}`, r.minCtr != null && `النقر ≥ ${r.minCtr}%`, r.stepPct != null && `خطوة ${r.stepPct}%`, r.everyDays != null && `كل ${r.everyDays} أيام`, r.minIdleDays != null && `${r.minIdleDays} يوم`].filter(Boolean).join('، ') || '—';
 // The limits each kind of rule reads (TikTok is judged by click rate, so its «resume» reads minCtr)
 const FIELDS = r => ({ scale: ['maxCpl', 'stepPct', 'everyDays', 'minResults'], resume: [r.platform === 'tiktok' ? 'minCtr' : 'maxCpl'], stop_idle: ['minIdleDays'], replace_creative: ['minCtr'] }[r.kind] || []);
+// The owner's markup: built here, so a member's page carries none of these words
+const HTML = `  <section class="card pad" style="margin:0 0 12px">
+    <div class="bar" style="justify-content:space-between;margin:0 0 8px"><h2 style="margin:0">قواعد الإدارة</h2><div class="bar"><button class="btn sm secondary" type="button" id="by-rulesExport">تصدير</button><button class="btn sm" type="button" id="by-rulesImport">استيراد القواعد</button></div></div>
+    <p class="muted" id="by-rulesInfo" style="margin:0 0 8px"></p>
+    <div id="by-rulesForm" hidden>
+      <p class="muted" style="margin:0 0 8px">ارفع ملف JSON أو الصق نصه. تنحفظ في قاعدة البيانات فقط، والملف ما يدخل الريبو.</p>
+      <input type="file" id="by-rulesFile" accept="application/json,.json" style="margin:0 0 8px">
+      <textarea id="by-rulesText" rows="6" dir="ltr" style="width:100%;font:13px var(--f-num,monospace)" placeholder='{"rules":[...]}'></textarea>
+      <div class="bar" style="margin:8px 0 0"><button class="btn sm secondary" type="button" id="by-rulesPreview">معاينة</button></div>
+      <div id="by-rulesPrev" style="margin:10px 0 0"></div>
+    </div>
+  </section>
+  <section class="card pad">
+    <div class="bar" style="justify-content:space-between;margin:0 0 8px"><h3 style="margin:0">تعديل الحدود والقرارات المفتوحة</h3><button class="btn sm" type="button" id="by-rulesSaveEdit">احفظ التعديلات</button></div>
+    <div id="by-rulesEdit"></div>
+  </section>
+  <div class="msg" id="by-rulesMsg" role="status"></div>`;
 const LABEL = { maxCpl: 'أقصى تكلفة ليد', minCtr: 'أقل نسبة نقر %', stepPct: 'خطوة الرفع %', everyDays: 'كل كم يوم', minResults: 'أقل عدد نتائج', minIdleDays: 'أيام بلا نتائج' };
 
 export async function mountRules() {
   let cur;
   try { cur = await api('/api/buyer/rules'); } catch { return; }          // not the owner: the section stays hidden
   const box = $('#by-rulesBox'); if (!box) return;
-  box.hidden = false;
+  box.innerHTML = HTML; box.hidden = false;
   let rules = cur.rules || [];
   const msg = $('#by-rulesMsg');
   const info = () => { $('#by-rulesInfo').textContent = rules.length ? `القواعد المحفوظة: ${rules.length}، ومنها ${rules.filter(r => r.open).length} مفتوحة تنتظر قرار لين.` : 'ما فيه قواعد محفوظة بعد. استورد ملف القواعد.'; };
