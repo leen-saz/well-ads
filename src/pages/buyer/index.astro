@@ -1,8 +1,0 @@
----
-// The page lives in its module: src/modules/buyer/Page.astro
-import Page from '../../modules/buyer/Page.astro';
-import { BUYER_ENABLED } from '../../modules/buyer/flag';
-// Hidden by the switch in the module's flag.ts (the gate already answers 404; this is the second lock)
-if (!BUYER_ENABLED) return new Response('غير موجود', { status: 404 });
----
-<Page />

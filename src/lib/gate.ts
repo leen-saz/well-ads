@@ -3,7 +3,6 @@
 import { env, verify, renew, clearCookie, readCookie, SESSION, can, home, html, json, type AuthEnv, type Cfg, type Need, locked, LOCKED, WELL_ONLY } from './auth';
 import { WELL_COMPANY } from './tenant';
 import { LIVE, MODULES } from '../modules/registry';
-import { BUYER_ENABLED } from '../modules/buyer/flag';
 
 export type Pass = { pass: true; rewrite?: string; cookie?: string };
 export type Decision = Pass | Response;
@@ -18,7 +17,7 @@ const PUBLIC = [/^\/login\/?$/, /^\/reset\/?$/, /^\/welcome\/?$/, /^\/api\/auth\
 export const HUBS: Record<string, [Need, string][]> = {
   performance: [['ceo', '/'], ['creative', '/?view=creative'], ['listening', '/listening/']],
   create: [['design', '/design/'], ['voice', '/voice/'], ['voiceover', '/voice/?tab=voiceover'], ['social', '/social/'], ['content', '/content/'], ['copy', '/content/?tab=copy'], ['journeys', '/journeys/']],
-  review: [['control', '/control/'], ...(BUYER_ENABLED ? [['buyer', '/buyer/'] as [Need, string]] : []), ['compliance', '/compliance/'], ['maestro', '/maestro/']],
+  review: [['control', '/control/'], ['compliance', '/compliance/'], ['maestro', '/maestro/']],
   system: [['connectors', '/connectors/'], ['knowledge', '/knowledge/'], ['debugger', '/debugger/']],
 };
 // What the pipeline builds and the control board and connectors keep is Well's alone (R2 pages and data, decisions, keys):
@@ -83,8 +82,6 @@ export async function gate(request: Request, e: AuthEnv): Promise<Decision> {
 
 async function decide(request: Request, e: AuthEnv, renewed: { cookie?: string }): Promise<Decision> {
   const url = new URL(request.url);
-  // The Media buyer is hidden (src/modules/buyer/flag.ts): no page, no API, no matter who asks. Not even a login redirect.
-  if (!BUYER_ENABLED && /^\/(api\/)?buyer(\/|$)/.test(url.pathname)) return url.pathname.startsWith('/api/') ? json(404, { error: 'غير موجود' }) : html(404, 'غير موجود');
   const want = need(url.pathname, url.search);
   if (!want) return { pass: true };
   const api = url.pathname.startsWith('/api/');

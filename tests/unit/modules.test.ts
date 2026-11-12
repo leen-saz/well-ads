@@ -4,6 +4,7 @@ import * as A from '../../src/lib/auth';
 import { gate, need } from '../../src/lib/gate';
 import { MODULES, LIVE } from '../../src/modules/registry';
 import { ROUTES } from '../../src/modules/routes';
+import { GROUPS } from '../../src/api/index';
 import { password } from '../../src/api/routes/account';
 import { modules } from '../../src/api/routes/admin';
 import * as routesModule from '../../src/modules/routes';
@@ -104,23 +105,13 @@ describe('tabs with sections (voiceover in voice, copy in content)', () => {
   });
 });
 
-describe('Media buyer is hidden (src/modules/buyer/flag.ts)', () => {
-  it('is out of the registry, the routes and the dashboards, and its code is still there', async () => {
-    const { BUYER_ENABLED } = await import('../../src/modules/buyer/flag');
-    expect(BUYER_ENABLED).toBe(false);
+describe('the Media buyer tab was removed (Leen, 2026-11-12: it duplicated the decisions board)', () => {
+  it('is in no registry, route group, dashboard list or gate rule', () => {
     expect(MODULES.some(m => m.key === 'buyer')).toBe(false);
     expect(LIVE).not.toContain('buyer');
     expect(Object.keys(ROUTES)).not.toContain('buyer');
+    expect(Object.keys(GROUPS)).not.toContain('buyer');
     expect(Object.keys(A.DASHBOARDS)).not.toContain('buyer');
-    expect(typeof (await import('../../src/modules/buyer/routes')).report.GET).toBe('function');   // kept, just not mounted
-  });
-  it('the gate answers 404 for the page and every API, the owner included, before any login', async () => {
-    const owner = await cookieFor(leen);
-    for (const path of ['/buyer/', '/api/buyer/report', '/api/buyer/rules', '/api/buyer/apply', '/api/buyer/rollback', '/api/buyer/execution']) {
-      for (const cookie of [owner, '']) {
-        const d = await gate(req(path, cookie), E);
-        expect(d instanceof Response && d.status, path).toBe(404);
-      }
-    }
+    expect(need('/buyer/', '')).toBe('ceo');          // not a module: no special rule, and the page does not exist
   });
 });
