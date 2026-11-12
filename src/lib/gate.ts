@@ -70,6 +70,11 @@ export function need(pathname: string, search: string): Need | null {
   return 'ceo';
 }
 
+// A section that is off for this company (or a user without access): a page in Well's own shell that says so and offers a way back,
+// never a bare white page with a «sign in» link that looks like the session dropped
+const closed = (origin: string, want: string, why: 'locked' | 'company' | 'noaccess') => new Response(null, { status: 302, headers: { location: new URL(`/soon/?t=${encodeURIComponent(want)}&why=${why}`, origin).toString(), 'cache-control': 'no-store' } });
+// Pages get that screen; data files (.json, images) keep a plain 403
+const denied = (url: URL, want: string, why: 'locked' | 'company' | 'noaccess', msg: string) => /\.[a-z0-9]+$/i.test(url.pathname) ? html(403, msg) : closed(url.origin, want, why);
 const redirect = (to: string) => new Response(null, { status: 302, headers: { location: to, 'cache-control': 'no-store' } });
 
 // A page opened after the 10-minute recheck renews the session right here (one profile read) and sets the new cookie
@@ -119,10 +124,10 @@ async function decide(request: Request, e: AuthEnv, renewed: { cookie?: string }
   }
   const hub = url.pathname.match(HUB)?.[1];
   if (hub) return redirect(new URL(HUBS[hub]!.find(([k]) => can(s, k, cfg) && (s.co === WELL_COMPANY || !WELL_NEEDS.includes(k)))?.[1] ?? '/today/', url.origin).toString());
-  if (s.co !== WELL_COMPANY && WELL_NEEDS.includes(want)) return api ? json(403, { error: WELL_ONLY }) : html(403, WELL_ONLY);
+  if (s.co !== WELL_COMPANY && WELL_NEEDS.includes(want)) return api ? json(403, { error: WELL_ONLY }) : denied(url, want, 'company', WELL_ONLY);
   // Images: any user with at least one dashboard
   if (want === 'media') return (s.dash || []).length || s.role === 'owner' ? { pass: true } : html(403, 'ما عندك صلاحية');
-  if (locked(s, want)) return api ? json(403, { error: LOCKED }) : html(403, LOCKED);
+  if (locked(s, want)) return api ? json(403, { error: LOCKED }) : denied(url, want, 'locked', LOCKED);
   if (can(s, want, cfg)) {
     // The old address of a section: its place inside the tab it moved into
     const host = !api ? intoOf(want) : undefined;
@@ -144,6 +149,6 @@ async function decide(request: Request, e: AuthEnv, renewed: { cookie?: string }
   }
   if (api) return json(403, { error: 'ما عندك صلاحية' });
   const to = home();
-  if (to === back) return html(403, 'ما عندك صلاحية على هذي اللوحة.');
+  if (to === back) return denied(url, want, 'noaccess', 'ما عندك صلاحية على هذي اللوحة.');
   return redirect(new URL(to, url.origin).toString());
 }
