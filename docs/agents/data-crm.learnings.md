@@ -6,7 +6,11 @@
 
 ## الدروس
 
-لا دروس بعد. أول جولة تضيف هنا.
+### 2026-11-12 · إعادة تشغيل المهاجرات كانت وعداً بلا فحص
+- **الدرس:** `docs/migrations.md` يقول إن كل مهاجرة قابلة للإعادة، لكن ما كان فيه اختبار يفرضه. أضفنا `tests/unit/migrations-rerun.test.ts` (create/index/add column بدون `if not exists`، drop بدون `if exists`، policy وtrigger بدون drop قبلها). كل الملفات الحالية نظيفة (000 مستثناة للـpolicies فقط). ملاحظة: `IF NOT EXISTS` يتجاوز الفهرس الموجود دون التحقق أنه نفس التعريف، فالفحص يمنع الخطأ ولا يضمن التطابق.
+- **المصدر:** https://www.postgresql.org/docs/current/sql-createindex.html (اطُّلع عليه 2026-11-12)؛ https://supabase.com/docs/guides/deployment/database-migrations (2026-11-12، لا يذكر الإعادة صراحة)؛ `docs/migrations.md`.
+- **الأثر:** طُبّق في PR هذه الجولة.
+- **مؤجل:** فحص فهرس للاستعلامات الثقيلة (يحتاج قائمة الاستعلامات الثقيلة)، واختبار استعادة النسخة الاحتياطية.
 
 <!-- القالب:
 ### YYYY-MM-DD · عنوان قصير
