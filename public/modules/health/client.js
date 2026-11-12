@@ -40,7 +40,7 @@ const age = iso => { if (!iso) return ['—', 'bad']; const h = (Date.now() - Da
 const dayAge = d => { if (!d) return ['—', 'bad']; const h = (Date.now() - Date.parse(d + 'T00:00:00+03:00')) / 36e5; return [esc(d), h > 72 ? 'bad' : '']; };
 const cell = ([t, bad]) => (bad ? `<b style="color:#8A2A1B">${t}</b>` : t);
 
-const WHYTXT = { id: 'مربوطة برقم الإعلان', name: 'مربوطة باسم الإعلان', via_customer: 'منسوبة لإعلان سابق لنفس العميل', source: 'مصدرها مو إعلان (واتساب عضوي، يدوي…)', no_id: 'مصدرها إعلان بس بدون رقم إعلان', broken_id: 'رقم الإعلان تالف من الاستيراد', not_in_ads: 'رقم الإعلان مو بين الإعلانات المسحوبة' };
+const WHYTXT = { id: 'مربوطة برقم الإعلان', utm: 'مربوطة بحقل UTM أو رقم إعلان جديد من الـ CRM', name: 'مربوطة باسم الإعلان', via_customer: 'منسوبة لإعلان سابق لنفس العميل', source: 'مصدرها مو إعلان (واتساب عضوي، يدوي…)', no_id: 'مصدرها إعلان بس بدون رقم إعلان', broken_id: 'رقم الإعلان تالف من الاستيراد', not_in_ads: 'رقم الإعلان مو بين الإعلانات المسحوبة' };
 const attribution = A => !A || !A.paid ? '' : `<h3>وين راحت الإقفالات المدفوعة؟</h3>${table(['السبب', 'إقفالات'], Object.entries(A.why).filter(([, n]) => n).map(([k, n]) => [esc(WHYTXT[k] || k), fmt(n)]))}`
   + (Object.keys(A.unmatched_sources).length ? `<p class="muted">مصادر الإقفالات اللي بدون إعلان: ${Object.entries(A.unmatched_sources).map(([k, n]) => `<code>${esc(k)}</code> ${fmt(n)}`).join('، ')}</p>` : '');
 

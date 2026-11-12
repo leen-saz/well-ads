@@ -130,7 +130,7 @@ class AttributionRuleTests(unittest.TestCase):
                 lead(lead_id="i", source_platform="meta_form", ad_id="111", payment_status="unpaid")]
         att = join.attach({"ads": self.ADS2}, rows)["attribution"]
         self.assertEqual(att["paid"], 7)
-        self.assertEqual(att["why"], {"id": 1, "name": 1, "via_customer": 1, "source": 1, "no_id": 1, "broken_id": 1, "not_in_ads": 1})
+        self.assertEqual(att["why"], {"id": 1, "utm": 0, "name": 1, "via_customer": 1, "source": 1, "no_id": 1, "broken_id": 1, "not_in_ads": 1})
         self.assertEqual(att["unmatched_sources"], {"whatsapp_organic": 1})
         self.assertEqual(sum(att["why"].values()), att["paid"])
 
@@ -141,6 +141,37 @@ class AttributionRuleTests(unittest.TestCase):
         for s in ("SECRET", "Private", "123"):
             self.assertNotIn(s, text)
         self.assertEqual(crm["attribution"]["unmatched_sources"], {"oddsource": 1})
+
+
+
+class CrmNewFieldsTests(unittest.TestCase):
+    """Fields the CRM owner may add (ad id, UTM) work as soon as they arrive, and nothing changes while they are absent."""
+    ADS = {"m1202345678901|fb": {"name": "A"}, "s6f3a9c2e-1111": {"name": "S"}, "t1730000000000": {"name": "T"}}
+
+    def test_absent_fields_change_nothing(self):
+        before = join.attach({"ads": self.ADS}, [lead(ad_id="1202345678901")])
+        self.assertEqual([r[0] for r in before["rows"]], ["m1202345678901|fb"])
+        self.assertEqual(before["attribution"]["why"]["utm"], 0)
+
+    def test_a_utm_id_names_the_ad_when_ad_id_is_missing(self):
+        paid = dict(payment_status="paid", amount_paid_sar=400, paid_at="2026-10-22T09:00:00Z")
+        crm = join.attach({"ads": self.ADS}, [
+            lead(lead_id="a", ad_id=None, utm_content="1202345678901", **paid),                                   # Meta lead, id only in utm_content
+            lead(lead_id="b", source_platform="whatsapp_organic", ad_id=None, utm_source="snapchat", utm_id="6f3a9c2e-1111"),  # source says nothing, utm_source does
+            lead(lead_id="c", ad_id=None, doc_ad_id="999999999999"),                                              # id that is not one of our ads
+            lead(lead_id="d", source_platform="manual", ad_id=None, utm_source="", utm_content="1202345678901"),  # no platform anywhere: stays unmatched
+        ])
+        self.assertEqual([r[0] for r in crm["rows"]], ["m1202345678901|fb", "s6f3a9c2e-1111"])
+        self.assertEqual(crm["attribution"]["why"]["utm"], 1)       # only the paid one is counted in the reasons
+        self.assertEqual(crm["unmatched"], 2)
+
+    def test_ad_id_still_wins_and_garbage_is_ignored(self):
+        crm = join.attach({"ads": self.ADS}, [lead(ad_id="1202345678901", utm_content="t1730000000000"), lead(ad_id=None, utm_content="x y; drop table", utm_id="12")])
+        self.assertEqual([r[0] for r in crm["rows"]], ["m1202345678901|fb"])
+
+    def test_the_columns_read_the_new_fields_from_doc_without_a_migration(self):
+        for f in ("doc_ad_id:doc->>ad_id", "utm_id:doc->>utm_id", "utm_content:doc->>utm_content", "utm_source:doc->>utm_source"):
+            self.assertIn(f, join.COLUMNS)
 
 
 if __name__ == "__main__":
