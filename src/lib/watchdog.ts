@@ -1,6 +1,6 @@
 // Outside watcher for the hourly refresh (docs/system-workflow-review.md, gap 1.1 and 1.3). The health step inside refresh.yml
-// cannot warn when the workflow never starts, hangs or fails before it. This runs on its own Cron Trigger (minute 37, away from
-// the refresh at minute 7), reads how old site/dash.json is, and sends ONE alert when it is older than 3 hours.
+// cannot warn when the workflow never starts, hangs or fails before it. This runs from the hourly Cron Trigger (minute 7, with
+// the refresh dispatch), reads how old site/dash.json is, and sends ONE alert when it is older than 3 hours.
 // Channels, all optional Worker secrets (nothing is stored in the repo): ALERT_WEBHOOK_URL (any endpoint taking a JSON POST: Slack,
 // Discord, ntfy, Zapier) and/or RESEND_API_KEY + ALERT_EMAIL_FROM + ALERT_EMAIL_TO (email through Resend). With none set the problem
 // is still saved for the health page and logged. The message holds hours only: no business figures, no keys.

@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from 'vitest';
-import { DISPATCH_TIMEOUT_MS, DISPATCH_URL, dispatchRefresh, dispatchUrl, dispatchWorkflow } from '../../src/lib/cron';
+import { DISPATCH_TIMEOUT_MS, DISPATCH_URL, dispatchRefresh, dispatchUrl, dispatchWorkflow, hourlyTasks } from '../../src/lib/cron';
 
 describe('cron dispatch', () => {
   it('starts refresh.yml on main with the token', async () => {
@@ -68,5 +68,30 @@ describe('cron dispatch timeout', () => {
     expect(timeout).toHaveBeenCalledWith(DISPATCH_TIMEOUT_MS);
     timeout.mockRestore();
     err.mockRestore();
+  });
+});
+
+describe('hourly trigger: which jobs are due (UTC)', () => {
+  const at = (iso: string) => hourlyTasks(new Date(iso));
+  it('every hour: the refresh and the watchdog', () => {
+    expect(at('2026-11-12T10:07:00Z')).toEqual(['refresh', 'watchdog']); // a Thursday
+  });
+  it('backup only on Sunday at 02 UTC', () => {
+    expect(at('2026-11-15T02:07:00Z')).toContain('backup'); // Sunday
+    expect(at('2026-11-15T03:07:00Z')).not.toContain('backup');
+    expect(at('2026-11-15T01:07:00Z')).not.toContain('backup');
+    expect(at('2026-11-16T02:07:00Z')).not.toContain('backup'); // Monday
+  });
+  it('restore test only on the 1st at 03 UTC', () => {
+    expect(at('2026-12-01T03:07:00Z')).toContain('restore');
+    expect(at('2026-12-01T02:07:00Z')).not.toContain('restore');
+    expect(at('2026-12-02T03:07:00Z')).not.toContain('restore');
+  });
+  it('a week has exactly one backup and a month one restore test', () => {
+    let backups = 0, restores = 0;
+    for (let h = 0; h < 24 * 7; h++) if (at(new Date(Date.UTC(2026, 10, 9, h, 7)).toISOString()).includes('backup')) backups++;
+    for (let h = 0; h < 24 * 30; h++) if (at(new Date(Date.UTC(2026, 10, 1, h, 7)).toISOString()).includes('restore')) restores++;
+    expect(backups).toBe(1);
+    expect(restores).toBe(1);
   });
 });

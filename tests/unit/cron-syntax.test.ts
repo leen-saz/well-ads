@@ -35,7 +35,8 @@ export function cronProblem(c: string): string | null {
 }
 
 describe('wrangler.jsonc cron triggers use Cloudflare syntax', () => {
-  it('finds the production crons', () => { expect(crons.length).toBeGreaterThanOrEqual(5); });
+  // Workers Free: 5 cron triggers per account for ALL Workers (code 10072 failed a deploy). Stay well under it.
+  it('uses at most 3 triggers, so the account keeps some room', () => { expect(crons.length).toBeGreaterThan(0); expect(crons.length).toBeLessThanOrEqual(3); });
   for (const c of crons) it(`"${c}" is valid`, () => { expect(cronProblem(c)).toBeNull(); });
   it('the checker rejects day-of-week 0 (the bug) and accepts SUN and 1-7', () => {
     expect(cronProblem('17 2 * * 0')).not.toBeNull();
@@ -47,7 +48,7 @@ describe('wrangler.jsonc cron triggers use Cloudflare syntax', () => {
   });
   it('every cron string app.ts matches on is one wrangler.jsonc actually registers', () => {
     const used = [...app.matchAll(/_CRON = '([^']+)'/g)].map(m => m[1] as string);
-    expect(used.length).toBeGreaterThanOrEqual(4);
+    expect(used.length).toBeGreaterThanOrEqual(2);
     for (const u of used) expect(crons, u).toContain(u);
   });
 });

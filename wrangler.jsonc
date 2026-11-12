@@ -23,8 +23,9 @@
       "r2_buckets": [{ "binding": "FILES", "bucket_name": "well-ads-files" }],
       "ai": { "binding": "AI" },
       "workflows": [{ "name": "journey-run", "binding": "JOURNEY", "class_name": "JourneyRun" }],
-      // Hourly data refresh (src/lib/cron.ts): GitHub's own schedule never fired for this repo; minute 37: the watchdog on dash.json age (src/lib/watchdog.ts); every 5 minutes: due social posts; Sunday 02:17 UTC the weekly backup and the 1st at 02:47 UTC the restore test (db-backup.yml, db-restore-test.yml)
-      "triggers": { "crons": ["7 * * * *", "37 * * * *", "*/5 * * * *", "17 2 * * SUN", "47 2 1 * *"] }
+      // Workers Free allows 5 cron triggers per account, so only TWO here (src/app.ts, hourlyTasks in src/lib/cron.ts):
+      // every 5 minutes the due social posts; minute 7 hourly: the data refresh and the watchdog, plus the weekly backup (Sunday 02 UTC) and the monthly restore test (the 1st, 03 UTC)
+      "triggers": { "crons": ["7 * * * *", "*/5 * * * *"] }
     }
   },
   "vars": { "APP_ENV": "local", "OWNER_EMAIL": "leen.sulaiman@wellunion.co" },
