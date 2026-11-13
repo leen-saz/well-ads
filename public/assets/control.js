@@ -21,8 +21,8 @@ export default async function mount() {
   function impact(s) {
     const sp = (s.evidence || {}).spend;
     if (sp == null) return null;
-    if (s.kind === 'pause' || s.kind === 'pause_campaign') return { v: sp, n: `~${sar(sp)}`, l: 'ر.س/أسبوع توفير متوقع', t: `تقدير: يوفر ~${sar(sp)} ر.س/أسبوع (صرفه آخر 7 أيام)` };
-    if (s.kind === 'budget_up') { const v = sp * ((s.params || {}).pct || 0) / 100; return { v, n: `+~${sar(v)}`, l: 'ر.س/أسبوع صرف إضافي متوقع', t: `تقدير: +~${sar(v)} ر.س/أسبوع (${(s.params || {}).pct || 0}% من صرف آخر 7 أيام)` }; }
+    if (s.kind === 'pause' || s.kind === 'pause_campaign') return { v: sp, n: `~${sar(sp)}`, l: 'ريال/أسبوع توفير متوقع', t: `تقدير: يوفر ~${sar(sp)} ريال/أسبوع (صرفه آخر 7 أيام)` };
+    if (s.kind === 'budget_up') { const v = sp * ((s.params || {}).pct || 0) / 100; return { v, n: `+~${sar(v)}`, l: 'ريال/أسبوع صرف إضافي متوقع', t: `تقدير: +~${sar(v)} ريال/أسبوع (${(s.params || {}).pct || 0}% من صرف آخر 7 أيام)` }; }
     return null;
   }
   const adOf = s => S.ads[(PRE[s.platform] || '') + s.target_id] || null;
@@ -85,7 +85,7 @@ export default async function mount() {
     const decided = S.done.filter(s => s.status !== 'expired');
     const rate = decided.length ? 100 * decided.filter(s => s.status === 'approved' || s.status === 'modified' || s.status === 'executed').length / decided.length : null;
     const k = (t, v, u = '') => `<div class="card kpi"><div class="k">${t}</div><div class="v">${v}${u ? `<small>${u}</small>` : ''}</div></div>`;
-    $('#kpis').innerHTML = k('مبلغ معرّض للهدر (تقدير)', sar(wasted), 'ر.س/أسبوع حسب آخر 7 أيام') + k('اقتراحات مفتوحة', fmt(S.open.length)) + k('نُفّذ هالأسبوع', fmt(executed)) + k('نسبة الموافقة', rate == null ? '—' : fmt(rate, 0) + '%');
+    $('#kpis').innerHTML = k('مبلغ معرّض للهدر (تقدير)', sar(wasted), 'ريال/أسبوع حسب آخر 7 أيام') + k('اقتراحات مفتوحة', fmt(S.open.length)) + k('نُفّذ هالأسبوع', fmt(executed)) + k('نسبة الموافقة', rate == null ? '—' : fmt(rate, 0) + '%');
   }
   function modes() {
     const same = S.settings.every(x => x.mode === (S.settings[0] || {}).mode);
@@ -303,7 +303,7 @@ export default async function mount() {
     const by = Object.fromEntries(a.days.map(([d, s, l]) => [d, [s, l]]));
     const ms = Math.max(1, ...days.map(d => (by[d] || [0])[0])), ml = Math.max(1, ...days.map(d => (by[d] || [0, 0])[1]));
     const x = i => W - (i + 1) * bw;   // يمين لليسار
-    const bars = days.map((d, i) => { const s = (by[d] || [0])[0], h = s / ms * (H - 12); return `<rect x="${x(i) + 3}" y="${H - h}" width="${bw - 6}" height="${h}" rx="3" fill="var(--soft)"><title>${day(d)}: ${sar(s)} ر.س</title></rect>`; }).join('');
+    const bars = days.map((d, i) => { const s = (by[d] || [0])[0], h = s / ms * (H - 12); return `<rect x="${x(i) + 3}" y="${H - h}" width="${bw - 6}" height="${h}" rx="3" fill="var(--soft)"><title>${day(d)}: ${sar(s)} ريال</title></rect>`; }).join('');
     const pts = days.map((d, i) => `${x(i) + bw / 2},${H - (by[d] || [0, 0])[1] / ml * (H - 12)}`).join(' ');
     return `<svg class="spark" viewBox="0 0 ${W} ${H}" role="img" aria-label="الصرف مقابل الليدز آخر 14 يوم">${bars}<polyline points="${pts}" fill="none" stroke="var(--accent)" stroke-width="2" stroke-linejoin="round"/></svg>
       <div class="bar muted"><span class="chip" style="background:var(--soft);color:var(--ink)">الصرف</span><span class="chip line" style="border-color:var(--accent)">الليدز</span></div>`;
@@ -320,10 +320,10 @@ export default async function mount() {
         <div><h3>ليش؟</h3><p style="margin:6px 0 0">${esc(s.reason)}</p><p class="muted" style="margin:4px 0 0">${esc(t(ruleOf(s)))}${s.campaign ? ` · ${esc(s.campaign)}` : ''}</p></div>
         <dl class="kv">
           ${im ? `<dt>الأثر</dt><dd class="num">${esc(im.t)}</dd>` : ''}
-          ${e.spend != null ? `<dt>الصرف آخر 7 أيام</dt><dd class="num">${sar(e.spend)} ر.س</dd>` : ''}
+          ${e.spend != null ? `<dt>الصرف آخر 7 أيام</dt><dd class="num">${sar(e.spend)} ريال</dd>` : ''}
           ${e.leads != null ? `<dt>${e.metric === 'chats' ? 'المحادثات' : 'الليدز'} آخر 7 أيام</dt><dd class="num">${fmt(e.leads)}</dd>` : ''}
-          ${e.cpl != null ? `<dt>${e.metric === 'chats' ? 'تكلفة المحادثة' : 'تكلفة الليد'}</dt><dd class="num">${sar(e.cpl)} ر.س</dd>` : ''}
-          ${e.target_cpl != null ? `<dt>الهدف</dt><dd><span class="num">${sar(e.target_cpl)} ر.س</span> <span class="muted">(${e.target_source === 'written' ? 'هدف مكتوب' : 'متوسط 30 يوم للمنصة'})</span></dd>` : ''}
+          ${e.cpl != null ? `<dt>${e.metric === 'chats' ? 'تكلفة المحادثة' : 'تكلفة الليد'}</dt><dd class="num">${sar(e.cpl)} ريال</dd>` : ''}
+          ${e.target_cpl != null ? `<dt>الهدف</dt><dd><span class="num">${sar(e.target_cpl)} ريال</span> <span class="muted">(${e.target_source === 'written' ? 'هدف مكتوب' : 'متوسط 30 يوم للمنصة'})</span></dd>` : ''}
           ${age != null ? `<dt>عمر الإعلان</dt><dd class="num">${age} يوم</dd>` : ''}
           <dt>انقترح</dt><dd>${esc(when(s.created_at))}</dd>
         </dl>
@@ -343,7 +343,7 @@ export default async function mount() {
     if (!o) return '—';
     if (o.status) return o.status === 'PAUSED' ? 'موقوف' : 'شغّال';
     if (o.change_pct != null) return `${o.change_pct > 0 ? '+' : ''}${o.change_pct}% ميزانية`;
-    if ('budget' in o) return o.budget == null ? 'الميزانية الحالية (تنقرا وقت التنفيذ)' : `${sar(o.budget)} ر.س`;
+    if ('budget' in o) return o.budget == null ? 'الميزانية الحالية (تنقرا وقت التنفيذ)' : `${sar(o.budget)} ريال`;
     return '—';
   }
   const FIELD = { dept: 'القسم', objective: 'الهدف', budget: 'الميزانية اليومية', start: 'البداية', end: 'النهاية', geo: 'الموقع', age_min: 'العمر من', age_max: 'إلى', gender: 'الجنس', lang: 'اللغة',
@@ -368,7 +368,7 @@ export default async function mount() {
   function planHTML(s) {
     if (!s.before && !s.after && !s.measure_plan && !(s.risk || []).length) return '';
     const ex = s.expect || {};
-    const exp = [ex.save_per_week != null ? `يوفر ~${sar(ex.save_per_week)} ر.س/أسبوع` : '', ex.extra_spend_per_week != null ? `+${sar(ex.extra_spend_per_week)} ر.س/أسبوع صرف` : '',
+    const exp = [ex.save_per_week != null ? `يوفر ~${sar(ex.save_per_week)} ريال/أسبوع` : '', ex.extra_spend_per_week != null ? `+${sar(ex.extra_spend_per_week)} ريال/أسبوع صرف` : '',
       ex.extra_leads_per_week != null ? `+${fmt(ex.extra_leads_per_week, 1)} ليد/أسبوع متوقع` : ''].filter(Boolean).join(' · ');
     return `<div><h3>الخطة</h3><dl class="kv">
       ${s.before || s.after ? `<dt>قبل ← بعد</dt><dd>${esc(fmtState(s.before))} ← ${esc(fmtState(s.after))}</dd>` : ''}

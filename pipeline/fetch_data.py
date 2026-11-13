@@ -740,7 +740,7 @@ def main():
         keys = {k for k, v in ADS.items() if family_of(v.get("platform")) == p}
         rs = [r for r in ROWS if r[0] in keys]
         # Public Actions log: spend and leads only with PIPELINE_DEBUG=1 (no workflow sets it)
-        figures = f" | صرف {round(sum(r[2] for r in rs))} ر.س | ليدز {round(sum(r[5] for r in rs))}" if os.environ.get("PIPELINE_DEBUG") == "1" else ""
+        figures = f" | صرف {round(sum(r[2] for r in rs))} ريال | ليدز {round(sum(r[5] for r in rs))}" if os.environ.get("PIPELINE_DEBUG") == "1" else ""
         print(f"{p}: {status[p]['ok'] and 'تم' or 'فشل'} | {len(keys)} إعلان{figures}")
     print("mode", data["mode"], "| size KB", os.path.getsize(DATA_PATH) // 1024)
 

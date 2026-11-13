@@ -172,7 +172,7 @@ describe('read-only and clean', () => {
   });
   it('no text carries a health claim the compliance check would flag', () => {
     // the ad-price rule is about advertised prices; an ad-spend figure in an internal note is not one
-    const plain = (t: string) => t.replace(/[\d.,]+ ر\.س/g, 'مبلغ');
+    const plain = (t: string) => t.replace(/[\d.,]+ ريال/g, 'مبلغ');
     for (const r of all.recs) for (const t of [r.title, r.change, r.why, r.risk, r.success.goal, r.followUp ?? '']) expect(check(plain(t))).toEqual([]);
     for (const r of RULES) for (const t of [r.ar, r.why, r.risk, r.success]) expect(check(t)).toEqual([]);
   });
@@ -214,7 +214,7 @@ describe('learning loop', () => {
 
 describe('import preview', () => {
   it('the validation behind the preview keeps the open decisions and refuses a bad file as one piece', () => {
-    const ok = cleanRules([{ id: 'x', kind: 'scale', platform: 'snapchat', match: ['a'], maxCpl: 8, open: 'مفتوح' }]);
+    const ok = cleanRules([{ id: 'x', kind: 'scale', platform: 'snapchat', match: ['a'], maxCpl: 9, open: 'مفتوح' }]);
     expect('rules' in ok && ok.rules[0]!.open).toBe('مفتوح');
     expect(cleanRules([{ id: 'x', kind: 'scale', platform: 'snapchat', match: ['a'], maxCpl: 8 }, { id: 'x', kind: 'reduce', platform: 'google', match: ['b'] }])).toHaveProperty('error');
   });

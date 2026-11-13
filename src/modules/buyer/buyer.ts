@@ -48,7 +48,7 @@ const add = (d: string, n: number) => new Date(Date.parse(d + 'T00:00:00Z') + n 
 const num = (v: unknown) => (typeof v === 'number' && isFinite(v) ? v : Number(v) || 0);
 const r0 = (n: number) => Math.round(n).toLocaleString('en-US');
 const r1 = (n: number) => (Math.round(n * 10) / 10).toLocaleString('en-US');
-const sar = (n: number) => `${n >= 100 ? r0(n) : r1(n)} ر.س`;
+const sar = (n: number) => `${n >= 100 ? r0(n) : r1(n)} ريال`;
 const pctS = (n: number) => `${r1(n)}%`;
 const META = new Set(['facebook', 'instagram', 'messenger', 'audience_network', 'threads', 'whatsapp']);
 export const platOf = (p: string): Plat | null =>

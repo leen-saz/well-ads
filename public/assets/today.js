@@ -44,9 +44,9 @@ export default async function mount() {
     const ch = (a, b, down) => { if (b == null || a == null || !b) return ''; const p = (a - b) / b * 100; const good = down ? p < 0 : p > 0; return ` <small dir="ltr" class="${good ? 'up' : 'down'}">${p > 0 ? '+' : ''}${fmt(p, 0)}%</small>`; };
     const b = d.before || {};
     $('#perf').innerHTML = `<div class="td-kpis">
-      <div><small>الصرف</small><b>${sar(d.now.spend)} ر.س${ch(d.now.spend, b.spend)}</b></div>
+      <div><small>الصرف</small><b>${sar(d.now.spend)} ريال${ch(d.now.spend, b.spend)}</b></div>
       <div><small>النتائج</small><b>${fmt(d.now.results)}${ch(d.now.results, b.results)}</b></div>
-      <div><small>تكلفة النتيجة</small><b>${sar(d.now.cpr)} ر.س${ch(d.now.cpr, b.cpr, true)}</b></div>
+      <div><small>تكلفة النتيجة</small><b>${sar(d.now.cpr)} ريال${ch(d.now.cpr, b.cpr, true)}</b></div>
       <div><small>نسبة النقر</small><b>${d.now.ctr == null ? '—' : fmt(d.now.ctr * 100, 2) + '%'}</b></div></div>
       <p class="muted" style="margin:12px 0 0;font-size:13px">آخر 7 أيام كاملة (${esc(day(d.from))} – ${esc(day(d.to))})${d.before ? ' مقارنة بالـ7 اللي قبلها' : '. المقارنة مخفية لأن بيانات منصة ناقصة'}.</p>`;
     if (age != null && age <= STALE_H) ready.push(['البيانات محدّثة', `آخر تحديث ${when(d.generated_at)}`]);

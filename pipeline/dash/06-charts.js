@@ -47,7 +47,7 @@ function renderCharts(now){
   $('#legend').innerHTML = plats.map(p=>`<span><span class="dot" style="background:var(${PL[p].c})"></span>${platName(p)}</span>`).join('');
   stacked($('#chSpend'),now,'spend'); stacked($('#chLeads'),now,'leads'); cplLine($('#chCpl'),now);
   const g=granOf();
-  $('#chSpendT').textContent={day:'الصرف اليومي (ر.س)',week:'الصرف الأسبوعي (ر.س)',month:'الصرف الشهري (ر.س)'}[g];
+  $('#chSpendT').textContent={day:'الصرف اليومي (ريال)',week:'الصرف الأسبوعي (ريال)',month:'الصرف الشهري (ريال)'}[g];
   $('#chLeadsT').textContent={day:'الليدز اليومية',week:'الليدز الأسبوعية',month:'الليدز الشهرية'}[g];
   document.querySelectorAll('#gran button').forEach(b=>b.setAttribute('aria-pressed',S.gran===b.dataset.v));
   localize();

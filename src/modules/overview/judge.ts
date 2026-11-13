@@ -25,7 +25,7 @@ export const resolveTargets = (d: Dash, edits: Partial<Targets> | null): Targets
 
 export const formats = (): Formats => ({
   pct: v => `${fixed(v, Math.abs(v) < 0.1 ? 3 : 2)}%`,
-  sar: v => `${fixed(v, Math.abs(v) >= 100 ? 0 : 2)} ${pageLang() === 'en' ? 'SAR' : 'ر.س'}`,
+  sar: v => `${fixed(v, Math.abs(v) >= 100 ? 0 : 2)} ${pageLang() === 'en' ? 'SAR' : 'ريال'}`,
   x: v => `${fixed(v, 2)}×`,
   qty: v => qty(v),
   num: (v, d) => fixed(v, d),

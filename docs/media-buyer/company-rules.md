@@ -4,7 +4,7 @@
 
 ## شكل القاعدة (أمثلة صناعية)
 ```json
-{ "id": "scale-example", "kind": "scale", "platform": "snapchat", "match": ["example-campaign"], "maxCpl": 10, "stepPct": 20, "everyDays": 3, "owner": "media_buyer", "open": "الحد مو محسوم" }
+{ "id": "scale-example", "kind": "scale", "platform": "snapchat", "match": ["example-campaign"], "maxCpl": 9, "stepPct": 20, "everyDays": 3, "owner": "media_buyer", "open": "الحد مو محسوم" }
 ```
 | الحقل | معناه |
 |---|---|
@@ -15,6 +15,6 @@
 | `open` | قرار مفتوح عند لين، يظهر مع التوصية، والإيجنت ما يحسمه |
 | `judgeBy` | `cpl` أو `ctr` |
 
-**تيك توك:** يُحكم عليه بنسبة النقر والتفاعل مو بالليدز، فقواعد `scale` و`stop_idle` مرفوضة له، و`resume` يحتاج `minCtr` بدل `maxCpl`. حد سناب (`maxCpl` في `scale`) إعداد قابل للتغيير، الافتراضي 8 لين تحسمه لين.
+**تيك توك:** يُحكم عليه بنسبة النقر والتفاعل مو بالليدز، فقواعد `scale` و`stop_idle` مرفوضة له، و`resume` يحتاج `minCtr` بدل `maxCpl`. حد سناب (`maxCpl` في `scale`) إعداد قابل للتغيير، الافتراضي 9 لين تحسمه لين.
 
 القاعدة اللي تتعارض مع حكم التسويق تنوقف مثل بقية القواعد (التوسيع بشرط الـ CPL «تمام»، ومادة جديدة بشرط إن النقر مو «تمام»). توصية رفع الميزانية للشركة تحلّ محل التوصية العامة لنفس الحملة.

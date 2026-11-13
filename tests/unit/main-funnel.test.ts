@@ -21,7 +21,7 @@ function page(over: { crm?: unknown; rows?: unknown[][]; LANG?: string } = {}) {
     D: { rows: over.rows ?? ROWS, crm: over.crm }, ADS: { a: { platform: 'facebook', goal: 'lead' } },
     S: { from: '2026-10-01', to: '2026-10-30', crmBy: 'lead', plat: 'all', stat: 'all', dept: '', camp: '', goal: '', fmt: '' }, MAX: '2026-10-30',
     LANG: lang, JUDGE: J, render: () => {}, document: { addEventListener: () => {} }, localStorage: { getItem: () => null, setItem: () => {}, removeItem: () => {} },
-    matchesSlice: () => true, tr: (s: string) => s, ui: (ar: string, en: string) => (lang === 'en' ? en : ar), money: () => 'ر.س', fmt,
+    matchesSlice: () => true, tr: (s: string) => s, ui: (ar: string, en: string) => (lang === 'en' ? en : ar), money: () => 'ريال', fmt,
     qty: (n: number) => fmt(n), sar: (n: number | null) => (n == null ? '—' : fmt(n, 2)), pct: (n: number | null) => (n == null ? '—' : fmt(n, 2) + '%'),
     addDays: (s: string, n: number) => { const d = new Date(s + 'T00:00:00Z'); d.setUTCDate(d.getUTCDate() + n); return d.toISOString().slice(0, 10); },
     delta: (x: number | null, y: number | null) => (x == null || y == null || !y ? '<span class="delta flat">— لا مقارنة</span>' : `<span class="delta">${x > y ? '▲' : '▼'} عن الفترة السابقة</span>`),

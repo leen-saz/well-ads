@@ -72,7 +72,7 @@ export function diagnose(x: Input): { findings: Finding[]; summary: Record<strin
     const whole = all && all.leadSpend7 > 0 && all.leads7 === 0;
     out.push({ id: `noleads:${p}`, level: whole ? 'critical' : 'warn', platform: p, count: s.n,
       title: whole ? `${PLATFORM_AR[p] || p}: صرف على الليدز وصفر ليدز من المنصة كلها` : `${s.n} إعلان ليدز في ${PLATFORM_AR[p] || p} صرف بدون ولا ليد`,
-      detail: `آخر 7 أيام: ${fmt(s.spend)} ر.س. أمثلة: ${s.names.join('، ')}.`,
+      detail: `آخر 7 أيام: ${fmt(s.spend)} ريال. أمثلة: ${s.names.join('، ')}.`,
       fix: whole ? 'غالباً حدث التحويل ما يوصل: افحص البكسل أو النموذج في مدير الإعلانات، وتأكد إن الحدث المختار في الحملة هو نفسه اللي يطلع من الموقع.'
         : 'راجع هالإعلانات: لو الفورم أو الرابط شغال والمشكلة بالأداء، وقفها من لوحة القرارات. لو الليدز توصل للـ CRM بس ما تنحسب، المشكلة بالتتبع.' });
   }

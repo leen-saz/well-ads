@@ -90,7 +90,7 @@ test('a blocked action shows its guards in the dialog and offers no real executi
 // Nothing real: the rules API answer is stubbed and the save request is only recorded.
 test('the owner edits a limit and an open decision in «قواعد الإدارة», and the saved list carries the edit', async ({ page, context, request }) => {
   await addSession(context, await login(request, 'owner'));
-  const RULES = [{ id: 'r-scale', kind: 'scale', platform: 'snapchat', match: ['alpha'], maxCpl: 8, stepPct: 20, everyDays: 3, open: 'الحد مو محسوم' },
+  const RULES = [{ id: 'r-scale', kind: 'scale', platform: 'snapchat', match: ['alpha'], maxCpl: 9, stepPct: 20, everyDays: 3, open: 'الحد مو محسوم' },
     { id: 'r-resume', kind: 'resume', platform: 'tiktok', match: ['beta'], minCtr: 0.5 }];
   const sent: { rules: { id: string; maxCpl?: number; open?: string }[] }[] = [];
   await page.route('**/api/buyer/rules', async r => {
@@ -101,11 +101,11 @@ test('the owner edits a limit and an open decision in «قواعد الإدار�
   const row = page.locator('#by-rulesEdit tr[data-i="0"]');
   await expect(row).toBeVisible();
   await expect(page.locator('#by-rulesInfo')).toContainText('1');
-  await row.locator('[data-f="maxCpl"]').fill('9');
+  await row.locator('[data-f="maxCpl"]').fill('10');
   await row.locator('[data-f="open"]').fill('');
   await page.locator('#by-rulesSaveEdit').click();
   await expect.poll(() => sent.length).toBe(1);
-  expect(sent[0]!.rules[0]).toMatchObject({ id: 'r-scale', maxCpl: 9 });
+  expect(sent[0]!.rules[0]).toMatchObject({ id: 'r-scale', maxCpl: 10 });
   expect(sent[0]!.rules[0]!.open).toBeUndefined();
   expect(sent[0]!.rules[1]).toMatchObject({ id: 'r-resume', minCtr: 0.5 });
 });
