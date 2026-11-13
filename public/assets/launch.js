@@ -78,7 +78,7 @@ export default async function mount() {
     else if (f.type === 'toggle') input = `<label class="toggle"><input type="checkbox" name="${f.id}"${v ? ' checked' : ''}> <span>نعم</span></label>`;
     else if (f.type === 'locked') input = `<div class="locked">${icon('lock')}<span>${esc(v)}</span></div>`;
     else if (f.type === 'textarea') input = `<textarea id="${f.id}" name="${f.id}">${esc(v)}</textarea>`;
-    else input = `<input type="${f.type === 'url' ? 'url' : f.type}" id="${f.id}" name="${f.id}" value="${esc(v)}"${f.min ? ` min="${f.min}"` : ''}${f.type === 'number' ? ' inputmode="decimal"' : ''}>`;
+    else input = `<input type="${f.type === 'url' ? 'url' : f.type}" id="${f.id}" name="${f.id}" value="${esc(v)}"${f.min ? ` min="${f.min}"` : ''}${f.type === 'number' ? ' inputmode="decimal"' : ''}${f.type === 'url' ? ' dir="ltr"' : ''}>`;
     return `<div class="fld fld-${f.type}">${lab}${input}${hint}</div>`;
   }
 

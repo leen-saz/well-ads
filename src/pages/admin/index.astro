@@ -42,7 +42,7 @@ import { ClientRouter } from 'astro:transitions';
         <p class="muted" style="margin:0">يوصله إيميل دعوة يحدد منه الباسوورد. ويقدر يغيّره بعدين أو يستعيده من صفحة الدخول.</p>
         <form id="add" novalidate>
           <div class="bar" style="align-items:flex-end">
-            <div style="flex:1;min-width:220px"><label for="email">الإيميل</label><input type="email" id="email" required></div>
+            <div style="flex:1;min-width:220px"><label for="email">الإيميل</label><input type="email" id="email" dir="ltr" required></div>
             <div style="flex:1;min-width:180px"><label for="name">الاسم</label><input type="text" id="name"></div>
           </div>
           <label>الصلاحيات <span class="muted">(لكل تاب: مشاهدة، تعديل، أو موافقة)</span></label><div class="acc-presets" id="presets"></div><div class="acc" id="dashChecks"></div>
@@ -56,7 +56,7 @@ import { ClientRouter } from 'astro:transitions';
         <p class="muted" style="margin:0">بدون إيميل: تكتب له باسوورد مؤقت وتعطيه إياه بنفسك، وهو يغيّره بعد أول دخول من حسابه. استخدمها لو الدعوة ما وصلت.</p>
         <form id="addDirect" novalidate>
           <div class="bar" style="align-items:flex-end">
-            <div style="flex:1;min-width:220px"><label for="dEmail">الإيميل</label><input type="email" id="dEmail" required></div>
+            <div style="flex:1;min-width:220px"><label for="dEmail">الإيميل</label><input type="email" id="dEmail" dir="ltr" required></div>
             <div style="flex:1;min-width:180px"><label for="dName">الاسم</label><input type="text" id="dName"></div>
           </div>
           <div class="bar" style="align-items:flex-end">
