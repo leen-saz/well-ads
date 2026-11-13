@@ -59,6 +59,14 @@ Notes
 | `storage: down` | R2 binding/bucket changed | check `wrangler.jsonc` bucket names and the bucket's existence |
 | `ai: unset` | no Workers AI binding in this env | expected locally; production must have it |
 
+## Google Ads in the hourly data pull (سحب البيانات)
+Every Google Ads call needs these secrets in the `production` environment (Settings → Environments → production → Secrets, or `gh secret set NAME --env production`):
+`GOOGLE_ADS_CLIENT_ID`, `GOOGLE_ADS_CLIENT_SECRET`, `GOOGLE_ADS_REFRESH_TOKEN`, `GOOGLE_ADS_CUSTOMER_ID`, `GOOGLE_ADS_DEVELOPER_TOKEN`
+(and `GOOGLE_ADS_LOGIN_CUSTOMER_ID` when the account sits under a manager account). Google rejects any call without the developer token.
+- **Token missing:** only the google part of the pull fails. Its status in `dash.json` is `ok: false` with an Arabic message that names `GOOGLE_ADS_DEVELOPER_TOKEN`;
+  Meta, Snapchat and TikTok keep working and Google keeps showing its last good figures as stale. The connectors page shows Google as not connected until the token is set.
+- Explorer access on the Google Ads API is enough for reading. Nothing here changes campaigns.
+
 ## Settings only the repository owner can change
 - **Branch protection / rulesets on `main`**: add the status check `smoke` (the job of `.github/workflows/smoke.yml`) next to `ci / gate`, so a PR cannot merge with a red smoke run.
   The deploy workflow already needs it: `deploy` calls `smoke.yml` through `workflow_call` and `needs: [ci, smoke]`, no setting required.

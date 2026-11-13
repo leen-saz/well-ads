@@ -31,3 +31,18 @@ def http(url, data=None, headers=None, method=None, timeout=60):
     except urllib.error.HTTPError as ex:
         body = ex.read().decode(errors="replace")[:400]
         raise RuntimeError(f"HTTP {ex.code}: {body}") from None
+
+
+GOOGLE_ADS_TOKEN_MISSING = "مفتاح المطوّر لقوقل (GOOGLE_ADS_DEVELOPER_TOKEN) غير موجود، فما نقدر نسحب من قوقل. أضفه في أسرار البيئة production"
+
+
+def google_ads_headers(E, access_token):
+    """Headers for every googleAds:search call. Google rejects a call without developer-token, so a missing one fails early with a clear message."""
+    dev = (E.get("GOOGLE_ADS_DEVELOPER_TOKEN") or "").strip()
+    if not dev:
+        raise RuntimeError(GOOGLE_ADS_TOKEN_MISSING)
+    h = {"Authorization": f"Bearer {access_token}", "developer-token": dev, "Content-Type": "application/json"}
+    login = (E.get("GOOGLE_ADS_LOGIN_CUSTOMER_ID") or "").strip()
+    if login:
+        h["login-customer-id"] = login
+    return h

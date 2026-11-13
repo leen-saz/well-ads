@@ -20,7 +20,7 @@ from concurrent.futures import ThreadPoolExecutor
 from datetime import datetime, timedelta, timezone
 from channels import GOOGLE_FORMAT, annotate, family_of, google_platform, meta_key, placement_platform
 from classify import apply_all, public_config
-from common import env, http
+from common import env, google_ads_headers, http
 from organic import collect_organic, clip as clip_err
 from tiktok.fetch import ingest_tiktok
 import audience
@@ -340,13 +340,13 @@ def meta(P):
 
 # ---------------- Google ----------------
 def google(P):
+    google_ads_headers(E, "")  # no developer token: fail the google step here, before any call; the other platforms go on
     tok = http("https://oauth2.googleapis.com/token", data=urllib.parse.urlencode({
         "client_id": E["GOOGLE_ADS_CLIENT_ID"], "client_secret": E["GOOGLE_ADS_CLIENT_SECRET"],
         "refresh_token": E["GOOGLE_ADS_REFRESH_TOKEN"], "grant_type": "refresh_token"}).encode())["access_token"]
     q = lambda query: retry(http, f"https://googleads.googleapis.com/v24/customers/{E['GOOGLE_ADS_CUSTOMER_ID']}/googleAds:search",
         data=json.dumps({"query": query}).encode(), method="POST",
-        headers={"Authorization": f"Bearer {tok}", "login-customer-id": E["GOOGLE_ADS_LOGIN_CUSTOMER_ID"],
-                 "Content-Type": "application/json"}).get("results", [])
+        headers=google_ads_headers(E, tok)).get("results", [])
     for r in q("SELECT ad_group_ad.ad.id, ad_group_ad.ad.name, ad_group_ad.ad.responsive_search_ad.headlines, "
                "ad_group_ad.ad.responsive_search_ad.descriptions, ad_group_ad.ad.final_urls, ad_group_ad.status, "
                "ad_group.status, campaign.status, campaign.advertising_channel_type, campaign.advertising_channel_sub_type, "

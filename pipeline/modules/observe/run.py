@@ -9,7 +9,7 @@
 import hashlib, json, sys, urllib.parse
 from datetime import datetime, timedelta, timezone
 
-from common import env, http
+from common import env, google_ads_headers, http
 from modules.core.supa import Supa
 
 KEEP_META = ("budget", "status", "create", "bid", "target", "schedule", "creative", "delete", "run_status")
@@ -52,7 +52,7 @@ def google_rows(E, since, now):
          f"AND change_event.change_date_time <= '{now:%Y-%m-%d %H:%M:%S}' LIMIT 1000")
     r = http(f"https://googleads.googleapis.com/v24/customers/{E['GOOGLE_ADS_CUSTOMER_ID']}/googleAds:search",
              data=json.dumps({"query": q}).encode(), method="POST",
-             headers={"Authorization": f"Bearer {tok}", "login-customer-id": E["GOOGLE_ADS_LOGIN_CUSTOMER_ID"], "Content-Type": "application/json"})
+             headers=google_ads_headers(E, tok))
     out = []
     for x in r.get("results", []):
         c = x.get("changeEvent", {})
