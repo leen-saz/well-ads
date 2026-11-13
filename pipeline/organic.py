@@ -1,4 +1,4 @@
-"""العضوي: صفحات فيسبوك، إنستغرام wellcare.sa، تيك توك إن وُجد، وGA4 إن وُجد حساب خدمة.
+"""العضوي: صفحات فيسبوك، انستقرام wellcare.sa، تيك توك إن وُجد، وGA4 إن وُجد حساب خدمة.
 
 أي صلاحية أو سر ناقص يُسجَّل كقسم «بانتظار» مع قائمة المطلوب، بدون إيقاف سحب الإعلانات.
 """
@@ -130,7 +130,7 @@ def pending_shell(error=""):
         "META_ACCESS_TOKEN في GitHub Environment production (نفس سر الإعلانات).",
         "صلاحيات التوكن: " + "، ".join(PAGE_PERMS) + ".",
         "الصفحات: " + "، ".join(FB_PAGES) + ".",
-        "إنستغرام @" + IG_USER + ": " + "، ".join(IG_PERMS) + "، مع ربط الحساب بصفحة فيسبوك.",
+        "انستقرام @" + IG_USER + ": " + "، ".join(IG_PERMS) + "، مع ربط الحساب بصفحة فيسبوك.",
     ]
     if error:
         needs = [error] + needs
@@ -599,7 +599,7 @@ def _load_fb_pages(graph, start, end, prev_pages):
 
 
 def fetch_ig_user_days(graph, ig_id, start, end, metrics=IG_USER_METRICS):
-    """رؤى إنستغرام بـ total_value نافذة واحدة لا تُقسَّم على الأيام.
+    """رؤى انستقرام بـ total_value نافذة واحدة لا تُقسَّم على الأيام.
 
     الوصول والحسابات المتفاعلة أرقام فريدة، فجمع النوافذ يضاعفها. نطلب كل يوم
     بتوقيت الرياض على حدة، ونحتفظ بإجمالي النافذة فقط إذا كانت ٩٠ يوماً أو أقل.
@@ -654,8 +654,8 @@ def _load_ig(graph, accounts, start, end, prev_pages, list_error):
     prev = (prev_pages or [None])[0]
     name = "@" + IG_USER
     if accounts is None:
-        needs = list_error or ["تعذّر قراءة الصفحات، فتعذّر الوصول لإنستغرام."]
-        needs = list(needs) + ["المطلوب لإنستغرام: " + "، ".join(IG_PERMS) + "."]
+        needs = list_error or ["تعذّر قراءة الصفحات، فتعذّر الوصول لانستقرام."]
+        needs = list(needs) + ["المطلوب لانستقرام: " + "، ".join(IG_PERMS) + "."]
         return [_keep_if_stale(prev, _page(name, needs=needs, error=needs[0]))]
     match = None
     token = graph.token
@@ -666,7 +666,7 @@ def _load_ig(graph, accounts, start, end, prev_pages, list_error):
             token = acc.get("access_token") or token
             break
     if not match:
-        needs = [f"حساب إنستغرام @{IG_USER} غير مربوط بأي صفحة ظاهرة في /me/accounts.",
+        needs = [f"حساب انستقرام @{IG_USER} غير مربوط بأي صفحة ظاهرة في /me/accounts.",
                  "المطلوب: " + "، ".join(IG_PERMS) + " وربط الحساب الاحترافي بصفحة فيسبوك."]
         return [_keep_if_stale(prev, _page(name, needs=needs, error=needs[0]))]
     tokens = _tokens(token, graph.token)
@@ -701,7 +701,7 @@ def _load_ig(graph, accounts, start, end, prev_pages, list_error):
         except RuntimeError as ex:
             posts, posts_err = [], clip(ex)
     if info is None and not posts and not days:
-        msg = info_err or posts_err or insight_err or "تعذّر قراءة إنستغرام"
+        msg = info_err or posts_err or insight_err or "تعذّر قراءة انستقرام"
         needs = [msg, "المطلوب: " + "، ".join(IG_PERMS) + "."]
         return [_keep_if_stale(prev, _page(name, needs=needs, error=msg))]
     insights = "pending" if insight_err or (bad and not days) else "ok"

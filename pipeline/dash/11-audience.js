@@ -38,7 +38,7 @@ function renderPersonas(c){
     return {g,cpr,html:`<article class="per"><h3>${g==='female'?ui('سيدة','Woman'):ui('رجل','Man')}${ag.length?' '+ag.join(ui(' أو ',' or ')):''}</h3>
       <dl><dt>${ui('من الظهور','Share of impressions')}</dt><dd>${pct(100*T[0]/((G.female?.tot[0]||0)+(G.male?.tot[0]||0)||1))}</dd>
       <dt>${ui('نسبة النقر','CTR')}</dt><dd>${pct(100*ctr(T))}</dd><dt>${ui('الصرف','Spend')}</dt><dd>${sar(T[2])} ${money()}</dd>
-      <dt>${ui('النتايج (ليدز ومحادثات)','Results (leads and chats)')}</dt><dd>${T[3]==null?ui('المنصة ما تقسمها','not split by the platform'):qty(T[3])}</dd><dt>${ui('تكلفة النتيجة','Cost per result')}</dt><dd>${cpr==null?'—':sar(cpr)}</dd></dl>
+      <dt>${ui('النتائج (ليدز ومحادثات)','Results (leads and chats)')}</dt><dd>${T[3]==null?ui('المنصة ما تقسمها','not split by the platform'):qty(T[3])}</dd><dt>${ui('تكلفة النتيجة','Cost per result')}</dt><dd>${cpr==null?'—':sar(cpr)}</dd></dl>
       ${best.length?`<div><div class="sub">${ui('أكثر مواد إعلانية تشدّه','Creatives that pull them most')}</div><ol>${best.map(b=>`<li>${esc(b.a.name)} <span class="sub">${pct(b.ctr)}</span></li>`).join('')}</ol></div>`:''}
     </article>`};
   });
