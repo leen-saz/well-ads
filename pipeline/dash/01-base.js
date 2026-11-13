@@ -78,9 +78,9 @@ const EN = {
   'أسبوعي':'Weekly',
   'شهري':'Monthly',
   'اضغط على أي عمود عشان تركّز الفترة عليه.':'Click a bar to focus the range on it.',
-  'الصرف (ر.س)':'Spend (SAR)',
+  'الصرف (ريال)':'Spend (SAR)',
   'الليدز':'Leads',
-  'تكلفة الليد حسب المنصة (ر.س)':'Cost per lead by platform (SAR)',
+  'تكلفة الليد حسب المنصة (ريال)':'Cost per lead by platform (SAR)',
   'تحليل الأداء':'Performance',
   'القمع: من الظهور إلى الليد':'Funnel: impressions to leads',
   'حصة كل منصة من الصرف ومن النتايج':'Each platform’s share of spend and results',
@@ -96,7 +96,7 @@ const EN = {
   'المنصات':'Platforms',
   'الحملات':'Campaigns',
   'هدف تكلفة الليد':'Cost-per-lead target',
-  'ر.س':'SAR',
+  'ريال':'SAR',
   'تصدير Excel (CSV)':'Export Excel (CSV)',
   'اضغط على أي حملة عشان تفلتر اللوحة كاملة عليها.':'Click a campaign to filter the whole report.',
   'شهر بشهر':'Month by month',
@@ -307,9 +307,9 @@ const EN = {
   'تفاصيل':'Details',
   'نقرات':'Clicks',
   'الصرف اليومي':'Daily spend',
-  'الصرف اليومي (ر.س)':'Daily spend (SAR)',
-  'الصرف الأسبوعي (ر.س)':'Weekly spend (SAR)',
-  'الصرف الشهري (ر.س)':'Monthly spend (SAR)',
+  'الصرف اليومي (ريال)':'Daily spend (SAR)',
+  'الصرف الأسبوعي (ريال)':'Weekly spend (SAR)',
+  'الصرف الشهري (ريال)':'Monthly spend (SAR)',
   'الليدز اليومية':'Daily leads',
   'الليدز الأسبوعية':'Weekly leads',
   'الليدز الشهرية':'Monthly leads',
@@ -407,7 +407,7 @@ function goalName(g){
   if(LANG==='en' && GOAL_EN[g]) return GOAL_EN[g];
   return (D.goals||{})[g] || (LANG==='en'?'Other':'أخرى');
 }
-function money(){ return LANG==='en'?'SAR':'ر.س'; }
+function money(){ return LANG==='en'?'SAR':'ريال'; }
 function pendingCopy(kind){
   if(kind==='tiktok') return LANG==='en'?EN['يحتاج بيانات تيك توك العضوي']:'يحتاج بيانات تيك توك العضوي';
   if(kind==='ga4') return LANG==='en'?EN['يحتاج ربط تحليلات جوجل']:'يحتاج ربط تحليلات جوجل';

@@ -23,13 +23,13 @@ export function crmCard(d) {
   const other = Object.entries(d.amount_not_paid_status).map(([s, n]) => [esc(STATUS[s] || s), fmt(n)]);
   const months = Object.entries(d.by_month).map(([m, v]) => [esc(m), fmt(v.closings), fmt(v.amount_sar)]);
   return `<section class="card pad dh-sec"><h2>ليدز الـ CRM والدفع</h2><p class="muted" style="margin:0">الإقفالة = حالة الدفع «paid» ومبلغ أكبر من صفر.</p>${finds}
-    <div class="dh-kpis">${kpi(fmt(d.leads), 'ليدز مخزّنة')}${kpi(fmt(p.count), 'إقفالات (مدفوع ومبلغ)')}${kpi(fmt(p.amount_sar) + ' ر.س', 'مبلغ الإقفالات')}
+    <div class="dh-kpis">${kpi(fmt(d.leads), 'ليدز مخزّنة')}${kpi(fmt(p.count), 'إقفالات (مدفوع ومبلغ)')}${kpi(fmt(p.amount_sar) + ' ريال', 'مبلغ الإقفالات')}
       ${kpi(fmt(d.paid_status_no_amount), 'مدفوع بمبلغ صفر أو فاضي')}${kpi(fmt(p.linked), 'إقفالات مربوطة بإعلان')}${kpi(fmt(p.unlinked), 'إقفالات بدون إعلان')}</div>
     <div class="dh-kpis">${kpi(when(d.newest_updated_at), 'أحدث تحديث')}${kpi(when(d.newest_paid_at), 'أحدث دفع')}</div>
     <h3>الليدز حسب حالة الدفع</h3>${status.length ? table(['الحالة', 'ليدز'], status) : '<p class="muted">لا شي.</p>'}
     ${other.length ? `<h3>مبلغ مدفوع تحت حالة غير «مدفوع»</h3>${table(['الحالة', 'ليدز'], other)}` : ''}
-    <h3>الإقفالات والمبالغ حسب شهر الدفع</h3>${months.length ? table(['الشهر', 'إقفالات', 'المبلغ (ر.س)'], months) : '<p class="muted">لا شي.</p>'}
-    ${p.count ? `<p class="muted">المربوطة بإعلان: ${fmt(p.linked_amount_sar)} ر.س. بدون إعلان: ${fmt(p.unlinked_amount_sar)} ر.س.</p>` : ''}</section>`;
+    <h3>الإقفالات والمبالغ حسب شهر الدفع</h3>${months.length ? table(['الشهر', 'إقفالات', 'المبلغ (ريال)'], months) : '<p class="muted">لا شي.</p>'}
+    ${p.count ? `<p class="muted">المربوطة بإعلان: ${fmt(p.linked_amount_sar)} ريال. بدون إعلان: ${fmt(p.unlinked_amount_sar)} ريال.</p>` : ''}</section>`;
 }
 
 const PLAT = { meta: 'Meta', snap: 'Snapchat', tiktok: 'TikTok', google: 'Google' };

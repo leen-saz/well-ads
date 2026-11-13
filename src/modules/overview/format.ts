@@ -18,7 +18,7 @@ const df = () => {
 export const qty = (v: number): string => nf(0).format(v);
 // A number with at most `digits` decimals, in the page language
 export const fixed = (v: number, digits: number): string => nf(digits).format(v);
-export const sar = (v: number | null): string => (v == null ? '—' : `${nf(2).format(v)} ${pageLang() === 'en' ? 'SAR' : 'ر.س'}`);
+export const sar = (v: number | null): string => (v == null ? '—' : `${nf(2).format(v)} ${pageLang() === 'en' ? 'SAR' : 'ريال'}`);
 export const pct = (v: number | null): string => (v == null ? '—' : `${nf(2).format(v * 100)}%`);
 export const longDay = (day: string): string => df().format(new Date(day + 'T00:00:00Z'));
 // With the year, for spans that cross one

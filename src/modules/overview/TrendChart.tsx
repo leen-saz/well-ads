@@ -11,7 +11,7 @@ import { T, pageLang } from './lang';
 
 // The labels are read when the chart draws, so they follow the page language
 const config = {
-  spend: { get label() { return T('الصرف (ر.س)', 'Spend (SAR)'); }, color: 'var(--ui-chart-1)' },
+  spend: { get label() { return T('الصرف (ريال)', 'Spend (SAR)'); }, color: 'var(--ui-chart-1)' },
   results: { get label() { return T('النتائج', 'Results'); }, color: 'var(--ui-chart-2)' },
   leads: { get label() { return T('الليدز', 'Leads'); }, color: 'var(--ui-chart-2)' },
 } satisfies ChartConfig;
@@ -102,7 +102,7 @@ export function TrendChart({ data, from, to }: { data: Dash; from: string; to: s
           ? <PlatBars all={all} plats={shown} metric={metric} gran={g} config={platConfig} />
           : <DayChart days={all} metric={metric} gran={g} />}
         <div>
-          <p className="mb-2 text-sm text-muted-foreground">{T('تكلفة الليد حسب المنصة (ر.س، إعلانات الليدز)', 'Cost per lead by platform (SAR, lead ads)')}</p>
+          <p className="mb-2 text-sm text-muted-foreground">{T('تكلفة الليد حسب المنصة (ريال، إعلانات الليدز)', 'Cost per lead by platform (SAR, lead ads)')}</p>
           {plats.length ? (
             <ChartContainer config={cplConfig} className="aspect-auto w-full" style={{ height: 200 }} dir="ltr">
               <LineChart data={cplRows}>

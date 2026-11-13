@@ -252,7 +252,7 @@ export default async function mount() {
     drawModels(d.models);
     const FLAG = { alert: 'قريب من السقف', capped: 'وصل السقف' };
     $('#spendBody').innerHTML = `<p class="sp-total">${fmt(d.total.sar, 2)} <small class="muted" style="font:500 14px var(--f-ar)">ريال، ${fmt(d.total.usd, 2)} دولار (سعر الصرف ${d.rate})</small></p>
-      <div class="sp-tab sp-hd"><span>التاب</span><span>الطلبات</span><span>الصرف (ر.س)</span><span>السقف الشهري (ر.س)</span><span></span></div>
+      <div class="sp-tab sp-hd"><span>التاب</span><span>الطلبات</span><span>الصرف (ريال)</span><span>السقف الشهري (ريال)</span><span></span></div>
       ${d.tabs.map(t => `<form class="sp-tab" data-tab="${esc(t.tab)}" novalidate>
         <b>${esc(t.ar)}${t.unpriced ? ` <span class="sp-flag" title="سعر غير معروف انحسب بصفر">${t.unpriced} بدون سعر</span>` : ''}</b>
         <b class="n">${fmt(t.calls)}</b><b class="n">${fmt(t.sar, 2)}</b>

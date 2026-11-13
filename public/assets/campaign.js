@@ -16,7 +16,7 @@ export function mountCampaign(root, me, L) {
   if (!root || root.dataset.ready) return;
   root.dataset.ready = '1';
   const pick = (m, k) => (m[k] ? L(m[k][0], m[k][1]) : k);
-  const sar = usd => `${(Math.round(Number(usd || 0) * USD_SAR * 100) / 100).toLocaleString('en-US')} ${L('ر.س', 'SAR')}`;
+  const sar = usd => `${(Math.round(Number(usd || 0) * USD_SAR * 100) / 100).toLocaleString('en-US')} ${L('ريال', 'SAR')}`;
   const date = iso => new Date(iso).toLocaleDateString(L('ar-SA-u-nu-latn', 'en-GB'), { day: 'numeric', month: 'short' });
   const msg = () => $('#cmMsg', root);
   const frame = html => { root.innerHTML = `<div class="card ah-card">${html}<div class="msg" id="cmMsg" role="status"></div></div>`; };
@@ -62,7 +62,7 @@ export function mountCampaign(root, me, L) {
   const KIND = { insight: ['سياق ورصد', 'Context & listening'], copy: ['نصوص ومحتوى', 'Copy & content'], design_brief: ['بريف التصميم', 'Design brief'], voice_script: ['نص الصوت', 'Voice script'],
     post: ['مسودة منشور', 'Post draft'], design_image: ['صورة التصميم', 'Design image'], voice_script: ['نص الفويس أوفر', 'Voiceover script'], voice_audio: ['تسجيل صوتي', 'Voice recording'], voice_srt: ['ترجمة SRT', 'SRT subtitles'], asset_missing: ['ملف ما انولّد', 'File not made'], motion_storyboard: ['موشن جرافيك (ستوري بورد)', 'Motion graphic (storyboard)'], compliance_report: ['تقرير الامتثال', 'Compliance report'], optimization: ['الميزانية والتحسين', 'Budget & optimization'], measurement: ['خطة القياس', 'Measurement plan'] };
   const KPI_EN = { ctr: 'Click rate', clickToLead: 'Click to lead', leadToClose: 'Lead to close', cpl: 'Cost per lead (max)', costShare: 'Cost of a close, share of its value (max)', roas: 'Return on spend', maturityDays: 'Lead age before judging its close' };
-  const UNIT = { '%': '%', SAR: ['ر.س', 'SAR'], '×': '×', day: ['يوم', 'days'] };
+  const UNIT = { '%': '%', SAR: ['ريال', 'SAR'], '×': '×', day: ['يوم', 'days'] };
   const PLAT = { facebook: 'Facebook', instagram: 'Instagram', tiktok: 'TikTok', x: 'X', linkedin: 'LinkedIn', snapchat: 'Snapchat' };
   const packText = (c, d) => {
     const b = c.brief || {}, out = [`# ${c.title}`, '', b.summary || '', ''];

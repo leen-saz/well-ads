@@ -205,7 +205,7 @@ function JourneyCard({ data, from, to, by }: Props & { by: CrmBy }) {
 // viewer's own (kept in this browser, shared with the main page) until «رجّع الافتراضي».
 function TargetsTable({ targets, config, edits, onEdit, onReset }: { targets: Targets; config: Targets; edits: Partial<Targets> | null; onEdit: (k: keyof Targets, v: string) => void; onReset: () => void }) {
   const l = pageLang(), t = (ar: string, en: string) => pick(l, ar, en);
-  const unit = { '%': '%', sar: t('ر.س', 'SAR'), share: t('من قيمتها', 'of its value'), x: '×', days: t('يوم', 'days') } as const;
+  const unit = { '%': '%', sar: t('ريال', 'SAR'), share: t('من قيمتها', 'of its value'), x: '×', days: t('يوم', 'days') } as const;
   const edited = !!edits && Object.keys(edits).length > 0;
   return (
     <details className="min-w-0 text-sm">

@@ -9,9 +9,9 @@ import render from '../../../pipeline/dash/05-render.js?raw';
 
 const FX = fixture as unknown as Dash;
 const G = golden as unknown as Record<string, { sections: { id: string; kpis: [string, string, string][] }[] }>;
-// The pipeline page's journey numbers for a view, by label ("1,883,479" → 1883479, "16.52ر.س" → 16.52, "1.42%" → 1.42)
+// The pipeline page's journey numbers for a view, by label ("1,883,479" → 1883479, "16.52ريال" → 16.52, "1.42%" → 1.42)
 const shown = (view: string) => Object.fromEntries(G[view]!.sections.find(s => s.id === 'kpis')!.kpis
-  .map(([l, v]) => [l, v === '—' ? null : Number(v.replace('ر.س', '').replace(/[^\d.]/g, ''))]));
+  .map(([l, v]) => [l, v === '—' ? null : Number(v.replace('ريال', '').replace(/[^\d.]/g, ''))]));
 const stat = (o: ReturnType<typeof journey>) => Object.fromEntries(o.stages.flatMap(s => [s.main, ...s.sub, ...(s.rate ? [s.rate] : [])]).map(x => [x.label, x.now]));
 
 describe('overview: customer journey', () => {

@@ -58,16 +58,16 @@ const TOOLS: Tool[] = [
       const d = await loadDash(r), to = d && lastDay(d);
       if (!d || !to) return NO_DATA;
       const days = clampInt(a['days'], 1, 90, 7), from = addDays(to, -(days - 1)), now = summarize(d, from, to);
-      const lines = [`الفترة: ${from} إلى ${to} (${days} يوم)`, `الصرف: ${r2(now.spend)} ر.س | النتائج (ليدز + محادثات): ${r2(now.results)} | تكلفة النتيجة: ${r2(now.cpr)} ر.س | نسبة النقر: ${pct(now.ctr)}`];
+      const lines = [`الفترة: ${from} إلى ${to} (${days} يوم)`, `الصرف: ${r2(now.spend)} ريال | النتائج (ليدز + محادثات): ${r2(now.results)} | تكلفة النتيجة: ${r2(now.cpr)} ريال | نسبة النقر: ${pct(now.ctr)}`];
       if (canCompare(d, from, to)) {
         const [pf, pt] = previous(from, to), b = summarize(d, pf, pt);
-        lines.push(`الفترة اللي قبلها (${pf} إلى ${pt}): الصرف ${r2(b.spend)} ر.س | النتائج ${r2(b.results)} | تكلفة النتيجة ${r2(b.cpr)} ر.س`);
+        lines.push(`الفترة اللي قبلها (${pf} إلى ${pt}): الصرف ${r2(b.spend)} ريال | النتائج ${r2(b.results)} | تكلفة النتيجة ${r2(b.cpr)} ريال`);
       } else lines.push('المقارنة بالفترة السابقة غير متاحة لأن بيانات بعض المنصات ناقصة.');
       const gaps = holes(d, to);
       if (gaps.length) lines.push(`منصات بياناتها ما وصلت لآخر يوم: ${gaps.join('، ')}`);
       const by = new Map<string, { spend: number; results: number }>();
       for (const x of byAd(d, from, to)) { const o = by.get(x.platform) ?? { spend: 0, results: 0 }; o.spend += x.spend; o.results += x.results; by.set(x.platform, o); }
-      for (const [p, o] of [...by].sort((x, y) => y[1].spend - x[1].spend).slice(0, 8)) lines.push(`- ${platformNameIn(p, 'ar')}: صرف ${r2(o.spend)} ر.س، نتائج ${r2(o.results)}`);
+      for (const [p, o] of [...by].sort((x, y) => y[1].spend - x[1].spend).slice(0, 8)) lines.push(`- ${platformNameIn(p, 'ar')}: صرف ${r2(o.spend)} ريال، نتائج ${r2(o.results)}`);
       return lines.join('\n');
     } },
   { name: 'ads', ar: 'الإعلانات الأفضل والأضعف', en: 'Best and weakest ads',
@@ -84,7 +84,7 @@ const TOOLS: Tool[] = [
       rows = [...rows].sort((x, y) => sort === 'best' ? (x.cpr! - y.cpr!) : sort === 'worst' ? (y.cpr! - x.cpr!) : y.spend - x.spend).slice(0, limit);
       if (!rows.length) return `ما فيه إعلانات تنفع للترتيب في آخر ${days} يوم (${from} إلى ${to}).`;
       return [`آخر ${days} يوم (${from} إلى ${to})، الترتيب: ${sort === 'best' ? 'الأرخص نتيجة' : sort === 'worst' ? 'الأغلى نتيجة' : 'الأعلى صرفاً'}`,
-        ...rows.map(x => `- «${tidy(x.name, 80)}» (${platformNameIn(x.platform, 'ar')}، حملة «${tidy(x.campaign, 60)}»${x.live ? '، شغّال' : '، موقوف'}): صرف ${r2(x.spend)} ر.س، نتائج ${r2(x.results)}، تكلفة النتيجة ${r2(x.cpr)} ر.س، نقر ${pct(x.ctr)}`)].join('\n');
+        ...rows.map(x => `- «${tidy(x.name, 80)}» (${platformNameIn(x.platform, 'ar')}، حملة «${tidy(x.campaign, 60)}»${x.live ? '، شغّال' : '، موقوف'}): صرف ${r2(x.spend)} ريال، نتائج ${r2(x.results)}، تكلفة النتيجة ${r2(x.cpr)} ريال، نقر ${pct(x.ctr)}`)].join('\n');
     } },
   { name: 'decisions', ar: 'لوحة القرارات', en: 'Decision board',
     help: 'The proposals waiting on the decision board (open suggestions), the most important first. No args.',
