@@ -55,7 +55,7 @@ describe('main dashboard: customer journey', () => {
     expect(v.unlinked).not.toBeNull();
     const html = f.funnelHTML(a, {}) as string;
     expect(html).toContain('الربط بالإعلانات ناقص');
-    expect(html).toMatch(/اقفالات من الإعلانات<\/span><span class="v">غير مربوط/);
+    expect(html).toMatch(/إقفالات من الإعلانات<\/span><span class="v">غير مربوط/);
     // The sale link: 45 ÷ 90 leads and chats, not «غير مربوط» and not 0%
     expect(html).toContain('>50.00%</text>');
   });

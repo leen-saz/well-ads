@@ -143,7 +143,7 @@ def google_delivery(ad_status, group_status, campaign_status):
 
 
 def meta_preview(creative, video_url=None):
-    """رابط يشاهد الكرييتف: منشور إنستغرام، ثم منشور فيسبوك، ثم ملف الفيديو، ثم الصورة."""
+    """رابط يشاهد الكرييتف: منشور انستقرام، ثم منشور فيسبوك، ثم ملف الفيديو، ثم الصورة."""
     creative = creative or {}
     ig = creative.get("instagram_permalink_url")
     if isinstance(ig, str) and ig.startswith("http"):
