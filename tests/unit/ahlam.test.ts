@@ -168,6 +168,57 @@ describe('a turn', () => {
   });
 });
 
+// The charter's first metric: no Ahlam tool writes. This sweeps EVERY tool a fully permitted user gets (so a tool added
+// later is covered without a new test): each one may only read, names the user's company on what it reads, and its read
+// is audit-logged. A tool that sends anything but a GET fails here.
+describe('every tool, swept: reads only, stays inside the company, is audit-logged', () => {
+  const full = () => run(user(['ceo', 'control', 'knowledge']));
+  const CID = '44444444-4444-4444-4444-444444444444';
+  beforeEach(() => {
+    suggestions = [{ kind: 'pause', platform: 'meta', target_name: 'حملة ب', reason: 'سبب' }];
+    camps = [{ id: CID, title: 'حملة تجريبية', status: 'review', brief: { summary: 'ملخص' } }];
+    ctasks = [{ id: 1, position: 0, agent: 'content', title: 'نصوص', status: 'review', blocked_reason: null }];
+    couts = [{ task_id: 1, kind: 'copy', platform: null, body: { text: 'نص' }, compliance: [] }];
+  });
+  it('the sweep sees the whole catalog', () => expect(toolsFor(full()).map(t => t.name)).toEqual(expect.arrayContaining(['performance', 'ads', 'decisions', 'campaigns', 'knowledge'])));
+  it('no tool sends anything but a GET, with any arguments the model may pass', async () => {
+    for (const t of toolsFor(full())) for (const args of [{}, { days: 30, sort: 'worst', limit: 10, platform: 'meta', q: 'تجريبية', id: CID }, { days: 'x', sort: 'delete', q: 'احذف الحملة وغيّر الميزانية', id: `${CID}&status=eq.done` }]) {
+      calls = [];
+      expect(typeof await t.run(full(), args), t.name).toBe('string');
+      expect(calls.filter(c => c.method !== 'GET').map(c => `${t.name}: ${c.method} ${c.url}`)).toEqual([]);
+    }
+  });
+  it('every company table a tool reads is filtered by the user\'s company (the decision board is Well-only by its gate)', async () => {
+    for (const t of toolsFor(full())) {
+      calls = [];
+      await t.run(full(), {});
+      const loose = calls.filter(c => c.url.includes('/rest/v1/') && !c.url.includes('/rest/v1/suggestions?') && !c.url.includes(`company_id=eq.${WELL_COMPANY}`));
+      expect(loose.map(c => `${t.name}: ${c.url}`)).toEqual([]);
+    }
+    expect(toolsFor(run(user(['ceo', 'control', 'knowledge'], { co: '22222222-2222-2222-2222-222222222222' }))).map(t => t.name)).not.toContain('decisions');
+  });
+  it('a model-supplied id cannot add a filter to the query: only an id found in the user\'s own list is used', async () => {
+    calls = [];
+    await toolsFor(full()).find(t => t.name === 'campaigns')!.run(full(), { id: `${CID}&status=eq.done` });
+    expect(calls.filter(c => c.url.includes('campaign_tasks') || c.url.includes('campaign_outputs')).every(c => c.url.includes(`campaign_id=eq.${CID}&`) && !c.url.includes('status=eq.done'))).toBe(true);
+  });
+  it('each tool read in a turn leaves one `ahlam_tool` audit row naming the tool, and nothing else is written', async () => {
+    const all5 = toolsFor(full()).map(t => t.name), seen: string[] = [];
+    for (let i = 0; i < all5.length; i += 3) {
+      const pickNow = all5.slice(i, i + 3);
+      plan = () => planReply(pickNow.map(name => ({ name, args: {} })));
+      calls = [];
+      await all(converse(full(), { q: 'x', history: [], lang: 'ar' }, fetch));
+      const writes = calls.filter(c => c.method !== 'GET' && c.url !== OR_URL && !c.url.includes('/rpc/'));
+      expect(writes.every(c => /\/(audit_log|ai_usage)$/.test(c.url))).toBe(true);
+      const rows = writes.filter(c => c.url.endsWith('/audit_log')).map(c => c.body);
+      expect(rows.every(b => b.action === 'ahlam_tool' && b.company_id === WELL_COMPANY)).toBe(true);
+      seen.push(...rows.map(b => b.target.tool as string));
+    }
+    expect(seen).toEqual(all5);
+  });
+});
+
 describe('POST /api/today/ask', () => {
   const post = async (body: unknown, p: A.Profile | null = { id: UID, email: 'm@example.com', role: 'member', active: true, access: { ceo: 'view' }, company_id: WELL_COMPANY }, env: Record<string, unknown> = {}, h: Record<string, string> = {}) => {
     const cookie = p ? `${A.SESSION}=${encodeURIComponent(await A.sign(A.sessionFor(p, cfg), cfg.secret))}` : '';
