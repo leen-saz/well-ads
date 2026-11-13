@@ -132,6 +132,7 @@ jobs:
           GOOGLE_ADS_CLIENT_SECRET: ${{ env.V_GOOGLE_ADS_CLIENT_SECRET || secrets.GOOGLE_ADS_CLIENT_SECRET }}
           GOOGLE_ADS_REFRESH_TOKEN: ${{ env.V_GOOGLE_ADS_REFRESH_TOKEN || secrets.GOOGLE_ADS_REFRESH_TOKEN }}
           GOOGLE_ADS_LOGIN_CUSTOMER_ID: ${{ env.V_GOOGLE_ADS_LOGIN_CUSTOMER_ID || secrets.GOOGLE_ADS_LOGIN_CUSTOMER_ID }}
+          GOOGLE_ADS_DEVELOPER_TOKEN: ${{ env.V_GOOGLE_ADS_DEVELOPER_TOKEN || secrets.GOOGLE_ADS_DEVELOPER_TOKEN }}
           GOOGLE_ADS_CUSTOMER_ID: ${{ env.V_GOOGLE_ADS_CUSTOMER_ID || secrets.GOOGLE_ADS_CUSTOMER_ID }}
           SNAP_CLIENT_ID: ${{ env.V_SNAP_CLIENT_ID || secrets.SNAP_CLIENT_ID }}
           SNAP_CLIENT_SECRET: ${{ env.V_SNAP_CLIENT_SECRET || secrets.SNAP_CLIENT_SECRET }}
@@ -194,6 +195,7 @@ jobs:
           GOOGLE_ADS_REFRESH_TOKEN: ${{ env.V_GOOGLE_ADS_REFRESH_TOKEN || secrets.GOOGLE_ADS_REFRESH_TOKEN }}
           GOOGLE_ADS_CUSTOMER_ID: ${{ env.V_GOOGLE_ADS_CUSTOMER_ID || secrets.GOOGLE_ADS_CUSTOMER_ID }}
           GOOGLE_ADS_LOGIN_CUSTOMER_ID: ${{ env.V_GOOGLE_ADS_LOGIN_CUSTOMER_ID || secrets.GOOGLE_ADS_LOGIN_CUSTOMER_ID }}
+          GOOGLE_ADS_DEVELOPER_TOKEN: ${{ env.V_GOOGLE_ADS_DEVELOPER_TOKEN || secrets.GOOGLE_ADS_DEVELOPER_TOKEN }}
         working-directory: pipeline
         run: python step_status.py run learn -- sh -ec 'python -m modules.observe.run; python -m modules.outcomes.run; python -m modules.learn.run'
 

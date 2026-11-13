@@ -31,7 +31,7 @@ export const PLATFORMS: Platform[] = [
   { id: 'google_ads', name: 'Google Ads و YouTube', group: 'ads', fetch: true,
     docs: 'https://developers.google.com/google-ads/api/docs/get-started/introduction', help: 'Google Cloud ← OAuth client، و Google Ads ← API Center ← Developer token.',
     fields: [ID('GOOGLE_ADS_CUSTOMER_ID', 'رقم الحساب (Customer ID)', { placeholder: '123-456-7890' }), ID('GOOGLE_ADS_LOGIN_CUSTOMER_ID', 'رقم حساب المدير (MCC)', { optional: true }),
-      F('GOOGLE_ADS_DEVELOPER_TOKEN', 'Developer Token', { optional: true }),
+      F('GOOGLE_ADS_DEVELOPER_TOKEN', 'Developer Token'),
       F('GOOGLE_ADS_CLIENT_ID', 'OAuth Client ID', { manual: true }), F('GOOGLE_ADS_CLIENT_SECRET', 'OAuth Client Secret', { manual: true }), F('GOOGLE_ADS_REFRESH_TOKEN', 'Refresh Token', { manual: true })] },
   { id: 'tiktok', name: 'TikTok', group: 'ads', fetch: true, mcp: true, docs: 'https://ads.tiktok.com/', help: 'زر "اربط" يسجّل دخولك على خدمة TikTok for Business الرسمية (بدون تطبيق مطوّرين). الدخول يخلص كل 30 يوم. وبعد ما يخلص يكمّل السحب بالطريقة القديمة، وأرقامك تتأخر لين تعيد الربط.', fields: [] },
   { id: 'x', name: 'X (تويتر)', group: 'ads', docs: 'https://developer.x.com/en/portal/dashboard', help: 'X Developer Portal ← تطبيق بصلاحية Ads API (مدفوع) ← Keys and tokens.',

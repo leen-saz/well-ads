@@ -239,3 +239,11 @@ describe('pullState: is the GitHub pull delivering?', () => {
     expect(st['google_ads']).toBe('none');
   });
 });
+
+describe('google ads developer token', () => {
+  it('is a required field, so Google counts as connected only when the token is present', () => {
+    const f = PLATFORMS.find(p => p.id === 'google_ads')?.fields.find(x => x.env === 'GOOGLE_ADS_DEVELOPER_TOKEN');
+    expect(f).toBeDefined();
+    expect(f?.optional).toBeFalsy();
+  });
+});
