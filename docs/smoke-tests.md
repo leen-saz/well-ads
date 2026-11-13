@@ -2,11 +2,15 @@
 
 The built Worker runs locally (`wrangler dev`) with a fake Supabase (`tests/smoke/fake-supabase.mjs`) and a local R2
 seeded with synthetic pages (`tests/smoke/seed-r2.sh`). Everything is synthetic: accounts are `<name>@example.test`,
-nothing leaves the machine, no secrets are used. CI job: `.github/workflows/smoke.yml` (about 3 minutes).
+nothing leaves the machine, no secrets are used. CI job: `.github/workflows/smoke.yml` (about 7 minutes; the language crawl is close to half of it).
 
 ```bash
 npm run build && npm run test:smoke      # locally, with Chrome installed: PW_CHANNEL=chrome npm run test:smoke
 ```
+
+Two checkouts on one machine: give the second its own ports, `SMOKE_PORT=8931 SMOKE_FAKE_PORT=8932 npm run test:smoke`.
+Without them it reuses the first checkout's running servers (outside CI) and tests the other checkout's build. Specs take the
+addresses from `BASE` / `FAKE` in `tests/smoke/helpers.ts`, never a written port.
 
 ## What it covers
 - `/api/health` answers without a login; signed-out pages go to `/login/?next=`, signed-out API calls get 401 JSON in Arabic.

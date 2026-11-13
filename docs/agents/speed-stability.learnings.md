@@ -6,6 +6,13 @@
 
 ## الدروس
 
+### 2026-11-13 · منافذ فحص الدخان تؤخذ من مكان واحد
+- **الدرس:** `plain-words.spec.ts` و`video-plain.spec.ts` كتبا منفذ Supabase الوهمي (8788) نصاً، و`auditor.spec.ts` كتب 8787 في ترويسة origin. فعند تشغيل الفحص بمنافذ أخرى (`SMOKE_PORT` / `SMOKE_FAKE_PORT`، وهو ما تحتاجه نسختان على جهاز واحد) يفشل الملفان الأولان في `beforeAll` وتُتخطى بقية اختباراتهما، واختبار المدقق ينجح لسبب غير المقصود (رفض المصدر بدل رفض الصلاحية). العناوين الآن من `BASE` و`FAKE` في `tests/smoke/helpers.ts`.
+- **المصدر:** دليل من الريبو (`playwright.smoke.config.ts` يعد بتشغيل نسختين معاً) و`reuseExistingServer: !CI` فيه؛ https://playwright.dev/docs/ci (توصيات CI، قُرئ 2026-11-13).
+- **الأثر:** PR هذه الجولة. القياس بنفس الأمر على منافذ غير الافتراضية: قبل 4 فشل و84 متخطى، بعد 94 ناجح في الملفات الثلاثة.
+- **قياس الجولة:** خطوة `npm run test:smoke` في CI صارت قرابة سبع دقائق من مهلة 15 (الوثيقة كانت تقول ثلاث)، وزحف اللغة (`lang-crawl.spec.ts`) قرابة نصف زمن الاختبارات. ترويسات الكاش سليمة: `/_astro/*` و`/r/*` و`/assets/fonts/*` كلها immutable في `dist/client/_headers`.
+- **مؤجل:** تقسيم فحص الدخان على مهام متوازية (`--shard` حسب https://playwright.dev/docs/test-sharding، قُرئ 2026-11-13)، حجم متوسط ويحتاج قرار لين لأنه يغيّر أسماء الفحوصات الإلزامية. على main يعمل الدخان مرتين لكل دفع (smoke.yml وداخل deploy.yml)، والنشر الثاني ينتظر الأول في مجموعة التزامن: صغير، يحتاج قرار.
+
 ### 2026-11-12 · مهلة لطلب إطلاق الـ workflow من cron
 - **الدرس:** `dispatchRefresh` و`dispatchWorkflow` كانا يستدعيان GitHub بدون مهلة داخل `ctx.waitUntil`. Cloudflare تقطع `waitUntil` بعد 30 ثانية، فطلب معلّق يقتل الاستدعاء قبل كتابة حالة الفشل في R2 ولا تظهر في صحة الداتا. أضفنا `AbortSignal.timeout(10s)` ودمجنا الدالتين في مساعد واحد.
 - **المصدر:** https://developers.cloudflare.com/workers/best-practices/workers-best-practices/ (حد 30 ثانية لـ waitUntil، الصفحة محدّثة 2026-10-12)، https://developer.mozilla.org/en-US/docs/Web/API/AbortSignal/timeout_static (يرمي TimeoutError، Baseline منذ 2024-04).

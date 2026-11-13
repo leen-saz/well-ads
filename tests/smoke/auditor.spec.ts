@@ -1,7 +1,7 @@
 // «المدقق»: the owner sees a result badge next to the verdict and an audit page; anyone else sees nothing of it, no element and
 // no wording, and the page and API refuse them. Synthetic data only (a made-up dash.json in Leen's proportions).
 import { test, expect, type Page } from '@playwright/test';
-import { login, addSession } from './helpers';
+import { login, addSession, BASE } from './helpers';
 import { synth } from '../../src/modules/auditor/synth';
 
 // Few leads tied to ads, 48 closings in ~4K results: the judge names the sales gap (whole CRM) and the auditor confirms it.
@@ -44,7 +44,7 @@ test('a normal user sees nothing technical: no badge, no audit wording, and the 
   await expect(page.getByTestId('audit-badge')).toHaveCount(0);
   await expect(page.locator('main')).not.toContainText(TECH);
   expect((await page.request.get('/api/maestro/audit')).status()).toBe(403);
-  expect((await page.request.post('/api/maestro/critique', { data: {}, headers: { origin: 'http://localhost:8787' } })).status()).toBe(403);
+  expect((await page.request.post('/api/maestro/critique', { data: {}, headers: { origin: BASE } })).status()).toBe(403);
   const res = await page.request.get('/maestro/audit/', { maxRedirects: 0 });
   expect(res.status()).not.toBe(200);
   expect(await res.text()).not.toMatch(TECH);
