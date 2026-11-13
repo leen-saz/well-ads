@@ -17,7 +17,7 @@ def review(s, today=None, lessons=()):
         issues.append("الاقتراح بدون بصمة")
     if rules.needs_leen(s):
         issues.append("حملة جديدة: تحتاج موافقة لين")
-    for l in lessons:   # المرحلة C: دروس من النتايج السابقة
+    for l in lessons:   # المرحلة C: دروس من النتائج السابقة
         if l.get("kind") == s.get("kind") and l.get("platform") == s.get("platform") and l.get("block"):
             issues.append(f"درس سابق: {l.get('lesson')}")
     return {"ok": not issues, "issues": issues, "at": datetime.now(timezone.utc).isoformat()}

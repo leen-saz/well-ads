@@ -10,7 +10,7 @@ ours = defaultdict(lambda: [0.0, 0, 0, 0, 0])
 for r in D["rows"]:
     k, d = r[0], r[1]
     if k[0] == "m" and "|" in k:
-        k = k.split("|", 1)[0]   # مواضع فيسبوك/إنستغرام تُجمع لمقارنة تقرير الإعلان
+        k = k.split("|", 1)[0]   # مواضع فيسبوك/انستقرام تُجمع لمقارنة تقرير الإعلان
     if start <= d <= end:
         o = ours[k]
         for i, v in enumerate(r[2:7]): o[i] += v

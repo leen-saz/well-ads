@@ -1,4 +1,4 @@
-"""تقسيم المنصات: فيسبوك/إنستغرام من publisher_platform، وجوجل من نوع الحملة.
+"""تقسيم المنصات: فيسبوك/انستقرام من publisher_platform، وجوجل من نوع الحملة.
 
 مفاتيح الإعلان تبقى تبدأ بـ m/g/s/t حتى يشتغل التحديث الجزئي كما هو.
 """
@@ -9,7 +9,7 @@ META_PLACEMENTS = ("facebook", "instagram", "messenger", "audience_network", "th
 # ترتيب العرض. الألوان من لوحة وِل (تدرجات الشفافية مسموحة، بدون ألوان جديدة).
 _PLATFORMS = {
     "facebook": {"ar": "فيسبوك", "family": "meta", "color": "--s-fb"},
-    "instagram": {"ar": "إنستغرام", "family": "meta", "color": "--s-ig"},
+    "instagram": {"ar": "انستقرام", "family": "meta", "color": "--s-ig"},
     "messenger": {"ar": "ماسنجر", "family": "meta", "color": "--s-msg"},
     "audience_network": {"ar": "شبكة الجمهور", "family": "meta", "color": "--s-an"},
     "threads": {"ar": "ثريدز", "family": "meta", "color": "--s-threads"},
