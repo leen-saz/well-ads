@@ -61,7 +61,7 @@
 دعوة مستخدم، واختيار لوحاته وأقسامه، وإيقافه، وسجل الدخول. تغيير الباسوورد.
 
 ## 4. البيانات
-- **المصادر:** Meta Graph v23، Google Ads، Snapchat Ads، TikTok (عن طريق MCP وفرع `tiktok-data`، بدون API)، GA4.
+- **المصادر:** Meta Graph v23، Google Ads، Snapchat Ads، TikTok (عن طريق MCP، بدون API؛ التاريخ محفوظ في مخزن R2 الخاص `private/tiktok/tiktok.json`)، GA4.
 - **السحب كل ساعة** (`refresh-and-deploy`): آخر 3 أيام عادةً، وآخر 90 يوم الساعة 5 الفجر، وسحب كامل يدوي.
 - **الصيغة:** `rows = [key, day, spend, impr, clicks, leads, conv]` + `ads` (اسم، حملة، مجموعة، قسم، هدف، حالة، غلاف).
 - **القاعدة:** Supabase — `profiles`, `audit_log`, `dashboard_state`, `ads`, `ad_metrics`, `platform_activity`, `suggestions`, `control_settings`, `outcomes`, `lessons` (+ `connections` و Vault في 005).

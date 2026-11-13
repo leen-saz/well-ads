@@ -67,6 +67,15 @@ Every Google Ads call needs these secrets in the `production` environment (Setti
   Meta, Snapchat and TikTok keep working and Google keeps showing its last good figures as stale. The connectors page shows Google as not connected until the token is set.
 - Explorer access on the Google Ads API is enough for reading. Nothing here changes campaigns.
 
+## TikTok history (private bucket, not a git branch)
+- **Where:** `well-ads-files` at `private/tiktok/tiktok.json`. The Worker only serves the mapped `site/…` and `thumbs/…` keys, so this key is never public. The old public branch `tiktok-data` is no longer read by anything.
+- **How it works:** every hourly run restores the file, the TikTok MCP step merges the last ~90 days into it, and the run writes it back (never a version with fewer rows). Days older than the MCP window exist only in this file.
+- **No file in the bucket:** the MCP step is skipped (warning `tiktok-history`) and the dashboard keeps the previous TikTok numbers. Nothing is lost, but TikTok stops updating until the file is seeded.
+- **One-time seed (Leen, from the last good snapshot):**
+  `git clone --branch tiktok-data --single-branch https://github.com/leen-saz/well-ads.git /tmp/tt && npx wrangler r2 object put well-ads-files/private/tiktok/tiktok.json --file /tmp/tt/tiktok.json --content-type application/json --remote`
+  then delete the clone. Do this before the PR that drops the checkout is merged, or right after: until then TikTok shows the previous numbers.
+- **Delete the old branch (after the seed and one green hourly run):** `gh api -X DELETE repos/leen-saz/well-ads/git/refs/heads/tiktok-data`
+
 ## Settings only the repository owner can change
 - **Branch protection / rulesets on `main`**: add the status check `smoke` (the job of `.github/workflows/smoke.yml`) next to `ci / gate`, so a PR cannot merge with a red smoke run.
   The deploy workflow already needs it: `deploy` calls `smoke.yml` through `workflow_call` and `needs: [ci, smoke]`, no setting required.

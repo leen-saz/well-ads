@@ -46,8 +46,8 @@ function renderCamp(now){
     {k:'leads',l:'الليدز',n:1,f:r=>r.goal==='lead'?qty(r.leadN):'—'},
     {k:'cpl',l:'تكلفة الليد',n:1,asc:1,f:r=>r.goal==='lead'?tgtCell(r.cpl):'—'},
     ...(D.crm ? [
-      {k:'booked',l:'الاقفالات',n:1,f:r=>fmt(r.booked||0)},
-      {k:'cpb',l:'تكلفة الاقفالة',n:1,asc:1,f:r=>sar(r.cpb)},
+      {k:'booked',l:'الإقفالات',n:1,f:r=>fmt(r.booked||0)},
+      {k:'cpb',l:'تكلفة الإقفالة',n:1,asc:1,f:r=>sar(r.cpb)},
       {k:'roas',l:'ROAS',n:1,f:r=>r.roas==null?'—':fmt(r.roas,2)+'×'},
     ] : []),
     {k:'conv',l:'محادثات',n:1,f:r=>family(r.p)==='meta'?fmt(r.conv):'—'},

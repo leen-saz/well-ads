@@ -28,7 +28,7 @@ class DashTemplateTests(unittest.TestCase):
         html = template()
         self.assertIn("A.agegender", html)
         self.assertIn("كل المشاهدين", html)
-        self.assertIn("النتايج (ليدز ومحادثات)", html)
+        self.assertIn("النتائج (ليدز ومحادثات)", html)
         self.assertNotIn("فالعمر داخل كل جنس تقريبي", html)
 
     def test_personas_section_is_hidden_but_kept(self):

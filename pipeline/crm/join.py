@@ -17,8 +17,8 @@ PREFIX = {"meta_form": "m", "meta_ctwa": "m", "whatsapp_ad_prefill": "m", "snapc
 COLUMNS = "lead_id,customer_id,created_at,platform_created_at,source_platform,ad_id,ad_id_quality,ad_name,status,booked_at,amount_paid_sar,booking_value_sar,paid_at,payment_status"
 # Fields the CRM owner may add (ad id, UTM): read from the stored CRM row (`doc`) so no migration is needed. Absent = null = ignored.
 COLUMNS += ",doc_ad_id:doc->>ad_id,utm_id:doc->>utm_id,utm_content:doc->>utm_content,utm_source:doc->>utm_source"
-CAVEATS = ["الاقفالة = ليد دفع، وقيمتها = المبلغ المدفوع", "الدفع من ميسّر بس (تابي والكاش ما يطلعون للحين)",
-           "اقفالة بدون إعلان (يدوي، واتساب عضوي…) تنحسب لآخر إعلان جاب نفس العميل خلال 90 يوم قبلها"]
+CAVEATS = ["الإقفالة = ليد دفع، وقيمتها = المبلغ المدفوع", "الدفع من ميسّر بس (تابي والكاش ما يطلعون للحين)",
+           "إقفالة بدون إعلان (يدوي، واتساب عضوي…) تنحسب لآخر إعلان جاب نفس العميل خلال 90 يوم قبلها"]
 LOOKBACK_DAYS = 90
 # Sources that are not ads even when their name mentions a platform (whatsapp_organic, instagram_dm, manual entries…)
 ORGANIC = {"manual", "late_import", "cold_outreach", "referral", "walk_in", "phone", "website"}
