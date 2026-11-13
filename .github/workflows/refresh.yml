@@ -48,21 +48,19 @@ jobs:
         with:
           persist-credentials: false
 
-      # احتياط تيك توك إذا غابت أسرار الواجهة أو فشل الطلب. الفرع بلا توكنات.
-      - name: Get TikTok data
-        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-        continue-on-error: true
-        with:
-          ref: tiktok-data
-          path: pipeline/tiktok-data
-          persist-credentials: false
-
       - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
         with:
           python-version: "3.12"
 
       - name: Install Python deps
         run: pip install --disable-pip-version-check -q "Pillow==11.3.0"
+
+      # wrangler (pinned by package-lock) is needed before the TikTok step to read and write its private history
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: "24"
+          cache: npm
+      - run: npm ci
 
       # مفاتيح صفحة الربط (Supabase Vault) تغلب أسرار GitHub. القيم تنخفى من السجل.
       - name: Load connections from the Connectors page
@@ -83,9 +81,28 @@ jobs:
           key: ads-data-${{ github.run_id }}
           restore-keys: ads-data-
 
+      # TikTok history lives in the PRIVATE bucket (private/tiktok/tiktok.json, never served by the Worker's public paths).
+      # The MCP pull only covers the last ~90 days and merges into this file, so the older days exist only here.
+      # No file yet: the MCP step is skipped and the dashboard keeps the previous TikTok numbers (seed: docs/runbook.md).
+      - name: Restore TikTok history (private R2)
+        id: tt_history
+        continue-on-error: true
+        run: |
+          mkdir -p pipeline/tiktok-data
+          if npx wrangler r2 object get "$BUCKET/private/tiktok/tiktok.json" --file pipeline/tiktok-data/tiktok.json --remote >/dev/null 2>&1 \
+             && jq -e '.rows | length > 0' pipeline/tiktok-data/tiktok.json >/dev/null 2>&1; then
+            echo "found=true" >> "$GITHUB_OUTPUT"
+            echo "rows=$(jq '.rows | length' pipeline/tiktok-data/tiktok.json)" >> "$GITHUB_OUTPUT"
+          else
+            rm -f pipeline/tiktok-data/tiktok.json
+            echo "found=false" >> "$GITHUB_OUTPUT"
+            echo "::warning title=tiktok-history::private/tiktok/tiktok.json is missing in the bucket: the TikTok MCP step is skipped and the previous TikTok numbers stay (docs/runbook.md, TikTok history)"
+          fi
+
       # TikTok through its official MCP server (Connectors page sign-in): read-only pull of ads, daily numbers and covers
-      # into pipeline/tiktok-data/tiktok.json, which the next step reads exactly like the old tiktok-data branch file.
+      # merged into pipeline/tiktok-data/tiktok.json (a local path only), which the next step reads.
       - name: TikTok via MCP
+        if: steps.tt_history.outputs.found == 'true'
         continue-on-error: true
         env:
           TIKTOK_MCP_CLIENT_ID: ${{ env.V_TIKTOK_MCP_CLIENT_ID }}
@@ -94,6 +111,18 @@ jobs:
           SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
         working-directory: pipeline
         run: python step_status.py run tiktok -- python -m tiktok.mcp
+
+      # Write the merged history back, but never a smaller one than we restored.
+      - name: Save TikTok history (private R2)
+        if: steps.tt_history.outputs.found == 'true'
+        continue-on-error: true
+        run: |
+          now="$(jq '.rows | length' pipeline/tiktok-data/tiktok.json)"
+          if [ "$now" -ge "${{ steps.tt_history.outputs.rows }}" ]; then
+            npx wrangler r2 object put "$BUCKET/private/tiktok/tiktok.json" --file pipeline/tiktok-data/tiktok.json --content-type application/json --remote >/dev/null
+          else
+            echo "::warning title=tiktok-history::the merged TikTok file has fewer rows than the stored one: not saved"
+          fi
 
       - name: Fetch ads data
         env:
@@ -109,7 +138,7 @@ jobs:
           SNAP_REFRESH_TOKEN: ${{ env.V_SNAP_REFRESH_TOKEN || secrets.SNAP_REFRESH_TOKEN }}
           SNAP_AD_ACCOUNT_ID: ${{ env.V_SNAP_AD_ACCOUNT_ID || secrets.SNAP_AD_ACCOUNT_ID }}
           SNAP_ORGANIZATION_ID: ${{ env.V_SNAP_ORGANIZATION_ID || secrets.SNAP_ORGANIZATION_ID }}
-          # TikTok stays on MCP (Grok pushes the tiktok-data branch): no TikTok API token here, by Leen's decision
+          # TikTok stays on MCP (history in the private bucket): no TikTok API token here, by Leen's decision
           GA4_PROPERTY_ID: ${{ env.V_GA4_PROPERTY_ID || secrets.GA4_PROPERTY_ID }}
           GA4_SERVICE_ACCOUNT_JSON: ${{ env.V_GA4_SERVICE_ACCOUNT_JSON || secrets.GA4_SERVICE_ACCOUNT_JSON }}
           GA4_REFRESH_TOKEN: ${{ env.V_GA4_REFRESH_TOKEN }}
@@ -205,11 +234,6 @@ jobs:
       # spend, days inside the range). On failure the run stops with a message that carries no figures.
       - name: Validate dash.json before upload
         run: python pipeline/validate_dash.py pipeline/web/public/dash.json pipeline/web/public/data
-      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
-        with:
-          node-version: "24"
-          cache: npm
-      - run: npm ci
       # build.py (run in the fetch step) wrote the pages, control/ads.json and the covers under pipeline/web/
       - name: Upload covers, dashboards and data.json to R2
         run: |
