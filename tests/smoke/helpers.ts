@@ -2,7 +2,10 @@ import type { APIRequestContext, BrowserContext } from '@playwright/test';
 import { PASSWORD, DOMAIN } from './fake-supabase.mjs';
 
 export const emailFor = (who: string) => `${who}@${DOMAIN}`;
-const BASE = `http://localhost:${process.env['SMOKE_PORT'] || 8787}`;
+// The same ports as playwright.smoke.config.ts: a spec that writes 8787 or 8788 itself breaks a run on other ports
+// (SMOKE_PORT / SMOKE_FAKE_PORT), or talks to another checkout's servers when two runs share one machine
+export const BASE = `http://localhost:${process.env['SMOKE_PORT'] || 8787}`;
+export const FAKE = `http://localhost:${process.env['SMOKE_FAKE_PORT'] || 8788}`;
 
 // Signs in through the real /api/auth/login and returns the session cookie as {name, value}
 export async function login(request: APIRequestContext, who: string): Promise<{ name: string; value: string; header: string }> {

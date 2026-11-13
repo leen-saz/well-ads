@@ -2,11 +2,10 @@
 // database tables are missing and in English. What is still to set up is only in the status card, which a member never gets.
 // Synthetic data only.
 import { test, expect } from '@playwright/test';
-import { login, addSession } from './helpers';
+import { login, addSession, FAKE } from './helpers';
 import { pageStrings, openTabs, arabicIn } from './page-text';
 import { TECH_WORDS } from '../shared/tech-words';
 
-const FAKE = 'http://localhost:8788';
 const FORBIDDEN = new RegExp(`${TECH_WORDS.source}|HIGGSFIELD|OPENAI`, 'i');
 
 for (const missing of [false, true]) {

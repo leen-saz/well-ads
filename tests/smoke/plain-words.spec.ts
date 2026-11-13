@@ -3,7 +3,7 @@
 // tables are missing. Technical text may appear only on the Connectors page and the owner-only pages (data health, admin),
 // which are not visited here. Synthetic data only.
 import { test, expect } from '@playwright/test';
-import { login, addSession } from './helpers';
+import { login, addSession, FAKE } from './helpers';
 import { pageStrings, openTabs, arabicIn } from './page-text';
 import { TECH_WORDS } from '../shared/tech-words';
 
@@ -11,7 +11,6 @@ const PAGES = [
   '/', '/today/', '/control/', '/control/new/', '/account/', '/library/', '/overview/', '/overview/creative/', '/listening/',
   '/design/', '/video/', '/content/?tab=copy', '/voice/', '/social/', '/content/', '/journeys/', '/compliance/', '/maestro/', '/knowledge/', '/debugger/', '/soon/',
 ];
-const FAKE = 'http://localhost:8788';
 
 for (const missing of [false, true]) {
   test.describe(missing ? 'database tables missing' : 'normal data', () => {
