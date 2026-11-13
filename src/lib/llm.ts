@@ -26,6 +26,8 @@ export const OR_URL = 'https://openrouter.ai/api/v1/chat/completions';
 export const OR_TIMEOUT_MS = 60_000, OR_STREAM_MS = 120_000;
 // A plain (non-stream) OpenAI or xAI call: long enough for a slow answer, short enough that a hung provider cannot hold the request open
 export const TEXT_TIMEOUT_MS = 90_000;
+// A streamed OpenAI or xAI answer has no total limit (a long answer is fine), but a provider that sends nothing for this long is cut
+export const STREAM_IDLE_MS = 90_000;
 const clean = (s: string | undefined) => (s || '').replace(/[^a-z0-9.\-_:]/gi, '').slice(0, 80);
 
 // The provider a tab would use now: its own if the key is there, else Workers AI if bound, else none
@@ -213,15 +215,23 @@ async function* run(e: LlmEnv, module: string, i: LlmInput, f: typeof fetch, sig
     let cost: number | undefined;
     // Once the provider accepted the request it bills what it wrote, even if the stream is cut or the reader leaves:
     // the `finally` below records what was received (an estimate when no usage event arrived)
-    let text = '', usage: { in: number; out: number } | undefined, started = false, logged = false;
+    let text = '', usage: { in: number; out: number } | undefined, started = false, logged = false, busy = false;
+    // The provider's deadline: OpenRouter has one for the whole stream; OpenAI and xAI are cut only when they go silent
+    // (no headers, then no event, for STREAM_IDLE_MS), so a hung provider cannot hold the request open
+    const idle = new AbortController();
+    let timer: ReturnType<typeof setTimeout> | undefined;
+    const beat = () => { if (or) return; clearTimeout(timer); timer = setTimeout(() => idle.abort(new DOMException('idle', 'TimeoutError')), STREAM_IDLE_MS); };
+    const late = or ? AbortSignal.timeout(OR_STREAM_MS) : idle.signal, sig = AbortSignal.any([signal, late]);
     try {
+      beat();
       const r = or
-        ? await f(OR_URL, { method: 'POST', signal: AbortSignal.any([signal, AbortSignal.timeout(OR_STREAM_MS)]), headers: orHeaders(e, key), body: JSON.stringify(orBody(p.model, i, true)) })
-        : await f(URL_OF[p.provider as 'openai' | 'xai'], { method: 'POST', signal, headers: { authorization: `Bearer ${key}`, 'content-type': 'application/json' }, body: JSON.stringify({ ...body(p.provider as 'openai' | 'xai', p.model, i), stream: true }) });
-      if (!r.ok || !r.body) throw new Error(`status ${r.status}`);
+        ? await f(OR_URL, { method: 'POST', signal: sig, headers: orHeaders(e, key), body: JSON.stringify(orBody(p.model, i, true)) })
+        : await f(URL_OF[p.provider as 'openai' | 'xai'], { method: 'POST', signal: sig, headers: { authorization: `Bearer ${key}`, 'content-type': 'application/json' }, body: JSON.stringify({ ...body(p.provider as 'openai' | 'xai', p.model, i), stream: true }) });
+      if (!r.ok || !r.body) { busy = r.status === 429 || (or && r.status === 402) || r.status >= 500; throw new Error(`status ${r.status}`); }
       started = true;
       let finished = false;
-      for await (const m of sse(r.body, signal)) {
+      for await (const m of sse(r.body, sig)) {
+        beat();
         if (m.data === '[DONE]') { finished = finished || or; break; }
         if (or) {
           // Chat Completions chunks. Comment lines (keep-alives) never reach here; usage comes in the last chunk before [DONE].
@@ -250,11 +260,13 @@ async function* run(e: LlmEnv, module: string, i: LlmInput, f: typeof fetch, sig
       return;
     } catch (err) {
       if (signal.aborted) return;
-      console.warn('llm_stream_failed', p.provider, (err as Error).message);   // never the body: it may echo the request
+      busy = busy || late.aborted;
+      console.warn('llm_stream_failed', p.provider, late.aborted ? 'timeout' : (err as Error).message);   // never the body: it may echo the request
     } finally {
+      clearTimeout(timer);
       if (started && !logged) record(ctx, module, { provider: p.provider, model: p.model, usage: usage ?? guess(i, text), estimated: !usage, ...(cost !== undefined ? { costUsd: cost } : {}) });
     }
-    if (!e.AI) { yield { type: 'error', message: 'llm_failed' }; return; }
+    if (!e.AI) { yield { type: 'error', message: busy ? 'llm_busy' : 'llm_failed' }; return; }
     if (sent) yield { type: 'reset' };
   }
   try {

@@ -1,6 +1,6 @@
 // Unified streaming (src/lib/llm.ts): SSE across chunk boundaries, each provider's events, a failure mid-stream, the fallback to Workers AI, and stop.
 import { describe, expect, it, vi } from 'vitest';
-import { sse, stream, sseResponse, type StreamEvent, type LlmEnv } from '../../src/lib/llm';
+import { sse, stream, sseResponse, STREAM_IDLE_MS, type StreamEvent, type LlmEnv } from '../../src/lib/llm';
 
 const enc = new TextEncoder();
 // A body that delivers the given pieces one by one (so a chunk can end mid-event), then ends or fails
@@ -80,6 +80,61 @@ describe('stream: provider failure mid-stream', () => {
     await collect(stream({ OPENAI_API_KEY: 'k', AI: workers([wk('x')]) }, 'copy', { ...IN, messages: [{ role: 'user', content: 'SECRET-PROMPT' }] }, fake(() => sseRes([], false, 429))));
     expect(JSON.stringify(warn.mock.calls)).not.toContain('SECRET-PROMPT');
     warn.mockRestore();
+  });
+});
+
+describe('stream: a silent or busy provider (OpenAI and Grok)', () => {
+  // A body that sends the given pieces and then never ends, like a provider that stopped writing
+  const hung = (parts: string[]) => { const q = [...parts]; return new ReadableStream<Uint8Array>({
+    pull(c) { const p = q.shift(); if (p !== undefined) { c.enqueue(enc.encode(p)); return; } return new Promise<void>(() => {}); },
+  }); };
+  // A fetch that never answers, and fails only when its signal is aborted
+  const never = ((_u: string, init: RequestInit) => new Promise((_ok, no) => { init.signal!.addEventListener('abort', () => no(init.signal!.reason)); })) as unknown as typeof fetch;
+
+  it('a stream that goes silent is cut after STREAM_IDLE_MS, and Workers AI answers from the start', async () => {
+    vi.useFakeTimers();
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
+    try {
+      const e: LlmEnv = { OPENAI_API_KEY: 'k', AI: workers([wk('بديل')]) };
+      const got = collect(stream(e, 'copy', IN, fake(() => new Response(hung([delta('جزء')])))));
+      await vi.advanceTimersByTimeAsync(STREAM_IDLE_MS + 1);
+      expect((await got).map(x => x.type)).toEqual(['delta', 'reset', 'delta', 'done']);
+      expect(warn).toHaveBeenCalledWith('llm_stream_failed', 'openai', 'timeout');
+    } finally { warn.mockRestore(); vi.useRealTimers(); }
+  });
+  it('each event restarts the idle window: a slow but live stream is not cut', async () => {
+    vi.useFakeTimers();
+    try {
+      let push!: (s: string | null) => void;
+      const live = new ReadableStream<Uint8Array>({ start(c) { push = s => (s === null ? c.close() : c.enqueue(enc.encode(s))); } });
+      const got = collect(stream({ XAI_API_KEY: 'k' }, 'social', IN, fake(() => new Response(live))));
+      for (const t of ['أ', 'ب', 'ج']) { await vi.advanceTimersByTimeAsync(STREAM_IDLE_MS - 1000); push(delta(t)); }
+      await vi.advanceTimersByTimeAsync(STREAM_IDLE_MS - 1000); push(completed()); push(null);
+      await vi.advanceTimersByTimeAsync(0);
+      expect((await got).at(-1)).toMatchObject({ type: 'done', response: 'أبج', engine: 'xai' });
+    } finally { vi.useRealTimers(); }
+  });
+  it('a provider that never answers, or says 429 or 5xx, is llm_busy when there is no fallback; other failures stay llm_failed', async () => {
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
+    try {
+      for (const status of [429, 500, 503]) expect(await collect(stream({ OPENAI_API_KEY: 'k' }, 'copy', IN, fake(() => sseRes([], false, status))))).toEqual([{ type: 'error', message: 'llm_busy' }]);
+      expect(await collect(stream({ XAI_API_KEY: 'k' }, 'social', IN, fake(() => sseRes([], false, 400))))).toEqual([{ type: 'error', message: 'llm_failed' }]);
+      vi.useFakeTimers();
+      const got = collect(stream({ XAI_API_KEY: 'k' }, 'social', IN, never));
+      await vi.advanceTimersByTimeAsync(STREAM_IDLE_MS + 1);
+      expect(await got).toEqual([{ type: 'error', message: 'llm_busy' }]);
+      expect(vi.getTimerCount()).toBe(0);
+    } finally { warn.mockRestore(); vi.useRealTimers(); }
+  });
+  it('the idle timer is cleared when the stream ends or the reader leaves', async () => {
+    vi.useFakeTimers();
+    try {
+      await collect(stream({ OPENAI_API_KEY: 'k' }, 'copy', IN, fake(() => sseRes([delta('تم'), completed()]))));
+      expect(vi.getTimerCount()).toBe(0);
+      const g = stream({ OPENAI_API_KEY: 'k' }, 'copy', IN, fake(() => new Response(hung([delta('جزء')]))));
+      await g.next(); await g.return(undefined);
+      expect(vi.getTimerCount()).toBe(0);
+    } finally { vi.useRealTimers(); }
   });
 });
 

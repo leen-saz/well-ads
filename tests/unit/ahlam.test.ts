@@ -160,7 +160,7 @@ describe('a turn', () => {
   it('a provider failure ends in a plain Arabic sentence, never a code', async () => {
     answer = () => new Response('{}', { status: 500 });
     const ev = await all(converse(run(user(['ceo'])), { q: 'x', history: [], lang: 'ar' }, fetch));
-    expect(ev.at(-1)).toEqual({ type: 'error', message: 'ما قدرت أكمل الحين، جرّب مرة ثانية بعد شوي.' });
+    expect(ev.at(-1)).toEqual({ type: 'error', message: 'الخدمة مشغولة الحين، جرّب بعد دقيقة.' });   // a 5xx is «busy» in the stream too, as in generate()
   });
   it('no model at all: says so', async () => {
     const r = run(user(['ceo'])); r.e = { FILES: files };
