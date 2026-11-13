@@ -58,17 +58,25 @@ export const CAPS: Record<SocialPlatform, Cap> = {
   tiktok: { images: 35, mp4Only: true }, x: { images: 4, mp4Only: true }, linkedin: { images: 9, mp4Only: true },
 };
 // How a platform counts a text against its limit. Only X differs from a plain character count: any link counts 23 whatever its
-// length (t.co), an emoji counts 2 however it is built (skin tone, joiner), and a CJK character counts 2
-// (https://docs.x.com/fundamentals/counting-characters, read 2026-11-12). Counting by .length would refuse a post X accepts
-// whenever it carries a long booking link, and would over-count joined emoji.
-const URL_RE = /https?:\/\/[^\s]+/gi, EMOJI_RE = /\p{Extended_Pictographic}|\p{Regional_Indicator}/u, CJK_RE = /[\p{Script=Han}\p{Script=Hiragana}\p{Script=Katakana}\p{Script=Hangul}]/u;
+// length (t.co), an emoji counts 2 however it is built (skin tone, joiner), and every other character counts 1 only inside the
+// ranges X lists (Latin up to U+10FF, which holds Arabic; general punctuation U+2000-200D, U+2010-201F, U+2032-2037) and 2
+// outside them. So CJK counts 2, and so do the ellipsis (U+2026), the bullet (U+2022), arrows and the rial sign (U+FDFC), which
+// Arabic copy uses often (https://docs.x.com/fundamentals/counting-characters, read 2026-11-12; the ranges are X's own
+// twitter-text config v3: https://github.com/twitter/twitter-text/blob/master/config/v3.json, read 2026-11-13). The text is
+// counted in NFC, as X does. Counting by .length would refuse a post X accepts whenever it carries a long booking link, and
+// would accept a post X refuses when it is near the limit and carries those signs.
+const URL_RE = /https?:\/\/[^\s]+/gi, EMOJI_RE = /\p{Extended_Pictographic}|\p{Regional_Indicator}/u;
 const GRAPHEMES = new Intl.Segmenter(undefined, { granularity: 'grapheme' });
+const xWeight = (cp: number): number => (cp <= 0x10ff || (cp >= 0x2000 && cp <= 0x200d) || (cp >= 0x2010 && cp <= 0x201f) || (cp >= 0x2032 && cp <= 0x2037) ? 1 : 2);
 export function textLength(platform: SocialPlatform, body: string): number {
   if (platform !== 'x') return body.length;
   let n = 0;
-  for (const part of body.split(URL_RE).flatMap((t, i, a) => (i < a.length - 1 ? [t, null] : [t]))) {
+  for (const part of body.normalize('NFC').split(URL_RE).flatMap((t, i, a) => (i < a.length - 1 ? [t, null] : [t]))) {
     if (part === null) { n += 23; continue; }
-    for (const { segment: g } of GRAPHEMES.segment(part)) n += EMOJI_RE.test(g) || CJK_RE.test(g) ? 2 : [...g].length;
+    for (const { segment: g } of GRAPHEMES.segment(part)) {
+      if (EMOJI_RE.test(g)) n += 2;
+      else for (const ch of g) n += xWeight(ch.codePointAt(0)!);
+    }
   }
   return n;
 }
