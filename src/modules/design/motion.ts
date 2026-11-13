@@ -16,6 +16,8 @@ const POS = ['top', 'center', 'bottom'] as const;
 const SIZES = ['s', 'm', 'l'] as const;
 const HEX = /^#[0-9a-f]{6}$/i;
 export const MAX_SCENES = 12;
+// The shortest time a caption stays up (the same floor the model is given in RULES)
+export const MIN_SCENE = 1.5;
 export const DEFAULT_COLORS = { text: '#FFFFFF', band: '#1D1069', accent: '#E9A23B' };
 
 const num = (v: unknown, lo: number, hi: number, d: number) => { const n = Number(v); return Number.isFinite(n) ? Math.min(hi, Math.max(lo, Math.round(n * 10) / 10)) : d; };
@@ -52,11 +54,18 @@ export function cleanSpec(raw: unknown, seconds: number, ratio: Ratio, brand: st
   };
 }
 
-// Without a model: the headline first, then the script's sentences spread over the voice, and a CTA at the end
+// Without a model: the headline first (the hook, from second 0), then the script's sentences spread over the voice, and a CTA at the end
 export function templateSpec(i: { headline: string; script: string; seconds: number; ratio: Ratio; colors?: string[] }): Spec | null {
   const parts = i.script.split(/(?<=[.!؟?،\n])\s*/).map(s => s.trim()).filter(Boolean).slice(0, MAX_SCENES - 1);
-  const texts = [i.headline.trim(), ...parts].filter(Boolean);
-  const end = Math.max(1.5, i.seconds - 2.5), step = end / Math.max(1, texts.length);
+  const head = i.headline.trim(), end = Math.max(MIN_SCENE, i.seconds - 2.5);
+  // No caption under MIN_SCENE: when the voice is too short for one caption per sentence, neighbours share a caption
+  // (cleanSpec drops anything under half a second, which used to leave a short video with no captions at all)
+  const room = Math.max(1, Math.floor(end / MIN_SCENE)), slots = Math.max(head ? 0 : 1, room - (head ? 1 : 0));
+  const groups = parts.length > slots
+    ? Array.from({ length: slots }, (_, k) => parts.slice(Math.floor(k * parts.length / slots), Math.floor((k + 1) * parts.length / slots)).join(' '))
+    : parts;
+  const texts = [head, ...groups].filter(Boolean);
+  const step = end / Math.max(1, texts.length);
   const anims: Anim[] = ['pop', 'rise', 'fade', 'slide'];
   return cleanSpec({
     move: 'in',
@@ -75,7 +84,7 @@ export function parseSpec(text: string): unknown {
 
 const SHAPE = `{"move":"in|out|left|right|none","colors":{"text":"#RRGGBB","band":"#RRGGBB","accent":"#RRGGBB"},"scenes":[{"from":0,"to":2.5,"text":"...","anim":"${Object.keys(ANIMS).join('|')}","pos":"top|center|bottom","size":"s|m|l"}],"cta":{"text":"...","from":0}}`;
 const RULES = `قواعد:
-- الأوقات بالثواني من 0 إلى المدة، والمشاهد ما تتداخل، وكل مشهد 1.5 ثانية على الأقل.
+- الأوقات بالثواني من 0 إلى المدة، والمشاهد ما تتداخل، وكل مشهد ${MIN_SCENE} ثانية على الأقل.
 - النص قصير (أقل من 90 حرف)، بلهجة سعودية، يخاطب المتلقي بالمذكر، ويمشي مع الكلام المسموع في وقته.
 - ممنوع وعود الشفاء أو المبالغة الطبية (أنظمة وزارة الصحة).
 - رد بـ JSON فقط بهالشكل: ${SHAPE}`;
