@@ -6,6 +6,11 @@
 
 ## الدروس
 
+### 2026-11-13 · الفحص الذي لا يغطيه اختبار يُحسب «غير مكتشف»، والحارس لازم يكون آلياً
+- **الدرس:** بعد جولة أمس بقيت ستة معرّفات نتائج بلا اختبار يتحقق منها (`ok_with_weak_step`، `simpson_hidden`، `attribution_range_straddles`، `range_mismatch`، `prev_period_holes`، `ok_without_crm`)، وثلاثة منها ما كان ينتجها أي اختبار أصلاً. العدّ اليدوي بالبحث عن النص فاته ذلك لأنه راجع `checks.ts` فقط ونسي `advocate.ts`. الآن آخر اختبار في `auditor.test.ts` يقرأ المعرّفات من الملفين ويفشل إذا وُجد معرّف ما أنتجه أي تدقيق في الملف، فإضافة فحص جديد بلا اختبار تكسر البناء. جرّبنا تعطيل كل واحد من الستة فانكسر اختباران في كل مرة.
+- **المصدر:** وثائق Stryker Mutator، حالات الطفرات والمقاييس: الطفرة بحالة «No coverage» تُحسب ضمن غير المكتشف مثل «Survived»: https://stryker-mutator.io/docs/mutation-testing-elements/mutant-states-and-metrics/ (قُرئ 2026-11-13، الصفحة بلا تاريخ تحديث).
+- **الأثر:** PR هذه الجولة. ملاحظة: الحارس يثبت أن المعرّف «خرج» من تدقيق، مو أن اختباراً «تحقق» منه؛ التحقق بالاسم يبقى في الاختبارات نفسها. مؤجل: اختبار خصائص على هوية `chain_product` ببذور `synth` (بدون حزمة جديدة)، وحارس مماثل لفحوصات `pipeline/audit.py`.
+
 ### 2026-11-12 · فحص بلا اختبار يمرّ صامتاً لو انكسر
 - **الدرس:** ثمانية فحوصات في `checks.ts` (`mismatch_prev`، `mismatch_median`، `sar_negative`، `sar_recompute`، `named_step_not_weak`، `level_mismatch`، `owner_mismatch_step`، `confidence_vs_coverage`) ما كان يستدعيها أي اختبار؛ تعطيل أي منها كان يبقي الاختبارات خضراء. الاختبار الذي لا يفشل عند كسر الكود ما يحرس شي. كل فحص الآن له حالة تفعّله، وجرّبنا تعطيل خمسة منها يدوياً فانكسر اختبار في كل مرة.
 - **المصدر:** Google Engineering Practices، مراجعة الكود، قسم Tests («Will the tests actually fail when the code is broken?»): https://google.github.io/eng-practices/review/reviewer/looking-for.html (قُرئ 2026-11-12، الصفحة بلا تاريخ تحديث).

@@ -1,16 +1,21 @@
 // The auditor on made-up data in Leen's proportions: it recomputes what the judge says, catches a deliberately corrupted
 // verdict, argues against «no problem» when the CRM has closings the ads do not own, and replays the judge over history.
 import { describe, expect, it } from 'vitest';
-import { audit } from './audit';
+import { audit as runAudit } from './audit';
 import { claimFromJudge } from './adapter';
 import { backtest } from './backtest';
 import { OWNER_RULE, type Claim } from './contract';
 import { recompute } from './facts';
 import { synth } from './synth';
+import checksSrc from './checks.ts?raw';
+import advocateSrc from './advocate.ts?raw';
 import { J } from '../overview/judge';
 import { outcome } from '../overview/analytics';
 
 const from = '2026-10-02', to = '2026-10-31';
+// Every audit in this file goes through here, so the last block can tell which finding ids the tests really produced
+const seen = new Set<string>();
+const audit = (...a: Parameters<typeof runAudit>) => { const r = runAudit(...a); for (const f of r.findings) seen.add(f.id); return r; };
 const ids = (r: ReturnType<typeof audit>) => r.findings.map(f => f.id);
 
 describe('auditor: Leen\'s proportions', () => {
@@ -212,6 +217,58 @@ describe('auditor: the devil\'s advocate', () => {
   });
 });
 
+describe('auditor: the findings no test produced before', () => {
+  const quiet = (d: ReturnType<typeof synth>, tweak?: (c: Claim) => void): Claim => {
+    const c = claimFromJudge(d, from, to);
+    c.verdict = { step: null, level: 'ok', owner: null };
+    for (const s of c.steps) s.level = 'ok';
+    tweak?.(c);
+    return c;
+  };
+  it('«no problem» while a step is still marked weak', () => {
+    const d = synth();
+    const r = audit(d, quiet(d, c => { const s = c.steps.find(x => x.key === 'click')!; s.level = 'bad'; s.unattributed = false; }));
+    expect(ids(r)).toContain('ok_with_weak_step');
+    expect(r.status).toBe('contradicted');
+  });
+  it('«no problem» with no CRM connected covers the ads only', () => {
+    const d = synth();
+    delete (d as { crm?: unknown }).crm;
+    const r = audit(d, quiet(d));
+    expect(r.findings.find(f => f.id === 'ok_without_crm')?.effect).toBe('weakens');
+    expect(ids(audit(synth(), quiet(synth())))).not.toContain('ok_without_crm');
+  });
+  it('a quoted closing-rate range that is not the one the data gives', () => {
+    const d = synth();
+    expect(ids(audit(d, quiet(d, c => { c.verdict.range = { best: 99, worst: 98 }; })))).toContain('range_mismatch');
+  });
+  it('«no problem» while the floor sits inside the range the attribution gap leaves open', () => {
+    // Few closings tied to an ad, many more in the CRM with no ad: under the floor at worst, over it at best
+    const d = synth({ days: 20, impr: 100_000, paidAll: 48, paidTied: 2, tied: 0.5 });
+    const r = audit(d, quiet(d, c => { c.steps.find(s => s.key === 'sale')!.unattributed = false; }));
+    expect(r.findings.find(f => f.id === 'attribution_range_straddles')?.effect).toBe('weakens');
+  });
+  it('Simpson, the other way: a fine total hiding a platform under the floor', () => {
+    // One platform with about a third of the impressions gets a click rate under the floor; the total stays above it
+    const d = synth();
+    for (const r of d.rows as unknown[][]) if (String(r[0]).startsWith('snap|')) r[4] = Math.round((r[3] as number) * 0.003);
+    const r = audit(d, quiet(d));
+    expect(recompute(d, from, to).scope.ctr!).toBeGreaterThan(0.7);
+    expect(r.findings.find(f => f.id === 'simpson_hidden')?.text.en).toMatch(/snap/);
+  });
+  it('a comparison period with data on few of its days', () => {
+    const d = synth({ days: 90 });
+    const full = (c: Claim) => { c.verdict = { step: 'click', level: 'bad', owner: OWNER_RULE.click.ar }; const s = c.steps.find(x => x.key === 'click')!; s.level = 'bad'; s.prev = 1; };
+    const before = claimFromJudge(d, from, to); full(before);
+    expect(ids(audit(d, before))).not.toContain('prev_period_holes');
+    // Keep one day in three of the 30 days before the period
+    const f = recompute(d, from, to);
+    d.rows = (d.rows as unknown[][]).filter(r => { const day = String(r[1]); return day < f.prev.from || day > f.prev.to || Number(day.slice(8)) % 3 === 0; });
+    const c = claimFromJudge(d, from, to); full(c);
+    expect(ids(audit(d, c))).toContain('prev_period_holes');
+  });
+});
+
 describe('auditor: back-test on history', () => {
   it('replays the judge over past windows and reports counts only', () => {
     const d = synth({ days: 120, impr: 8_000_000, paidAll: 90, paidTied: 30 });
@@ -227,5 +284,17 @@ describe('auditor: back-test on history', () => {
   });
   it('is silent about windows without data', () => {
     expect(backtest({ ads: {}, rows: [], range: { start: '2026-01-01', end: to } } as never, to).windows).toBe(0);
+  });
+});
+
+// Keep this block last: it reads what the tests above produced.
+describe('auditor: no finding id without a test that produces it', () => {
+  it('every id in checks.ts and advocate.ts came out of an audit in this file', () => {
+    const src = `${checksSrc}\n${advocateSrc}`;
+    const declared = [...src.matchAll(/\bid: (['`])([a-z_${}]+)\1/g)].map(m => m[2]!)
+      .flatMap(id => (id.includes('${what}') ? ['now', 'prev', 'median'].map(w => id.replace('${what}', w)) : [id]));
+    expect(declared.length).toBeGreaterThan(25);
+    expect(declared.filter(id => id.includes('$'))).toEqual([]);
+    expect(declared.filter(id => !seen.has(id)).sort()).toEqual([]);
   });
 });
