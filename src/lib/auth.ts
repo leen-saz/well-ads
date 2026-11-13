@@ -119,11 +119,14 @@ export async function verify(token: string | null | undefined, secret: string, n
   return { ...o, stale: !o.chk || now - o.chk > RECHECK_MS };
 }
 
+// A value that cannot be decoded (a cut or garbled cookie) is no cookie: the caller answers "sign in", never a server error.
 export function readCookie(request: Request, name: string): string | null {
   const raw = request.headers.get('cookie') || '';
   for (const part of raw.split(';')) {
     const i = part.indexOf('=');
-    if (i > 0 && part.slice(0, i).trim() === name) return decodeURIComponent(part.slice(i + 1).trim());
+    if (i > 0 && part.slice(0, i).trim() === name) {
+      try { return decodeURIComponent(part.slice(i + 1).trim()); } catch { return null; }
+    }
   }
   return null;
 }

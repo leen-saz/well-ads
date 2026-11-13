@@ -50,6 +50,17 @@ describe('auth', () => {
     expect(await A.verify(old, cfg.secret)).toBeNull();
   });
 
+  it('a session cookie that cannot be decoded is no session: login for a page, 401 for the API, never a server error', async () => {
+    const bad = `${A.SESSION}=%E0%A4%A`;
+    expect(A.readCookie(req('/', bad), A.SESSION)).toBe(null);
+    const page = await M(req('/control/', bad));
+    expect(status(page)).toBe(302);
+    expect(location(page)).toContain('/login/');
+    expect(status(await M(req('/api/admin/users', bad)))).toBe(401);
+    const res = await api.request('https://well.example/api/account/password', { headers: { cookie: bad } }, E);
+    expect(res.status).toBe(401);
+  });
+
   it('owner gets every dashboard, members only what Leen picked', () => {
     const owner = A.sessionFor({ id: member.id, email: 'LEEN@example.com', dashboards: [] }, cfg);
     // core dashboards plus every live module (a module that goes live joins this list by itself)
