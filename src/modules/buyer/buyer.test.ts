@@ -60,6 +60,19 @@ describe('media buyer rules', () => {
     const worse = [...series('m1', 27, 7, () => [T.cpl * 0.8, 4000, 80, 2]), ...series('m1', 6, 0, () => [T.cpl * 2, 4000, 50, 1.2])];
     expect(ids(recommend(base({ ads: [ad('m1', 'meta', 'c1')], metrics: worse })))).toContain('fatigue');
   });
+  it('marks fatigue on a handful of leads as low confidence, and shows the lead counts', () => {
+    const rec = (prevLeads: number, curLeads: number) => recommend(base({ ads: [ad('m1', 'meta', 'c1')],
+      metrics: [...series('m1', 27, 7, () => [T.cpl * 0.8, 4000, 80, prevLeads]), ...series('m1', 6, 0, () => [T.cpl * 2, 4000, 50, curLeads])] })).recs.find(x => x.rule === 'fatigue')!;
+    const thin = rec(0.5, 0.3), enough = rec(2, 1.5);            // 3.5 then 2.1 leads a week, against 14 then 10.5
+    expect(thin.confidence).toBe('low'); expect(thin.evidence.join(' ')).toContain('عينة صغيرة');
+    expect(enough.confidence).toBe('medium'); expect(enough.evidence.join(' ')).not.toContain('عينة صغيرة');
+    expect(enough.evidence.some(e => e.includes('ليد هذا الأسبوع'))).toBe(true);
+  });
+  it('does not list fatigue as blocked by the judge when the impressions are too few to tell', () => {
+    const few = [...series('m1', 27, 7, () => [T.cpl * 0.2, 400, 8, 2]), ...series('m1', 6, 0, () => [T.cpl * 0.3, 400, 5, 2])];   // CTR and CPL moved, judge says fine, 2,800 impressions a week
+    const r = recommend(base({ ads: [ad('m1', 'meta', 'c1')], metrics: few }));
+    expect(ids(r)).not.toContain('fatigue'); expect(r.gated.some(g => g.rule === 'fatigue')).toBe(false);
+  });
   it('sends clicks that do not become leads to the page', () => {
     const r = recommend(base({ ads: [ad('m1', 'meta', 'c1')], metrics: series('m1', 27, 0, () => [T.cpl * 0.4, 6000, 120, 1]) }));
     expect(ids(r)).toContain('page_leak');

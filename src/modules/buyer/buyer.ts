@@ -247,12 +247,16 @@ export function recommend(x: Input): Report {
 
     // Creative fatigue: the click rate fell and the cost rose against the week before
     const pc = cpl(c.prev), cr = ctr(c.cur), pr = ctr(c.prev);
-    const fatigued = byClicks ? cr != null && pr != null && cr <= pr * (1 - T.fatigueCtrDrop)
-      : cc != null && pc != null && cr != null && pr != null && cr <= pr * (1 - T.fatigueCtrDrop) && cc >= pc * (1 + T.fatigueCplRise) && gate('fatigue', p, name);
-    if (fatigued && cr != null && pr != null && c.cur.impr >= T.fatigueMinImpressions && c.prev.impr >= T.fatigueMinImpressions) {
-      push({ rule: 'fatigue', platform: p, campaign: name, kind: 'refresh_creative', weight: 70, spend: c.cur.spend, confidence: c.cur.leads >= 30 ? 'high' : 'medium', judge: judgeOf(p, 'cpl'),
+    // The sample is checked before the judge's gate, so a campaign with too few impressions is not listed as "blocked by the judge"
+    const sampled = c.cur.impr >= T.fatigueMinImpressions && c.prev.impr >= T.fatigueMinImpressions;
+    const fatigued = sampled && (byClicks ? cr != null && pr != null && cr <= pr * (1 - T.fatigueCtrDrop)
+      : cc != null && pc != null && cr != null && pr != null && cr <= pr * (1 - T.fatigueCtrDrop) && cc >= pc * (1 + T.fatigueCplRise) && gate('fatigue', p, name));
+    if (fatigued && cr != null && pr != null) {
+      // A CPL comparison on a handful of leads is noise: under the playbook's minimum in either week the confidence is low
+      const thin = !byClicks && Math.min(c.cur.leads, c.prev.leads) < T.minLeadsToDecide;
+      push({ rule: 'fatigue', platform: p, campaign: name, kind: 'refresh_creative', weight: 70, spend: c.cur.spend, confidence: thin ? 'low' : c.cur.leads >= 30 ? 'high' : 'medium', judge: judgeOf(p, 'cpl'),
         title: `${label}: المادة تعبت، جهّز مادة جديدة`, change: 'أضف مادة جديدة (افتتاحية مختلفة وليس نفس الفكرة) جنب الحالية، وخل المنصة توزع الصرف، وأوقف القديمة لما الجديدة تثبت.',
-        why: RULE.fatigue.why, risk: RULE.fatigue.risk, evidence: [`نسبة النقر ${pctS(cr)} بعد ${pctS(pr)} الأسبوع اللي قبله`, ...(byClicks || cc == null || pc == null ? [] : [`الـ CPL ${sar(cc)} بعد ${sar(pc)}`])],
+        why: RULE.fatigue.why, risk: RULE.fatigue.risk, evidence: [`نسبة النقر ${pctS(cr)} بعد ${pctS(pr)} الأسبوع اللي قبله`, ...(byClicks || cc == null || pc == null ? [] : [`الـ CPL ${sar(cc)} بعد ${sar(pc)}`, `${r0(c.cur.leads)} ليد هذا الأسبوع و${r0(c.prev.leads)} الأسبوع اللي قبله${thin ? ' (عينة صغيرة)' : ''}`])],
         success: { metric: byClicks ? 'نسبة النقر' : 'نسبة النقر والـ CPL', goal: byClicks ? `نسبة النقر ترجع قريبة من ${pctS(pr)}` : `نسبة النقر ترجع قريبة من ${pctS(pr)} والـ CPL ينزل` } });
     }
     // Click rate far under target, with a sample the judge accepts
