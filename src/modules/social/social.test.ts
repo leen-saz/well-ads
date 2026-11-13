@@ -30,6 +30,19 @@ describe('validate', () => {
     expect(textLength('x', '日本')).toBe(4);
     expect(textLength('facebook', link)).toBe(link.length);
   });
+  it('counts X text by the ranges X lists: Arabic and plain punctuation are 1, signs outside the ranges are 2', () => {
+    expect(textLength('x', 'عِيادة')).toBe(6);                       // Arabic letters and their marks: 1 each
+    expect(textLength('x', '\u201c\u201d\u2013')).toBe(3);          // curly quotes and the en dash are inside the ranges
+    expect(textLength('x', '\u2026')).toBe(2);                       // ellipsis
+    expect(textLength('x', '\u2022')).toBe(2);                       // bullet
+    expect(textLength('x', '\ufdfc')).toBe(2);                       // rial sign
+    expect(textLength('x', '\u2192')).toBe(2);                       // arrow
+    expect(textLength('x', 'e\u0301')).toBe(1);                      // counted in NFC
+    expect(textLength('facebook', '\u2026')).toBe(1);
+    // 279 letters and an ellipsis is 281 for X: said when scheduling, not as a failed post after approval
+    expect(validate({ platforms: ['x'], body: 'ا'.repeat(279) + '\u2026', publish_at: later }, NOW).error).toContain('X');
+    expect(validate({ platforms: ['x'], body: 'ا'.repeat(278) + '\u2026', publish_at: later }, NOW).error).toBeUndefined();
+  });
   it('warns on MOH claims precisely without blocking, and defaults to manual', () => {
     const v = validate({ platforms: ['facebook'], body: 'علاج نهائي ومضمون', publish_at: later }, NOW);
     expect(v.draft?.mode).toBe('manual');
