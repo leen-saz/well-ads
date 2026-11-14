@@ -25,22 +25,47 @@ COLUMNS = (
 ).split()
 
 
-def http_get(url, key, retries=3):
-    """GET with the bearer key; waits on 429 (Retry-After) and retries 503."""
+RETRY_CODES = (429, 500, 502, 503, 504)
+
+
+def retry_after(value, default=5, cap=60):
+    """Seconds to wait from a Retry-After header: a number of seconds or an HTTP date; anything else is the default."""
+    v = (value or "").strip()
+    try:
+        return min(max(int(v), 1), cap)
+    except ValueError:
+        pass
+    try:
+        from email.utils import parsedate_to_datetime
+        dt = parsedate_to_datetime(v)
+        return min(max(int((dt - datetime.now(dt.tzinfo)).total_seconds()), 1), cap)
+    except Exception:  # noqa: BLE001 - not a date either
+        return default
+
+
+def http_get(url, key, retries=3, sleep=None, opener=None):
+    """GET with the bearer key; waits on 429 (Retry-After as seconds or a date), retries 5xx and network errors."""
+    sleep = sleep or time.sleep   # looked up at call time so a test can patch either
+    opener = opener or urllib.request.urlopen
     for attempt in range(retries + 1):
         req = urllib.request.Request(url, headers={"Authorization": "Bearer " + key, "Accept": "application/json"})
         try:
-            with urllib.request.urlopen(req, timeout=60) as r:
+            with opener(req, timeout=60) as r:
                 return json.loads(r.read())
         except urllib.error.HTTPError as ex:
-            if ex.code in (429, 503) and attempt < retries:
-                time.sleep(min(int(ex.headers.get("Retry-After") or 5), 60))
+            if ex.code in RETRY_CODES and attempt < retries:
+                sleep(retry_after(ex.headers.get("Retry-After")) if ex.code == 429 else 2 ** attempt)
                 continue
             try:
                 code = json.loads(ex.read()).get("error", {}).get("code", "")
             except Exception:  # noqa: BLE001 - body may not be JSON
                 code = ""
             raise RuntimeError(f"crm HTTP {ex.code} {code}".strip()) from None
+        except (urllib.error.URLError, TimeoutError, ConnectionError):
+            if attempt < retries:
+                sleep(2 ** attempt)
+                continue
+            raise RuntimeError("crm network error") from None
     raise RuntimeError("crm: retries exhausted")
 
 
@@ -112,8 +137,10 @@ def sync(key, now=None, get=http_get, transport=None):
                 "POST", "/rest/v1/crm_leads?on_conflict=lead_id", [record(r) for r in rows],
                 extra_headers={"Prefer": "resolution=merge-duplicates,return=minimal"}, transport=transport)
             total += len(rows)
-            top = max(r["updated_at"] for r in rows if r.get("updated_at"))
-            newest = top if not newest or top > str(newest) else newest
+            tops = [r["updated_at"] for r in rows if r.get("updated_at")]
+            if tops:   # a page where no row has updated_at must not crash the whole sync
+                top = max(tops)
+                newest = top if not newest or top > str(newest) else newest
     supabase_store._request(
         "POST", "/rest/v1/crm_sync_state?on_conflict=id",
         [{"id": 1, "last_updated_at": newest, "last_run_at": now.isoformat(), "rows_last_run": total}],

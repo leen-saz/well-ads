@@ -56,7 +56,7 @@ def family(source):
 def index(ads):
     """(ad id -> dashboard key, name -> key). Names: TikTok by plain name (ids damaged by the CRM import); every family
     also by (prefix, name), only when the name belongs to one ad id, so two different ads never share a closing."""
-    by_id, tt_names, names = {}, {}, {}
+    by_id, tt_plain, names = {}, {}, {}
     for key, ad in (ads or {}).items():
         if not key:
             continue
@@ -68,9 +68,11 @@ def index(ads):
         if isinstance(ad, dict) and ad.get("name"):
             nm = ad["name"].strip()
             if key[0] == "t":
-                tt_names.setdefault(nm, key)
+                tt_plain.setdefault(nm, {}).setdefault(base, key)
             names.setdefault((key[0], nm), {}).setdefault(base, key)
     # one dict for names: TikTok by plain name (as before), every family by (prefix, name) when the name is one ad id's
+    # a TikTok name shared by two different ads is ambiguous: neither gets the closing (the first one used to win)
+    tt_names = {nm: next(iter(v.values())) for nm, v in tt_plain.items() if len(v) == 1}
     tt_names.update({k: next(iter(v.values())) for k, v in names.items() if len(v) == 1})
     return by_id, tt_names
 

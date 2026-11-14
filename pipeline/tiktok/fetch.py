@@ -11,8 +11,8 @@ import json, os, re, sys, time, urllib.parse
 from datetime import datetime, timedelta
 
 from tiktok.merge import (
-    GOAL, STATUS, is_spring_rose_account, is_spring_rose_ad,
-    tiktok_live, dest_for, without_spring_rose,
+    GOAL, STATUS, is_excluded_account, is_excluded_ad,
+    tiktok_live, dest_for, without_excluded,
 )
 
 BASE = "https://business-api.tiktok.com/open_api/v1.3/"
@@ -61,7 +61,7 @@ def parse_advertiser_ids(raw):
 def secrets_ready(env):
     env = env or {}
     token = str(env.get("TIKTOK_ACCESS_TOKEN") or "").strip()
-    ids = [i for i in parse_advertiser_ids(env.get("TIKTOK_ADVERTISER_IDS")) if not is_spring_rose_account(i, "")]
+    ids = [i for i in parse_advertiser_ids(env.get("TIKTOK_ADVERTISER_IDS")) if not is_excluded_account(i, "")]
     return bool(token and ids)
 
 
@@ -242,7 +242,7 @@ def _describe(item, objectives, camp_on, group_on, groups=None):
 def pull(env, start, end, transport, audience_due=False):
     """يسحب الإعلانات والصفوف داخل [start, end] فقط. يرمي عند الفشل ولا يرجّع أصفاراً."""
     token = str((env or {}).get("TIKTOK_ACCESS_TOKEN") or "").strip()
-    ids = [i for i in parse_advertiser_ids((env or {}).get("TIKTOK_ADVERTISER_IDS")) if not is_spring_rose_account(i, "")]
+    ids = [i for i in parse_advertiser_ids((env or {}).get("TIKTOK_ADVERTISER_IDS")) if not is_excluded_account(i, "")]
     if not token or not ids:
         raise RuntimeError("أسرار تيك توك غير مكتملة")
     start_s, end_s = _day(start), _day(end)
@@ -251,7 +251,7 @@ def pull(env, start, end, transport, audience_due=False):
     for account in info.get("list") or []:
         aid = str(account.get("advertiser_id") or "")
         name = account.get("name") or account.get("advertiser_name") or ""
-        if is_spring_rose_account(aid, name):
+        if is_excluded_account(aid, name):
             _log("tiktok: تخطي حساب مستبعد (حساب الشركة الثانية)")
             continue
         if not aid:
@@ -293,7 +293,7 @@ def pull(env, start, end, transport, audience_due=False):
         group_on = {str(g.get("adgroup_id")): g.get("operation_status") for g in groups}
         group_by = {str(g.get("adgroup_id")): g for g in groups}
         for item in ad_items:
-            if is_spring_rose_ad(item) or is_spring_rose_account(item.get("advertiser_id"), item.get("advertiser_name")):
+            if is_excluded_ad(item) or is_excluded_account(item.get("advertiser_id"), item.get("advertiser_name")):
                 skipped.add(str(item.get("ad_id") or ""))
                 continue
             ad_id = str(item.get("ad_id") or "")
@@ -331,7 +331,7 @@ def pull(env, start, end, transport, audience_due=False):
                     continue
                 if day < start_s or day > end_s:
                     continue
-                if is_spring_rose_ad(met):
+                if is_excluded_ad(met):
                     skipped.add(ad_id)
                     ads.pop("t" + ad_id, None)
                     continue
@@ -350,7 +350,7 @@ def pull(env, start, end, transport, audience_due=False):
 
     for ad_id, meta in names.items():
         key = "t" + ad_id
-        if key in ads or ad_id in skipped or is_spring_rose_ad(meta):
+        if key in ads or ad_id in skipped or is_excluded_ad(meta):
             continue
         cid = str(meta.get("campaign_id") or "")
         ads[key] = dict(
@@ -381,7 +381,7 @@ def pull(env, start, end, transport, audience_due=False):
         except Exception as ex:
             _log("tiktok: تفاصيل المشاهدين ما انسحبت — " + scrub(ex, token)[:160])
     # إعلان بلا تفاصيل يبقى ليُكمَل لاحقاً باسم «إعلان محذوف» إن لم يصل اسمه.
-    cleaned = without_spring_rose({"ads": ads, "rows": rows})
+    cleaned = without_excluded({"ads": ads, "rows": rows})
     return cleaned["ads"], cleaned["rows"]
 
 
@@ -390,7 +390,7 @@ def _read_branch(path):
         return None, ""
     try:
         with open(path, encoding="utf-8") as handle:
-            blob = without_spring_rose(json.load(handle))
+            blob = without_excluded(json.load(handle))
     except Exception as ex:
         return None, scrub(ex)
     if not isinstance(blob, dict):
@@ -489,7 +489,7 @@ def assemble(prev, fresh_ads, fresh_rows, recent, start_s, today_s, carry, branc
     for row in older + fresh:
         combined[(row[0], row[1])] = row
     rows = [combined[k] for k in sorted(combined)]
-    cleaned = without_spring_rose({"ads": ads, "rows": rows})
+    cleaned = without_excluded({"ads": ads, "rows": rows})
     return cleaned["ads"], cleaned["rows"]
 
 

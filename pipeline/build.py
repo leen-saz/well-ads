@@ -11,7 +11,7 @@ from channels import annotate
 from classify import apply_all, public_config, relabel_posts
 from media import enrich
 from organic import pending_shell, visible_facebook
-from tiktok.merge import without_spring_rose
+from tiktok.merge import without_excluded
 HERE = os.path.dirname(os.path.abspath(__file__))
 _BILLING = re.compile(r"رصيد|سداد|مستحق|شحن|فوتر|فاتور|billing|unpaid|top-?up|payment|account balance", re.I)
 
@@ -24,7 +24,7 @@ def scrub_status(status):
         return "متوقف"
     return text
 
-data = without_spring_rose(json.load(open(os.path.join(HERE, "data.json"), encoding="utf-8")))
+data = without_excluded(json.load(open(os.path.join(HERE, "data.json"), encoding="utf-8")))
 # CRM leads matched to ads (closings, revenue, ROAS on the dashboard). Skipped without Supabase.
 from crm.join import attach_from_db
 attach_from_db(data)

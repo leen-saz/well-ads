@@ -29,6 +29,16 @@ class Rules(unittest.TestCase):
                           "s2": {"platform": "snap", "goal": "lead", "live": False, "name": "b"}})
         self.assertFalse({k for k in got if k[1] == "pause"})
 
+    def test_last_seven_days_are_seven_full_days_not_eight(self):
+        # today is 2026-10-28: the window is 10-21 .. 10-27. A day exactly 7 days back (10-21) counts, 10-20 and today do not.
+        ads = {"s1": {"platform": "snap", "goal": "lead", "live": True, "name": "a", "campaign": "C"}}
+        inside = self.kinds([["s1", "2026-10-21", 12.0, 500, 5, 0.0, 0]], ads)
+        self.assertIn(("1", "pause"), inside)
+        before = self.kinds([["s1", "2026-10-20", 12.0, 500, 5, 0.0, 0]], ads)
+        self.assertNotIn(("1", "pause"), before)
+        partial_today = self.kinds([["s1", "2026-10-28", 12.0, 500, 5, 0.0, 0]], ads)
+        self.assertNotIn(("1", "pause"), partial_today)
+
     def test_budget_up_for_cheap_winners(self):
         # TikTok: target 100/20 = 5, the winner costs 3 per lead
         rows = [["t0", "2026-10-10", 100.0, 1000, 10, 20.0, 0], ["t3", "2026-10-26", 30.0, 900, 9, 10.0, 0]]

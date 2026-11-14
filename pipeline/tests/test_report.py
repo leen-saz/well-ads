@@ -280,9 +280,10 @@ class BillingTests(unittest.TestCase):
         self.assertIn("metricText", html)
         self.assertIn("بانتظار الصلاحية", html)
         self.assertIn("Awaiting permission", html)
-        self.assertIn("6948010864247046146", html)
-        self.assertIn("spring rose0406", html)
-        self.assertIn("زهرة الربيع", html)
+        # the other company's account is excluded on the server only: no id or marker ships in the page
+        self.assertNotIn("6948010864247046146", html)
+        self.assertNotIn("spring rose", html.lower())
+        self.assertNotIn("زهرة الربيع", html)
         self.assertIn("function careBlocked", html)
         self.assertIn("page.name==='Well Care.'", html)
         self.assertIn("ORG_FB_HIDDEN", html)
@@ -338,12 +339,12 @@ class BillingTests(unittest.TestCase):
                 open(data_path, "w", encoding="utf-8").write(previous)
 
 
-class SpringRoseTests(unittest.TestCase):
+class ExcludedAccountTests(unittest.TestCase):
     def test_account_and_named_ads_drop_out_of_spend(self):
-        from tiktok.merge import is_spring_rose_account, without_spring_rose
-        self.assertTrue(is_spring_rose_account("7000000000000000002", "ACME Demo Co"))
-        self.assertTrue(is_spring_rose_account("", "شركة العرض التجريبي"))
-        self.assertFalse(is_spring_rose_account("7000000000000000001", "Well"))
+        from tiktok.merge import is_excluded_account, without_excluded
+        self.assertTrue(is_excluded_account("7000000000000000002", "ACME Demo Co"))
+        self.assertTrue(is_excluded_account("", "شركة العرض التجريبي"))
+        self.assertFalse(is_excluded_account("7000000000000000001", "Well"))
         blob = {
             "ads": {
                 "t1": {"platform": "tiktok", "name": "Rose install", "campaign": "Demo | ad_demo_x1 | AppInstall", "group": "", "text": ""},
@@ -356,11 +357,14 @@ class SpringRoseTests(unittest.TestCase):
                 ["m1", "2026-10-01", 9, 10, 1, 1, 0],
             ],
         }
-        out = without_spring_rose(blob)
+        out = without_excluded(blob)
         self.assertEqual(set(out["ads"]), {"t2", "m1"})
         self.assertEqual([r[0] for r in out["rows"]], ["t2", "m1"])
         self.assertAlmostEqual(sum(r[2] for r in out["rows"]), 13.0)
-        whole = without_spring_rose({
+        # a deleted ad (its row has no entry in `ads`) keeps its spend: only excluded ads lose their rows
+        gone = without_excluded({"ads": {"t2": blob["ads"]["t2"]}, "rows": [["t2", "2026-10-01", 4, 10, 1, 1, 0], ["t_deleted", "2026-10-01", 7, 10, 1, 0, 0]]})
+        self.assertEqual([r[0] for r in gone["rows"]], ["t2", "t_deleted"])
+        whole = without_excluded({
             "advertiser_id": "7000000000000000002",
             "advertiser_name": "ACME Demo Co",
             "ads": {"t9": {"platform": "tiktok", "name": "plain", "campaign": "purchase", "group": "", "text": ""}},
@@ -369,7 +373,7 @@ class SpringRoseTests(unittest.TestCase):
         self.assertEqual(whole["ads"], {})
         self.assertEqual(whole["rows"], [])
 
-    def test_merge_keeps_well_and_skips_spring_rose_pull(self):
+    def test_merge_keeps_well_and_skips_excluded_pull(self):
         import tempfile
         rose_ads = {"data": {"list": [{
             "ad_id": "9", "advertiser_id": "7000000000000000002", "advertiser_name": "ACME Demo Co",
@@ -535,7 +539,9 @@ class SupabaseStoreTests(unittest.TestCase):
         self.assertEqual(by_day["2026-10-17"][2], 9)
         self.assertFalse(got["ads"]["m1"]["live"])
         self.assertEqual(got["ads"]["m1"]["status"], "متوقف")
-        self.assertTrue(any(call[0] == "DELETE" and "like.m*" in call[1] for call in api.calls))
+        # the window is replaced by upsert first; only rows the fresh fetch no longer returns are deleted afterwards
+        self.assertTrue(any(call[0] == "GET" and "like.m*" in call[1] for call in api.calls))
+        self.assertFalse(any(call[0] == "DELETE" and "like.m*" in call[1] for call in api.calls))
         self.assertTrue(all("test-service-key" not in call[1] for call in api.calls))
 
 
@@ -559,6 +565,15 @@ class _MemoryApi:
                 row = self.tables["dashboard_state"].get(1)
                 return [row] if row else []
             rows = list(self.tables[table].values())
+            if table == "ad_metrics":
+                raw = qs.get("ad_key", [""])[0]
+                if raw.startswith("like."):
+                    rows = [r for r in rows if r["ad_key"].startswith(raw[5:].rstrip("*"))]
+                for item in qs.get("day", []):
+                    if item.startswith("gte."):
+                        rows = [r for r in rows if r["day"] >= item[4:]]
+                    if item.startswith("lte."):
+                        rows = [r for r in rows if r["day"] <= item[4:]]
             rng = headers.get("Range")
             if rng:
                 start, end = (int(x) for x in rng.split("-"))
@@ -578,6 +593,12 @@ class _MemoryApi:
                 self.tables["ad_metrics"].clear()
                 return None
             raw = qs.get("ad_key", [""])[0]
+            if raw.startswith("eq."):
+                days = (qs.get("day", [""])[0][4:-1]).split(",")
+                for key in list(self.tables["ad_metrics"]):
+                    if key[0] == raw[3:] and key[1] in days:
+                        del self.tables["ad_metrics"][key]
+                return None
             prefix = raw.split(".", 1)[1].rstrip("*") if "." in raw else ""
             start = end = None
             for item in qs.get("day", []):

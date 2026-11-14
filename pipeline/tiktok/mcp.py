@@ -43,13 +43,24 @@ def access_token(client_id, refresh, post=http):
     return d["access_token"], (new if new and new != refresh else None)
 
 
-def save_refresh(new):
-    """The new refresh token goes back to the Vault before anything else, so a failed run never strands the sign-in."""
+def save_refresh(new, attempts=4, sleep=None):
+    """The new refresh token goes back to the Vault before anything else, so a failed run never strands the sign-in.
+    A failed save is retried (one blip must not strand the sign-in); after the last try the error is raised."""
+    import time
     from modules.core.supa import Supa
     db = Supa.from_env()
     if not db:
         raise RuntimeError("no Supabase to store the rotated refresh token")
-    db.req("/rest/v1/rpc/connector_put", "POST", {"p_name": "TIKTOK_MCP_REFRESH_TOKEN", "p_value": new})
+    last = None
+    for n in range(attempts):
+        try:
+            db.req("/rest/v1/rpc/connector_put", "POST", {"p_name": "TIKTOK_MCP_REFRESH_TOKEN", "p_value": new})
+            return
+        except Exception as ex:  # noqa: BLE001
+            last = ex
+            if n < attempts - 1:
+                (sleep or time.sleep)(2 ** n)
+    raise RuntimeError(f"could not store the rotated refresh token after {attempts} tries: {str(last)[:100]}")
 
 
 def sse_or_json(text):
@@ -120,6 +131,8 @@ READ_ONLY = ("_get", "_list")
 AD_FIELDS = ["ad_id", "ad_name", "campaign_id", "campaign_name", "adgroup_id", "adgroup_name", "operation_status",
              "secondary_status", "tiktok_item_id", "ad_text", "advertiser_id", "video_id", "image_ids"]
 METRICS = ["spend", "impressions", "clicks", "conversion"]
+# messaging conversations (WhatsApp / direct message ads count chats, not leads): optional, the pull retries without them
+MESSAGING_METRICS = ["messaging_total_conversation_tiktok_direct_message", "messaging_total_conversation_instant_messaging_app"]
 
 
 def tool(m, name, args):
@@ -183,9 +196,13 @@ def pull(m, today=None):
     camps = pages(m, "campaign_get", {"advertiser_id": adv, "fields": ["campaign_id", "objective_type"], "filtering": {"primary_status": "STATUS_ALL"}})
     reports = []
     for a, b in windows(start, today):
-        rows = pages(m, "report_integrated_get", {"advertiser_id": adv, "report_type": "BASIC", "data_level": "AUCTION_AD",
-                                                  "dimensions": ["ad_id", "stat_time_day"], "metrics": METRICS,
-                                                  "start_date": a.isoformat(), "end_date": b.isoformat()})
+        args = {"advertiser_id": adv, "report_type": "BASIC", "data_level": "AUCTION_AD",
+                "dimensions": ["ad_id", "stat_time_day"], "start_date": a.isoformat(), "end_date": b.isoformat()}
+        try:
+            rows = pages(m, "report_integrated_get", {**args, "metrics": METRICS + MESSAGING_METRICS})
+        except Exception as ex:  # noqa: BLE001 - an account that rejects the messaging metrics still gets the core numbers
+            print("tiktok-mcp: messaging metrics skipped —", str(ex)[:120])
+            rows = pages(m, "report_integrated_get", {**args, "metrics": METRICS})
         reports.append({"list": rows, "page_info": {"total_page": 1}})
     vids = sorted({str(x["video_id"]) for x in ads if x.get("video_id")})
     covers = []
@@ -223,11 +240,21 @@ def main():
     if not cid or not refresh:
         print("tiktok-mcp: not connected yet (Connectors page → TikTok → Connect)")
         return 0
+    from tiktok.merge import exclusion_state
+    if exclusion_state() == "missing":
+        print("tiktok-mcp: TIKTOK_EXCLUDED_ADVERTISER_IDS / TIKTOK_EXCLUDED_MARKERS are not set (or TIKTOK_EXCLUSION_DISABLED=true): "
+              "the other company's account would not be excluded, so TikTok is skipped")
+        return 1
     token, new = access_token(cid, refresh)
     print(f"::add-mask::{token}")
     if new:
         print(f"::add-mask::{new}")
-        save_refresh(new)
+        try:
+            save_refresh(new)
+        except Exception as ex:  # noqa: BLE001
+            # TikTok already issued the new token: the old one may be dead. Say so loudly and stop here, without a pull.
+            print(f"::error title=tiktok-mcp::refresh token ROTATED but NOT SAVED ({str(ex)[:120]}). Sign in again from the Connectors page.")
+            return 1
         print("tiktok-mcp: refresh token rotated and saved")
     m = Mcp(token)
     info = m.start()
@@ -243,6 +270,7 @@ def main():
 if __name__ == "__main__":
     try:
         sys.exit(main())
-    except Exception as ex:  # noqa: BLE001 - the refresh must go on; the message never holds a token
+    except Exception as ex:  # noqa: BLE001 - the message never holds a token. The step is continue-on-error, so a
+        # non-zero exit does not stop the refresh, but data-status.json now says the pull failed instead of ok.
         print("tiktok-mcp: failed —", str(ex)[:200])
-        sys.exit(0)
+        sys.exit(1)

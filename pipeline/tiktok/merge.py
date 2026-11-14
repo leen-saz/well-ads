@@ -101,6 +101,30 @@ def excluded_markers():
     return tuple(_flat(x) for x in raw.split(";") if x.strip())
 
 
+CONV_KEYS = ("messaging_total_conversation_tiktok_direct_message", "messaging_total_conversation_instant_messaging_app")
+
+
+def conversations(metrics):
+    """Messaging conversations of one report row (the MCP pull asks for these metrics; 0 when the API gave none)."""
+    total = 0.0
+    for key in CONV_KEYS:
+        v = (metrics or {}).get(key)
+        if v not in (None, ""):
+            total += float(v or 0)
+    return int(round(total))
+
+
+def exclusion_state():
+    """'configured' (both secrets set), 'disabled' (explicit opt-out TIKTOK_EXCLUSION_DISABLED=true) or 'missing'.
+    'missing' must stop every TikTok step: without the secrets the code only knows made-up placeholders, so the other
+    company's account would NOT be excluded and its spend could reach production."""
+    if exclusions_configured():
+        return "configured"
+    if (os.environ.get("TIKTOK_EXCLUSION_DISABLED") or "").strip().lower() == "true":
+        return "disabled"
+    return "missing"
+
+
 def exclusions_configured():
     return bool(os.environ.get("TIKTOK_EXCLUDED_ADVERTISER_IDS") and os.environ.get("TIKTOK_EXCLUDED_MARKERS"))
 
@@ -125,17 +149,17 @@ def _flat(value):
     return " ".join(str(value or "").casefold().split())
 
 
-def is_spring_rose_account(advertiser_id="", advertiser_name=""):
+def is_excluded_account(advertiser_id="", advertiser_name=""):
     if str(advertiser_id or "") in excluded_ids():
         return True
     name = _flat(advertiser_name)
     return bool(name) and any(m in name for m in excluded_markers())
 
 
-def is_spring_rose_ad(ad):
+def is_excluded_ad(ad):
     if not isinstance(ad, dict):
         return False
-    if is_spring_rose_account(ad.get("advertiser_id"), ad.get("advertiser_name") or ad.get("account")):
+    if is_excluded_account(ad.get("advertiser_id"), ad.get("advertiser_name") or ad.get("account")):
         return True
     blob = " ".join(str(ad.get(k) or "") for k in ("name", "campaign", "group", "text", "ad_name", "campaign_name", "adgroup_name", "ad_text"))
     folded = _flat(blob)
@@ -145,19 +169,22 @@ def is_spring_rose_ad(ad):
     return plat in ("", "tiktok")
 
 
-def without_spring_rose(blob):
-    """يسقط إعلانات شركة زهرة الربيع وصفوفها من لقطة تيك توك أو data.json."""
+def without_excluded(blob):
+    """Drops the excluded company's ads and their rows from a TikTok snapshot or data.json (ids and markers come from secrets)."""
     if not isinstance(blob, dict):
         return blob
-    if is_spring_rose_account(blob.get("advertiser_id"), blob.get("advertiser_name")):
+    if is_excluded_account(blob.get("advertiser_id"), blob.get("advertiser_name")):
         out = dict(blob)
         out["ads"] = {}
         out["rows"] = []
         return out
     ads = blob.get("ads") or {}
-    kept = {k: v for k, v in ads.items() if not is_spring_rose_ad(v)}
-    rows = [r for r in (blob.get("rows") or []) if r and r[0] in kept]
-    if len(kept) == len(ads) and len(rows) == len(blob.get("rows") or []):
+    dropped = {k for k, v in ads.items() if is_excluded_ad(v)}
+    kept = {k: v for k, v in ads.items() if k not in dropped}
+    # rows are dropped only for excluded ads: a row whose ad is missing from `ads` (a deleted ad the platform no
+    # longer lists) keeps its spend, otherwise the TikTok history would shrink on every run
+    rows = [r for r in (blob.get("rows") or []) if r and r[0] not in dropped]
+    if not dropped and len(rows) == len(blob.get("rows") or []):
         return blob
     out = dict(blob)
     out["ads"] = kept
@@ -225,26 +252,26 @@ def main():
     a = ap.parse_args()
 
     prev = json.load(open(a.out, encoding="utf-8")) if os.path.exists(a.out) else {"ads": {}, "rows": [], "objectives": {}}
-    if is_spring_rose_account(prev.get("advertiser_id"), prev.get("advertiser_name")):
+    if is_excluded_account(prev.get("advertiser_id"), prev.get("advertiser_name")):
         prev = {**prev, "ads": {}, "rows": []}
     else:
-        prev = without_spring_rose(prev)
+        prev = without_excluded(prev)
     obj = dict(prev.get("objectives", {}))
     if a.objectives:
         obj.update(json.load(open(a.objectives, encoding="utf-8")))
 
     items = payload(a.ads).get("list", [])
-    excluded_pull = is_spring_rose_account(a.advertiser_id, a.advertiser_name) or any(
-        is_spring_rose_account(x.get("advertiser_id"), x.get("advertiser_name")) for x in items
+    excluded_pull = is_excluded_account(a.advertiser_id, a.advertiser_name) or any(
+        is_excluded_account(x.get("advertiser_id"), x.get("advertiser_name")) for x in items
     )
     ads = dict(prev.get("ads", {}))
     covers = {} if excluded_pull else embed_covers(cover_urls(a.covers, items))
     skipped = set()
     if excluded_pull:
-        print("تخطي حساب تيك توك المستبعد: Spring Rose0406")
+        print("تخطي حساب تيك توك المستبعد")
     else:
         for x in items:
-            if is_spring_rose_ad(x):
+            if is_excluded_ad(x):
                 skipped.add(str(x.get("ad_id") or ""))
                 continue
             st = x.get("secondary_status", "")
@@ -278,7 +305,7 @@ def main():
                 ad_id = str(r["dimensions"]["ad_id"])
                 if ad_id in skipped:
                     continue
-                new.append(["t" + ad_id, day, sp, im, int(float(m.get("clicks") or 0)), float(m.get("conversion") or 0), 0])
+                new.append(["t" + ad_id, day, sp, im, int(float(m.get("clicks") or 0)), float(m.get("conversion") or 0), conversations(m)])
     rows = [r for r in prev.get("rows", []) if r[1] not in days] + new
     rows.sort(key=lambda r: (r[1], r[0]))
     missing = sorted({r[0] for r in rows} - set(ads))

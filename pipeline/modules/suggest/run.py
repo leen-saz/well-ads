@@ -64,7 +64,9 @@ def plan(s):
 def build(data, today=None):
     ads, rows = data.get("ads") or {}, data.get("rows") or []
     today = date.fromisoformat(today or (data.get("range") or {}).get("today") or date.today().isoformat())
-    d7, d30 = (today - timedelta(days=7)).isoformat(), (today - timedelta(days=30)).isoformat()
+    # "last 7 days" = the 7 full days before today. `day >= today-7` used to include today's partial figures too (8 days),
+    # while every threshold below multiplies the daily target by 7.
+    d7, d30, today_s = (today - timedelta(days=7)).isoformat(), (today - timedelta(days=30)).isoformat(), today.isoformat()
     # الأرقام لكل إعلان (مواضع ميتا مع بعض)
     agg = defaultdict(lambda: {"s7": 0.0, "l7": 0.0, "m7": 0.0, "i7": 0, "c7": 0, "days": set(), "keys": set()})
     plat30 = defaultdict(lambda: [0.0, 0.0])
@@ -78,7 +80,7 @@ def build(data, today=None):
         x = agg[b]; x["keys"].add(k)
         if sp:
             x["days"].add(day)
-        if day >= d7:
+        if d7 <= day < today_s:
             x["s7"] += sp; x["l7"] += ld; x["m7"] += cv; x["i7"] += im; x["c7"] += cl
             camp_spend7[(p, a.get("campaign") or "")] += sp
         if day >= d30 and a.get("goal") == "lead":

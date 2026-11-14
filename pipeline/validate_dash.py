@@ -112,6 +112,28 @@ def validate(data, min_ads=MIN_ADS, min_rows=MIN_ROWS):
     return errs
 
 
+def vanished_platforms(data, prev, days=7):
+    """Platforms that had spend in the last `days` days of the previous build but have neither spend NOR any ad now,
+    although their pull reported ok (a token that lost its scope returns an empty 200). Returns prefixes (m, g, s, t).
+    A platform that still lists its ads is just paused, and one whose pull is marked failed keeps its previous rows."""
+    def recent_spend(d):
+        if not isinstance(d, dict):
+            return {}
+        end = _day(((d.get("range") or {}).get("today"))) or date.today()
+        since = end.toordinal() - days
+        out = {}
+        for r in d.get("rows") or []:
+            dd = _day(r[1]) if isinstance(r, list) and len(r) > 2 else None
+            if dd and dd.toordinal() >= since and r[2]:
+                out[r[0][:1]] = out.get(r[0][:1], 0) + r[2]
+        return out
+    before, now = recent_spend(prev), recent_spend(data)
+    names = {"m": "meta", "g": "google", "s": "snap", "t": "tiktok"}
+    plats = (data.get("platforms") or {}) if isinstance(data, dict) else {}
+    listed = {k[:1] for k in ((data.get("ads") or {}) if isinstance(data, dict) else {})}
+    return [p for p in before if p not in now and p not in listed and (plats.get(names.get(p, ""), {}) or {}).get("ok") is True]
+
+
 def warnings(data):
     """Things that do not stop the upload but must not pass silently: a dash.json built without the CRM block (the join
     failed or CRM is not connected) would otherwise look fine while closings quietly vanish from every page."""
