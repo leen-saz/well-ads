@@ -29,7 +29,7 @@ export default async function mount() {
   const secs = sections(me, L).map(s => ({ ...s, items: s.items.filter(it => it.state === 'ok' && it.key !== 'today') })).filter(s => s.items.length);
   $('#mytools').innerHTML = secs.length ? secs.map(s => `<div class="td-sec"><h3>${esc(s.label)}</h3><div class="td-links">${s.items.map(it =>
     `<a href="${esc(it.href)}"${it.href === '/' || it.href.startsWith('/?') ? ' data-astro-reload' : ''}>${it.svg ? `<svg class="i" viewBox="0 0 24 24" aria-hidden="true">${it.svg}</svg>` : icon(it.ic)}<span>${esc(it.text)}</span></a>`).join('')}</div></div>`).join('')
-    : '<p class="muted">ما عندك أدوات مفتوحة للحين. اطلب الصلاحية من مالكة اللوحة.</p>';
+    : '<p class="muted">ما عندك أدوات مفتوحة للحين. اطلب الصلاحية من مالك اللوحة.</p>';
 
   let st;
   try { st = await api('/api/today/state'); } catch (err) { show('summary'); say($('#msg'), err.message); $('#next').hidden = true; failure($('#perf'), err, () => location.reload()); return; }
@@ -65,7 +65,7 @@ export default async function mount() {
   const dc = st.decisions;
   let next;
   if (missing.length) next = ['اربط ' + missing[0].name, `بدونها يوقف: ${missing[0].core}.`, '/connectors/', 'افتح الربط'];
-  else if (d && age != null && age > STALE_H) next = ['البيانات متأخرة', `آخر تحديث ${when(d.generated_at)}. شيّك حالة الربط${st.setup ? '' : ' مع مالكة اللوحة'}.`, st.setup ? '/connectors/' : null, 'افتح الربط'];
+  else if (d && age != null && age > STALE_H) next = ['البيانات متأخرة', `آخر تحديث ${when(d.generated_at)}. شيّك حالة الربط${st.setup ? '' : ' مع مالك اللوحة'}.`, st.setup ? '/connectors/' : null, 'افتح الربط'];
   else if (dc?.open) {
     const top = dc.top || {};
     next = [`راجع ${dc.open === 1 ? 'اقتراح واحد' : dc.open === 2 ? 'اقتراحين' : `${dc.open} اقتراحات`} في لوحة القرارات`,

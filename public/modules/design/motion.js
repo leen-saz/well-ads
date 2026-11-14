@@ -1,7 +1,7 @@
 // التصميم ← «موشن جرافيك»: التصميم والصوت المعتمدين ← خطة مشاهد من المصمم (ChatGPT، والواجهة ما تسمي الموديل) ← معاينة، «تعديل»، سجل النسخ، والاعتماد.
 // client.js يرسم الشريط الجانبي ويشغّل هذا لما يختار المستخدم النوع.
 // الرسم في canvas على وقت الصوت (frame.js)، والتنزيل يسجّل نفس الرسم مع الصوت في المتصفح.
-import { $, api, say, esc, busy, when, pageSignal } from '/assets/common.js';
+import { $, api, say, esc, busy, when, pageSignal, friendly } from '/assets/common.js';
 import { SIZE, frame, draw } from '/modules/design/frame.js';
 
 export async function mountMotion() {
@@ -68,7 +68,7 @@ export async function mountMotion() {
     if (!res.ok) throw new Error(d.error || 'ما انرفع الملف');
     return d;
   }
-  // The voice length, decoded here (the page CSP allows no blob: media)
+  // The voice length, decoded here
   const seconds = async file => {
     const c = new AudioContext();
     try { return (await c.decodeAudioData(await file.arrayBuffer())).duration; }
@@ -123,20 +123,35 @@ export async function mountMotion() {
     const type = ['video/mp4;codecs=avc1,mp4a.40.2', 'video/mp4', 'video/webm;codecs=vp9,opus', 'video/webm'].find(t => window.MediaRecorder?.isTypeSupported(t));
     if (!type || !canvas.captureStream) return say($('#mmsg'), 'متصفحك ما يدعم تسجيل الفيديو، جرّب Chrome أو Safari');
     busy(btn, true); say($('#mmsg'), 'نسجّل الفيديو بوقته الحقيقي، خل الصفحة مفتوحة…', true);
+    let rec = null, stream = null;
     try {
       if (!audioCtx) { audioCtx = new AudioContext(); const src = audioCtx.createMediaElementSource(audio); audioCtx.dest = audioCtx.createMediaStreamDestination(); src.connect(audioCtx.destination); src.connect(audioCtx.dest); }
       await audioCtx.resume();
-      const stream = new MediaStream([...canvas.captureStream(30).getVideoTracks(), ...audioCtx.dest.stream.getAudioTracks()]);
-      const rec = new MediaRecorder(stream, { mimeType: type, videoBitsPerSecond: 6_000_000 }), parts = [];
+      stream = new MediaStream([...canvas.captureStream(30).getVideoTracks(), ...audioCtx.dest.stream.getAudioTracks()]);
+      rec = new MediaRecorder(stream, { mimeType: type, videoBitsPerSecond: 6_000_000 }); const parts = [];
       rec.ondataavailable = e => e.data.size && parts.push(e.data);
       const done = new Promise(ok => { rec.onstop = ok; });
       audio.currentTime = 0; rec.start(); await audio.play();
-      await new Promise(ok => audio.addEventListener('ended', ok, { once: true }));
+      // The recording ends when the voice ends. If the voice fails, is paused or the tab sleeps it would wait forever:
+      // those end it with a clear message, and a timer (voice length + 15 s) is the last resort.
+      const over = await new Promise(ok => {
+        const end = why => { clearTimeout(t); for (const ev of ['ended', 'error', 'pause']) audio.removeEventListener(ev, h[ev]); ok(why); };
+        const h = { ended: () => end('ended'), error: () => end('error'), pause: () => end(audio.ended ? 'ended' : 'pause') };
+        for (const ev of Object.keys(h)) audio.addEventListener(ev, h[ev]);
+        const t = setTimeout(() => end('timeout'), ((audio.duration > 0 && isFinite(audio.duration) ? audio.duration : 120) + 15) * 1000);
+      });
       rec.stop(); await done;
+      if (over !== 'ended') throw new Error('وقف التسجيل قبل ما يخلص الصوت. خل الصفحة مفتوحة وجرّب مرة ثانية.');
       const a = document.createElement('a');
       a.href = URL.createObjectURL(new Blob(parts, { type })); a.download = `well-video-v${cur}.${type.startsWith('video/mp4') ? 'mp4' : 'webm'}`; a.click();
       say($('#mmsg'), 'نزل الفيديو', true);
-    } catch (err) { say($('#mmsg'), err.message || 'ما قدرنا نسجّل الفيديو'); }
+    } catch (err) { say($('#mmsg'), friendly(err, 'ما قدرنا نسجّل الفيديو. جرّب مرة ثانية.')); }
+    finally {
+      // nothing keeps recording or holds the sound card after a download, finished or not (the audio element can be wired only once, so the context stays, asleep)
+      try { if (rec?.state === 'recording') rec.stop(); } catch { /* already stopped */ }
+      stream?.getTracks().forEach(t => t.stop()); audio.pause();
+      audioCtx?.suspend().catch(() => {});
+    }
     busy(btn, false);
   };
 

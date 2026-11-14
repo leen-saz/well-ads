@@ -1,6 +1,6 @@
 // احلم: المحادثة في الصفحة الرئيسية. تسأل بالعربي عن إعلاناتك وأرقامك، والمساعد يقرأ ويقترح بس، وما ينفّذ شي.
 // الجواب يجي بثّ حي من /api/today/ask (src/lib/ahlam.ts)، وتحته المصادر اللي قرأها.
-import { $, esc, apiStream } from './common.js';
+import { $, esc, apiStream, friendly } from './common.js';
 
 const MAX_TURNS = 6;
 
@@ -31,7 +31,8 @@ export function mountAhlam(root, me, L) {
   root.innerHTML = `<div class="card ah-card">
     <p class="ah-note muted">${esc(L('اسألني عن إعلاناتك وأرقامك. أقرأ من اللي تقدر تشوفه أنت بس، وأقترح عليك، وما أنفّذ شي بنفسي. القرار لك.', 'Ask me about your ads and numbers. I read only what you can see, I suggest, and I never act on my own. The decision is yours.'))}</p>
     <div class="ah-chips" id="ahChips">${ASK.map(([q]) => `<button type="button">${esc(q)}</button>`).join('')}</div>
-    <div class="ah-log" id="ahLog" role="log" aria-live="polite" aria-label="${esc(L('المحادثة', 'Conversation'))}"></div>
+    <div class="ah-log" id="ahLog" role="log" aria-live="off" aria-label="${esc(L('المحادثة', 'Conversation'))}"></div>
+    <div id="ahLive" role="status" aria-live="polite" style="position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap"></div>
     <form class="ah-form" id="ahForm">
       <textarea id="ahQ" rows="2" maxlength="600" aria-label="${esc(L('سؤالك', 'Your question'))}" placeholder="${esc(L('اكتب سؤالك هنا…', 'Type your question…'))}"></textarea>
       <button class="btn primary" id="ahSend" type="submit"><span>${esc(L('اسأل', 'Ask'))}</span></button>
@@ -56,12 +57,13 @@ export function mountAhlam(root, me, L) {
       const res = await apiStream('/api/today/ask', { q: text, history: history.slice(-MAX_TURNS), lang: L('ar', 'en') }, { signal: ctl.signal, onStep: ev => { steps.push(L(ev.ar, ev.en)); if (!bot.dataset.text) bot.innerHTML = think(); }, onText: t => { bot.dataset.text = '1'; bot.innerHTML = render(t); log.scrollTop = log.scrollHeight; } });
       if (res?.answer) {
         bot.innerHTML = render(res.answer);
+        $('#ahLive', root).textContent = bot.textContent;
         const src = (res.sources || []).map(s => `<span class="p">${esc(L(s.ar, s.en))}</span>`).join('');
         bot.insertAdjacentHTML('beforeend', `<div class="ah-src"><span>${esc(src ? L('المصادر:', 'Sources:') : L('ما قرأت أي بيانات لهذا السؤال.', 'No data was read for this question.'))}</span>${src}</div>`);
         history.push({ role: 'user', content: text }, { role: 'assistant', content: res.answer });
       } else if (!res) bot.innerHTML = `<p class="muted">${esc(L('أوقفت الجواب.', 'Stopped.'))}</p>`;
     } catch (err) {
-      bot.innerHTML = `<p>${esc(err?.message || L('ما قدرت أكمل الحين، جرّب مرة ثانية.', 'I could not finish. Please try again.'))}</p>`;
+      bot.innerHTML = `<p>${esc(friendly(err?.message || L('ما قدرت أكمل الحين، جرّب مرة ثانية.', 'I could not finish. Please try again.'), L('ما قدرت أكمل الحين، جرّب مرة ثانية.', 'I could not finish. Please try again.')))}</p>`;
     } finally { ctl = null; send.disabled = false; stop.hidden = true; q.focus(); }
   };
   $('#ahForm', root).addEventListener('submit', ev => { ev.preventDefault(); run(q.value); });

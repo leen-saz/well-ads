@@ -22,7 +22,9 @@ export default defineConfig({
     csp: {
       directives: [
         "default-src 'self'",
-        "img-src 'self' data:",
+        // blob: only for files the page itself just made (generated voice, uploaded picture preview); never a remote origin
+        "img-src 'self' data: blob:",
+        "media-src 'self' blob:",
         "font-src 'self'",
         "connect-src 'self'",
         "object-src 'none'",

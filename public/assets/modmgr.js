@@ -1,4 +1,4 @@
-// الإعدادات ← الموديولات: المالكة تقفل أو تشغّل موديولات شركتها.
+// الإعدادات ← الموديولات: المالك تقفل أو تشغّل موديولات شركتها.
 import { $, $$, api, say, esc, shell, busy, settingsTabs, LANG } from './common.js';
 
 // Runs on every visit of this page (assets/router.js calls it after each ClientRouter navigation).

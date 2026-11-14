@@ -1,5 +1,5 @@
 // الرحلات: بناء الخطوات، والحفظ، وتشغيل رحلة لعميل (جوال أو إيميل). الإرسال يصير من السيرفر خطوة خطوة.
-import { $, $$, api, say, esc, shell, busy, pageFailure } from '/assets/common.js';
+import { $, $$, api, say, esc, shell, busy, pageFailure, arabicOr } from '/assets/common.js';
 import { block } from '/assets/compliance-ui.js';
 
 // Runs on every visit of this page (assets/router.js calls it after each ClientRouter navigation).
@@ -7,14 +7,14 @@ export default async function mount() {
 
   let CH = {}, mode = 'manual', steps = [], journeys = [];
   const RUN = { running: 'شغالة', done: 'خلصت', failed: 'فيها خطأ', stopped: 'موقفة' };
-  const fields = s => s.type === 'wait' ? `<label>كم ساعة؟</label><input type="number" min="1" max="2160" data-k="hours" value="${esc(s.hours || 24)}">`
-    : s.type === 'whatsapp' ? `<label>اسم القالب المعتمد في واتساب</label><input dir="ltr" data-k="template" value="${esc(s.template || '')}" placeholder="lead_followup"><label>اللغة</label><input dir="ltr" data-k="lang" value="${esc(s.lang || 'ar')}">`
-    : s.type === 'email' ? `<label>العنوان</label><input data-k="subject" value="${esc(s.subject || '')}"><label>النص <span class="muted">({{name}} = اسم العميل)</span></label><textarea rows="4" data-k="body">${esc(s.body || '')}</textarea>`
-    : `<label>العنوان</label><input data-k="title" value="${esc(s.title || '')}"><label>النص</label><input data-k="body" value="${esc(s.body || '')}">`;
+  const fields = s => s.type === 'wait' ? `<label>كم ساعة؟</label><input aria-label="كم ساعة؟" type="number" min="1" max="2160" data-k="hours" value="${esc(s.hours || 24)}">`
+    : s.type === 'whatsapp' ? `<label>اسم القالب المعتمد في واتساب</label><input aria-label="اسم القالب المعتمد في واتساب" dir="ltr" data-k="template" value="${esc(s.template || '')}" placeholder="lead_followup"><label>اللغة</label><input aria-label="اللغة" dir="ltr" data-k="lang" value="${esc(s.lang || 'ar')}">`
+    : s.type === 'email' ? `<label>العنوان</label><input aria-label="العنوان" data-k="subject" value="${esc(s.subject || '')}"><label>النص <span class="muted">({{name}} = اسم العميل)</span></label><textarea aria-label="النص" rows="4" data-k="body">${esc(s.body || '')}</textarea>`
+    : `<label>العنوان</label><input aria-label="العنوان" data-k="title" value="${esc(s.title || '')}"><label>النص</label><input aria-label="النص" data-k="body" value="${esc(s.body || '')}">`;
 
   function drawSteps() {
     $('#steps').innerHTML = steps.map((s, i) => `<div class="jr-step" data-i="${i}"><div class="bar"><b>${i + 1}. ${esc(CH[s.type]?.name || s.type)}${CH[s.type]?.soon ? ' <span class="muted">(قريباً)</span>' : ''}</b>
-      <span><button class="btn sm ghost" type="button" data-up>↑</button><button class="btn sm ghost" type="button" data-del>احذف</button></span></div>
+      <span><button class="btn sm ghost" type="button" data-up aria-label="انقل الخطوة لفوق">↑</button><button class="btn sm ghost" type="button" data-del>احذف</button></span></div>
       ${fields(s)}${s.type === 'whatsapp' ? `<p class="so-note">${esc(CH.whatsapp.notice)}</p>` : ''}${s.type === 'email' || s.type === 'push' ? '<div class="bar"><button class="btn sm secondary" type="button" data-write>اكتب لي من الفكرة</button></div><div data-comp></div>' : ''}</div>`).join('') || '<p class="muted">ما فيه خطوات. مثال: واتساب ← انتظر 24 ساعة ← إيميل.</p>';
   }
   const readSteps = () => $$('.jr-step').map(el => {
@@ -46,7 +46,7 @@ export default async function mount() {
     const names = Object.fromEntries(journeys.map(j => [j.id, j.name]));
     $('#runs').innerHTML = r.runs.length ? `<table><thead><tr><th>الرحلة</th><th>العميل</th><th>الحالة</th><th>آخر خطوة</th></tr></thead><tbody>${r.runs.map(x => {
       const last = (x.log || []).at(-1);
-      return `<tr><td>${esc(names[x.journey_id] || x.journey_id)}</td><td dir="ltr">${esc(x.contact.phone || x.contact.email)}</td><td>${RUN[x.status] || x.status}</td><td>${last ? `${esc(CH[last.type]?.name || last.type)} ${last.ok ? '✓' : '· ' + esc(last.error || '')}` : '—'}</td></tr>`;
+      return `<tr><td>${esc(names[x.journey_id] || x.journey_id)}</td><td dir="ltr">${esc(x.contact.phone || x.contact.email)}</td><td>${RUN[x.status] || x.status}</td><td>${last ? `${esc(CH[last.type]?.name || last.type)} ${last.ok ? '✓' : '· ' + esc(arabicOr(last.error, 'فشلت الخطوة'))}` : '—'}</td></tr>`;
     }).join('')}</tbody></table>` : '<p class="muted" style="padding:0 4px">ما فيه تشغيلات للحين.</p>';
   }
 

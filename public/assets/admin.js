@@ -35,7 +35,7 @@ export default async function mount() {
     if (!$('#deptChecks').innerHTML) $('#deptChecks').innerHTML = checks('p', [], DEPT);
     if (!$('#dDashChecks').innerHTML) { $('#dDashChecks').innerHTML = grid('dd'); $('#dPresets').innerHTML = presets('dd'); $('#dDeptChecks').innerHTML = checks('dp', [], DEPT); }
     $('#users').innerHTML = `<table><thead><tr><th>الاسم</th><th>الإيميل</th><th>الصلاحيات</th><th>الأقسام المسموحة</th><th>الحالة</th><th></th></tr></thead><tbody>${r.users.map(u => `
-      <tr data-id="${u.id}" style="cursor:default"><td>${esc(u.name || '')}${u.role === 'owner' ? ' <span class="chip solid">المالكة</span>' : ''}</td><td>${esc(u.email)}</td>
+      <tr data-id="${u.id}" style="cursor:default"><td>${esc(u.name || '')}${u.role === 'owner' ? ' <span class="chip solid">المالك</span>' : ''}</td><td>${esc(u.email)}</td>
       <td>${u.role === 'owner' ? 'كل التابات · موافقة' : summary(u.access || {})}</td>
       <td>${u.role === 'owner' ? 'كل الأقسام' : `<div class="checks">${checks('q' + u.id, u.departments || [], DEPT)}</div>`}</td>
       <td>${u.active ? '<span class="chip">مفعّل</span>' : '<span class="chip line">موقوف</span>'}</td>
@@ -125,7 +125,7 @@ export default async function mount() {
     }
     if (b.dataset.act === 'pw') {
       $$('.acc-edit', $('#users')).forEach(x => x.remove());
-      tr.insertAdjacentHTML('afterend', `<tr class="acc-edit" style="cursor:default"><td colspan="6"><div class="bar" style="align-items:flex-end"><div style="flex:1;min-width:220px"><label>باسوورد جديد</label><input type="text" name="npw" autocomplete="off" spellcheck="false" dir="ltr"></div>
+      tr.insertAdjacentHTML('afterend', `<tr class="acc-edit" style="cursor:default"><td colspan="6"><div class="bar" style="align-items:flex-end"><div style="flex:1;min-width:220px"><label>باسوورد جديد</label><input aria-label="باسوورد جديد" type="text" name="npw" autocomplete="off" spellcheck="false" dir="ltr"></div>
         <button class="btn sm secondary" data-act="gen">ولّد باسوورد قوي</button><button class="btn sm primary" data-act="pwsave" data-id="${id}">احفظ الباسوورد</button></div></td></tr>`);
       return;
     }
