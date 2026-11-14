@@ -7,6 +7,8 @@ import { overCap, record, type UsageCtx } from './usage';
 
 export interface GeminiEnv { GEMINI_API_KEY?: string; GEMINI_MODEL?: string; GEMINI_TTS_MODEL?: string }
 export const GEMINI_MODEL = 'gemini-3-flash';
+// Longer than the text providers: audio and video answers are slow. Past it the call stops and says «busy», not hangs.
+export const GEMINI_TIMEOUT_MS = 120_000;
 const BASE = 'https://generativelanguage.googleapis.com';
 const clean = (s: string | undefined) => (s || '').replace(/[^a-z0-9.\-_]/gi, '').slice(0, 80);
 export const geminiModel = (e: GeminiEnv): string => clean(e.GEMINI_MODEL) || GEMINI_MODEL;
@@ -57,13 +59,18 @@ export async function gemini(e: GeminiEnv, module: string, i: GeminiInput, f: ty
   if (!e.GEMINI_API_KEY) throw new GeminiError('no_key');
   if (ctx && await overCap(ctx, module)) throw new GeminiError('capped');   // no free fallback for audio, video or speech: it stops
   const model = geminiModel(e);
-  let r: Response;
+  const late = AbortSignal.timeout(GEMINI_TIMEOUT_MS);
+  let raw: Raw;
   try {
-    r = await f(`${BASE}/v1beta/models/${model}:generateContent`, { method: 'POST', ...(signal ? { signal } : {}), headers: { 'content-type': 'application/json', 'x-goog-api-key': e.GEMINI_API_KEY }, body: JSON.stringify(geminiBody(i)) });
-  } catch (err) { console.warn('gemini_failed', (err as Error).message); throw new GeminiError('failed'); }
-  if (r.status === 429) throw new GeminiError('rate_limited', 429);
-  if (!r.ok) { console.warn('gemini_failed', r.status); throw new GeminiError('failed', r.status); }   // the status only
-  const raw = await r.json() as Raw;
+    const r = await f(`${BASE}/v1beta/models/${model}:generateContent`, { method: 'POST', signal: signal ? AbortSignal.any([signal, late]) : late, headers: { 'content-type': 'application/json', 'x-goog-api-key': e.GEMINI_API_KEY }, body: JSON.stringify(geminiBody(i)) });
+    if (r.status === 429 || r.status === 503) throw new GeminiError('rate_limited', r.status);   // 503 is Google's «overloaded»
+    if (!r.ok) { console.warn('gemini_failed', r.status); throw new GeminiError('failed', r.status); }   // the status only
+    raw = await r.json() as Raw;   // inside the try: the timeout also covers reading the body
+  } catch (err) {
+    if (err instanceof GeminiError) throw err;
+    if (late.aborted) { console.warn('gemini_failed', 'timeout'); throw new GeminiError('rate_limited'); }
+    console.warn('gemini_failed', (err as Error).message); throw new GeminiError('failed');
+  }
   const usage = usageOf(raw);
   record(ctx, module, { provider: 'gemini', model, usage: { in: usage.in, out: usage.out, audioIn: usage.audioIn } });   // billed even when the answer is unusable
   if (raw.promptFeedback?.blockReason || raw.candidates?.[0]?.finishReason === 'SAFETY') throw new GeminiError('blocked');
