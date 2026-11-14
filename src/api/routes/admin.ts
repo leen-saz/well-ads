@@ -1,5 +1,5 @@
 // /api/admin/*: users and log (Leen only). Port of web/lib/routes/admin/*.js.
-import { sb, json, readJson, handle, requireUser, audit, levelsOf, DASHBOARDS, DEPTS, LEVELS, PASSWORD_MIN, type Cfg, type Level, type Profile } from '../../lib/auth';
+import { sb, json, readJson, handle, requireUser, audit, levelsOf, DASHBOARDS, DEPTS, LEVELS, passwordError, type Cfg, type Level, type Profile } from '../../lib/auth';
 import { logRange } from '../../lib/logrange';
 import { isDay, parseRangeParams } from '../../../public/assets/period.js';
 import { MODULES, isModule } from '../../modules/registry';
@@ -26,7 +26,6 @@ function inviteFailure(r: { status: number; data: unknown }): string {
   if (code === 'email_address_invalid') return 'الإيميل غير صحيح';
   return 'ما انرسلت الدعوة. أضفه مباشرة بباسوورد مؤقت';
 }
-const pwError = (pw: string) => (pw.length < PASSWORD_MIN ? `الباسوورد لازم ${PASSWORD_MIN} أحرف أو أكثر` : pw.length > 72 ? 'الباسوورد طويل زيادة (أقصاه 72)' : null);
 const UUID36 = /^[0-9a-f-]{36}$/i;
 type AuthUser = { id?: string; email?: string; created_at?: string; user_metadata?: { name?: unknown; company_id?: unknown } };
 // Every account the dashboard creates (invite, direct) is stamped with the company that made it. An account with no profile
@@ -138,7 +137,7 @@ export const direct = {
     const dashboards = Object.keys(access);
     const departments = cleanDept(body.departments);
     if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email)) return json(400, { error: 'الإيميل غير صحيح' });
-    const bad = pwError(password);
+    const bad = passwordError(password);
     if (bad) return json(400, { error: bad });
     if (!dashboards.length) return json(400, { error: 'اختر لوحة وحدة على الأقل' });
     const made = await sb<{ id?: string }>(cfg, '/auth/v1/admin/users', { method: 'POST', admin: true, body: { email, password, email_confirm: true, user_metadata: { name, company_id: user.co } } });
@@ -196,7 +195,7 @@ export const password = {
     const id = String(body.id || '');
     const pw = String(body.password || '');
     if (!UUID36.test(id)) return json(400, { error: 'مستخدم غير معروف' });
-    const bad = pwError(pw);
+    const bad = passwordError(pw);
     if (bad) return json(400, { error: bad });
     const who = await sb<Row[]>(cfg, scoped(`/rest/v1/profiles?id=eq.${id}&select=id,email`, user.co), { admin: true });
     if (!who.ok || !Array.isArray(who.data) || !who.data.length) return json(404, { error: 'مستخدم غير معروف' });

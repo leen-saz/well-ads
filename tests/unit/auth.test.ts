@@ -253,3 +253,27 @@ describe('audit rows from visitors without a session', () => {
     expect(auditEmail(undefined)).toBeNull();
   });
 });
+
+describe('one password rule wherever a password is set', () => {
+  const same = { origin: 'https://well.example', 'sec-fetch-site': 'same-origin', 'content-type': 'application/json' };
+  it('counts UTF-8 bytes, so a long Arabic password is refused instead of being cut short by the hash', () => {
+    expect(A.passwordError('x'.repeat(A.PASSWORD_MIN - 1))).toMatch(/أحرف أو أكثر/);
+    expect(A.passwordError('x'.repeat(A.PASSWORD_MAX_BYTES))).toBeNull();
+    expect(A.passwordError('x'.repeat(A.PASSWORD_MAX_BYTES + 1))).not.toBeNull();
+    expect(A.passwordError('ب'.repeat(36))).toBeNull(); // 72 bytes
+    expect(A.passwordError('ب'.repeat(37))).not.toBeNull(); // 37 letters, 74 bytes
+  });
+
+  it('reset link and account page refuse an over-long password before calling Supabase Auth', async () => {
+    const calls: string[] = [];
+    vi.stubGlobal('fetch', async (u: string) => { calls.push(String(u)); return new Response(JSON.stringify([member]), { status: 200 }); });
+    const long = 'ب'.repeat(40);
+    const r = await authRoutes.reset.POST(req('/api/auth/reset', null, { method: 'POST', headers: same, body: JSON.stringify({ access_token: 't', password: long }) }), E);
+    expect(r.status).toBe(400);
+    expect(calls.some(c => c.includes('/auth/v1/'))).toBe(false);
+    const a = await api.request('https://well.example/api/account/password',
+      { method: 'POST', headers: { ...same, cookie: await cookieFor(member) }, body: JSON.stringify({ current: 'not-checked', password: long }) }, E);
+    expect(a.status).toBe(400);
+    expect(calls.some(c => c.includes('/auth/v1/'))).toBe(false);
+  });
+});
