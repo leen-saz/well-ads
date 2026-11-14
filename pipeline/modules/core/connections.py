@@ -22,6 +22,19 @@ def lines(rows):
     return out
 
 
+MIN_MASK = 8
+
+
+def mask_lines(value):
+    """What to pass to ::add-mask:: for one secret. A single-line value is masked whole. A multi-line one (a service
+    account JSON) is masked line by line, but only the lines long enough to be a secret: masking '{', '}' or '  ],' would
+    garble the public log without protecting anything."""
+    text = str(value or "")
+    if "\n" not in text.strip():
+        return [text.strip()] if text.strip() else []
+    return [p.strip() for p in text.splitlines() if len(p.strip()) >= MIN_MASK]
+
+
 def main():
     db = Supa.from_env()
     if not db:
@@ -33,9 +46,8 @@ def main():
         print("connections: ما قدرت أقرا الخزنة —", str(ex)[:120])
         return
     for r in rows:
-        for part in (r.get("value") or "").splitlines():
-            if part.strip():
-                print(f"::add-mask::{part.strip()}")
+        for part in mask_lines(r.get("value") or ""):
+            print(f"::add-mask::{part}")
     target = os.environ.get("GITHUB_ENV")
     out = lines(rows)
     if target and out:

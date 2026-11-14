@@ -165,3 +165,47 @@ class SyncTests(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class RetryHardening(unittest.TestCase):
+    def test_retry_after_accepts_seconds_dates_and_garbage(self):
+        from email.utils import format_datetime
+        from datetime import datetime, timedelta, timezone
+        retry_after = fetch.retry_after
+        self.assertEqual(retry_after("7"), 7)
+        self.assertEqual(retry_after("9999"), 60)
+        self.assertEqual(retry_after("garbage"), 5)
+        self.assertEqual(retry_after(None), 5)
+        when = format_datetime(datetime.now(timezone.utc) + timedelta(seconds=30), usegmt=True)
+        self.assertTrue(1 <= retry_after(when) <= 30)
+
+    def _http_error(self, code):
+        import io, urllib.error
+        return urllib.error.HTTPError("u", code, "x", {}, io.BytesIO(b"{}"))
+
+    def test_retries_a_500_and_a_network_error_then_succeeds(self):
+        import io, urllib.error
+        http_get = fetch.http_get
+        seq = [self._http_error(502), urllib.error.URLError("down"), None]
+
+        def opener(req, timeout):
+            item = seq.pop(0)
+            if item is not None:
+                raise item
+
+            class R(io.BytesIO):
+                def __enter__(s): return s
+                def __exit__(s, *a): return False
+            return R(b'{"ok": 1}')
+        self.assertEqual(http_get("http://x", "k", sleep=lambda s: None, opener=opener), {"ok": 1})
+
+    def test_a_4xx_is_not_retried(self):
+        http_get = fetch.http_get
+        calls = []
+
+        def opener(req, timeout):
+            calls.append(1)
+            raise self._http_error(403)
+        with self.assertRaises(RuntimeError):
+            http_get("http://x", "k", sleep=lambda s: None, opener=opener)
+        self.assertEqual(len(calls), 1)

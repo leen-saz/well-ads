@@ -9,7 +9,7 @@
 import hashlib, json, sys, urllib.parse
 from datetime import datetime, timedelta, timezone
 
-from common import env, google_ads_headers, google_search_all, http
+from common import env, error_code, google_ads_headers, google_search_all, http
 from modules.core.supa import Supa
 
 KEEP_META = ("budget", "status", "create", "bid", "target", "schedule", "creative", "delete", "run_status")
@@ -68,7 +68,7 @@ def main():
         return
     E, now = env(), datetime.now(timezone.utc)
     since = now - timedelta(days=3)
-    total = 0
+    total, failed = 0, []
     for name, fn in (("meta", lambda: meta_rows(E, since)), ("google", lambda: google_rows(E, since, now))):
         try:
             rows = fn()
@@ -77,8 +77,11 @@ def main():
             total += len(rows)
             print(f"observe {name}: {len(rows)} حركة")
         except Exception as ex:
-            print(f"observe {name}: ما انقرا — {str(ex)[:160]}", file=sys.stderr)
+            failed.append(name)
+            print(f"observe {name}: ما انقرا — {error_code(ex)}", file=sys.stderr)
     db.audit("observe_run", target={"events": total})
+    if failed:
+        sys.exit(1)
 
 
 if __name__ == "__main__":
