@@ -1,5 +1,5 @@
 // الكوبي رايتر: مشروع (إعداد + منافسين)، وبطاقة نمط لكل منافس من نصوصه، ونوع الطلب (المهارة) بمدخلاته، ونسخ مفحوصة.
-import { $, $$, api, apiStream, liveText, say, esc, shell, busy, pageFailure, sectionTabs } from '/assets/common.js';
+import { $, $$, api, apiStream, liveText, say, esc, shell, busy, pageFailure, sectionTabs, safeUrl } from '/assets/common.js';
 
 // Runs on every visit of this page (assets/router.js calls it after each ClientRouter navigation).
 export default async function mount() {
@@ -27,7 +27,7 @@ export default async function mount() {
     $('#cf').hidden = !CUR;
     const comps = CUR?.competitors || [];
     $('#comps').innerHTML = !CUR ? '<p class="cw-note">احفظ المشروع أول، وبعدها أضف منافسينك.</p>' : comps.length ? comps.map(c => `<article class="cw-c" data-id="${esc(c.id)}">
-        <header><b>${esc(c.name)}</b>${c.platform ? `<span class="chip line">${esc(PLAT[c.platform] || c.platform)}</span>` : ''}${c.url ? `<a href="${esc(c.url)}" target="_blank" rel="noopener noreferrer">${esc(c.url)}</a>` : ''}
+        <header><b>${esc(c.name)}</b>${c.platform ? `<span class="chip line">${esc(PLAT[c.platform] || c.platform)}</span>` : ''}${safeUrl(c.url) ? `<a href="${esc(safeUrl(c.url))}" target="_blank" rel="noopener noreferrer">${esc(c.url)}</a>` : ''}
           <button class="btn sm ghost" type="button" data-del="${esc(c.id)}">شيل</button></header>
         ${cardHTML(c.card)}</article>`).join('') : '<p class="cw-note">ما فيه منافسين للحين.</p>';
     const usable = comps.filter(c => c.card);

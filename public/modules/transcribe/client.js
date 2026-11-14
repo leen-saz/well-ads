@@ -1,5 +1,5 @@
 // التفريغ: رفع ملف، وخطوات التفريغ تمشي والصفحة مفتوحة (وإذا انقفلت يكملها الخادم)، والنتيجة: ملخص وبنود عمل والنص.
-import { $, api, say, esc, shell, busy, when, pageSignal, failure } from '/assets/common.js';
+import { $, api, say, esc, shell, busy, when, pageSignal, failure, friendly, arabicOr } from '/assets/common.js';
 
 // Runs on every visit of this page (assets/router.js calls it after each ClientRouter navigation).
 export default async function mount() {
@@ -9,7 +9,7 @@ export default async function mount() {
   const MB = 1048576;
 
   const pct = j => Math.min(100, Math.round(100 * (j.step || 0) / (j.steps || 1)));
-  const label = j => j.status === 'failed' ? esc(j.error || '') : j.status === 'done' ? '' : `الخطوة ${Math.min(j.steps, j.step + 1)} من ${j.steps}`;
+  const label = j => j.status === 'failed' ? esc(arabicOr(j.error, 'ما قدرنا نفرّغ هالملف. ارفعه مرة ثانية.')) : j.status === 'done' ? '' : `الخطوة ${Math.min(j.steps, j.step + 1)} من ${j.steps}`;
   const doc = j => {
     const r = j.result || {};
     const acts = (r.actions || []).map(a => `<li>${esc(a.task)}${a.owner ? ` <span class="muted">(${esc(a.owner)})</span>` : ''}${a.due ? ` <span class="muted">· ${esc(a.due)}</span>` : ''}</li>`).join('');
@@ -27,8 +27,21 @@ export default async function mount() {
       ${j.status === 'queued' || j.status === 'processing' ? '<button class="btn sm ghost" type="button" data-cancel style="margin-inline-start:auto">ألغِ التفريغ</button>' : ''}</div>
     ${j.status === 'done' ? doc(j) : `<p class="muted" style="margin:0">${label(j)}</p>${j.status === 'failed' ? '' : `<div class="tr-bar"><i style="width:${pct(j)}%"></i></div>`}`}
   </article>`;
+  const sigOf = j => JSON.stringify([j.status, j.step, j.steps, j.error, j.title, j.result && Object.keys(j.result).length]);
   const draw = () => {
-    $('#jobs').innerHTML = D.jobs.length ? D.jobs.map(card).join('') : '<div class="card tr-empty"><p class="muted" style="margin:0">ما فيه ملفات للحين. ارفع أول ملف.</p></div>';
+    const box = $('#jobs');
+    if (!D.jobs.length) { box.innerHTML = '<div class="card tr-empty"><p class="muted" style="margin:0">ما فيه ملفات للحين. ارفع أول ملف.</p></div>'; return; }
+    const have = [...box.querySelectorAll(':scope > [data-id]')];
+    // the same cards in the same order: redraw only the ones that changed
+    if (have.length === D.jobs.length && have.every((el, i) => el.dataset.id === String(D.jobs[i].id))) {
+      D.jobs.forEach((j, i) => {
+        const s = sigOf(j); if (have[i].dataset.sig === s) return;
+        const t = document.createElement('div'); t.innerHTML = card(j); const fresh = t.firstElementChild; fresh.dataset.sig = s; have[i].replaceWith(fresh);
+      });
+      return;
+    }
+    box.innerHTML = D.jobs.map(card).join('');
+    [...box.children].forEach((el, i) => { el.dataset.sig = sigOf(D.jobs[i]); });
   };
   const put = j => { const at = D.jobs.findIndex(x => x.id === j.id); if (at >= 0) D.jobs[at] = j; else D.jobs.unshift(j); draw(); };
 
@@ -49,10 +62,16 @@ export default async function mount() {
     if (running.has(id)) return;
     running.add(id);
     try {
-      let last = -1;
+      let last = -1, fails = 0;
       for (;;) {
         if (pageSignal().aborted) return;
-        const r = await api('/api/transcribe/step', { method: 'POST', body: { id } });
+        let r;
+        try { r = await api('/api/transcribe/step', { method: 'POST', body: { id } }); fails = 0; }
+        catch (err) {
+          if (!err.retryable || ++fails > 6) throw err;
+          await new Promise(res => setTimeout(res, Math.min(30000, 1000 * 2 ** fails)));   // 2, 4, 8, 16, 30 s
+          continue;
+        }
         put(r.job);
         if (r.job.status === 'done' || r.job.status === 'failed') return;
         const same = r.job.step === last; last = r.job.step;
@@ -110,7 +129,11 @@ export default async function mount() {
   $('#jobs').addEventListener('toggle', async e => {
     const d = e.target; if (!d.matches?.('[data-full]') || !d.open) return;
     const pre = $('pre', d); if (pre.textContent) return;
-    try { pre.textContent = (await api(`/api/transcribe/job?id=${d.closest('[data-id]').dataset.id}`)).job.transcript; } catch (err) { pre.textContent = err.message; }
+    let why = $('.tr-why', d);
+    if (!why) { why = document.createElement('p'); why.className = 'tr-why msg'; why.setAttribute('role', 'alert'); d.append(why); }
+    why.textContent = '';
+    try { pre.textContent = (await api(`/api/transcribe/job?id=${d.closest('[data-id]').dataset.id}`)).job.transcript; }
+    catch (err) { why.className = 'tr-why msg err'; why.textContent = friendly(err, 'ما قدرنا نجيب النص. سكّر القسم وافتحه مرة ثانية.'); }
   }, true);
 
   shell({ active: 'transcribe', title: 'التفريغ' }).then(load).catch(err => say($('#msg'), err.message));

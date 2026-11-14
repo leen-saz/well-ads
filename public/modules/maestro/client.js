@@ -1,6 +1,6 @@
 // المدير: تبويبات (لوحة، الوارد، المهام، الإيجنتس، المحادثة) بالرابط، قائمة أو لوحة، فلاتر، بحث، ومهمة جديدة في نافذة.
 // اختصارات: C مهمة جديدة، / بحث، 1-5 التبويبات.
-import { LANG, $, $$, api, say, esc, fmt, shell, busy, pageSignal, failure, pageFailure, when, icon } from '/assets/common.js';
+import { LANG, $, $$, api, say, esc, fmt, shell, busy, pageSignal, failure, pageFailure, when, icon, shortcutsOn, shortcutSwitch, arabicOr } from '/assets/common.js';
 import { t } from '/assets/i18n.js';
 import { mountPeriod } from '/assets/period.js';
 
@@ -213,7 +213,7 @@ export default async function mount() {
       if (mine !== perfSeq) return;
       const k = [[n(p.done), 'مهام خلصت'], [p.spentCents == null ? '—' : usd(p.spentCents), 'الصرف'], [n(p.successRate, '%'), `نجاح التشغيلات (${n(p.runs)})`], [n(p.avgTaskMinutes, ' د'), 'متوسط وقت المهمة']];
       $('#perfBody').innerHTML = `<div class="mx-kpis">${k.map(([v, t]) => `<div class="card mx-kpi"><b>${esc(v)}</b><span>${t}</span></div>`).join('')}</div>
-        ${spend(a)}<p class="muted">آخر تشغيل: ${p.lastRunAt ? esc(when(p.lastRunAt)) : '—'}</p>${p.lastError ? `<p class="so-note">آخر خطأ: ${esc(p.lastError)}</p>` : ''}`;
+        ${spend(a)}<p class="muted">آخر تشغيل: ${p.lastRunAt ? esc(when(p.lastRunAt)) : '—'}</p>${p.lastError ? `<p class="so-note">آخر خطأ: ${esc(arabicOr(p.lastError, 'صار خطأ في آخر تشغيل'))}</p>` : ''}`;
     } catch (err) { if (mine === perfSeq) failure($('#perfBody'), err, perf); }
   }
   $('#view').addEventListener('click', e => { const b = e.target.closest('[data-perf]'); if (!b) return; perfAgent = b.closest('[data-agent]').dataset.agent;
@@ -231,9 +231,10 @@ export default async function mount() {
     } catch (err) { say($('#dmsg'), err.message); }
     busy(btn, false);
   });
-  // Keyboard shortcuts, ignored while typing
+  // Keyboard shortcuts, ignored while typing, with a switch to turn them off
+  shortcutSwitch($('#msg')?.parentElement);
   document.addEventListener('keydown', e => {
-    if (e.metaKey || e.ctrlKey || e.altKey || /^(INPUT|TEXTAREA|SELECT)$/.test(document.activeElement?.tagName || '') || $('#dlg')?.open || $('#pdlg')?.open) return;
+    if (!shortcutsOn() || e.metaKey || e.ctrlKey || e.altKey || /^(INPUT|TEXTAREA|SELECT)$/.test(document.activeElement?.tagName || '') || $('#dlg')?.open || $('#pdlg')?.open) return;
     if (e.key === 'c' || e.key === 'C') { e.preventDefault(); openNew(); }
     else if (e.key === '/') { e.preventDefault(); $('#q').focus(); }
     else if (/^[1-5]$/.test(e.key) && !$('#board').hidden) { view = VIEWS[Number(e.key) - 1]; filter = 'all'; draw(); if (view === 'chat') loadChat(); }

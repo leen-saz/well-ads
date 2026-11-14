@@ -134,11 +134,11 @@ import { ClientRouter } from 'astro:transitions';
               <p class="muted dz-note">صورة المنتج تنرسل لخدمة التصميم بالذكاء الاصطناعي بمقاس 1024 عشان يحطها في مشهد جديد. الصور المرجعية تنرسل نسخة صغيرة عشان يوصف أسلوبها بس. ولا وحدة تنحفظ عندنا.</p>
             </form>
           </section>
-          <div class="ls-out"><section class="card pad" id="ref"><p class="muted">املأ التفاصيل واضغط "صمّم".</p></section><section class="card pad" id="vars"></section></div>
+          <div class="ls-out"><section class="card pad" id="ref"><p class="muted">املأ التفاصيل واضغط "صمّم".</p></section><section class="card pad" id="vars" hidden></section></div>
         </div>
         <h2 style="margin:18px 0 10px">المعاينة</h2>
-      <div class="dz-bg" id="bgNote" hidden role="alert"><span id="bgMsg"></span><button class="btn sm secondary" type="button" id="bgRetry">جرّب الخلفية مرة ثانية</button></div>
-        <div class="dz-prev" id="prev"></div>
+      <div class="dz-bg" id="bgNote" hidden role="alert"><span id="bgMsg"><span id="bgWhy"></span> <span id="bgNow"></span> <a href="/connectors/" id="bgLink" hidden>افتح صفحة الربط</a></span><button class="btn sm secondary" type="button" id="bgRetry">جرّب الخلفية مرة ثانية</button></div>
+        <div class="dz-prev" id="prev"><p class="muted dz-empty">المعاينة تظهر هنا بعد ما تضغط «صمّم».</p></div>
       </div>
       <div id="motionFlow" hidden>
         <div id="setup"></div>

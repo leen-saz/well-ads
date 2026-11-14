@@ -1,5 +1,5 @@
 // السوشال: إنشاء منشور مجدول لأكثر من منصة، وتقويم الأسبوعين الجايين. النشر يصير من السيرفر في وقته.
-import { $, $$, api, say, esc, shell, busy, LANG, pageFailure } from '/assets/common.js';
+import { $, $$, api, say, esc, shell, busy, LANG, pageFailure, pageSignal, friendly } from '/assets/common.js';
 import { block } from '/assets/compliance-ui.js';
 import { t } from '/assets/i18n.js';
 
@@ -128,6 +128,7 @@ export default async function mount() {
     // When the next publishing check runs (the server looks for approved posts that are due every 5 minutes); kept fresh while the page is open
     const chk = () => { const el = $('#chk'); if (el) el.innerHTML = `<span>النشر يتفحص كل 5 دقايق: المنشور المعتمد ينزل خلال 5 دقايق من موعده.</span> <span>الفحص الجاي</span> <bdi>${fmtTime(nextCheck())}</bdi>`; };
     chk(); clearInterval(window.__soChk); window.__soChk = setInterval(chk, 30000);
+    pageSignal().addEventListener('abort', () => clearInterval(window.__soChk), { once: true });   // stops when the user leaves this page
     const byDay = new Map();
     for (const p of r.posts) { const k = fmtDay(new Date(p.publish_at)); byDay.set(k, [...(byDay.get(k) || []), p]); }
     $('#list').innerHTML = byDay.size ? [...byDay].map(([d, ps]) => `<h3 class="so-day">${esc(d)}</h3><div class="cx-list" style="display:grid;gap:10px">${ps.map(postCard).join('')}</div>`).join('')
@@ -217,7 +218,7 @@ export default async function mount() {
       const j = await res.json().catch(() => ({}));
       if (!res.ok) throw new Error(j.error || 'ما انرفع الملف');
       uploaded = { url: j.url, type: j.type }; $('#media').value = ''; showPrev(uploaded); $('#upMsg').textContent = 'انرفع ✓';
-    } catch (err) { $('#upMsg').textContent = err.message; e.target.value = ''; }
+    } catch (err) { $('#upMsg').textContent = friendly(err, 'ما انرفع الملف. جرّب مرة ثانية.'); e.target.value = ''; }
   });
 
   // Write the idea in the text box, then let the social model write the post (it is checked, and you edit it before scheduling)
@@ -226,7 +227,7 @@ export default async function mount() {
     try {
       const r = await api('/api/social/suggest', { method: 'POST', body: { brief: $('#body').value, platforms: $$('input[name="pl"]:checked').map(x => x.value) } });
       $('#body').value = r.body; $('#body').dispatchEvent(new Event('input'));
-      say($('#msg'), `${r.engine === 'xai' ? 'كتبه Grok' : 'كتبه الذكاء الاصطناعي'}. راجعه قبل ما تجدوله.`, true);
+      say($('#msg'), 'كتبه الذكاء الاصطناعي. راجعه قبل ما تجدوله.', true);
       $('#notices').innerHTML = block(r.body, r.compliance || []);
     } catch (err) { say($('#msg'), err.message); }
     busy(btn, false);

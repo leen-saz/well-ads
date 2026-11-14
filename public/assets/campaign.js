@@ -1,6 +1,6 @@
 // احلم ← «حملة جديدة»: تكتب أمنياتك للحملة بكلام عادي، واحلم يحوّلها لخطة ومهام لإيجنتس التطبيق.
 // التكلفة المتوقعة تطلع قبل ما يشتغل أي شي، والاعتماد لمن عنده صلاحية الموافقة. ما فيه نشر ولا صرف ولا تعديل على حسابات الإعلانات.
-import { $, esc, api, say } from './common.js';
+import { $, esc, api, say, pageSignal } from './common.js';
 import { render } from './ahlam.js';
 
 const AGENT = { knowledge: ['المعرفة والرصد', 'Knowledge & listening'], content: ['المحتوى و SEO', 'Content & SEO'], design: ['التصميم', 'Design'], voice: ['الصوت والفويس أوفر', 'Voice & voiceover'],
@@ -59,7 +59,7 @@ export function mountCampaign(root, me, L) {
   }
 
   let view = 0;   // a new screen cancels a run loop that belongs to the old one
-  const KIND = { insight: ['سياق ورصد', 'Context & listening'], copy: ['نصوص ومحتوى', 'Copy & content'], design_brief: ['بريف التصميم', 'Design brief'], voice_script: ['نص الصوت', 'Voice script'],
+  const KIND = { insight: ['سياق ورصد', 'Context & listening'], copy: ['نصوص ومحتوى', 'Copy & content'], design_brief: ['بريف التصميم', 'Design brief'], 
     post: ['مسودة منشور', 'Post draft'], design_image: ['صورة التصميم', 'Design image'], voice_script: ['نص الفويس أوفر', 'Voiceover script'], voice_audio: ['تسجيل صوتي', 'Voice recording'], voice_srt: ['ترجمة SRT', 'SRT subtitles'], asset_missing: ['ملف ما انولّد', 'File not made'], motion_storyboard: ['موشن جرافيك (ستوري بورد)', 'Motion graphic (storyboard)'], compliance_report: ['تقرير الامتثال', 'Compliance report'], optimization: ['الميزانية والتحسين', 'Budget & optimization'], measurement: ['خطة القياس', 'Measurement plan'] };
   const KPI_EN = { ctr: 'Click rate', clickToLead: 'Click to lead', leadToClose: 'Lead to close', cpl: 'Cost per lead (max)', costShare: 'Cost of a close, share of its value (max)', roas: 'Return on spend', maturityDays: 'Lead age before judging its close' };
   const UNIT = { '%': '%', SAR: ['ريال', 'SAR'], '×': '×', day: ['يوم', 'days'] };
@@ -225,6 +225,8 @@ export function mountCampaign(root, me, L) {
     patch(d);
     // one timer for the screen: while the campaign is running (here or elsewhere) it asks again and patches; it stops with the screen
     cur.timer = setInterval(() => { if (!cur || cur.mine !== view) return clearInterval(cur?.timer); if (cur.looping || ['running', 'approved'].includes(cur.d.campaign.status)) refresh(); }, 2500);
+    // leaving the page (a tab switch without a reload) ends the timer too, not only opening another campaign
+    const timer = cur.timer; pageSignal().addEventListener('abort', () => clearInterval(timer), { once: true });
   }
 
   function openOverride(btn, tid) {

@@ -13,7 +13,8 @@ document.addEventListener('astro:after-swap', () => { document.documentElement.l
 
 // The English strings (~60 KB) are fetched only for English; Arabic, the default, needs none of them
 const { EN, PAT } = LANG === 'en'
-  ? await import('./i18n-en.js').then(m => ({ EN: m.EN, PAT: m.pat(t) }))
+  // if the English file cannot load (offline, a stale cache), the page still starts, in Arabic, instead of never mounting
+  ? await import('./i18n-en.js').then(m => ({ EN: m.EN, PAT: m.pat(t) })).catch(() => ({ EN: {}, PAT: [] }))
   : { EN: {}, PAT: [] };
 
 // Arabic-Indic digits (٠-٩ ٫ ٪ ٬) become the digits an English page uses

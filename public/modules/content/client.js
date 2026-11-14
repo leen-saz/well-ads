@@ -2,7 +2,8 @@
 import { $, api, say, esc, shell, busy, LANG, pageFailure, sectionTabs } from '/assets/common.js';
 import { marked, hitsHTML } from '/assets/compliance-ui.js';
 
-const ENGINE = { openai: 'ChatGPT', xai: 'Grok', 'workers-ai': 'ذكاء اصطناعي مجاني' };
+// The page says «ذكاء اصطناعي», never the vendor's name
+const ENGINE = { openai: 'ذكاء اصطناعي', xai: 'ذكاء اصطناعي', 'workers-ai': 'ذكاء اصطناعي' };
 
 // Runs on every visit of this page (assets/router.js calls it after each ClientRouter navigation).
 export default async function mount() {
