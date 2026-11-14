@@ -733,7 +733,9 @@ describe('«موشن جرافيك» in the campaign: a real motion project from 
   it('the plan may hold ONE motion task, only as a design task; the standard plan puts it after the design and the voice, before compliance', async () => {
     const { parsePlan } = await import('../../src/lib/campaign');
     const p = parsePlan(JSON.stringify({ title: 't', brief: {}, tasks: [{ agent: 'design', title: 'a' }, { agent: 'voice', title: 'b' }, { agent: 'design', title: 'موشن', kind: 'motion', after: [0, 1] }, { agent: 'design', title: 'ثاني', kind: 'motion' }, { agent: 'content', title: 'c', kind: 'motion' }] }))!;
-    expect(p.tasks.map(t => t.kind)).toEqual([undefined, undefined, 'motion', undefined, undefined]);
+    // the fixture has writers and no compliance task, so parsePlan appends one (last, not motion)
+    expect(p.tasks.map(t => t.kind)).toEqual([undefined, undefined, 'motion', undefined, undefined, undefined]);
+    expect(p.tasks.at(-1)!.agent).toBe('compliance');
     const { defaultTasks } = await import('../../src/lib/campaign-run');
     const d = defaultTasks(), mi = d.findIndex(x => x.kind === 'motion');
     expect(d[mi]!.agent).toBe('design'); expect(d[mi]!.after).toEqual([2, 3]); expect(d.findIndex(x => x.agent === 'compliance')).toBeGreaterThan(mi);

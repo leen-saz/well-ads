@@ -74,6 +74,16 @@ ${agents}
   return [{ role: 'system', content: sys }, { role: 'user', content: user }];
 }
 
+// The planner is told that every draft is checked by compliance before it is approved, but a model can forget the task. A plan that
+// writes something and has no compliance task gets one at the end, after every writing task (the per-task gate in the run is separate).
+const WRITERS: Agent[] = ['content', 'design', 'voice', 'social'];
+function ensureCompliance(tasks: PlanTask[]): void {
+  const writers = tasks.flatMap((t, i) => (WRITERS.includes(t.agent) ? [i] : []));
+  if (!writers.length || tasks.some(t => t.agent === 'compliance')) return;
+  if (tasks.length >= MAX_TASKS) { const last = tasks[tasks.length - 1]!; if (WRITERS.includes(last.agent)) return; tasks.pop(); }
+  tasks.push({ agent: 'compliance', title: AGENTS.compliance.ar, detail: 'فحص كل المسودات قبل الاعتماد', after: writers.filter(i => i < tasks.length) });
+}
+
 const list = (v: unknown, n: number, max: number): string[] => (Array.isArray(v) ? v.map(x => tidy(x, max)).filter(Boolean).slice(0, n) : []);
 // What the model returned -> a plan we trust: known agents only, capped, dependencies pointing back at earlier tasks.
 // Anything that is not a plan (or has no usable task) is an error, never a half plan.
@@ -89,6 +99,7 @@ export function parsePlan(text: string): Plan | null {
     tasks.push({ agent: t['agent'], title: tidy(t['title'], 120) || AGENTS[t['agent']].ar, detail: tidy(t['detail'], 600), after, ...(t['agent'] === 'design' && t['kind'] === 'motion' && !tasks.some(x => x.kind === 'motion') ? { kind: 'motion' as const } : {}) });
   }
   if (!tasks.length) return null;
+  ensureCompliance(tasks);
   const b = raw.brief ?? {};
   const questions: Question[] = (Array.isArray(b['questions']) ? (b['questions'] as Record<string, unknown>[]) : []).flatMap(x => {
     const q = tidy(x?.['q'], 240), assumption = tidy(x?.['assumption'], 300);
