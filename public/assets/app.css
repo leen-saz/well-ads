@@ -49,6 +49,7 @@ h1{font:700 30px/1.25 var(--f-display);margin:0}:lang(en) h1{letter-spacing:-.00
 h2{font:700 20px/1.35 var(--f-display);margin:0 0 12px}
 h3{font:700 15px/1.4 var(--f-ar);margin:0}
 svg.i{width:18px;height:18px;stroke:currentColor;fill:none;stroke-width:1.75;stroke-linecap:round;stroke-linejoin:round;flex:none}
+.skip-link{position:fixed;inset-block-start:8px;inset-inline-start:8px;z-index:200;padding:10px 16px;border-radius:10px;background:var(--accent);color:#fff;font-weight:600;transform:translateY(-200%);text-decoration:none}.skip-link:focus{transform:none}
 :focus-visible{outline:2px solid var(--accent);outline-offset:2px;box-shadow:0 0 0 4px var(--focus)}   /* the outline reads on any surface (3:1) and in forced colours; the glow alone did not */
 
 /* ---- الأزرار */

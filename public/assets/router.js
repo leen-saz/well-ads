@@ -5,8 +5,20 @@
 const ME = import.meta.url;
 if (window.__wlRouter && window.__wlRouter !== ME) location.reload();
 window.__wlRouter = ME;
+// WCAG 2.4.1 Bypass Blocks: the first Tab stop on a page jumps over the sidebar to the main content. It is drawn only
+// while focused (app.css .skip-link); the body is replaced on every navigation, so it is added again each time.
+function skipLink() {
+  const main = document.getElementById('content');
+  if (!main || document.querySelector('.skip-link')) return;
+  main.tabIndex = -1;
+  const a = document.createElement('a');
+  a.className = 'skip-link'; a.href = '#content';
+  a.textContent = document.documentElement.lang === 'en' ? 'Skip to main content' : 'انتقل إلى المحتوى';
+  document.body.prepend(a);
+}
 async function run() {
   if (window.__wlRouter !== ME) return;
+  skipLink();
   const name = document.body.dataset.page;
   if (!name || !/^[a-z]+$/.test(name)) return;
   // Tabs built as modules keep their script in public/modules/<name>/client.js (src/modules/README.md)
