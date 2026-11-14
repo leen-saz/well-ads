@@ -9,7 +9,6 @@ on:
       campaign:
         description: "Canary campaign name in Meta"
         required: true
-        default: "META_WP_Spark_25\\10"
 
 permissions:
   contents: read

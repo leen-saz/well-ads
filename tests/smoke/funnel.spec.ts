@@ -4,6 +4,7 @@ import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { test, expect, type Page } from '@playwright/test';
 import { login, addSession } from './helpers';
+import { settle } from './settle';
 
 type Row = [string, string, number, number, number, number, number];
 const fixture = JSON.parse(readFileSync(join(import.meta.dirname, '../parity/fixtures/ads.json'), 'utf8')) as { rows: Row[]; crm?: unknown };
@@ -49,7 +50,7 @@ test('the funnel draws four stages and three links, with a verdict, a line per s
 
 test('a platform changes the shape and the numbers; focus shows a stage\'s details', async ({ page, request }) => {
   const band = await open(page, request, withCrm());
-  await page.waitForTimeout(900);
+  await settle(page);   // the opening animation of the band has finished (no fixed sleep)
   const before = await band.getAttribute('d');
   await page.locator('[aria-label="المنصة"] button', { hasText: 'فيسبوك' }).click();
   await expect.poll(() => band.getAttribute('d')).not.toBe(before);
@@ -62,6 +63,7 @@ test('reduced motion: the new shape lands at once', async ({ page, request }) =>
   const band = await open(page, request, withCrm());
   await page.locator('[aria-label="المنصة"] button', { hasText: 'سناب شات' }).click();
   const first = await band.getAttribute('d');
+  // a negative check on purpose: with reduced motion the shape must not keep moving after it landed, so a short fixed look is the test itself
   await page.waitForTimeout(400);
   expect(await band.getAttribute('d')).toBe(first);
 });

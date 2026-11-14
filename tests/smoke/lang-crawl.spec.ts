@@ -11,10 +11,24 @@ import { join } from 'node:path';
 import { test, expect, type Page } from '@playwright/test';
 import { login, addSession } from './helpers';
 import { MODULES } from '../../src/modules/registry';
+import { nextPaint, settle } from './settle';
 
 const ROOT = join(import.meta.dirname, '..', '..');
 const OUT = join(ROOT, 'test-results', 'lang-crawl');
 const STRICT_ALL = process.env['LANG_CRAWL_STRICT'] === 'all';
+// Every page is checked strictly now (a leftover Arabic or Latin UI word fails the run). A page listed here still reports its leftovers in
+// report.md but cannot fail: add a route only with the reason, and remove it when the leftovers are gone.
+const LEFTOVERS_ALLOWED = new Set<string>([
+  // Proper nouns and test data the smoke fixtures put on the page, not UI text: a synthetic dashboard title, the synthetic owner's name and email,
+  // a hand-made user, a voice name with its locale
+  '/', '/account/', '/admin/', '/voice/',
+  // Real Latin technical words still in the Arabic UI (platform field names, API names, setup hints): the front-end fix PR for the code review
+  // (findings 18) removes them; drop each route from this list when its leftovers are gone so the check holds from then on
+  '/connectors/', '/control/', '/control/new/', '/knowledge/', '/maestro/health/',
+]);
+// A route that may render nothing. /soon/ draws only when some tab is marked "soon", and with none it is a blank page (no sidebar either):
+// an open bug of the page (public/assets/soon.js returns early), reported in the hygiene PR; remove the entry when it shows a message instead.
+const EMPTY_OK = new Set<string>(['/soon/']);
 
 // ---- The data: the parity fixture, with a made-up CRM block so every card has numbers
 type Row = [string, string, number, number, number, number, number];
@@ -106,7 +120,7 @@ async function exercise(page: Page, seen: Set<string>, lang: Lang) {
     // Never the language switch itself: it would turn the page into the other language mid-crawl
     if (LANG_SWITCH.test(label) || await el.evaluate(e => !!e.closest('[data-lang], #lang, .lang')).catch(() => false)) continue;
     await el.click({ timeout: 1500 }).catch(() => {});
-    await page.waitForTimeout(200);
+    await nextPaint(page);
     await grab();
     await page.keyboard.press('Escape').catch(() => {});
   }
@@ -115,7 +129,7 @@ async function exercise(page: Page, seen: Set<string>, lang: Lang) {
     const el = page.locator(sel).first();
     if (!(await el.isVisible().catch(() => false))) continue;
     await el.click({ timeout: 1500 }).catch(() => {});
-    await page.waitForTimeout(400);
+    await nextPaint(page);
     await grab();
     await page.keyboard.press('Escape').catch(() => {});
   }
@@ -149,11 +163,18 @@ test.afterAll(() => {
 
 async function check(name: string, lang: Lang, page: Page, open: () => Promise<void>) {
   const seen = new Set<string>();
+  // The last document response of the visit (after redirects) must be a real page: without this, a route that 404s or 500s would just
+  // report "no leftovers" because an error page has no strings to flag.
+  let status = 0;
+  page.on('response', r => { if (r.request().isNavigationRequest() && r.request().frame() === page.mainFrame()) status = r.status(); });
   await open();
   await page.waitForLoadState('networkidle').catch(() => {});
-  await page.waitForTimeout(700);
+  await settle(page);
   await exercise(page, seen, lang);
-  const strict = STRICT_ALL || PERFORMANCE.test(name);
+  expect(status, `${name} (${lang}) did not load: the last document answered ${status}`).toBeGreaterThan(0);
+  expect(status, `${name} (${lang}) did not load: the last document answered ${status}`).toBeLessThan(400);
+  if (!EMPTY_OK.has(name)) expect(await page.locator('body').innerText(), `${name} (${lang}) rendered an empty page`).not.toBe('');
+  const strict = STRICT_ALL || PERFORMANCE.test(name) || !LEFTOVERS_ALLOWED.has(name);
   mkdirSync(RESULTS, { recursive: true });
   writeFileSync(join(RESULTS, `${lang}-${name.replace(/[^a-z0-9]+/gi, '_')}.json`), JSON.stringify({ page: name, lang, strict, left: [...seen] }));
   if (strict) expect([...seen], `${lang === 'en' ? 'Arabic' : 'Latin UI words'} left on ${name} in ${lang}`).toEqual([]);

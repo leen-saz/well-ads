@@ -87,6 +87,14 @@ jobs:
           bucket="well-ads-files"; [ "$TARGET" = staging ] && bucket="well-ads-files-staging"
           if npx wrangler r2 bucket info "$bucket" >/dev/null 2>&1; then echo "$bucket exists"
           else npx wrangler r2 bucket create "$bucket"; fi
+      - name: The owner email secret exists (it is not in the public wrangler.jsonc)
+        run: |
+          # OWNER_EMAIL is a Worker secret per environment. Without it the Worker refuses every request (env() in src/lib/auth.ts),
+          # so stop here, before a deploy that would lock everyone out. Fix: docs/runbook.md, "Owner email".
+          if ! npx wrangler secret list --env "$TARGET" 2>/dev/null | grep -q '"OWNER_EMAIL"'; then
+            echo "::error title=OWNER_EMAIL::the $TARGET Worker has no OWNER_EMAIL secret. Run: npx wrangler secret put OWNER_EMAIL --env $TARGET"
+            exit 1
+          fi
       - name: Build for ${{ env.TARGET }}
         env:
           CLOUDFLARE_ENV: ${{ env.TARGET }}

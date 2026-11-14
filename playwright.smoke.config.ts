@@ -12,6 +12,9 @@ export default defineConfig({
   testDir: 'tests/smoke',
   testMatch: /.*\.spec\.ts/,
   timeout: 30_000,
+  // One retry in CI stays for now: with retries 0 a full local run failed 6 timing-sensitive tests (maestro CLS, period filter, buyer exec box, locked page,
+  // admin users) that all pass alone, so a hard 0 would turn machine load into red PRs. Flaky ones show as warnings in the run; the sleeps are gone from the
+  // specs that had them (tests/smoke/settle.ts). Set 0 once those six are fixed.
   retries: process.env['CI'] ? 1 : 0,
   reporter: process.env['CI'] ? 'github' : 'list',
   use: {
@@ -27,7 +30,7 @@ export default defineConfig({
       command: 'node tests/smoke/fake-supabase.mjs',
       env: { FAKE_PORT: String(FAKE), SMOKE_KEYS: [...CORE_KEYS, ...MODULE_KEYS].join(',') },
       url: `http://127.0.0.1:${FAKE}/ping`,
-      reuseExistingServer: !process.env['CI'],
+      reuseExistingServer: false,
     },
     {
       command: `node tests/smoke/prepare.mjs && sh tests/smoke/seed-r2.sh && npx wrangler dev ${CFG} --persist-to ${STATE} --port ${WORKER}`
@@ -37,7 +40,7 @@ export default defineConfig({
         + ` --var PAPERCLIP_URL:https://paperclip.example.test --var PAPERCLIP_TOKEN:smoke-paperclip-token`,
       url: `http://localhost:${WORKER}/api/health`,
       timeout: 120_000,
-      reuseExistingServer: !process.env['CI'],
+      reuseExistingServer: false,
     },
   ],
 });

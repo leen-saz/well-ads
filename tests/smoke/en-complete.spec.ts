@@ -4,6 +4,7 @@
 import { readFileSync } from 'node:fs';
 import { test, expect, type Page } from '@playwright/test';
 import { login, addSession } from './helpers';
+import { settle } from './settle';
 
 const sug = (id: number, o: Record<string, unknown> = {}) => ({ id, platform: 'meta', level: 'ad', kind: 'budget_up', target_id: `9${id}`, target_name: 'Smoke ad', campaign: 'Smoke campaign', params: { pct: 20 },
   evidence: { spend: 1840.5, leads: 61, cpl: 30.17, target_cpl: 45, ctr: 2.31, metric: 'leads' }, source: 'rule', status: 'open', created_at: '2026-11-10T08:00:00Z', critic: { ok: false, issues: ['smoke'] }, ...o });
@@ -57,12 +58,12 @@ test.describe('English leaves no Arabic', () => {
     await page.locator('#inbox tbody tr').first().waitFor();
     expect(await arabicLeft(page), 'inbox').toEqual([]);
     await page.locator('#inbox tbody tr').first().click();
-    await page.waitForTimeout(400);
+    await settle(page);
     expect(await arabicLeft(page), 'a suggestion opened').toEqual([]);
     await page.keyboard.press('Escape');
     for (const tab of ['log', 'learn', 'rules']) {
       await page.goto(`/control/?tab=${tab}&lang=en`);
-      await page.waitForTimeout(900);
+      await settle(page);
       expect(await arabicLeft(page), `tab ${tab}`).toEqual([]);
     }
   });
