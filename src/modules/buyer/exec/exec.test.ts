@@ -109,6 +109,9 @@ describe('adapters (fake platforms)', () => {
     await adapter.setStatus('campaign', 'c1', 'paused');
     expect((await adapter.read('campaign', 'c1'))!.status).toBe('paused');
   });
+  // Open until someone with a Snap sandbox/trial campaign records a real answer (docs/media-buyer/execution.md, "Snap: still unverified"):
+  // the fake above is hand-written, so it cannot prove that Snap accepts a PUT carrying read-only fields (created_at, updated_at, ...) read back from a GET.
+  it.todo('Snap: replay one RECORDED sandbox GET/PUT pair (synthetic ids) and send the PUT without read-only fields');
   it('Snap: an item-level failure is an error, not a silent success', async () => {
     const f = vi.fn(async (u: string) => String(u).includes('oauth2') ? new Response(JSON.stringify({ access_token: 't' })) : new Response(JSON.stringify({ request_status: 'SUCCESS', campaigns: [{ sub_request_status: 'ERROR' }] })));
     const a = snapAdapter({ SNAP_WRITE_CLIENT_ID: 'i', SNAP_WRITE_CLIENT_SECRET: 's', SNAP_WRITE_REFRESH_TOKEN: 'r', SNAP_WRITE_AD_ACCOUNT_ID: 'a' }, f as unknown as typeof fetch);

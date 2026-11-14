@@ -14,8 +14,8 @@ for (const lang of ['ar', 'en'] as const) {
     await page.route('**/api/overview/data*', r => r.fulfill({ status: 200, contentType: 'application/json', body: FIX }));
     await page.goto(`/overview/?lang=${lang}`);
     const next = page.getByLabel(w.next);
-    for (let i = 0; i < 8 && !(await next.count()); i++) { await page.mouse.wheel(0, 1500); await page.waitForTimeout(400); }
-    await next.waitFor({ state: 'attached', timeout: 30_000 });
+    // scroll until the pager is rendered (a lazy section), as a condition with a timeout instead of 8 fixed sleeps
+    await expect.poll(async () => { if (!(await next.count())) await page.mouse.wheel(0, 1500); return next.count(); }, { timeout: 30_000, intervals: [200, 400, 800] }).toBeGreaterThan(0);
     const pageNo = async () => Number(((await page.locator('[data-slot="card"]:has(thead button)').first().innerText()).match(/\d+(?= (?:of|من) \d+)/) || ['0'])[0]);
     expect(await pageNo()).toBe(1);
     await next.dispatchEvent('click');

@@ -21,7 +21,7 @@
       "list": [
         {
           "campaign_id": "1000000000000001",
-          "campaign_name": "Tiktok_Leads_WELL_iv",
+          "campaign_name": "Sample_TikTok_Leads_iv",
           "objective_type": "LEAD_GENERATION",
           "operation_status": "ENABLE"
         },
@@ -54,15 +54,15 @@
       "list": [
         {
           "advertiser_id": "7000000000000000001",
-          "ad_id": "1878109843378193",
+          "ad_id": "9000000000000000001",
           "ad_name": "Well lead video",
           "campaign_id": "1000000000000001",
-          "campaign_name": "Tiktok_Leads_WELL_iv",
+          "campaign_name": "Sample_TikTok_Leads_iv",
           "adgroup_id": "22",
           "adgroup_name": "Female2",
           "operation_status": "ENABLE",
           "secondary_status": "AD_STATUS_DELIVERY_OK",
-          "tiktok_item_id": "7692055113619442965",
+          "tiktok_item_id": "9000000000000000002",
           "ad_text": "فيتامينات وريدية"
         },
         {
@@ -70,7 +70,7 @@
           "ad_id": "555",
           "ad_name": "Old group",
           "campaign_id": "1000000000000001",
-          "campaign_name": "Tiktok_Leads_WELL_iv",
+          "campaign_name": "Sample_TikTok_Leads_iv",
           "adgroup_id": "23",
           "adgroup_name": "Paused group",
           "operation_status": "DISABLE",
@@ -82,7 +82,7 @@
           "ad_id": "556",
           "ad_name": "Looks delivering",
           "campaign_id": "1000000000000001",
-          "campaign_name": "Tiktok_Leads_WELL_iv",
+          "campaign_name": "Sample_TikTok_Leads_iv",
           "adgroup_id": "25",
           "adgroup_name": "Parent off",
           "operation_status": "ENABLE",
@@ -111,7 +111,7 @@
     "data": {
       "list": [
         {
-          "dimensions": {"ad_id": "1878109843378193", "stat_time_day": "2026-10-17 00:00:00"},
+          "dimensions": {"ad_id": "9000000000000000001", "stat_time_day": "2026-10-17 00:00:00"},
           "metrics": {
             "spend": "50.29",
             "impressions": "17367",
@@ -120,13 +120,13 @@
             "messaging_total_conversation_tiktok_direct_message": "2",
             "messaging_total_conversation_instant_messaging_app": "1",
             "ad_name": "Well lead video",
-            "campaign_name": "Tiktok_Leads_WELL_iv",
+            "campaign_name": "Sample_TikTok_Leads_iv",
             "adgroup_name": "Female2",
             "campaign_id": "1000000000000001"
           }
         },
         {
-          "dimensions": {"ad_id": "1878109843378193", "stat_time_day": "2026-10-15 00:00:00"},
+          "dimensions": {"ad_id": "9000000000000000001", "stat_time_day": "2026-10-15 00:00:00"},
           "metrics": {
             "spend": "0",
             "impressions": "0",
@@ -137,7 +137,7 @@
           }
         },
         {
-          "dimensions": {"ad_id": "1878109843378193", "stat_time_day": "2026-10-18 00:00:00"},
+          "dimensions": {"ad_id": "9000000000000000001", "stat_time_day": "2026-10-18 00:00:00"},
           "metrics": {
             "spend": "0.00",
             "impressions": "0",
@@ -184,7 +184,7 @@
             "clicks": "2",
             "conversion": "0.5",
             "ad_name": "Deleted creative",
-            "campaign_name": "Tiktok_Leads_WELL_iv",
+            "campaign_name": "Sample_TikTok_Leads_iv",
             "adgroup_name": "Archive",
             "campaign_id": "1000000000000001"
           }
@@ -218,7 +218,7 @@
     "data": {
       "list": [
         {
-          "dimensions": {"ad_id": "1878109843378193", "stat_time_day": "2026-10-17 00:00:00"},
+          "dimensions": {"ad_id": "9000000000000000001", "stat_time_day": "2026-10-17 00:00:00"},
           "metrics": {"spend": "10.00", "impressions": "100", "clicks": "4", "conversion": "1"}
         }
       ],

@@ -125,7 +125,7 @@ class OrganicTests(unittest.TestCase):
             if path.endswith("/me/accounts"):
                 return {"data": [{
                     "id": "111", "name": "Well Care.", "access_token": "PAGE",
-                    "instagram_business_account": {"id": "17841423912575723", "username": "wellcare.sa"},
+                    "instagram_business_account": {"id": "17840000000000001", "username": "wellcare.sa"},
                 }]}
             if path.endswith("/111/insights"):
                 raise RuntimeError(denied)
@@ -134,9 +134,9 @@ class OrganicTests(unittest.TestCase):
             if path.endswith("/111"):
                 self.assertEqual(token, "PAGE")
                 return {"name": "Well Care.", "followers_count": 1500, "fan_count": 1500}
-            if path.endswith("/17841423912575723/insights"):
+            if path.endswith("/17840000000000001/insights"):
                 raise RuntimeError(denied)
-            if path.endswith("/17841423912575723/media"):
+            if path.endswith("/17840000000000001/media"):
                 self.assertEqual(token, "PAGE")
                 return {"data": [{
                     "id": "m1", "caption": "عناية في البيت", "media_type": "IMAGE",
@@ -146,7 +146,7 @@ class OrganicTests(unittest.TestCase):
                     "timestamp": "2026-10-10T12:00:00+0000",
                     "like_count": 4, "comments_count": 1,
                 }]}
-            if path.endswith("/17841423912575723"):
+            if path.endswith("/17840000000000001"):
                 self.assertEqual(token, "PAGE")
                 return {"username": "wellcare.sa", "followers_count": 334, "media_count": 37}
             raise RuntimeError("unexpected " + path)
@@ -176,7 +176,7 @@ class OrganicTests(unittest.TestCase):
         self.assertEqual(post["date"], "2026-10-10")
         self.assertEqual(ig.get("days") or [], [])
         self.assertIsNone(ig.get("period"))
-        self.assertTrue(any(u.endswith("/17841423912575723/media") for u in seen))
+        self.assertTrue(any(u.endswith("/17840000000000001/media") for u in seen))
 
     def test_well_care_empty_body_is_awaiting_permission(self):
         import urllib.parse
@@ -347,7 +347,7 @@ class SpringRoseTests(unittest.TestCase):
         blob = {
             "ads": {
                 "t1": {"platform": "tiktok", "name": "Rose install", "campaign": "Demo | ad_demo_x1 | AppInstall", "group": "", "text": ""},
-                "t2": {"platform": "tiktok", "name": "Well lead", "campaign": r"Tiktok_Leads_WELL_iv_20\8", "group": "", "text": ""},
+                "t2": {"platform": "tiktok", "name": "Well lead", "campaign": r"Sample_TikTok_Leads_iv_20\8", "group": "", "text": ""},
                 "m1": {"platform": "facebook", "name": "قابلة", "campaign": "IV", "group": "", "text": ""},
             },
             "rows": [
@@ -381,7 +381,7 @@ class SpringRoseTests(unittest.TestCase):
             "metrics": {"spend": "50.00", "impressions": "100", "clicks": "3", "conversion": "1"},
         }]}}
         prev = {
-            "ads": {"t2": {"platform": "tiktok", "name": "Well lead", "campaign": "Tiktok_Leads_WELL", "group": "", "text": "", "live": False}},
+            "ads": {"t2": {"platform": "tiktok", "name": "Well lead", "campaign": "Sample_TikTok_Leads", "group": "", "text": "", "live": False}},
             "rows": [["t2", "2026-09-01", 10, 5, 1, 0, 0]],
             "objectives": {},
         }
