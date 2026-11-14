@@ -73,6 +73,17 @@ class SyncTests(unittest.TestCase):
         state = [w for w in db.writes if "crm_sync_state" in w[0]][0][1][0]
         self.assertEqual(state["last_updated_at"], "2026-10-31T09:00:00Z")
 
+    def test_rows_without_updated_at_do_not_crash_the_run_or_move_the_cursor_back(self):
+        """Mock data only. A page with no updated_at used to raise after its rows were stored, so the sync state never saved."""
+        def get(url, key):
+            return {"data": [dict(row(1, None)), dict(row(2, ""))], "page": {"next_cursor": None}}
+
+        db = Db([{"last_updated_at": "2026-10-31T09:00:00+00:00"}])
+        total, newest = fetch.sync("k", now=NOW, get=get, transport=db)
+        self.assertEqual(total, 2 * 2)  # the incremental filter and the daily full pass each return the page
+        self.assertEqual(newest, "2026-10-31T09:00:00+00:00")  # unchanged
+        self.assertEqual(len([w for w in db.writes if "crm_sync_state" in w[0]]), 1)  # the state was still saved
+
     def test_next_runs_use_updated_since(self):
         seen = []
 

@@ -112,8 +112,10 @@ def sync(key, now=None, get=http_get, transport=None):
                 "POST", "/rest/v1/crm_leads?on_conflict=lead_id", [record(r) for r in rows],
                 extra_headers={"Prefer": "resolution=merge-duplicates,return=minimal"}, transport=transport)
             total += len(rows)
-            top = max(r["updated_at"] for r in rows if r.get("updated_at"))
-            newest = top if not newest or top > str(newest) else newest
+            # A page whose rows carry no updated_at must not crash the run after its rows were already stored
+            top = max((r["updated_at"] for r in rows if r.get("updated_at")), default=None)
+            if top and (not newest or top > str(newest)):
+                newest = top
     supabase_store._request(
         "POST", "/rest/v1/crm_sync_state?on_conflict=id",
         [{"id": 1, "last_updated_at": newest, "last_run_at": now.isoformat(), "rows_last_run": total}],
