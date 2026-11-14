@@ -77,6 +77,13 @@ describe('media buyer rules', () => {
     const r = recommend(base({ ads: [ad('m1', 'meta', 'c1')], metrics: series('m1', 27, 0, () => [T.cpl * 0.4, 6000, 120, 1]) }));
     expect(ids(r)).toContain('page_leak');
   });
+  it('flags a click rate far under target, only with enough clicks and a judge that agrees', () => {
+    const low = (clicks: number) => recommend(base({ ads: [ad('m1', 'meta', 'c1')], metrics: series('m1', 27, 0, () => [T.cpl * 0.4, 20000, clicks, 2]) }));
+    const weak = low(40), tiny = low(20);                      // 0.2% against the target, on 280 clicks a week; 140 clicks is under the 200 minimum
+    expect(ids(weak)).toContain('low_ctr'); expect(weak.recs.find(x => x.rule === 'low_ctr')!.kind).toBe('refresh_creative');
+    expect(ids(tiny)).not.toContain('low_ctr');
+    expect(ids(recommend(base({ ads: [ad('m1', 'meta', 'c1')], metrics: good('m1') })))).not.toContain('low_ctr');   // a healthy click rate stays quiet
+  });
   it('moves budget between platforms only with a sample on both', () => {
     const m = [...series('m1', 27, 0, () => [T.cpl * 9.6, 12000, 240, 6]), ...series('s1', 27, 0, () => [T.cpl * 3, 12000, 240, 6])];
     const s = recommend(base({ ads: [ad('m1', 'meta', 'c1'), ad('s1', 'snap', 'c2')], metrics: m })).recs.find(x => x.rule === 'shift_budget')!;
