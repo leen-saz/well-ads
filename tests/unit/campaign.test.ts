@@ -51,9 +51,22 @@ describe('the wishes', () => {
 describe('parsePlan', () => {
   it('keeps known agents only, caps tasks, and points dependencies only at earlier tasks', () => {
     const p = parsePlan(JSON.stringify({ title: 't', brief: {}, tasks: [{ agent: 'content', title: 'a', after: [5, 0] }, { agent: 'publish_to_meta', title: 'x' }, { agent: 'social', title: 'b', after: [0, 0, 1] }] }))!;
-    expect(p.tasks.map(t => t.agent)).toEqual(['content', 'social']);
+    expect(p.tasks.map(t => t.agent)).toEqual(['content', 'social', 'compliance']);
     expect(p.tasks[0]!.after).toEqual([]); expect(p.tasks[1]!.after).toEqual([0]);
     expect(parsePlan(JSON.stringify({ tasks: Array.from({ length: 40 }, () => ({ agent: 'content', title: 'x' })) }))!.tasks).toHaveLength(14);
+  });
+  it('a plan that writes drafts but forgot compliance gets one after every writing task; a plan that has one is left alone', () => {
+    const p = parsePlan(JSON.stringify({ tasks: [{ agent: 'knowledge', title: 'k' }, { agent: 'content', title: 'c', after: [0] }, { agent: 'social', title: 's', after: [1] }, { agent: 'optimize', title: 'o' }] }))!;
+    expect(p.tasks.map(t => t.agent)).toEqual(['knowledge', 'content', 'social', 'optimize', 'compliance']);
+    expect(p.tasks[4]!.after).toEqual([1, 2]);
+    const q = parsePlan(JSON.stringify({ tasks: [{ agent: 'content', title: 'c' }, { agent: 'compliance', title: 'x', after: [0] }] }))!;
+    expect(q.tasks).toHaveLength(2);
+    expect(parsePlan(JSON.stringify({ tasks: [{ agent: 'knowledge', title: 'k' }, { agent: 'optimize', title: 'o' }] }))!.tasks).toHaveLength(2);
+  });
+  it('at the task cap the missing compliance task takes the place of a non-writing last task, never of a draft', () => {
+    const full = (last: string) => parsePlan(JSON.stringify({ tasks: [...Array.from({ length: 13 }, () => ({ agent: 'content', title: 'x' })), { agent: last, title: 'y' }] }))!;
+    const a = full('optimize'); expect(a.tasks).toHaveLength(14); expect(a.tasks[13]!.agent).toBe('compliance'); expect(a.tasks[13]!.after).toHaveLength(13);
+    expect(full('social').tasks.some(t => t.agent === 'compliance')).toBe(false);
   });
   it('is null for anything that is not a usable plan', () => {
     expect(parsePlan('مرحبا')).toBeNull(); expect(parsePlan('{"tasks":[]}')).toBeNull(); expect(parsePlan('{"tasks":[{"agent":"hack"}]}')).toBeNull();
