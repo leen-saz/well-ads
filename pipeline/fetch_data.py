@@ -23,7 +23,9 @@ from classify import apply_all, public_config
 from common import env, error_code, google_ads_headers, http, retry_call, sar_factor
 from organic import collect_organic, clip as clip_err
 from tiktok.fetch import ingest_tiktok
+from tiktok.merge import exclusion_state
 import audience
+import validate_dash
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 DATA_PATH = os.path.join(HERE, "data.json")
@@ -696,19 +698,32 @@ def main():
     # ---------------- TikTok (Marketing API، والفرع tiktok-data احتياط) ----------------
     TT_PATH = os.environ.get("TIKTOK_DATA", os.path.join(HERE, "tiktok-data", "tiktok.json"))
     pending = [{"platform": "tiktok", "reason": "بيانات تيك توك غير متوفرة"}]
-    got = ingest_tiktok(
-        E, PREV, RECENT, FROM, TO, ds(TODAY), TT_PATH, http, datetime.now(RIYADH),
-        lambda prev_ads, fresh: carry_forward(prev_ads, fresh, "t"), audience_due=aud_fresh,
-    )
-    if got["ads"]:
-        ADS.update(got["ads"])
-    if got["rows"]:
-        ROWS += got["rows"]
-    if got["status"]:
-        status["tiktok"] = got["status"]
-    tiktok_blob = got["organic_blob"]
-    if not got["pending"]:
-        pending = []
+    if exclusion_state() == "missing":
+        # Fail closed: without the two exclusion secrets (or the explicit opt-out TIKTOK_EXCLUSION_DISABLED=true) the other
+        # company's account would not be filtered, so nothing new is read for TikTok. The previous numbers stay, marked stale.
+        stale = None
+        if PREV:
+            ROWS += [r for r in PREV.get("rows", []) if r[0][0] == "t"]
+            ADS.update({k: v for k, v in PREV.get("ads", {}).items() if k[0] == "t"})
+            ps = PREV.get("platforms", {}).get("tiktok", {})
+            stale = ps.get("stale_from") or (PREV.get("generated_at") if ps.get("ok") else None)
+        status["tiktok"] = {"ok": False, "error": "exclusion_not_configured", "stale_from": stale}
+        print("tiktok: لا أسرار الاستبعاد (TIKTOK_EXCLUDED_*) ولا TIKTOK_EXCLUSION_DISABLED=true، نبقي البيانات السابقة", file=sys.stderr)
+        tiktok_blob, pending = None, []
+    else:
+        got = ingest_tiktok(
+            E, PREV, RECENT, FROM, TO, ds(TODAY), TT_PATH, http, datetime.now(RIYADH),
+            lambda prev_ads, fresh: carry_forward(prev_ads, fresh, "t"), audience_due=aud_fresh,
+        )
+        if got["ads"]:
+            ADS.update(got["ads"])
+        if got["rows"]:
+            ROWS += got["rows"]
+        if got["status"]:
+            status["tiktok"] = got["status"]
+        tiktok_blob = got["organic_blob"]
+        if not got["pending"]:
+            pending = []
 
     _FAM = {"m": "meta", "g": "google", "s": "snap", "t": "tiktok"}
     for k in {r[0] for r in ROWS} - set(ADS):
@@ -741,6 +756,13 @@ def main():
     json.dump(data, open(tmp, "w", encoding="utf-8"), ensure_ascii=False, separators=(",", ":"))
     os.replace(tmp, DATA_PATH)
     json.dump(CACHE, open(CACHE_PATH, "w", encoding="utf-8"), ensure_ascii=False)
+    if supa_on and supabase_store is not None:
+        # validate BEFORE the database write: a bad pull must not be persisted while the site keeps the old pages
+        problems = validate_dash.validate(data, min_ads=1, min_rows=1)
+        gone = validate_dash.vanished_platforms(data, PREV)
+        if problems or gone:
+            print("supabase: لن يُحفظ هذا السحب —", "; ".join(problems) or "", ("منصات اختفى صرفها: " + ",".join(gone)) if gone else "", file=sys.stderr)
+            supa_on = False
     if supa_on and supabase_store is not None:
         try:
             ok_prefixes = [name[0] for name in ("meta", "google", "snap", "tiktok") if status.get(name, {}).get("ok")]

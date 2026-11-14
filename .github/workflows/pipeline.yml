@@ -42,6 +42,8 @@ jobs:
         env:
           SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
           SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+          TIKTOK_EXCLUDED_ADVERTISER_IDS: ${{ secrets.TIKTOK_EXCLUDED_ADVERTISER_IDS }}
+          TIKTOK_EXCLUDED_MARKERS: ${{ secrets.TIKTOK_EXCLUDED_MARKERS }}
         run: python export_data.py
       # Phase 4.1: the same pages the live site serves (build.py), so staging shows identical numbers
       - name: Build the dashboards (build.py)
@@ -50,6 +52,8 @@ jobs:
         env:
           SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
           SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+          TIKTOK_EXCLUDED_ADVERTISER_IDS: ${{ secrets.TIKTOK_EXCLUDED_ADVERTISER_IDS }}
+          TIKTOK_EXCLUDED_MARKERS: ${{ secrets.TIKTOK_EXCLUDED_MARKERS }}
         run: |
           set -euo pipefail
           pip install --disable-pip-version-check -q "Pillow==11.3.0"

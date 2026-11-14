@@ -10,6 +10,7 @@ import base64, hashlib, json, os, re, sys
 
 import supabase_store
 from media import organic_posts
+from tiktok.merge import without_excluded
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 
@@ -44,6 +45,10 @@ def export(out_path, transport=None, thumbs_dir=None):
     data = supabase_store.load_bundle(transport=transport)
     if not data or not data.get("ads") or not data.get("rows"):
         raise RuntimeError("supabase has no dashboard data (ads/rows empty)")
+    # the other company's TikTok account must not reach the staging bucket even if a row of it was ever stored
+    data = without_excluded(data)
+    if not data.get("ads") or not data.get("rows"):
+        raise RuntimeError("supabase has no dashboard data after the exclusion")
     if thumbs_dir:
         os.makedirs(thumbs_dir, exist_ok=True)
         for ad in data["ads"].values():

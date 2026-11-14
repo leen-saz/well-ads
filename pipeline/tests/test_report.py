@@ -280,9 +280,10 @@ class BillingTests(unittest.TestCase):
         self.assertIn("metricText", html)
         self.assertIn("بانتظار الصلاحية", html)
         self.assertIn("Awaiting permission", html)
-        self.assertIn("6948010864247046146", html)
-        self.assertIn("spring rose0406", html)
-        self.assertIn("زهرة الربيع", html)
+        # the other company's account is excluded on the server only: no id or marker ships in the page
+        self.assertNotIn("6948010864247046146", html)
+        self.assertNotIn("spring rose", html.lower())
+        self.assertNotIn("زهرة الربيع", html)
         self.assertIn("function careBlocked", html)
         self.assertIn("page.name==='Well Care.'", html)
         self.assertIn("ORG_FB_HIDDEN", html)
@@ -338,12 +339,12 @@ class BillingTests(unittest.TestCase):
                 open(data_path, "w", encoding="utf-8").write(previous)
 
 
-class SpringRoseTests(unittest.TestCase):
+class ExcludedAccountTests(unittest.TestCase):
     def test_account_and_named_ads_drop_out_of_spend(self):
-        from tiktok.merge import is_spring_rose_account, without_spring_rose
-        self.assertTrue(is_spring_rose_account("7000000000000000002", "ACME Demo Co"))
-        self.assertTrue(is_spring_rose_account("", "شركة العرض التجريبي"))
-        self.assertFalse(is_spring_rose_account("7000000000000000001", "Well"))
+        from tiktok.merge import is_excluded_account, without_excluded
+        self.assertTrue(is_excluded_account("7000000000000000002", "ACME Demo Co"))
+        self.assertTrue(is_excluded_account("", "شركة العرض التجريبي"))
+        self.assertFalse(is_excluded_account("7000000000000000001", "Well"))
         blob = {
             "ads": {
                 "t1": {"platform": "tiktok", "name": "Rose install", "campaign": "Demo | ad_demo_x1 | AppInstall", "group": "", "text": ""},
@@ -356,11 +357,14 @@ class SpringRoseTests(unittest.TestCase):
                 ["m1", "2026-10-01", 9, 10, 1, 1, 0],
             ],
         }
-        out = without_spring_rose(blob)
+        out = without_excluded(blob)
         self.assertEqual(set(out["ads"]), {"t2", "m1"})
         self.assertEqual([r[0] for r in out["rows"]], ["t2", "m1"])
         self.assertAlmostEqual(sum(r[2] for r in out["rows"]), 13.0)
-        whole = without_spring_rose({
+        # a deleted ad (its row has no entry in `ads`) keeps its spend: only excluded ads lose their rows
+        gone = without_excluded({"ads": {"t2": blob["ads"]["t2"]}, "rows": [["t2", "2026-10-01", 4, 10, 1, 1, 0], ["t_deleted", "2026-10-01", 7, 10, 1, 0, 0]]})
+        self.assertEqual([r[0] for r in gone["rows"]], ["t2", "t_deleted"])
+        whole = without_excluded({
             "advertiser_id": "7000000000000000002",
             "advertiser_name": "ACME Demo Co",
             "ads": {"t9": {"platform": "tiktok", "name": "plain", "campaign": "purchase", "group": "", "text": ""}},
@@ -369,7 +373,7 @@ class SpringRoseTests(unittest.TestCase):
         self.assertEqual(whole["ads"], {})
         self.assertEqual(whole["rows"], [])
 
-    def test_merge_keeps_well_and_skips_spring_rose_pull(self):
+    def test_merge_keeps_well_and_skips_excluded_pull(self):
         import tempfile
         rose_ads = {"data": {"list": [{
             "ad_id": "9", "advertiser_id": "7000000000000000002", "advertiser_name": "ACME Demo Co",
