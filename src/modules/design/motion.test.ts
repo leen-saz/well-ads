@@ -29,6 +29,16 @@ describe('the plan', () => {
     expect(cleanSpec('nope', 10, '1:1')).toBeNull();
   });
 
+  it('holds a model caption shorter than 1.5 seconds up to 1.5 when the gap allows, and never past the next scene or the voice', () => {
+    const s = cleanSpec({ scenes: [
+      { from: 0, to: 1, text: 'واحد' }, { from: 3, to: 4, text: 'اثنين' }, { from: 4.8, to: 5.6, text: 'ثلاثة' }, { from: 9, to: 9.7, text: 'أخير' },
+    ] }, 10, '9:16')!;
+    expect(s.scenes.map(x => [x.from, x.to])).toEqual([[0, 1.5], [3, 4.5], [4.8, 6.3], [9, 10]]);
+    // no room (next scene starts 0.6s later): the caption stops where the next starts, and is dropped only when under half a second
+    const t = cleanSpec({ scenes: [{ from: 0, to: 0.6, text: 'أ' }, { from: 1, to: 2.5, text: 'ب' }] }, 10, '1:1')!;
+    expect(t.scenes.map(x => [x.from, x.to])).toEqual([[0, 1], [1, 2.5]]);
+  });
+
   it('builds v1 from a template without a model, spread over the voice, in brand colours', () => {
     const s = templateSpec({ headline: 'المحاليل في بيتك', script: 'نجيك البيت. ممرضة مرخصة؟ احجز اليوم.', seconds: 12, ratio: '1:1', colors: ['#7E57FD'] })!;
     expect(s.scenes.map(x => x.text)).toEqual(['المحاليل في بيتك', 'نجيك البيت.', 'ممرضة مرخصة؟', 'احجز اليوم.']);
