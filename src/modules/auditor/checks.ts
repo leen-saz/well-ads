@@ -51,13 +51,16 @@ export function integrity(c: Claim, f: Facts, cfg: AuditConfig): Run {
   }
 
   // 3. The rates multiply to the end to end rate. ctr × click→result × close rate = booked / impressions ÷ coverage, an
-  // identity of the raw counts: a wrong figure in any of the three breaks it.
+  // identity of the raw counts: a wrong figure in any of the three breaks it. Each quoted rate may be off by cfg.tol
+  // (rounding), so the true end to end rate must lie between the products of the three rates moved down and up by tol;
+  // outside that band at least one figure is wrong. (A fixed absolute slack here was loose on low rates and tight on high ones.)
   const q = Object.fromEntries(c.steps.map(s => [s.key, s])) as Partial<Record<StepKey, ClaimStep>>;
   const a = q.click, b = q.lead, d = q.sale;
   if (a?.now != null && b?.now != null && d?.now != null && !d.unattributed && f.scope.impr > 0 && f.crm.coverage != null) {
     r.checked++;
-    const product = (a.now / 100) * (b.now / 100) * (d.now / 100), end = f.crm.booked / f.scope.impr / f.crm.coverage;
-    if (Math.abs(product - end) > Math.max(2e-4 * end, 1e-9) + 2e-7)
+    const rs = [a.now, b.now, d.now], end = f.crm.booked / f.scope.impr / f.crm.coverage;
+    const lo = rs.reduce((x, v) => x * Math.max(0, v - cfg.tol) / 100, 1), hi = rs.reduce((x, v) => x * (v + cfg.tol) / 100, 1);
+    if (end < lo * (1 - 1e-9) || end > hi * (1 + 1e-9))
       bad(r, { id: 'chain_product', kind: 'consistency', effect: 'contradicts', step: 'verdict',
         text: { ar: 'نسب الرحلة (النقر × ليد × إقفالة) ما تتضارب لتعطي النسبة من الظهور للإقفالة. رقم واحد على الأقل غلط.',
           en: 'The journey rates (click × lead × closing) do not multiply to the impression-to-closing rate. At least one figure is wrong.' } });
