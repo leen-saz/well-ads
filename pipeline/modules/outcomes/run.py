@@ -4,6 +4,7 @@ import sys, urllib.parse
 from datetime import date, datetime, timedelta, timezone
 
 from modules.core import load_data, base_key, PREFIX
+from modules.core.clock import riyadh_today
 from modules.core.supa import Supa
 
 PRE = {v: k for k, v in PREFIX.items()}
@@ -44,7 +45,7 @@ def main():
         print("outcomes: بدون Supabase")
         return
     try:
-        data, today = load_data(), date.today()
+        data, today = load_data(), riyadh_today()
         since = (datetime.now(timezone.utc) - timedelta(days=30)).isoformat()
         decided = db.req("/rest/v1/suggestions?select=id,platform,level,target_id,kind,status,decided_at&status=in.(approved,modified,rejected,executed)&decided_at=gte." + urllib.parse.quote(since) + "&limit=1000") or []
         have = {(o["suggestion_id"], o["day"]) for o in (db.req("/rest/v1/outcomes?select=suggestion_id,day&limit=5000") or [])}
@@ -54,6 +55,7 @@ def main():
         print(f"outcomes: {len(new)} نتيجة جديدة")
     except Exception as ex:
         print("outcomes: ما اشتغل —", str(ex)[:200], file=sys.stderr)
+        sys.exit(1)
 
 
 if __name__ == "__main__":
