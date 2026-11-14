@@ -3,6 +3,7 @@
 import { WorkflowEntrypoint, type WorkflowEvent, type WorkflowStep } from 'cloudflare:workers';
 import { env as cfgOf, sb, type AuthEnv } from '../../lib/auth';
 import { WELL_COMPANY } from '../../lib/tenant';
+import { killOn } from '../../lib/guardrails';
 import { send, type Contact, type Step } from './journeys';
 
 export interface JourneyParams { runId: number; companyId: string; steps: Step[]; contact: Contact }
@@ -15,6 +16,8 @@ export class JourneyRun extends WorkflowEntrypoint<AuthEnv, JourneyParams> {
     for (const [i, s] of steps.entries()) {
       if (s.type === 'wait') { await step.sleep(`wait-${i}`, `${s.hours} hours`); continue; }
       const r = await step.do(`send-${i}`, { retries: { limit: 3, delay: '1 minute', backoff: 'exponential' } }, async () => {
+        // The emergency stop also stops the messages of runs already waiting between steps
+        if (await killOn(cfg)) return { ok: false, error: 'زر الطوارئ شغّال' };
         // Platform tokens: the vault holds Well's today; per-company vault names come with ADR-0006's next step
         const v = companyId === WELL_COMPANY ? await sb<{ name: string; value: string }[]>(cfg, '/rest/v1/rpc/connector_env', { method: 'POST', admin: true, body: {} }) : null;
         const t = Object.fromEntries((v?.ok && Array.isArray(v.data) ? v.data : []).map(x => [x.name, x.value]));

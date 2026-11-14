@@ -73,7 +73,8 @@ export const list = {
 const MAX = 20000; // a service account JSON is a few thousand characters
 export const save = {
   POST: handle(async (request, e) => {
-    const { cfg, user } = await requireUser(request, e, 'connectors', { write: true, well: true });
+    // Replacing an ad platform's keys or account ids changes what the hourly pull reads: an approval, not an edit
+    const { cfg, user } = await requireUser(request, e, 'connectors', { write: true, approve: true, well: true });
     const body = await readJson(request, 100000);
     const p = byId(body.platform);
     if (!p || p.mcp) return json(400, { error: 'منصة غير معروفة' });
@@ -98,7 +99,7 @@ export const save = {
 // ---- disconnect: wipes the platform's values and status. The pipeline falls back to old GitHub secrets if any.
 export const disconnect = {
   POST: handle(async (request, e) => {
-    const { cfg, user } = await requireUser(request, e, 'connectors', { write: true, well: true });
+    const { cfg, user } = await requireUser(request, e, 'connectors', { write: true, approve: true, well: true });
     const p = byId((await readJson(request)).platform);
     if (!p) return json(400, { error: 'منصة غير معروفة' });
     await dropPlatform(cfg, user, p);
@@ -125,7 +126,7 @@ async function startMcp(request: Request, cfg: Cfg, uid: string, platform: strin
 
 export const start = {
   GET: handle(async (request, e) => {
-    const { cfg, user } = await requireUser(request, e, 'connectors', { well: true, write: true });
+    const { cfg, user } = await requireUser(request, e, 'connectors', { well: true, write: true, approve: true });
     const p = byId(new URL(request.url).searchParams.get('platform'));
     const o = p ? OAUTH[p.id] : undefined;
     if (!p || !o) return html(400, 'المنصة ما تدعم زر الربط.');
@@ -173,7 +174,7 @@ export const callback = {
     if (q.get('error') || q.get('denied') || !(v1 ? q.get('oauth_verifier') : code)) return back(`/connectors/?err=denied&p=${encodeURIComponent(st.p)}`, true);
     const profile = await loadProfile(cfg, st.uid);
     const user = profile && profile.active !== false ? sessionFor(profile, cfg) : null;
-    if (!user || user.co !== WELL_COMPANY || !p || !o || !atLeast(user, 'connectors', 'edit', cfg)) return back('/connectors/?err=access', true);
+    if (!user || user.co !== WELL_COMPANY || !p || !o || !atLeast(user, 'connectors', 'approve', cfg)) return back('/connectors/?err=access', true);
     if (o.mcpOAuth) {
       // TikTok MCP: the code + the PKCE verifier from the nonce cookie + the client id from the signed state
       try {

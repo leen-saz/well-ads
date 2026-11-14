@@ -1,6 +1,6 @@
 // /api/social/*: the post calendar of the user's company. Reads need the `social` dashboard, writes are same-origin.
 // Publishing itself runs from the Worker cron (src/modules/social/cron.ts), never from the browser.
-import { sb, json, readJson, handle, requireUser, audit, isOwner, levelsOf, type Cfg, type Profile } from '../../lib/auth';
+import { sb, json, readJson, handle, requireUser, audit, isOwner, levelsOf, atLeast, NO_APPROVE, type Cfg, type Profile } from '../../lib/auth';
 import { scoped, WELL_COMPANY } from '../../lib/tenant';
 import { SOCIAL, readiness, validate, canApprove, cleanApprovers, suggestPrompt, cleanSuggestion, retryPlan, checkConnection, type SocialPlatform, type Results } from './social';
 import { saveValues } from '../../lib/vault';
@@ -97,6 +97,8 @@ export const posts = {
     const act = String(body.action || '');
     if (!id || !['approve', 'cancel', 'retry'].includes(act)) return json(400, { error: 'طلب غير صحيح' });
     if (act === 'approve' || act === 'retry') {
+      // Being on the approvers list is not enough: the person must still hold «approve» on Social today (a lowered level loses it)
+      if (!atLeast(user, 'social', 'approve', cfg)) return json(403, { error: NO_APPROVE });
       const list = await approversOf(cfg, user.co);
       if (!canApprove(user.email, list, isOwner(user, cfg))) return json(403, { error: ONLY(list) });
     }

@@ -46,14 +46,17 @@ describe('1. signed tokens carry a type', () => {
   });
 });
 
-describe('2. connecting a platform needs edit level', () => {
+describe('2. connecting a platform needs approve level', () => {
   const fake = (p: A.Profile) => { const calls: string[] = []; vi.stubGlobal('fetch', vi.fn(async (u: string) => { calls.push(String(u)); return new Response(JSON.stringify(String(u).includes('/profiles?id=eq.') ? [p] : [])); })); return calls; };
   const start = async (p: A.Profile) => api.request('https://well.example/api/connectors/start?platform=meta', { headers: { cookie: await cookieOf(p), 'sec-fetch-site': 'same-origin' } }, E);
-  it('start: a view-only user is refused, an editor gets past the permission check', async () => {
+  it('start: view-only and edit-only users are refused, an approver gets past the permission check', async () => {
     fake(viewer);
     expect((await start(viewer)).status).toBe(403);
     fake(editor);
-    expect((await start(editor)).status).toBe(400); // no app keys in this test env: past the permission check
+    expect((await start(editor)).status).toBe(403);   // changing an ad platform's keys is an approval, not an edit
+    const approver = { ...editor, id: '66666666-6666-6666-6666-666666666666', email: 'approver@example.com', access: { connectors: 'approve' } } as A.Profile;
+    fake(approver);
+    expect((await start(approver)).status).toBe(400); // no app keys in this test env: past the permission check
   });
   it('callback: a view-only user with a valid state saves nothing', async () => {
     const calls = fake(viewer);

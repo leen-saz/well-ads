@@ -27,6 +27,7 @@ interface World {
   camp: { id: string; name: string; status: string; daily_budget: string };
   platformCalls: { url: string; method: string; body: string; auth: string | null }[];
   duplicateCampaign: boolean;
+  settingsPatches: number; beforePatch?: (() => void) | undefined; afterClaim?: (() => void) | undefined;
 }
 let W: World;
 let profile: Profile;
@@ -34,7 +35,7 @@ const writes = () => W.platformCalls.filter(c => c.method !== 'GET');
 
 function fresh(): World {
   return {
-    actions: [], audit: [], platformCalls: [], duplicateCampaign: false,
+    actions: [], audit: [], platformCalls: [], duplicateCampaign: false, settingsPatches: 0,
     settings: [{ platform: 'global', guardrails: { kill: false, exec: { dailyCap: 50 } } }, { platform: 'meta', guardrails: { exec: { live: true } } }],
     camp: { id: '111', name: 'TEST_C1', status: 'ACTIVE', daily_budget: '10000' },   // 100.00 in the account currency
   };
@@ -72,8 +73,25 @@ function install() {
     if (table === 'profiles') return json([profile]);
     if (table === 'audit_log') { W.audit.push(JSON.parse(body)); return json(null); }
     if (table === 'control_settings') {
-      if (method === 'POST') { const b = JSON.parse(body) as Row; const i = W.settings.findIndex(s => s.platform === b.platform); if (i >= 0) W.settings[i] = { ...W.settings[i], ...b }; else W.settings.push(b); return json(null); }
-      return json(W.settings);
+      const plat = q.get('platform')?.replace(/^eq\./, '');
+      if (method === 'POST') {
+        const b = JSON.parse(body) as Row, i = W.settings.findIndex(s => s.platform === b.platform);
+        if (i >= 0 && !(init.headers as Record<string, string> | undefined)?.Prefer?.includes('ignore-duplicates')) W.settings[i] = { ...W.settings[i], ...b }; else if (i < 0) W.settings.push(b);
+        return json(null);
+      }
+      if (method === 'PATCH') {
+        // the optimistic check: only the row that still has the `updated_at` the writer read is changed
+        const row = W.settings.find(s => s.platform === plat), at = q.get('updated_at') ?? '';
+        const same = row && (at === 'is.null' ? row.updated_at == null : at === `eq.${row.updated_at}`);
+        W.settingsPatches++;
+        if (W.beforePatch) { const f = W.beforePatch; W.beforePatch = undefined; f(); }   // a parallel writer gets in first (race tests)
+        const again = W.settings.find(s => s.platform === plat);
+        const still = again && (at === 'is.null' ? again.updated_at == null : at === `eq.${again.updated_at}`);
+        if (!row || !same || !still) return json([]);
+        Object.assign(again, JSON.parse(body));
+        return json([again]);
+      }
+      return json(plat ? W.settings.filter(s => s.platform === plat) : W.settings);
     }
     if (table === 'ads') return json([{ ad_key: 'm1', platform: 'facebook', campaign: 'TEST_C1', name: 'ad one', goal: 'lead', live: true }]);
     if (table === 'ad_metrics') {
@@ -88,7 +106,7 @@ function install() {
         W.actions.push(row); return json([row], 201);
       }
       let rows = W.actions.filter(r => match(r, q));
-      if (method === 'PATCH') { const patch = JSON.parse(body) as Row; rows.forEach(r => Object.assign(r, patch)); return json(rows); }
+      if (method === 'PATCH') { const patch = JSON.parse(body) as Row; rows.forEach(r => Object.assign(r, patch)); if (patch.status === 'applying' && W.afterClaim) { const f = W.afterClaim; W.afterClaim = undefined; f(); } return json(rows); }
       if (q.get('order')?.startsWith('applied_at')) rows = rows.filter(r => r.status === 'applied').sort((a, b) => String(b.applied_at).localeCompare(String(a.applied_at))).slice(0, 1);
       return json(rows);
     }
@@ -341,6 +359,72 @@ describe('rollback of the last action', () => {
     await applied(); W.settings[0] = { platform: 'global', guardrails: { kill: true, exec: { dailyCap: 50 } } };
     expect((await call('/api/buyer/rollback', { method: 'POST', body: { id: open().id, confirm: true } })).body.code).toBe('kill');
     expect(writes()).toHaveLength(1);
+  });
+});
+
+describe('review fixes: races, failed writes, rollback limits, the stop that cannot be undone', () => {
+  it('a limits save never puts the emergency stop back to off, even when the stop lands between its read and its write', async () => {
+    as(OWNER);
+    // someone presses the stop right after the owner's save has read the row and before it writes
+    W.beforePatch = () => { W.settings[0] = { ...W.settings[0]!, guardrails: { ...W.settings[0]!.guardrails, kill: true }, updated_at: '2026-11-14T10:00:00.000Z' }; };
+    const r = await call('/api/buyer/execution', { method: 'POST', body: { maxPct: 30 } });
+    expect(r.status).toBe(200);
+    expect(W.settings[0]!.guardrails.kill).toBe(true);            // the stop survived
+    expect(W.settings[0]!.guardrails.exec.maxPct).toBe(30);       // and the owner's change landed on top of it
+    expect(W.settingsPatches).toBeGreaterThanOrEqual(2);          // the first attempt was refused and retried
+  });
+  it('the decisions board stop and the canary list also keep each other\'s keys', async () => {
+    as(OWNER);
+    W.beforePatch = () => { W.settings[0] = { ...W.settings[0]!, guardrails: { ...W.settings[0]!.guardrails, canary: ['TEST_C1'] }, updated_at: '2026-11-14T10:00:00.000Z' }; };
+    expect((await call('/api/control/kill', { method: 'POST', body: { on: true } })).status).toBe(200);
+    expect(W.settings[0]!.guardrails).toMatchObject({ kill: true, canary: ['TEST_C1'], exec: { dailyCap: 50 } });
+  });
+  it('an unreadable stop state is an error on the board, never «off»', async () => {
+    as(APPROVER);
+    const f = globalThis.fetch as unknown as ReturnType<typeof vi.fn>, inner = f.getMockImplementation() as (u: string, i?: RequestInit) => Promise<Response>;
+    f.mockImplementation(async (url: string, init: RequestInit = {}) => (String(url).includes('/control_settings') && (init.method ?? 'GET') === 'GET' ? new Response('{}', { status: 500 }) : inner(url, init)));
+    expect((await call('/api/control/kill')).status).toBe(503);
+  });
+  it('two approvals racing for the same daily room: the second one is blocked after it claims its row and nothing is written', async () => {
+    W.settings[0] = { platform: 'global', guardrails: { kill: false, exec: { dailyCap: 25 } } };   // room for ONE +20 step
+    await propose(); as(APPROVER);
+    // while this approval is claimed, a parallel approval of another campaign is already in flight with its +20
+    W.afterClaim = () => { W.actions.push({ id: 'other', status: 'applying', platform: 'snapchat', entity_id: 's9', decided_at: new Date().toISOString(), change: { op: 'budget', from: 100, to: 120, pct: 20 } }); };
+    const r = await call('/api/buyer/apply', { method: 'POST', body: applyBody(open()) });
+    expect(r.status).toBe(409); expect(r.body.blocks).toEqual([{ code: 'cap_daily', detail: 25 }]);
+    expect(writes()).toEqual([]);
+    expect(open().status).toBe('proposed');                                 // given back, can be approved again tomorrow
+    expect(W.audit.find(x => x.action === 'buyer_blocked')?.result).toMatchObject({ recheck: true });
+  });
+  it('a write that could not be read back still counts toward the cooldown and the daily cap', async () => {
+    W.settings[0] = { platform: 'global', guardrails: { kill: false, exec: { dailyCap: 25 } } };
+    W.actions.push({ id: 'unverified', status: 'failed', platform: 'snapchat', entity_id: 's1', decided_at: new Date().toISOString(), change: { op: 'budget', from: 100, to: 120, pct: 20 }, result: { code: 'verify_failed', at: new Date().toISOString() } });
+    await propose(); as(APPROVER);
+    expect((await call('/api/buyer/apply', { method: 'POST', body: applyBody(W.actions[1]!) })).body.blocks).toEqual([{ code: 'cap_daily', detail: 25 }]);
+    // a clear refusal by the platform (HTTP 400) changed nothing, so it does not count
+    W.actions[0]!.result = { code: 'meta_400_190', at: new Date().toISOString() };
+    expect((await call('/api/buyer/apply', { method: 'POST', body: applyBody(W.actions[1]!) })).status).toBe(200);
+  });
+  it('a failed write on the same entity keeps the 48 hour cooldown', async () => {
+    W.actions.push({ id: 'unverified', status: 'failed', platform: 'meta', entity_id: '111', decided_at: new Date(NOW - 5 * 3600e3).toISOString(), change: { op: 'status', from: 'paused', to: 'active' }, result: { code: 'verify_failed', at: new Date(NOW - 5 * 3600e3).toISOString() } });
+    await propose(); as(APPROVER);
+    expect((await call('/api/buyer/apply', { method: 'POST', body: applyBody(W.actions[1]!) })).body.blocks).toEqual([{ code: 'cooldown', detail: 48 }]);
+  });
+  it('rolling back a status change with no known earlier status is refused, not guessed as «active»', async () => {
+    W.actions.push({ id: '00000000-0000-4000-8000-0000000000aa', status: 'applied', platform: 'meta', level: 'campaign', entity_id: '111', applied_at: new Date().toISOString(), change: { op: 'status', from: null, to: 'paused' } });
+    W.camp.status = 'PAUSED'; as(APPROVER);
+    const r = await call('/api/buyer/rollback', { method: 'POST', body: { id: '00000000-0000-4000-8000-0000000000aa', confirm: true } });
+    expect(r.status).toBe(409); expect(r.body.code).toBe('no_previous'); expect(writes()).toEqual([]);
+  });
+  it('rolling back a budget DECREASE goes through the same limits as an increase', async () => {
+    W.settings[0] = { platform: 'global', guardrails: { kill: false, exec: { dailyCap: 5, maxPct: 20 } } };   // daily room of 5, the rollback would add 20
+    W.actions.push({ id: '00000000-0000-4000-8000-0000000000bb', status: 'applied', platform: 'meta', level: 'campaign', entity_id: '111', applied_at: new Date(NOW - 60 * 3600e3).toISOString(), change: { op: 'budget', from: 120, to: 100, pct: -16.67 } });
+    as(APPROVER);
+    const r = await call('/api/buyer/rollback', { method: 'POST', body: { id: '00000000-0000-4000-8000-0000000000bb', confirm: true } });
+    expect(r.status).toBe(409); expect(r.body.blocks).toEqual([{ code: 'cap_daily', detail: 5 }]); expect(writes()).toEqual([]);
+    W.settings[0] = { platform: 'global', guardrails: { kill: false, exec: { dailyCap: 50, maxPct: 20 } } };
+    expect((await call('/api/buyer/rollback', { method: 'POST', body: { id: '00000000-0000-4000-8000-0000000000bb', confirm: true } })).status).toBe(200);   // inside the limits (and the cooldown does not apply to a rollback)
+    expect(W.camp.daily_budget).toBe('12000');
   });
 });
 

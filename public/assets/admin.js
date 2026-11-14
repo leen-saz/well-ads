@@ -136,6 +136,8 @@ export default async function mount() {
       catch (err) { say($('#usersMsg'), err.message); busy(b, false); }
       return;
     }
+    // Stopping an account signs that person out of everything at once: asked first (turning one back on is harmless)
+    if (b.dataset.act === 'toggle' && b.dataset.active === 'true' && !confirm('توقف هذا الحساب؟ ما يقدر يدخل لين تفعّله من جديد.')) return;
     const body = b.dataset.act === 'save' ? { id, access: readGrid('u' + id, b.closest('tr')), departments: $$(`input[name="q${id}"]:checked`, tr).map(x => x.value) } : { id, active: b.dataset.active !== 'true' };
     busy(b, true);
     try { await api('/api/admin/users', { method: 'PATCH', body }); say($('#usersMsg'), 'انحفظ.', true); await loadUsers(); await loadLog(); }
