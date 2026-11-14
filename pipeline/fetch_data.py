@@ -317,7 +317,7 @@ def meta(P):
                 P.ads[key]["vid"] = doc; got += 1
         print(f"meta: مقاييس فيديو لـ {got} إعلان", file=sys.stderr)
     except Exception as ex:
-        print("meta: مقاييس الفيديو ما انسحبت —", str(ex)[:160], file=sys.stderr)
+        print("meta: مقاييس الفيديو ما انسحبت —", error_code(ex), file=sys.stderr)
     # منحنى المشاهدة ثانية بثانية (مشاهد الفيديو). اختياري.
     try:
         got = 0
@@ -329,13 +329,13 @@ def meta(P):
                 P.ads[key]["vid"]["pc"] = [int(v) for v in curve]; got += 1
         print(f"meta: منحنى مشاهدة لـ {got} إعلان", file=sys.stderr)
     except Exception as ex:
-        print("meta: منحنى المشاهدة ما انسحب —", str(ex)[:160], file=sys.stderr)
+        print("meta: منحنى المشاهدة ما انسحب —", error_code(ex), file=sys.stderr)
     if audience_due():
         try:
             n = audience.attach(P.ads, "m", audience.meta(E, lambda p, **q: pages(g(p, **q)), act, fx, LAST_FULL))
             print(f"meta: تفاصيل المشاهدين لـ {n} إعلان", file=sys.stderr)
         except Exception as ex:
-            print("meta: تفاصيل المشاهدين ما انسحبت —", str(ex)[:160], file=sys.stderr)
+            print("meta: تفاصيل المشاهدين ما انسحبت —", error_code(ex), file=sys.stderr)
 
 # ---------------- Google ----------------
 def google(P):
@@ -405,13 +405,13 @@ def google(P):
                               thumb=None, link=(ad.get("finalUrls") or [None])[0], goal="lead")
         P.status_catalog = True
     except Exception as ex:
-        print("جوجل: تعذر تحديث حالة الإعلانات بلا صرف", str(ex)[:160], file=sys.stderr)
+        print("جوجل: تعذر تحديث حالة الإعلانات بلا صرف", error_code(ex), file=sys.stderr)
     if audience_due():
         try:
             n = audience.attach(P.ads, "g", audience.google(q, LAST_FULL))
             print(f"جوجل: تفاصيل المشاهدين لـ {n} إعلان", file=sys.stderr)
         except Exception as ex:
-            print("جوجل: تفاصيل المشاهدين ما انسحبت —", str(ex)[:160], file=sys.stderr)
+            print("جوجل: تفاصيل المشاهدين ما انسحبت —", error_code(ex), file=sys.stderr)
 
 # ---------------- Snapchat ----------------
 def snap(P):
@@ -537,7 +537,7 @@ def snap(P):
     def safe(a):   # إعلان واحد بدون تفاصيل ما يلغي أرقام سناب كلها
         try: return build(a)
         except Exception as ex:
-            print("سناب: تفاصيل إعلان ناقصة", a["id"], str(ex)[:120], file=sys.stderr)
+            print("سناب: تفاصيل إعلان ناقصة", a["id"], error_code(ex), file=sys.stderr)
             return None
     show = [a for a in ads.values() if (a["id"] in seen or is_live(a)) and a.get("ad_squad_id") in squads]
     with ThreadPoolExecutor(6) as ex:
@@ -561,14 +561,14 @@ def snap(P):
                     P.ads[key]["vid"] = doc; got += 1
         print(f"snap: مقاييس فيديو لـ {got} إعلان", file=sys.stderr)
     except Exception as ex:
-        print("snap: مقاييس الفيديو ما انسحبت —", str(ex)[:160], file=sys.stderr)
+        print("snap: مقاييس الفيديو ما انسحبت —", error_code(ex), file=sys.stderr)
     if audience_due():
         try:
             cids = {squads[a["ad_squad_id"]]["campaign_id"] for a in show if a.get("ad_squad_id") in squads}
             n = audience.attach(P.ads, "s", audience.snap(g, sorted(cids), LAST_FULL))
             print(f"snap: تفاصيل المشاهدين لـ {n} إعلان", file=sys.stderr)
         except Exception as ex:
-            print("snap: تفاصيل المشاهدين ما انسحبت —", str(ex)[:160], file=sys.stderr)
+            print("snap: تفاصيل المشاهدين ما انسحبت —", error_code(ex), file=sys.stderr)
 
 # ---------------- بداية التاريخ ----------------
 def history_start():
@@ -581,7 +581,7 @@ def history_start():
             {"fields": "created_time", "access_token": E["META_ACCESS_TOKEN"]}))
         found.append(datetime.strptime(acc["created_time"][:10], "%Y-%m-%d"))
     except Exception as ex:
-        print("ميتا: تعذر معرفة تاريخ الحساب", str(ex)[:120], file=sys.stderr)
+        print("ميتا: تعذر معرفة تاريخ الحساب", error_code(ex), file=sys.stderr)
     try:
         tok = http("https://accounts.snapchat.com/login/oauth2/access_token", data=urllib.parse.urlencode({
             "grant_type": "refresh_token", "client_id": E["SNAP_CLIENT_ID"], "client_secret": E["SNAP_CLIENT_SECRET"],
@@ -590,7 +590,7 @@ def history_start():
                    headers={"Authorization": f"Bearer {tok}"})["campaigns"]
         found += [datetime.strptime(c["campaign"]["created_at"][:10], "%Y-%m-%d") for c in cs if c["campaign"].get("created_at")]
     except Exception as ex:
-        print("سناب: تعذر معرفة أول حملة", str(ex)[:120], file=sys.stderr)
+        print("سناب: تعذر معرفة أول حملة", error_code(ex), file=sys.stderr)
     start = min(found) if found else TODAY.replace(tzinfo=None) - timedelta(days=365)
     start = max(start, TODAY.replace(tzinfo=None) - timedelta(days=37 * 30))   # ميتا يحتفظ بـ 37 شهر فقط
     return start.replace(tzinfo=RIYADH)

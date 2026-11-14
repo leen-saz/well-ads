@@ -68,7 +68,7 @@ jobs:
         with:
           node-version: "24"
           cache: npm
-      - run: npm ci
+      - run: npm ci --ignore-scripts
       # Cover names are content hashes, so a name already listed in thumbs/index.txt never changes.
       # Only new covers are uploaded, before data.json, so every cover it references exists.
       - name: Upload new covers to R2

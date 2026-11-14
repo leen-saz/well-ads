@@ -184,5 +184,29 @@ class GuardAndMain(unittest.TestCase):
         self.assertEqual(db.patches[0]["status"], "failed")
 
 
+class SmokeApproval(unittest.TestCase):
+    def check(self, rows, approval="7"):
+        from modules.execute.smoke import approved_by_leen
+
+        class Db:
+            def req(self, path, *a, **k):
+                self.path = path
+                return rows
+        return approved_by_leen(Db(), approval, now=NOW)
+
+    def test_needs_a_numeric_id(self):
+        for bad in (None, "", "abc", "1;drop", "7 or 1=1"):
+            self.assertTrue(self.check([{"status": "approved", "decided_at": NOW.isoformat()}], bad), bad)
+
+    def test_needs_an_approved_recent_row(self):
+        fresh = (NOW - timedelta(hours=2)).isoformat()
+        old = (NOW - timedelta(hours=60)).isoformat()
+        self.assertIsNone(self.check([{"status": "approved", "decided_at": fresh}]))
+        self.assertTrue(self.check([]))
+        self.assertTrue(self.check([{"status": "proposed", "decided_at": fresh}]))
+        self.assertTrue(self.check([{"status": "approved", "decided_at": old}]))
+        self.assertTrue(self.check([{"status": "approved", "decided_at": None}]))
+
+
 if __name__ == "__main__":
     unittest.main()

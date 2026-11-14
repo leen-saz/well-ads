@@ -1,15 +1,19 @@
 # Manual executor test, ported from the old repo: pauses the lowest-spend ad in a canary campaign, resumes it,
-# and reads Meta back after each step. Runs only if the campaign is one of Leen's canary campaigns and the
-# emergency stop is off (modules/execute guards).
+# and reads Meta back after each step. Runs only if the campaign is one of Leen's canary campaigns, the
+# emergency stop is off (modules/execute guards) AND an approved decision (its id) is given: a manual dispatch alone
+# never touches a live ad. The audit row is written BEFORE the pause. Also add required reviewers to the
+# `production` environment in GitHub so a second person confirms every run.
 name: execute-smoke
 
 on:
   workflow_dispatch:
     inputs:
       campaign:
-        description: "Canary campaign name in Meta"
+        description: "Canary campaign name in Meta (no default: type it)"
         required: true
-        default: "META_WP_Spark_25\\10"
+      approval_id:
+        description: "Id of an approved decision (suggestions row, decided in the last 48 hours) that covers this test"
+        required: true
 
 permissions:
   contents: read
@@ -40,6 +44,7 @@ jobs:
       - name: Pause then resume one ad, read back each step
         env:
           CAMPAIGN: ${{ inputs.campaign }}
+          APPROVAL_ID: ${{ inputs.approval_id }}
           SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
           SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
           META_ACCESS_TOKEN: ${{ env.V_META_ACCESS_TOKEN || secrets.META_ACCESS_TOKEN }}
