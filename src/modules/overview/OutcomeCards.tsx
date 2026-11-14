@@ -62,8 +62,8 @@ export function OutcomeCards({ data, from, to }: Props) {
           {a.crm && <>
             <Stat big label={T('الإقفالات', 'Closings')} value={qty(a.closings)} now={a.closings} was={v('closings')} lowerIsBetter={false} />
             <Stat big label={T('المدفوع', 'Paid')} value={sar(a.paid)} now={a.paid} was={v('paid')} lowerIsBetter={false} />
-            <Stat big label={T('العائد على الصرف', 'Return on spend')} value={x2(a.mer)} now={a.mer} was={v('mer')} lowerIsBetter={false} />
-            <Stat big label={T('تكلفة العميل', 'Cost per customer')} value={sar(a.cac)} now={a.cac} was={v('cac')} lowerIsBetter />
+            <Stat big label={T('العائد على الصرف', 'Return on spend')} value={a.closings ? x2(a.mer) : T('لا توجد إقفالات', 'No closings')} now={a.mer} was={v('mer')} lowerIsBetter={false} />
+            <Stat big label={T('تكلفة العميل', 'Cost per customer')} value={a.closings ? sar(a.cac) : T('لا توجد إقفالات', 'No closings')} now={a.cac} was={v('cac')} lowerIsBetter />
           </>}
         </CardContent>
       </Card>

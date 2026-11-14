@@ -109,7 +109,7 @@ function renderKpis(now,prev){
     ...(crm ? [
       tile('الإقفالات',fmt(allN),'',delta(allN,b.allPaidN,false),'closings',keys.map(k=>paidIn(k,false)),'feature'),
       tile('المدفوع',sar(allP),money(),delta(allP,b.allPaid,false),'paid',keys.map(k=>paidIn(k,true))),
-      tile('العائد على الصرف',mer==null?'—':fmt(mer,2)+'×','',delta(mer,merB,false),'ret',null),
+      tile('العائد على الصرف',allN?(mer==null?'—':fmt(mer,2)+'×'):tr('لا توجد إقفالات'),'',delta(mer,merB,false),'ret',null),
     ] : []),
   ].join('');
   // 2) The customer journey: a horizontal pipe that narrows with the numbers, with its analysis (funnelHTML, below)
@@ -149,7 +149,8 @@ function payRankHTML(a,now){
   const note = total ? ui(`${qty(unlinked)} من ${qty(total)} إقفالة غير مربوطة بإعلان، وما تدخل في الترتيب. ما نخمّن ربطها.`, `${qty(unlinked)} of ${qty(total)} closings are not linked to an ad and are left out of this ranking. We do not guess links.`) : '';
   const body = rows.length ? `<div class="tbl"><table><thead><tr><th>${ui('الحملة','Campaign')}</th><th>${ui('المنصة','Platform')}</th><th class="n">${ui('عملاء دافعين','Paying customers')}</th><th class="n">${ui('تكلفة العميل الدافع','Cost per paying customer')}</th><th class="n">${ui('المدفوع','Paid')}</th></tr></thead><tbody>`
       + rows.map(r=>`<tr><td class="name">${esc(r.name)}</td><td>${platCell(r.p)}</td><td class="n">${fmt(r.n)}</td><td class="n">${r.spend?`${sar(r.spend/r.n)} ${money()}`:'—'}</td><td class="n">${sar(r.value)} ${money()}</td></tr>`).join('') + `</tbody></table></div>`
-    : `<p class="payrank-na"><b>${ui('غير مربوط','Not linked')}</b> ${ui('ما فيه إقفالة مربوطة بإعلانها في هالفترة، فما نقدر نرتّب الحملات بالعملاء الدافعين.','No closing is linked to its ad in this period, so campaigns cannot be ranked by paying customers.')}</p>`;
+    : total ? `<p class="payrank-na"><b>${ui('غير مربوط','Not linked')}</b> ${ui('ما فيه إقفالة مربوطة بإعلانها في هالفترة، فما نقدر نرتّب الحملات بالعملاء الدافعين.','No closing is linked to its ad in this period, so campaigns cannot be ranked by paying customers.')}</p>`
+    : `<p class="payrank-na"><b>${ui('لا توجد إقفالات','No closings')}</b> ${ui('ما فيه إقفالات مدفوعة في هالفترة.','No paid closings in this period.')}</p>`;
   return `<div class="kgroup"><div class="khead"><h3>${ui('الحملات حسب العملاء الدافعين','Campaigns by paying customers')}</h3></div>${body}<p class="knote">${note}</p></div>`;
 }
 
@@ -245,7 +246,7 @@ function funnelHTML(a,b){
   const res = (a.leads||0)+(a.conv||0), resB = (b.leads||0)+(b.conv||0), wideRate = crm && !funSliced();
   const saleRate = wideRate ? (res ? 100*allN/res : null) : a.closeRate, saleRateB = wideRate ? (resB ? 100*(b.allPaidN||0)/resB : null) : b.closeRate;
   const saleN = D.crm ? (crm?allN:(a.booked||0)) : null;
-  const NA = tr('غير مربوط'), dl = d => /لا مقارنة/.test(d) ? '' : d;
+  const NA = tr('غير مربوط'), NONE = tr('لا توجد إقفالات'), noSale = crm && !allN, dl = d => /لا مقارنة/.test(d) ? '' : d;
   const rs = v => v==null||!isFinite(v) ? '—' : `${sar(v)} ${money()}`;
   const kpi = (l,val,d,cls='') => `<div class="kpi ${cls}"><span class="l">${l}</span><span class="v">${val}</span>${dl(d||'')}</div>`;
   const stages = [
@@ -259,12 +260,12 @@ function funnelHTML(a,b){
      rate:[tr('من نقرة إلى ليد'),pct(clickToLead),delta(clickToLead,clickToLeadB,false)]},
     {n:'البيع', hint:D.crm?'كم واحد دفع':'نظام العملاء مو موصول بهالأرقام', vol:saleN, val:saleN==null?'—':fmt(saleN),
      main:kpi(tr('إقفالات مدفوعة'),saleN==null?'—':fmt(saleN),D.crm?delta(saleN,crm?b.allPaidN:b.booked,false):''),
-     cost:[tr('تكلفة العميل'),crm&&allN?rs(a.spend/allN):'—'],
+     cost:[tr('تكلفة العميل'),crm&&allN?rs(a.spend/allN):noSale?NONE:'—'],
      // The sales amount: every paid closing in the CRM, called the CRM's total when the closings aren't tied to ads
      amount:D.crm?[crm&&unlinked?ui('إجمالي المدفوع (CRM)','Total paid (CRM)'):ui('مبلغ المبيعات','Sales amount'),rs(crm?a.allPaid:a.value)]:null,
      sub:[kpi(crm&&unlinked?ui('إجمالي المدفوع (CRM)','Total paid (CRM)'):ui('مبلغ المبيعات','Sales amount'),D.crm?`${sar(crm?a.allPaid:a.value)} <small>${money()}</small>`:'—',D.crm?delta(crm?a.allPaid:a.value,crm?b.allPaid:b.value,false):'','sub'),
-       ...(crm?[kpi(ui('المبيعات من الإعلانات','Sales from ads'),unlinked?NA:`${sar(a.value||0)} <small>${money()}</small>`,unlinked?'':delta(a.value,b.value,false),'sub')]:[]),
-       kpi(tr('إقفالات من الإعلانات'),unlinked?NA:fmt(a.booked||0),unlinked?'':delta(a.booked,b.booked,false),'sub'), kpi(tr('العائد من الإعلانات'),unlinked||a.roas==null?(unlinked?NA:'—'):fmt(a.roas,2)+'×',unlinked?'':delta(a.roas,b.roas,false),'sub')],
+       ...(crm?[kpi(ui('المبيعات من الإعلانات','Sales from ads'),noSale?NONE:unlinked?NA:`${sar(a.value||0)} <small>${money()}</small>`,unlinked&&!noSale?'':delta(a.value,b.value,false),'sub')]:[]),
+       kpi(tr('إقفالات من الإعلانات'),noSale?NONE:unlinked?NA:fmt(a.booked||0),unlinked||noSale?'':delta(a.booked,b.booked,false),'sub'), kpi(tr('العائد من الإعلانات'),noSale?NONE:unlinked||a.roas==null?(unlinked?NA:'—'):fmt(a.roas,2)+'×',unlinked||noSale?'':delta(a.roas,b.roas,false),'sub')],
      rate:[tr('من ليد إلى إقفالة'),wideRate?pct(saleRate):unlinked?NA:pct(saleRate),wideRate||!unlinked?delta(saleRate,saleRateB,false):'']},
   ];
   const linkStep = i => steps.find(s=>s.link===i && FUN_RATE.includes(s.key));

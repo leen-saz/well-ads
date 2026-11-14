@@ -180,6 +180,9 @@ export const NO_CRM_EN = "The sale stage is empty because the CRM numbers did no
 
 export const UNLINKED = 'غير مربوط';
 export const UNLINKED_EN = 'Not linked';
+// The CRM is connected but has no paid closing in the period: nothing to divide by, not a missing link
+export const NO_CLOSINGS = 'لا توجد إقفالات';
+export const NO_CLOSINGS_EN = 'No closings';
 // The ad-to-sale step can't be judged: no CRM, too few leads tied to an ad, or paid closings in the CRM with none tied to
 // an ad (counted across all platforms, so a platform filter can't turn missing attribution into a 0% close rate).
 // Then the step is «غير مربوط», never 0% and never the bottleneck.
@@ -195,10 +198,11 @@ export function journey(a: Outcome, l: Lang = 'ar'): { stages: JStage[]; noCrm: 
     ({ label, key: on ? key : null, now: on ? (a[key] as number | null) : null, fmt, lowerIsBetter });
   const linked = a.crmLinked, tied = !unattributed(a);
   // Counted only when the closings are tied to their ads; else «غير مربوط», no number and no change
+  const none = linked && a.crm && a.closingsAll === 0;
   const ad = (label: string, key: keyof Outcome, fmt: Fmt, lowerIsBetter = false): JStat =>
-    (tied ? st(label, key, fmt, lowerIsBetter) : { label, key: null, now: null, fmt, lowerIsBetter, missing: t(UNLINKED, UNLINKED_EN) });
+    none ? { label, key: null, now: null, fmt, lowerIsBetter, missing: t(NO_CLOSINGS, NO_CLOSINGS_EN) } : (tied ? st(label, key, fmt, lowerIsBetter) : { label, key: null, now: null, fmt, lowerIsBetter, missing: t(UNLINKED, UNLINKED_EN) });
   const cpm = st(t('تكلفة الألف ظهور', 'Cost per 1,000 impressions'), 'cpm', 'sar', true), cpc = st(t('تكلفة النقرة', 'Cost per click'), 'cpc', 'sar', true);
-  const cpl = st(t('تكلفة الليد', 'Cost per lead'), 'cpl', 'sar', true), cac = st(t('تكلفة العميل', 'Cost per customer'), 'cac', 'sar', true, linked);
+  const cpl = st(t('تكلفة الليد', 'Cost per lead'), 'cpl', 'sar', true), cac = a.crm && none ? { label: t('تكلفة العميل', 'Cost per customer'), key: null, now: null, fmt: 'sar' as Fmt, lowerIsBetter: true, missing: t(NO_CLOSINGS, NO_CLOSINGS_EN) } : st(t('تكلفة العميل', 'Cost per customer'), 'cac', 'sar', true, linked);
   // The sales amount: every paid closing in the CRM (all platforms), or this platform's ad-linked ones. When the closings
   // aren't tied to ads it is the CRM's total, said so, and the ads' share is «غير مربوط» rather than 0.
   const amount = st(a.crm && !tied ? t('إجمالي المدفوع (CRM)', 'Total paid (CRM)') : t('مبلغ المبيعات', 'Sales amount'), 'paid', 'sar', false, linked);
