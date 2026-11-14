@@ -42,6 +42,34 @@ describe('content agent', () => {
     expect(seen).not.toContain('https://evil.com/b');
   });
 
+  it('the site address follows the same rules as the video brief: no private or internal-looking hosts', () => {
+    for (const bad of ['https://172.16.0.5', 'https://172.31.255.1', 'https://0.0.0.0', 'https://[::1]', 'https://[fd00::1]', 'https://100.64.0.1', 'https://db.internal', 'https://printer.local',
+      'https://x.sa:8443', 'https://user:pw@x.sa', 'https://169.254.169.254']) expect(normalizeSite(bad), bad).toBeNull();
+    expect(normalizeSite('https://172.32.0.1')).toBe('https://172.32.0.1');   // just outside 172.16/12: a public address, as safe-fetch decides
+    expect(normalizeSite('x.sa')).toBe('https://x.sa');
+  });
+
+  it('a redirect to an internal address is never followed, and redirects are re-checked at every hop (3 at most)', async () => {
+    const seen: string[] = [];
+    const f = vi.fn(async (u: string, init?: RequestInit) => {
+      seen.push(u);
+      expect(init?.redirect).toBe('manual');
+      if (u === 'https://x.sa/') return new Response('', { status: 302, headers: { location: 'https://10.0.0.7/admin' } });
+      if (u.endsWith('sitemap.xml')) return new Response('', { status: 301, headers: { location: 'https://x.sa/map2.xml' } });
+      if (u.endsWith('map2.xml')) return new Response('<urlset><url><loc>https://x.sa/a</loc></url></urlset>');
+      if (u === 'https://x.sa/a') return new Response('', { status: 302, headers: { location: 'https://x.sa/b' } });
+      if (u === 'https://x.sa/b') return new Response(PAGE);
+      return new Response('', { status: 404 });
+    }) as unknown as typeof fetch;
+    const pages = await crawl('https://x.sa', f);
+    expect(seen).not.toContain('https://10.0.0.7/admin');
+    expect(pages[0]).toMatchObject({ url: 'https://x.sa/', status: 0 });   // the home page redirected inside: reported as not opening, no fetch of the internal address
+    expect(pages[1]).toMatchObject({ url: 'https://x.sa/a', status: 200 });   // an ordinary redirect (and the sitemap's) still works
+    const loop = vi.fn(async () => new Response('', { status: 302, headers: { location: 'https://x.sa/again' } })) as unknown as typeof fetch;
+    expect((await crawl('https://x.sa', loop))[0]).toMatchObject({ status: 0 });
+    expect((loop as unknown as ReturnType<typeof vi.fn>).mock.calls.length).toBeLessThanOrEqual(5 * 4);   // bounded, never an endless loop
+  });
+
   it('builds the plan from the model, and falls back to rules', async () => {
     const pages = [facts('https://x.sa/', 200, PAGE)];
     const ai = vi.fn(async () => ({ response: 'هذا البلان: {"position":"رعاية منزلية","niche":"الرياض","items":[{"kind":"faq","title":"كم سعر زيارة الممرض؟","why":"بحث متكرر","priority":1},{"kind":"bad","title":"مقال","priority":9}]}' }));

@@ -248,7 +248,7 @@ describe('POST /api/today/ask', () => {
   it('stops at the daily limit', async () => {
     vi.stubGlobal('fetch', vi.fn(async (url: string) => {
       if (url.includes('/profiles?id=eq.')) return new Response(JSON.stringify([{ id: UID, email: 'm@example.com', role: 'member', active: true, access: { ceo: 'view' }, company_id: WELL_COMPANY }]));
-      if (url.includes('/audit_log?')) return new Response(JSON.stringify([{ id: 1 }, { id: 2 }]));
+      if (url.includes('/audit_log?')) return new Response(JSON.stringify([{ id: 1 }, { id: 2 }, { id: 3 }]));   // two earlier questions plus the one just written
       return new Response('[]');
     }));
     const r = await post({ q: 'x' }, undefined, { AHLAM_DAILY_LIMIT: '2' });

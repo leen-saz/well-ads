@@ -1,11 +1,11 @@
 // /api/today/state: the start page (/today/). What is ready, what setup is missing, and the decisions waiting, each
 // part only when this user may open the page it comes from. The numbers are the user's own data copy (the same one
 // /api/dash/data serves) through the overview tab's functions, so they match «ملخص الأداء» for the same 7 days.
-import { sb, json, readJson, handle, requireUser, can, audit, type AuthEnv } from '../../lib/auth';
+import { sb, json, readJson, handle, requireUser, can, claimDaily, type AuthEnv } from '../../lib/auth';
 import { dataCopy, dataKey } from '../../lib/dash';
 import { WELL_COMPANY } from '../../lib/tenant';
 import { list as connectorList } from './connectors';
-import { converse, cleanTurns, dailyLimit, overDaily, MAX_Q, type AhlamEnv, type Lang } from '../../lib/ahlam';
+import { converse, cleanTurns, dailyLimit, dayStart, MAX_Q, type AhlamEnv, type Lang } from '../../lib/ahlam';
 import { pick, sseResponse } from '../../lib/llm';
 import { type Dash, addDays, lastDay, summarize, previous, canCompare, holes } from '../../modules/overview/numbers';
 
@@ -66,8 +66,10 @@ export const ask = {
     if (q.length > MAX_Q) return json(400, { error: `السؤال طويل، اختصره (الحد ${MAX_Q} حرف)` });
     if (!pick(e, 'ahlam')) return json(503, { error: 'احلم يحتاج الذكاء الاصطناعي، وهو غير متصل الحين' });
     const limit = dailyLimit(e);
-    if (await overDaily(cfg, user.uid, limit)) return json(429, { error: `وصلت حدّك اليوم (${limit} سؤال). جرّب بكرة.` });
-    await audit(cfg, user, 'ahlam_ask');   // the question itself is never stored
+    // One `ahlam_ask` row per question, written first and counted right after (the question itself is never stored)
+    const slot = await claimDaily(cfg, user, 'ahlam_ask', limit, dayStart(Date.now()));
+    if (slot === 'over') return json(429, { error: `وصلت حدّك اليوم (${limit} سؤال). جرّب بكرة.` });
+    if (slot === 'error') return json(503, { error: 'ما قدرت أتأكد من حدّك اليوم. جرّب بعد لحظات.' });
     const lang: Lang = b['lang'] === 'en' ? 'en' : 'ar';
     return sseResponse(converse({ cfg, user, e }, { q, history: cleanTurns(b['history']), lang }, fetch, request.signal));
   }),

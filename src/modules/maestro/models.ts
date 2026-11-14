@@ -2,7 +2,7 @@
 // GET: the providers (on or «غير مفعّل» by whether their key is set), and per task its default, its route and what it uses now.
 // POST: set or clear one task's route. Nothing is stored but the provider and the model id; the keys stay Worker secrets.
 import { sb, json, readJson, handle, requireUser, audit, missingSchema, notApplied, type AuthEnv } from '../../lib/auth';
-import { scoped } from '../../lib/tenant';
+import { scoped, WELL_COMPANY } from '../../lib/tenant';
 import { pick, type LlmEnv, type Provider } from '../../lib/llm';
 import { TASKS, TASK_KEYS, ROUTE_PROVIDERS, OR_MODEL, cleanModel, clearRoutes, routesOf } from '../../lib/ai-routes';
 
@@ -41,6 +41,8 @@ export const models = {
       return json(200, { ok: true });
     }
     if (!ROUTE_PROVIDERS.includes(provider as Provider)) return json(400, { error: 'اختر المزوّد' });
+    // The paid providers run on the platform's keys (billed to Well): another company's owner may only pick the free engine
+    if (user.co !== WELL_COMPANY && provider !== 'workers') return json(403, { error: 'هالمزوّد غير متاح لشركتك. المتاح المجاني بس.' });
     if (!PROVIDERS(e).find(p => p.key === provider)?.on) return json(409, { error: 'هالمزوّد غير مفعّل. فعّل مفتاحه أول.' });
     const model = cleanModel(b.model);
     if (provider === 'openrouter' && !OR_MODEL.test(model)) return json(400, { error: 'اكتب معرّف الموديل مثل openai/gpt-5 (اسم المطوّر ثم الموديل)' });

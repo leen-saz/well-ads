@@ -21,6 +21,9 @@ export const J_COLS = 'id,company_id,project_id,shot_no,engine,params,status,att
 export interface JobEnv { FILES?: R2Bucket | undefined; HIGGSFIELD_API_KEY?: string | undefined; HIGGSFIELD_API_SECRET?: string | undefined; HIGGSFIELD_SEEDANCE_MODEL?: string | undefined }
 
 export const MAX_CLIPS = 12;
+// Clips waiting or running at one time, per company: queueing is checked against this and against the month's cap (with what the
+// waiting clips will cost), so a script cannot queue batch after batch before the first clip is billed
+export const MAX_ACTIVE = 36;
 const STUCK_CLAIM_MS = 5 * 60_000, TIMEOUT_MS = 30 * 60_000, MAX_VIDEO_BYTES = 150 * 1024 * 1024;
 export const backoffMs = (attempts: number): number => Math.min(10 * 60_000, 30_000 * 2 ** Math.max(0, attempts - 1));
 
@@ -44,12 +47,19 @@ export const sayOf = (code: string | null): string => (code && SAY[code]) || (co
 const rows = <T>(d: unknown): T[] => (Array.isArray(d) ? d : []) as T[];
 
 // Validates the clips against the engine, then queues one job per clip. Nothing goes upstream here.
-export async function createJobs(cfg: Cfg, user: { co: string; uid?: string; email?: string }, projectId: number, engine: Engine, clips: Record<string, unknown>[]): Promise<{ jobs?: Job[]; problems?: string[]; status?: number }> {
+export async function createJobs(cfg: Cfg, user: { co: string; uid?: string; email?: string }, projectId: number, engine: Engine, clips: Record<string, unknown>[], usage?: UsageCtx): Promise<{ jobs?: Job[]; problems?: string[]; status?: number }> {
   if (!clips.length) return { problems: ['ما فيه لقطات'], status: 400 };
   if (clips.length > MAX_CLIPS) return { problems: [`الحد ${MAX_CLIPS} لقطة بالطلب`], status: 400 };
   const problems: string[] = [], inputs: ClipInput[] = [];
   clips.forEach((c, n) => { const v = validate(engine.caps, c); if (v.input) inputs.push(v.input); else problems.push(...v.problems.map(p => `اللقطة ${n + 1}: ${p}`)); });
   if (problems.length) return { problems, status: 400 };
+  // The clips already waiting or running count against the limit, and their cost (not billed until they finish) is reserved now
+  const act = await sb<Pick<Job, 'est_cost_usd' | 'cost_recorded'>[]>(cfg, scoped('/rest/v1/video_jobs?select=est_cost_usd,cost_recorded&status=in.(queued,running)', user.co), { admin: true });
+  if (!act.ok) return { problems: ['ما قدرت أتأكد من الحد، جرّب بعد لحظات'], status: 503 };
+  const active = rows<Pick<Job, 'est_cost_usd' | 'cost_recorded'>>(act.data);
+  if (active.length + inputs.length > MAX_ACTIVE) return { problems: [`فيه ${active.length} لقطة قيد التجهيز، والحد ${MAX_ACTIVE}. انتظر لين تخلص.`], status: 429 };
+  const reserved = active.filter(j => !j.cost_recorded).reduce((a, j) => a + (Number(j.est_cost_usd) || 0), 0) + inputs.reduce((a, p) => a + videoCost(engine.id, p.resolution, p.seconds).usd, 0);
+  if (usage && await overCap(usage, 'video', reserved)) return { problems: [SAY.cap_reached!], status: 429 };
   const r = await sb<Job[]>(cfg, '/rest/v1/video_jobs', { method: 'POST', admin: true, headers: { Prefer: 'return=representation' },
     body: inputs.map((p, n) => ({ company_id: user.co, project_id: projectId, shot_no: n + 1, engine: engine.id, params: p, est_cost_usd: videoCost(engine.id, p.resolution, p.seconds).usd, created_by_id: user.uid ?? null })) });
   const jobs = rows<Job>(r.data);

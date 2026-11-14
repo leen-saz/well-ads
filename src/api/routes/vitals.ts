@@ -4,9 +4,12 @@
 // (path and numbers only, kept 7 days) that the owner reads on the data-health page (/api/maestro/vitals).
 import { json, readJson, handle, requireUser, sb } from '../../lib/auth';
 import { cleanVitals } from '../../lib/vitals';
+import { hit } from '../../lib/ratelimit';
 
 export const report = { POST: handle(async (request, e) => {
-  const { cfg } = await requireUser(request, e, 'any');
+  const { cfg, user } = await requireUser(request, e, 'any');
+  // One report per full page load: a script looping on this endpoint must not fill the table or the log
+  if (!hit(`vitals:${user.uid}`, 30, 60_000)) return json(429, { error: 'تقارير كثيرة' });
   const v = cleanVitals(await readJson(request, 2000));
   if (!v) return json(400, { error: 'تقرير غير صالح' });
   console.log(JSON.stringify({ event: 'web_vital', ...v }));

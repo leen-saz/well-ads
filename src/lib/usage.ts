@@ -69,12 +69,14 @@ async function snap(ctx: UsageCtx, now = Date.now()): Promise<Snap> {
   return s;
 }
 
-// True when this tab has a cap and has spent it
-export async function overCap(ctx: UsageCtx, module: string): Promise<boolean> {
+// True when this tab has a cap and has spent it. `extraUsd` is money already promised but not yet recorded (clips queued and
+// not finished, plus the batch being queued): the tab is over when spend plus that would pass the cap.
+export async function overCap(ctx: UsageCtx, module: string, extraUsd = 0): Promise<boolean> {
   const s = await snap(ctx), tab = tabOf(module, ctx), c = s.caps.get(tab) ?? defaultCap();
   // Spend could not be read: with a limit in force we cannot show we are under it, so stop (fail closed)
   if (!s.known && c.usd > 0) return true;
-  return c.usd > 0 && (s.spent.get(tab) || 0) >= c.usd;
+  const spent = s.spent.get(tab) || 0;
+  return c.usd > 0 && (extraUsd > 0 ? spent + extraUsd > c.usd : spent >= c.usd);
 }
 
 // A flat charge that is not made of tokens (a video clip: the engine bills per second). Same table, same cap, same record rules.

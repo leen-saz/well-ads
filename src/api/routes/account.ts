@@ -1,5 +1,5 @@
 // /api/account/password. Port of web/api/account/password.js: changing the password needs the current one.
-import { sb, json, readJson, handle, requireUser, audit, PASSWORD_MIN, can } from '../../lib/auth';
+import { sb, json, readJson, handle, requireUser, audit, revokeSessions, sign, setCookie, SESSION_HOURS, PASSWORD_MIN, can } from '../../lib/auth';
 import { MODULES } from '../../modules/registry';
 
 export const password = {
@@ -13,7 +13,11 @@ export const password = {
     const u = await sb(cfg, '/auth/v1/user', { method: 'PUT', token: r.data.access_token, body: { password: pw } });
     if (!u.ok) return json(400, { error: 'ما تغيّر الباسوورد، جرّب مرة ثانية' });
     await audit(cfg, user, 'password_changed');
-    return json(200, { ok: true });
+    // Every other login (a copied cookie, another device) ends now; this one gets a fresh cookie made after the cut-off
+    const cut = await revokeSessions(cfg, user.uid);
+    if (cut === null) return json(200, { ok: true });
+    const now = Math.max(Date.now(), cut), fresh = { ...user, iat: now, chk: now, exp: now + SESSION_HOURS * 3600 * 1000 };
+    return json(200, { ok: true }, { 'set-cookie': setCookie(await sign(fresh, cfg.secret), SESSION_HOURS * 3600) });
   }),
   GET: handle(async (request, e) => {
     const { user } = await requireUser(request, e, 'any');
