@@ -535,7 +535,9 @@ class SupabaseStoreTests(unittest.TestCase):
         self.assertEqual(by_day["2026-10-17"][2], 9)
         self.assertFalse(got["ads"]["m1"]["live"])
         self.assertEqual(got["ads"]["m1"]["status"], "متوقف")
-        self.assertTrue(any(call[0] == "DELETE" and "like.m*" in call[1] for call in api.calls))
+        # the window is replaced by upsert first; only rows the fresh fetch no longer returns are deleted afterwards
+        self.assertTrue(any(call[0] == "GET" and "like.m*" in call[1] for call in api.calls))
+        self.assertFalse(any(call[0] == "DELETE" and "like.m*" in call[1] for call in api.calls))
         self.assertTrue(all("test-service-key" not in call[1] for call in api.calls))
 
 
@@ -559,6 +561,15 @@ class _MemoryApi:
                 row = self.tables["dashboard_state"].get(1)
                 return [row] if row else []
             rows = list(self.tables[table].values())
+            if table == "ad_metrics":
+                raw = qs.get("ad_key", [""])[0]
+                if raw.startswith("like."):
+                    rows = [r for r in rows if r["ad_key"].startswith(raw[5:].rstrip("*"))]
+                for item in qs.get("day", []):
+                    if item.startswith("gte."):
+                        rows = [r for r in rows if r["day"] >= item[4:]]
+                    if item.startswith("lte."):
+                        rows = [r for r in rows if r["day"] <= item[4:]]
             rng = headers.get("Range")
             if rng:
                 start, end = (int(x) for x in rng.split("-"))
@@ -578,6 +589,12 @@ class _MemoryApi:
                 self.tables["ad_metrics"].clear()
                 return None
             raw = qs.get("ad_key", [""])[0]
+            if raw.startswith("eq."):
+                days = (qs.get("day", [""])[0][4:-1]).split(",")
+                for key in list(self.tables["ad_metrics"]):
+                    if key[0] == raw[3:] and key[1] in days:
+                        del self.tables["ad_metrics"][key]
+                return None
             prefix = raw.split(".", 1)[1].rstrip("*") if "." in raw else ""
             start = end = None
             for item in qs.get("day", []):

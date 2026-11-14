@@ -4,7 +4,7 @@ import json, sys, urllib.parse
 from collections import defaultdict
 from datetime import datetime, timedelta, timezone
 from channels import family_of
-from common import env, google_ads_headers, http
+from common import env, google_ads_headers, google_search_all, http
 E = env(); D = json.load(open("data.json", encoding="utf-8"))
 START, END = D["range"]["start"], D["range"]["end"]
 ours = defaultdict(lambda: defaultdict(lambda: [0.0, 0, 0, 0]))   # plat -> date -> [spend, impr, clicks, leads]
@@ -50,9 +50,7 @@ print("   أنواع الليد في الحساب (90 يوم):", dict(types))
 tok = http("https://oauth2.googleapis.com/token", data=urllib.parse.urlencode({
     "client_id": E["GOOGLE_ADS_CLIENT_ID"], "client_secret": E["GOOGLE_ADS_CLIENT_SECRET"],
     "refresh_token": E["GOOGLE_ADS_REFRESH_TOKEN"], "grant_type": "refresh_token"}).encode())["access_token"]
-gq = lambda q: http(f"https://googleads.googleapis.com/v24/customers/{E['GOOGLE_ADS_CUSTOMER_ID']}/googleAds:search",
-    data=json.dumps({"query": q}).encode(), method="POST",
-    headers=google_ads_headers(E, tok)).get("results", [])
+gq = lambda q: google_search_all(E["GOOGLE_ADS_CUSTOMER_ID"], google_ads_headers(E, tok), q)
 truth = {}
 for r in gq(f"SELECT segments.date, metrics.cost_micros, metrics.impressions, metrics.clicks, metrics.conversions FROM customer WHERE segments.date BETWEEN '{START}' AND '{END}'"):
     m = r["metrics"]; truth[r["segments"]["date"]] = [int(m.get("costMicros", 0)) / 1e6, int(m.get("impressions", 0)), int(m.get("clicks", 0)), round(float(m.get("conversions", 0)))]

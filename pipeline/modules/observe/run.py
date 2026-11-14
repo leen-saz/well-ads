@@ -9,7 +9,7 @@
 import hashlib, json, sys, urllib.parse
 from datetime import datetime, timedelta, timezone
 
-from common import env, google_ads_headers, http
+from common import env, google_ads_headers, google_search_all, http
 from modules.core.supa import Supa
 
 KEEP_META = ("budget", "status", "create", "bid", "target", "schedule", "creative", "delete", "run_status")
@@ -50,11 +50,9 @@ def google_rows(E, since, now):
          "change_event.resource_change_operation, change_event.changed_fields, change_event.campaign "
          f"FROM change_event WHERE change_event.change_date_time >= '{since:%Y-%m-%d %H:%M:%S}' "
          f"AND change_event.change_date_time <= '{now:%Y-%m-%d %H:%M:%S}' LIMIT 1000")
-    r = http(f"https://googleads.googleapis.com/v24/customers/{E['GOOGLE_ADS_CUSTOMER_ID']}/googleAds:search",
-             data=json.dumps({"query": q}).encode(), method="POST",
-             headers=google_ads_headers(E, tok))
+    results = google_search_all(E["GOOGLE_ADS_CUSTOMER_ID"], google_ads_headers(E, tok), q)
     out = []
-    for x in r.get("results", []):
+    for x in results:
         c = x.get("changeEvent", {})
         ev = f"{c.get('resourceChangeOperation', '')}_{c.get('changeResourceType', '')}".lower()
         out.append({"platform": "google", "event_id": eid(c.get("changeDateTime"), ev, c.get("campaign"), c.get("changedFields")),
