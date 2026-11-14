@@ -30,6 +30,17 @@ describe('validate', () => {
     expect(textLength('x', '日本')).toBe(4);
     expect(textLength('facebook', link)).toBe(link.length);
   });
+  it('counts X links the way X ends them: trailing punctuation and glued Arabic text are outside the link', () => {
+    const l = 'https://well.example/book/' + 'a'.repeat(60);
+    expect(textLength('x', l)).toBe(23);
+    expect(textLength('x', l + '.')).toBe(24);                       // full stop
+    expect(textLength('x', l + '\u060c')).toBe(24);                  // Arabic comma
+    expect(textLength('x', l + '!?')).toBe(25);
+    expect(textLength('x', '(' + l + ')')).toBe(25);                 // unbalanced closing bracket is outside
+    expect(textLength('x', 'https://well.example/a_(b)')).toBe(23);  // balanced pair stays inside
+    expect(textLength('x', l + 'زيارة')).toBe(23 + 5);              // Arabic glued to the link starts the text
+    expect(textLength('x', 'https://')).toBe(8);                     // no domain: not a link
+  });
   it('counts X text by the ranges X lists: Arabic and plain punctuation are 1, signs outside the ranges are 2', () => {
     expect(textLength('x', 'عِيادة')).toBe(6);                       // Arabic letters and their marks: 1 each
     expect(textLength('x', '\u201c\u201d\u2013')).toBe(3);          // curly quotes and the en dash are inside the ranges
