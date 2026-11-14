@@ -1,7 +1,7 @@
 // /api/auth/*: login, logout, refresh, forgot, reset. Port of web/lib/routes/auth/*.js.
 import {
   env, sb, loadProfile, sessionFor, sign, renew, verify, readCookie, setCookie, clearCookie, safePath, home, audit, html, json,
-  sameOrigin, readJson, handle, keyKind, auditEmail, SESSION, SESSION_HOURS, PASSWORD_MIN, type Profile,
+  sameOrigin, readJson, handle, keyKind, auditEmail, SESSION, SESSION_HOURS, passwordError, type Profile,
 } from '../../lib/auth';
 
 export const login = { POST: handle(async (request, e) => {
@@ -90,7 +90,8 @@ export const reset = { POST: handle(async (request, e) => {
   const token = String(body.access_token || '');
   const password = String(body.password || '');
   if (!token) return json(400, { error: 'الرابط ناقص. اطلب رابط جديد.' });
-  if (password.length < PASSWORD_MIN) return json(400, { error: `الباسوورد لازم ${PASSWORD_MIN} أحرف أو أكثر` });
+  const bad = passwordError(password);
+  if (bad) return json(400, { error: bad });
   const r = await sb<{ id?: string; email?: string }>(cfg, '/auth/v1/user', { method: 'PUT', token, body: { password } });
   if (!r.ok) return json(400, { error: 'الرابط انتهى أو استُخدم. اطلب رابط جديد.' });
   await audit(cfg, { id: r.data?.id, email: r.data?.email }, 'password_set');
