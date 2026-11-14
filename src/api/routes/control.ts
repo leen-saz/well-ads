@@ -5,6 +5,7 @@ import { check } from '../../lib/rules';
 import { check as comply, notice } from '../../modules/compliance/compliance';
 import { rulesFor } from '../../modules/knowledge/knowledge';
 import { sb, json, readJson, handle, requireUser, audit, isOwner, DEPTS, type Cfg, type Session } from '../../lib/auth';
+import { patchGuardrails } from '../../lib/guardrails';
 
 type Row = Record<string, unknown>;
 const PLATFORMS = ['meta', 'snap', 'tiktok', 'google'];
@@ -132,7 +133,7 @@ async function current(cfg: Cfg) {
   const row = (r.ok ? rows(r.data)[0] : undefined) || { guardrails: {} };
   const g = (row.guardrails || {}) as Row;
   return {
-    kill: !!g.kill, canary: Array.isArray(g.canary) ? (g.canary as unknown[]) : [],
+    ok: r.ok, kill: !!g.kill, canary: Array.isArray(g.canary) ? (g.canary as unknown[]) : [],
     by: (row.updated_by as string | undefined) || null, at: (row.updated_at as string | undefined) || null, guardrails: g,
   };
 }
@@ -140,20 +141,19 @@ async function current(cfg: Cfg) {
 async function setCanary(cfg: Cfg, user: Session, list: unknown[]): Promise<Response> {
   if (!isOwner(user, cfg)) return json(403, { error: 'لين بس تحدد حملات التجربة' });
   const canary = [...new Set(list.map(x => String(x || '').trim()).filter(Boolean))].slice(0, 20);
-  const before = await current(cfg);
-  const r = await sb(cfg, '/rest/v1/control_settings', {
-    method: 'POST', admin: true, headers: MERGE,
-    body: { platform: 'global', mode: 'manual', guardrails: { ...before.guardrails, canary }, updated_by: user.email, updated_at: now() },
-  });
-  if (!r.ok) return json(500, { error: 'ما انحفظ' });
-  await audit(cfg, user, 'canary_changed', { target: { platform: 'global' }, before: { canary: before.canary }, after: { canary } });
-  return json(200, { kill: before.kill, canary, by: before.by, at: before.at });
+  // Only the `canary` key changes, on top of whatever the row holds now (a stop pressed meanwhile is never undone)
+  const w = await patchGuardrails(cfg, 'global', g => ({ ...g, canary }), user.email);
+  if (!w.ok) return json(500, { error: 'ما انحفظ' });
+  await audit(cfg, user, 'canary_changed', { target: { platform: 'global' }, before: { canary: Array.isArray(w.before.canary) ? w.before.canary : [] }, after: { canary } });
+  return json(200, { kill: w.guardrails.kill === true, canary, by: user.email, at: now() });
 }
 
 export const kill = {
   GET: handle(async (request, e) => {
     const { cfg } = await requireUser(request, e, 'control', { well: true });
     const c = await current(cfg);
+    // An unreadable stop state is an error, never "the stop is off": the board then blocks approvals until it can be read
+    if (!c.ok) return json(503, { error: 'ما قدرت أقرأ حالة إيقاف الطوارئ' });
     return json(200, { kill: c.kill, canary: c.canary, by: c.by, at: c.at });
   }),
   POST: handle(async (request, e) => {
@@ -162,14 +162,12 @@ export const kill = {
     if (Array.isArray(body.canary)) return setCanary(cfg, user, body.canary);
     const on = !!body.on;
     if (!on && !isOwner(user, cfg)) return json(403, { error: 'لين بس تقدر توقف الطوارئ' });
-    const before = await current(cfg);
-    const r = await sb(cfg, '/rest/v1/control_settings', {
-      method: 'POST', admin: true, headers: MERGE,
-      body: { platform: 'global', mode: 'manual', guardrails: { ...before.guardrails, kill: on }, updated_by: user.email, updated_at: now() },
-    });
-    if (!r.ok) return json(500, { error: 'ما انحفظ' });
-    await audit(cfg, user, on ? 'kill_on' : 'kill_off', { target: { platform: 'global' }, before: { kill: before.kill }, after: { kill: on } });
-    return json(200, { kill: on, canary: before.canary, by: user.email, at: rows(r.data)[0]?.updated_at });
+    // Only the `kill` key changes; the limits, canary list and rules the owner saved are kept as they are now
+    const w = await patchGuardrails(cfg, 'global', g => ({ ...g, kill: on }), user.email);
+    if (!w.ok) return json(500, { error: 'ما انحفظ' });
+    const was = w.before.kill === true;
+    await audit(cfg, user, on ? 'kill_on' : 'kill_off', { target: { platform: 'global' }, before: { kill: was }, after: { kill: on } });
+    return json(200, { kill: on, canary: Array.isArray(w.guardrails.canary) ? w.guardrails.canary : [], by: user.email, at: new Date().toISOString() });
   }),
 };
 

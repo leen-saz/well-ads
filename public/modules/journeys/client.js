@@ -89,6 +89,8 @@ export default async function mount() {
   $('#list').addEventListener('submit', async e => {
     e.preventDefault();
     const card = e.target.closest('[data-id]'), v = e.target.querySelector('input').value.trim(), btn = e.target.querySelector('.primary');
+    // This sends a real WhatsApp or email to a real person: one more look at who gets it, before it goes
+    if (v && !confirm(`ترسل الرحلة الحين إلى ${v}؟ الرسائل تنرسل فعلياً لهذا العميل.`)) return;
     busy(btn, true);
     try {
       await api('/api/journeys/start', { method: 'POST', body: { id: card.dataset.id, contact: v.includes('@') ? { email: v } : { phone: v } } });

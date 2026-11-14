@@ -407,10 +407,12 @@ export const agents = { GET: handle(async (request, e: Env) => {
 }) };
 
 // An answer to an open question (the agents went on with the assumption). It is saved in the brief; when the campaign has already run, only
-// the tasks the question affects, and what depends on them, are written again (a task at most MAX_REGEN times). Whoever may see the campaign
+// the tasks the question affects, and what depends on them, are written again (a task at most MAX_REGEN times). Whoever may approve campaigns
 // may answer. Social drafts made earlier stay in Social as drafts: the new ones are added beside them.
 export const answer = { POST: handle(async (request, e: Env) => {
   const { cfg, user } = await requireUser(request, e, 'any', { write: true });
+  // An answer writes parts of the campaign again (paid model calls): it is a decision for who may approve, not for every author
+  if (!mayApprove(user, cfg)) return json(403, { error: NO_APPROVE });
   const b = await readJson(request, 3000), id = idOf(b['id']), index = Math.round(Number(b['index'])), text = cleanReason(b['answer']).slice(0, 400);
   if (!id || !Number.isInteger(index) || index < 0 || index > 5) return json(400, { error: 'طلب غير صحيح' });
   if (!text) return json(400, { error: 'اكتب الجواب' });

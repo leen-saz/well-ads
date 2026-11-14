@@ -15,6 +15,9 @@ export default async function mount() {
 
   // ?tab=log opens the past decisions (the «السجل» link in the sidebar, and /history/)
   const urlTab = new URLSearchParams(location.search).get('tab');
+  // Tabs whose list is the suggestions inbox, and the elements a shortcut must leave alone
+  const INBOX_KEYS = tab => !['log', 'learn', 'buyer', 'rules'].includes(tab);
+  const NO_KEYS = 'input,textarea,select,button,a,[role="dialog"],dialog,#panel,.pop,[contenteditable]';
   const S = { kill: { kill: false }, tab: ['log', 'learn', 'buyer', 'rules'].includes(urlTab) ? urlTab : 'all', q: '', kind: '', level: '', sort: 'impact', open: [], done: [], ads: {}, gen: null, settings: [], owner: false, sel: new Set(), cursor: 0, hist: { status: '' } };
 
   // الأثر بالريال لكل أسبوع: الإيقاف يوفر صرف آخر 7 أيام، والرفع يضيف نسبة منه
@@ -55,7 +58,9 @@ export default async function mount() {
   // ---------- الأعلى
   function topTools() {
     const fresh = S.gen ? `<span class="chip" data-tip="آخر سحب للأرقام من المنصات"><span class="dot"></span>آخر تحديث للبيانات ${esc(when(S.gen))}</span>` : '';
-    const kill = S.kill.kill
+    const kill = S.kill.unknown
+      ? `<button class="btn sm danger" id="killBtn" disabled data-tip="ما قدرنا نقرأ حالة إيقاف الطوارئ">${icon('power')}حالة الطوارئ غير معروفة</button>`
+      : S.kill.kill
       ? `<button class="btn sm danger" id="killBtn" data-on="0"${S.owner ? '' : ' disabled'} data-tip="${S.owner ? 'إلغاء إيقاف الطوارئ' : 'لين بس تلغي إيقاف الطوارئ'}">${icon('power')}إيقاف الطوارئ مفعّل</button>`
       : `<button class="btn sm secondary" id="killBtn" data-on="1" data-tip="يوقف أي تنفيذ على حسابات الإعلانات فوراً">${icon('power')}إيقاف طوارئ</button>`;
     const n = (S.kill.canary || []).length;
@@ -67,7 +72,9 @@ export default async function mount() {
   function drawTop() {
     $('#tools').innerHTML = topTools();
     $('#killBanner').hidden = !S.kill.kill;
-    $('#killBanner').innerHTML = S.kill.kill ? `${icon('power')}<b>إيقاف الطوارئ مفعّل</b><span>أي تنفيذ على حسابات الإعلانات موقوف${S.kill.by ? ` · شغّلها ${esc(S.kill.by)} ${esc(when(S.kill.at))}` : ''}.</span>` : '';
+    $('#killBanner').innerHTML = S.kill.unknown ? `${icon('alert')}<b>ما قدرنا نقرأ حالة إيقاف الطوارئ</b><span>الموافقة والتنفيذ موقوفين لين تنقرأ.</span><button class="btn sm secondary" id="killRetry" type="button">حاول مرة ثانية</button>` : S.kill.kill ? `${icon('power')}<b>إيقاف الطوارئ مفعّل</b><span>أي تنفيذ على حسابات الإعلانات موقوف${S.kill.by ? ` · شغّلها ${esc(S.kill.by)} ${esc(when(S.kill.at))}` : ''}.</span>` : '';
+    const rt = $('#killRetry');
+    if (rt) rt.onclick = async () => { busy(rt, true); try { S.kill = await api('/api/control/kill'); drawTop(); render(); window.dispatchEvent(new Event('buyer-reload')); } catch { busy(rt, false); toast('لسا ما قدرنا نقرأ حالة إيقاف الطوارئ'); } };
     const b = $('#killBtn'); if (!b || b.disabled) return;
     b.onclick = () => {
       const on = b.dataset.on === '1';
@@ -223,6 +230,7 @@ export default async function mount() {
   function render() {
     if (S.tab === 'rules' && !S.owner) S.tab = 'all';           // the owner's section: nobody else gets it, even with ?tab=rules
     const b = S.tab === 'buyer', r = S.tab === 'rules'; $('#inbox').hidden = b || r; if ($('#buyerPane')) $('#buyerPane').hidden = !b || !S.buyerLoaded; if ($('#by-rulesBox')) $('#by-rulesBox').hidden = !r || !S.rulesLoaded;
+    if (r || b || S.tab === 'log' || S.tab === 'learn') S.list = null;   // the old list must not stay armed under a hidden inbox
     kpis(); tabs(); filters(); r ? rulesPane() : b ? buyerPane() : S.tab === 'log' ? history() : S.tab === 'learn' ? learning() : inbox();
   }
   // التعلّم: الدروس، وحركات الفريق داخل المنصات، ونتائج القرارات بعد 3 و7 أيام
@@ -259,6 +267,8 @@ export default async function mount() {
 
   // ---------- القرارات
   async function decide(ids, decision, note = '', btn) {
+    // With the emergency-stop state unknown, nothing is approved (rejecting is always safe)
+    if (decision !== 'reject' && S.kill.unknown) { toast('ما نقدر نوافق: حالة إيقاف الطوارئ غير معروفة. حاول مرة ثانية فوق'); return; }
     busy(btn, true);
     try {
       const r = await api('/api/control/suggestions', { method: 'POST', body: { ids, decision, note } });
@@ -408,7 +418,9 @@ export default async function mount() {
     $('#veil').onclick = closePanel;
     document.addEventListener('keydown', e => {
       if (e.key === 'Escape') { if (POP) closePop(); else closePanel(); return; }
-      if (e.target.closest('input,textarea,select') || e.metaKey || e.ctrlKey || e.altKey || S.tab === 'log' || !S.list || !S.list.length) return;
+      // The shortcuts act on the inbox rows only. On the other tabs (القرارات السابقة، التعلّم، توصيات القواعد، قواعد الإدارة) the inbox is hidden:
+      // a key there must never approve a suggestion nobody can see. Nor when focus is on a button, a link or inside a dialog or the side panel.
+      if (!INBOX_KEYS(S.tab) || e.target.closest(NO_KEYS) || e.metaKey || e.ctrlKey || e.altKey || !S.list || !S.list.length) return;
       const cur = S.list[S.cursor];
       const row = () => $(`tr[data-id="${S.list[S.cursor].id}"]`);
       if (e.key === 'j' || e.key === 'k') { S.cursor = Math.max(0, Math.min(S.list.length - 1, S.cursor + (e.key === 'j' ? 1 : -1))); inbox(); row().scrollIntoView({ block: 'nearest' }); }
@@ -420,7 +432,6 @@ export default async function mount() {
         else { S.armed = { key: ids.join(','), at: Date.now() }; toast(ids.length > 1 ? `اضغط a مرة ثانية للموافقة على ${ids.length}` : `اضغط a مرة ثانية: ${outcome(cur).t}`); }
       }
       else if (e.key === 'r') askNote(row(), S.sel.size ? [...S.sel] : [cur.id], 'reject');
-      else if (e.key === 'Enter') openPanel(cur);
       else return;
       e.preventDefault();
     }, { signal: pageSignal() });
@@ -433,7 +444,7 @@ export default async function mount() {
   async function load() {
     skeleton();
     try {
-      const [sug, set, ads, kill] = await Promise.all([api('/api/control/suggestions'), api('/api/control/settings'), fetch('/control/ads.json', { credentials: 'same-origin' }).then(r => r.ok ? r.json() : { ads: {} }).catch(() => ({ ads: {} })), api('/api/control/kill').catch(() => ({ kill: false }))]);
+      const [sug, set, ads, kill] = await Promise.all([api('/api/control/suggestions'), api('/api/control/settings'), fetch('/control/ads.json', { credentials: 'same-origin' }).then(r => r.ok ? r.json() : { ads: {} }).catch(() => ({ ads: {} })), api('/api/control/kill').catch(() => ({ kill: true, unknown: true }))]);
       Object.assign(S, { open: sug.open, done: sug.done, settings: set.settings, owner: set.owner, ads: ads.ads || {}, gen: ads.generated_at || null, kill });
       drawTop();
       modes(); render();

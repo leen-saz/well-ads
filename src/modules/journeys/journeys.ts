@@ -16,6 +16,8 @@ export type Step =
 export interface Contact { name?: string; phone?: string; email?: string }
 
 const MAX_STEPS = 20, MAX_WAIT_H = 24 * 90;
+// Daily limits on starting runs (24 hours back): per person who starts them, and per customer who receives them
+export const DAILY_PER_USER = 100, DAILY_PER_CONTACT = 2;
 
 export function cleanSteps(input: unknown): { steps?: Step[]; error?: string } {
   if (!Array.isArray(input) || !input.length) return { error: 'أضف خطوة وحدة على الأقل' };
@@ -84,8 +86,9 @@ export async function send(step: Step, c: Contact, t: Tokens, f: typeof fetch = 
         template: { name: step.template, language: { code: step.lang },
           ...(c.name ? { components: [{ type: 'body', parameters: [{ type: 'text', text: c.name }] }] } : {}) } }),
     });
-    const j = (await r.json()) as { messages?: unknown[]; error?: { message?: string } };
-    return j.messages ? { ok: true } : { ok: false, error: j.error?.message || 'ما انرسلت' };
+    // A 2xx means Meta accepted the message. An unreadable body after that must not read as a failure: the step would be retried and the customer would get it twice.
+    const j = (await r.json().catch(() => ({}))) as { messages?: unknown[]; error?: { message?: string } };
+    return r.ok || j.messages ? { ok: true } : { ok: false, error: j.error?.message || 'ما انرسلت' };
   }
   if (step.type === 'email') {
     if (!c.email) return { ok: false, error: 'ما فيه إيميل' };

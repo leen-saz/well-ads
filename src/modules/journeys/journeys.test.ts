@@ -1,7 +1,7 @@
 // Journeys: step and contact validation, sending over WhatsApp and Gmail with stubbed APIs, and starting a run.
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import * as A from '../../lib/auth';
-import { cleanContact, cleanSteps, notices, send } from './journeys';
+import { cleanContact, cleanSteps, notices, send, DAILY_PER_USER, DAILY_PER_CONTACT } from './journeys';
 import { start } from './routes';
 import { WELL_COMPANY } from '../../lib/tenant';
 
@@ -60,7 +60,9 @@ describe('start', () => {
     vi.stubGlobal('fetch', vi.fn(async (url: string) => {
       urls.push(url);
       if (url.includes('profiles?id=eq.')) return new Response(JSON.stringify([leen]));
-      if (url.includes('journeys?id=eq.7')) return new Response(JSON.stringify([{ id: 7, steps: [{ type: 'wait', hours: 1 }] }]));
+      if (url.includes('control_settings')) return new Response(JSON.stringify([{ guardrails: { kill: false } }]));
+      if (url.includes('journey_runs?select=id')) return new Response('[]');   // no runs today yet: under both daily limits
+      if (url.includes('journeys?id=eq.7')) return new Response(JSON.stringify([{ id: 7, steps: [{ type: 'wait', hours: 1 }], active: true, mode: 'manual' }]));
       if (url.includes('journeys?id=eq.')) return new Response('[]');
       if (url.endsWith('/rest/v1/journey_runs')) return new Response(JSON.stringify([{ id: 99 }]));
       return new Response('[]');
@@ -73,5 +75,58 @@ describe('start', () => {
     expect(created).toEqual([{ id: 'run-99', params: { runId: 99, companyId: WELL_COMPANY, steps: [{ type: 'wait', hours: 1 }], contact: { name: '', phone: '966551234567' } } }]);
     expect(urls.find(u => u.includes('journeys?id=eq.7'))).toContain(`company_id=eq.${WELL_COMPANY}`);
     expect((await start.POST(req(8), env)).status).toBe(404);
+  });
+});
+
+describe('start: a run sends real messages, so it is an approval with limits', () => {
+  const E = { SUPABASE_URL: 'https://sb.example', SUPABASE_SERVICE_ROLE_KEY: 's', SESSION_SECRET: 'x'.repeat(40), OWNER_EMAIL: 'leen@example.com' };
+  const cfg = A.env(E);
+  const member = (level: 'edit' | 'approve'): A.Profile => ({ id: '22222222-2222-2222-2222-222222222222', email: 'm@example.com', active: true, role: 'member', company_id: WELL_COMPANY, access: { journeys: level } });
+  async function go(p: A.Profile, o: { active?: boolean; kill?: boolean | 'down'; userRuns?: number; contactRuns?: number } = {}) {
+    const cookie = `${A.SESSION}=${encodeURIComponent(await A.sign(A.sessionFor(p, cfg), cfg.secret))}`;
+    const created: unknown[] = [], posted: string[] = [];
+    vi.stubGlobal('fetch', vi.fn(async (url: string, init: RequestInit = {}) => {
+      if (url.includes('profiles?id=eq.')) return new Response(JSON.stringify([p]));
+      if (url.includes('control_settings')) return o.kill === 'down' ? new Response('{}', { status: 500 }) : new Response(JSON.stringify([{ guardrails: { kill: o.kill === true } }]));
+      if (url.includes('journeys?id=eq.7')) return new Response(JSON.stringify([{ id: 7, steps: [{ type: 'wait', hours: 1 }], active: o.active !== false, mode: 'manual' }]));
+      if (url.includes('journey_runs?select=id') && url.includes('started_by=')) return new Response(JSON.stringify(Array.from({ length: o.userRuns ?? 0 }, (_, i) => ({ id: i }))));
+      if (url.includes('journey_runs?select=id')) return new Response(JSON.stringify(Array.from({ length: o.contactRuns ?? 0 }, (_, i) => ({ id: i }))));
+      if (url.endsWith('/rest/v1/journey_runs') && init.method === 'POST') { posted.push(String(init.body)); return new Response(JSON.stringify([{ id: 99 }])); }
+      return new Response('[]');
+    }));
+    const env = { ...E, JOURNEY: { create: async (x: unknown) => { created.push(x); return {}; } } };
+    const res = await start.POST(new Request('https://well.example/api/journeys/start', { method: 'POST', headers: { cookie, origin: 'https://well.example', 'sec-fetch-site': 'same-origin' }, body: JSON.stringify({ id: 7, contact: { phone: '0551234567' } }) }), env);
+    return { status: res.status, created, posted };
+  }
+  it('edit level alone cannot start a run; approve level can', async () => {
+    const edit = await go(member('edit'));
+    expect(edit.status).toBe(403); expect(edit.created).toEqual([]); expect(edit.posted).toEqual([]);
+    expect((await go(member('approve'))).status).toBe(200);
+  });
+  it('a journey saved as paused does not send', async () => {
+    const r = await go(member('approve'), { active: false });
+    expect(r.status).toBe(409); expect(r.created).toEqual([]);
+  });
+  it('the emergency stop stops it, and an unreadable stop state counts as stopped', async () => {
+    expect((await go(member('approve'), { kill: true })).status).toBe(409);
+    const down = await go(member('approve'), { kill: 'down' });
+    expect(down.status).toBe(409); expect(down.created).toEqual([]);
+  });
+  it('a person cannot start more than the daily limit, and a customer cannot receive more than theirs', async () => {
+    const u = await go(member('approve'), { userRuns: DAILY_PER_USER });
+    expect(u.status).toBe(429); expect(u.created).toEqual([]); expect(u.posted).toEqual([]);
+    expect((await go(member('approve'), { userRuns: DAILY_PER_USER - 1 })).status).toBe(200);
+    const c = await go(member('approve'), { contactRuns: DAILY_PER_CONTACT });
+    expect(c.status).toBe(429); expect(c.created).toEqual([]);
+    expect((await go(member('approve'), { contactRuns: DAILY_PER_CONTACT - 1 })).status).toBe(200);
+  });
+});
+
+describe('send: a reply Meta accepted is never turned into a failure that gets retried', () => {
+  it('a 2xx WhatsApp reply with an unreadable body counts as sent (a retry would message the customer twice)', async () => {
+    const f = vi.fn(async () => new Response('not json', { status: 200 })) as unknown as typeof fetch;
+    expect((await send({ type: 'whatsapp', template: 't', lang: 'ar' }, { phone: '966551234567' }, { WHATSAPP_TOKEN: 'w', WHATSAPP_PHONE_ID: 'p' }, f)).ok).toBe(true);
+    const bad = vi.fn(async () => new Response(JSON.stringify({ error: { message: 'no' } }), { status: 400 })) as unknown as typeof fetch;
+    expect((await send({ type: 'whatsapp', template: 't', lang: 'ar' }, { phone: '966551234567' }, { WHATSAPP_TOKEN: 'w', WHATSAPP_PHONE_ID: 'p' }, bad)).ok).toBe(false);
   });
 });
