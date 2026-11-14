@@ -32,7 +32,28 @@ const ALIAS: Record<string, string> = { '/analytics': '/', '/home': '/today/', '
 // Tabs shown as a section of another tab: /voiceover/ is /voice/?tab=voiceover, /copy/ is /content/?tab=copy (same access as before)
 const intoOf = (key: string): string | undefined => MODULES.find(m => m.key === key)?.into;
 
-export function need(pathname: string, search: string): Need | null {
+// The path as the router will see it: Hono decodes the path before it picks a handler, so /api/%61dmin/x reaches the admin
+// routes while a regex on the raw text saw nothing. The gate classifies the decoded path (twice, for %2561), with dot segments and
+// repeated slashes resolved, so a route can never be reached under a name the gate did not recognise.
+export function normalizePath(raw: string): string {
+  let p = raw;
+  for (let i = 0; i < 2; i++) {
+    let d: string;
+    try { d = decodeURIComponent(p); } catch { break; }
+    if (d === p) break;
+    p = d;
+  }
+  const out: string[] = [];
+  for (const seg of p.replace(/\\/g, '/').split('/')) {
+    if (seg === '' || seg === '.') continue;
+    if (seg === '..') out.pop(); else out.push(seg);
+  }
+  const path = '/' + out.join('/');
+  return raw.endsWith('/') && path !== '/' ? path + '/' : path;
+}
+
+export function need(rawPathname: string, search: string): Need | null {
+  const pathname = normalizePath(rawPathname);
   if (PUBLIC.some(r => r.test(pathname))) return null;
   if (HUB.test(pathname) || ALIAS[pathname.replace(/\/$/, '')] || /^\/(api\/)?today(\/|$)/.test(pathname)) return 'any';
   if (/^\/(api\/)?admin(\/|$)/.test(pathname)) return 'owner';
@@ -90,10 +111,11 @@ export async function gate(request: Request, e: AuthEnv): Promise<Decision> {
 async function decide(request: Request, e: AuthEnv, renewed: { cookie?: string }): Promise<Decision> {
   const url = new URL(request.url);
   // The standalone Media buyer page is gone: its place is a tab of the decisions board
-  if (/^\/buyer\/?$/.test(url.pathname)) return new Response(null, { status: 301, headers: { location: '/control/?tab=buyer', 'cache-control': 'public, max-age=3600' } });
+  const path = normalizePath(url.pathname);
+  if (/^\/buyer\/?$/.test(path)) return new Response(null, { status: 301, headers: { location: '/control/?tab=buyer', 'cache-control': 'public, max-age=3600' } });
   const want = need(url.pathname, url.search);
   if (!want) return { pass: true };
-  const api = url.pathname.startsWith('/api/');
+  const api = path.startsWith('/api/');
   let cfg: Cfg;
   try { cfg = env(e); } catch {
     return api ? json(503, { error: 'الإعداد غير مكتمل' }) : html(503, 'الإعداد غير مكتمل. تواصل مع مسؤولة اللوحة.');
@@ -116,13 +138,13 @@ async function decide(request: Request, e: AuthEnv, renewed: { cookie?: string }
     // Supabase hiccup (5xx / 429): keep the session as it is, the next page tries again, nobody is logged out
     if (r.kind === 'ok') { s = r.session; renewed.cookie = r.cookie; }
   }
-  const alias = ALIAS[url.pathname.replace(/\/$/, '')];
+  const alias = ALIAS[path.replace(/\/$/, '')];
   if (alias) {
     const to = new URL(alias, url.origin);
     url.searchParams.forEach((v, k) => { if (!to.searchParams.has(k)) to.searchParams.set(k, v); });
     return redirect(to.toString());
   }
-  const hub = url.pathname.match(HUB)?.[1];
+  const hub = path.match(HUB)?.[1];
   if (hub) return redirect(new URL(HUBS[hub]!.find(([k]) => can(s, k, cfg) && (s.co === WELL_COMPANY || !WELL_NEEDS.includes(k)))?.[1] ?? '/today/', url.origin).toString());
   if (s.co !== WELL_COMPANY && WELL_NEEDS.includes(want)) return api ? json(403, { error: WELL_ONLY }) : denied(url, want, 'company', WELL_ONLY);
   // Images: any user with at least one dashboard
@@ -131,10 +153,10 @@ async function decide(request: Request, e: AuthEnv, renewed: { cookie?: string }
   if (can(s, want, cfg)) {
     // The old address of a section: its place inside the tab it moved into
     const host = !api ? intoOf(want) : undefined;
-    if (host && url.pathname.replace(/\/$/, '') === '/' + want) return redirect(new URL(`/${host}/?tab=${want}`, url.origin).toString());
+    if (host && path.replace(/\/$/, '') === '/' + want) return redirect(new URL(`/${host}/?tab=${want}`, url.origin).toString());
     // Department manager: analytics and creative open from their department copy only
     const scope: string[] = Array.isArray(s.depts) ? s.depts : [];
-    const m = url.pathname.match(/^\/dept\/([a-z]+)\/?/);
+    const m = path.match(/^\/dept\/([a-z]+)\/?/);
     if (m) return !scope.length || scope.includes(m[1] as string) ? { pass: true } : html(403, 'ما عندك صلاحية على هذا القسم.');
     if (scope.length && (want === 'ceo' || want === 'creative')) {
       const pick = url.searchParams.get('d');
@@ -142,7 +164,7 @@ async function decide(request: Request, e: AuthEnv, renewed: { cookie?: string }
       return { pass: true, rewrite: new URL(`/dept/${d}/${url.search}`, url.origin).toString() };
     }
     // Creative without analytics: the copy with ad numbers only, no organic and no Google
-    if (want === 'creative' && !can(s, 'ceo', cfg) && !url.pathname.startsWith('/c/')) {
+    if (want === 'creative' && !can(s, 'ceo', cfg) && !path.startsWith('/c/')) {
       return { pass: true, rewrite: new URL(`/c/${url.search}`, url.origin).toString() };
     }
     return { pass: true };

@@ -41,7 +41,9 @@ export async function runSocial(e: AuthEnv, now = Date.now(), f: typeof fetch = 
   try { cfg = env(e); } catch { console.error('social: setup incomplete'); return 0; }
   const iso = new Date(now).toISOString();
   const sel = 'select=*,company:companies(social_approvers)';
-  const list = await sb<Row[]>(cfg, `/rest/v1/social_posts?${sel}&status=eq.scheduled&publish_at=lte.${iso}&order=publish_at.asc&limit=50`, { admin: true });
+  // Only APPROVED posts are fetched. An unapproved post that is overdue is not claimed or sent (it waits for a person), and because
+  // it is left out of the query it can no longer fill the 50-row window and hide the approved posts behind it.
+  const list = await sb<Row[]>(cfg, `/rest/v1/social_posts?${sel}&status=eq.scheduled&approved_at=not.is.null&publish_at=lte.${iso}&order=publish_at.asc&limit=50`, { admin: true });
   if (!list.ok || !Array.isArray(list.data)) return 0;
   // Stuck in 'publishing' (a Worker that died): found by age, re-claimed by the old claim time so two runs never both take it
   const stuck = await sb<Row[]>(cfg, `/rest/v1/social_posts?${sel}&status=eq.publishing&publish_at=lte.${iso}&order=publish_at.asc&limit=20`, { admin: true });

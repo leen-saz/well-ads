@@ -6,6 +6,7 @@ import { generate, stream, type LlmEnv, type StreamEvent } from '../../src/lib/l
 import { DEFAULT_CAP_USD, cost, monthStart, record, clearSnaps, levelOf, reconcile, withWaiter, USD_SAR, type UsageCtx } from '../../src/lib/usage';
 import { priceOf } from '../../src/lib/prices';
 import { ROUTES } from '../../src/modules/routes';
+import { WELL_COMPANY } from '../../src/lib/tenant';
 
 const CO_A = '11111111-1111-1111-1111-111111111111', CO_B = '22222222-2222-2222-2222-222222222222';
 const E: A.AuthEnv = { SUPABASE_URL: 'https://sb.example', SUPABASE_SERVICE_ROLE_KEY: 's', SESSION_SECRET: 'x'.repeat(40), OWNER_EMAIL: 'boss@example.com' };
@@ -246,13 +247,22 @@ describe('owner-only routes', () => {
     expect(calls.find(c => c.url.includes('/ai_budgets'))!.url).toContain(`company_id=eq.${CO_B}`);
   });
   it('a cap is typed in riyals, stored in dollars for the owner\'s company, audited; empty clears it', async () => {
-    expect((await call(M.budgets.POST, owner, { tab: 'copy', cap_sar: 375 })).status).toBe(200);
+    expect((await call(M.budgets.POST, owner, { tab: 'copy', cap_sar: 75 })).status).toBe(200);
     const w = calls.find(c => c.url.includes('/ai_budgets') && c.method === 'POST')!;
-    expect(w.body).toMatchObject({ company_id: CO_B, module: 'copy', monthly_cap_usd: 100, alert_at_pct: 80 });
+    expect(w.body).toMatchObject({ company_id: CO_B, module: 'copy', monthly_cap_usd: 20, alert_at_pct: 80 });
     expect(audits()).toContain('ai_budget_set');
+  });
+  it('another company\'s owner cannot clear the cap or raise it past the ceiling; Well\'s owner can do both (the model keys are Well\'s)', async () => {
     calls = [];
-    expect((await call(M.budgets.POST, owner, { tab: 'copy', cap_sar: '' })).status).toBe(200);
-    expect(calls.find(c => c.url.includes('/ai_budgets') && c.method === 'POST')!.body).toMatchObject({ monthly_cap_usd: null });
+    expect((await call(M.budgets.POST, owner, { tab: 'copy', cap_sar: '' })).status).toBe(403);
+    expect((await call(M.budgets.POST, owner, { tab: 'copy', cap_sar: 375 })).status).toBe(403);
+    expect((await call(M.budgets.POST, owner, { tab: 'copy', cap_sar: 200 })).status).toBe(200);   // the ceiling itself is allowed
+    expect(calls.filter(c => c.url.includes('/ai_budgets') && c.method === 'POST')).toHaveLength(1);
+    const well = { ...owner, company_id: WELL_COMPANY } as A.Profile;
+    calls = [];
+    expect((await call(M.budgets.POST, well, { tab: 'copy', cap_sar: 375 })).status).toBe(200);
+    expect((await call(M.budgets.POST, well, { tab: 'copy', cap_sar: '' })).status).toBe(200);
+    expect(calls.filter(c => c.url.includes('/ai_budgets') && c.method === 'POST').pop()!.body).toMatchObject({ company_id: WELL_COMPANY, monthly_cap_usd: null });
     expect(audits()).toContain('ai_budget_cleared');
   });
   it('rejects a tab that does not exist, a cap of zero or below, and an alert outside 1–99', async () => {

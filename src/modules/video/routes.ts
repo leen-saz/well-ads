@@ -138,7 +138,7 @@ export const jobs = {
     const clips = (Array.isArray(b.clips) ? b.clips : []).filter((c): c is Record<string, unknown> => !!c && typeof c === 'object');
     // the project decides the size, the avatar skill is the project's unless the clip names another
     const withDefaults = clips.map(c => ({ ratio: p.ratio, ...(p.avatar_id ? { avatarId: p.avatar_id } : {}), ...c }));
-    const made = await createJobs(cfg, user, Number(p.id), engine, withDefaults);
+    const made = await createJobs(cfg, user, Number(p.id), engine, withDefaults, usageCtx(cfg, user));
     if (!made.jobs) return json(made.status || 400, { error: (made.problems || []).join('، '), problems: made.problems });
     return json(200, { ok: true, jobs: made.jobs.map(view) });
   }),
@@ -244,7 +244,7 @@ export const render = { POST: handle(async (request, e: VEnv) => {
   if (avatar && !s.voice_url) return json(400, { error: 'الأفاتار يحتاج رابط ملف الصوت' });
   const clips = s.shots.map(x => ({ kind: avatar ? 'avatar' : 'text-to-video', prompt: avatar ? x.line : x.prompt || x.scene, seconds: x.seconds, ratio: p.ratio, resolution: '720p',
     ...(avatar ? { avatarId: p.avatar_id, voiceUrl: s.voice_url } : {}) }));
-  const made = await createJobs(cfg, user, Number(p.id), engine, clips);
+  const made = await createJobs(cfg, user, Number(p.id), engine, clips, usageCtx(cfg, user));
   if (!made.jobs) return json(made.status || 400, { error: (made.problems || []).join('، '), problems: made.problems });
   return json(200, { ok: true, jobs: made.jobs.map(view) });
 }) };

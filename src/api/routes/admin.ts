@@ -1,5 +1,5 @@
 // /api/admin/*: users and log (Leen only). Port of web/lib/routes/admin/*.js.
-import { sb, json, readJson, handle, requireUser, audit, levelsOf, DASHBOARDS, DEPTS, LEVELS, PASSWORD_MIN, type Cfg, type Level, type Profile } from '../../lib/auth';
+import { sb, json, readJson, handle, requireUser, audit, revokeSessions, levelsOf, DASHBOARDS, DEPTS, LEVELS, PASSWORD_MIN, type Cfg, type Level, type Profile } from '../../lib/auth';
 import { logRange } from '../../lib/logrange';
 import { isDay, parseRangeParams } from '../../../public/assets/period.js';
 import { MODULES, isModule } from '../../modules/registry';
@@ -115,6 +115,8 @@ export const users = {
     if ('active' in body) patch.active = !!body.active;
     const before = await sb<Row[]>(cfg, scoped(`/rest/v1/profiles?id=eq.${id}&select=*`, user.co), { admin: true });
     if (!before.ok || !before.data.length) return json(404, { error: 'مستخدم غير معروف' });
+    // One owner never switches off another owner (or bans them in Supabase): the company could be locked out of its own account
+    if (patch.active === false && before.data[0]?.role === 'owner' && id !== user.uid) return json(403, { error: 'ما تقدر توقف مالك ثاني. هذا من اختصاص الدعم.' });
     const r = await sb<Row[]>(cfg, scoped(`/rest/v1/profiles?id=eq.${id}`, user.co), { method: 'PATCH', admin: true, headers: { Prefer: 'return=representation' }, body: patch });
     if (!r.ok || !r.data.length) return json(400, { error: 'ما انحفظ التعديل' });
     if ('active' in patch) {
@@ -202,6 +204,7 @@ export const password = {
     if (!who.ok || !Array.isArray(who.data) || !who.data.length) return json(404, { error: 'مستخدم غير معروف' });
     const r = await sb(cfg, `/auth/v1/admin/users/${id}`, { method: 'PUT', admin: true, body: { password: pw } });
     if (!r.ok) return json(502, { error: 'ما تغيّر الباسوورد، جرّب مرة ثانية' });
+    await revokeSessions(cfg, id);   // the old password's logins end with it
     await audit(cfg, user, 'user_password_set', { target: { id, email: who.data[0]?.email } });
     return json(200, { ok: true });
   }),

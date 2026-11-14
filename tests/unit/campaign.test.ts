@@ -107,7 +107,7 @@ describe('POST /api/campaigns/create', () => {
     expect(t.every(x => x['company_id'] === WELL_COMPANY && x['campaign_id'] === CID)).toBe(true);
     expect(calls.filter(x => x.url.includes('/ai_usage')).map(x => x.body).map(b => [b.module, b.provider, b.cost_usd])).toEqual([['ahlam_campaign', 'openrouter', 0.0042]]);
     const aud = calls.filter(x => x.url.includes('/audit_log') && x.method === 'POST').map(x => x.body);
-    expect(aud.map(a => a.action)).toEqual(['campaign_create']);
+    expect(aud.map(a => a.action)).toEqual(['campaign_create', 'campaign_created']);   // the counting row first, the details after
     expect(JSON.stringify(aud)).not.toContain('تقويم القدم');
     // the planner call asks for no action on an ad account and treats the wishes as data
     const sys = calls.find(x => x.url === OR_URL)!.body.messages[0].content as string;

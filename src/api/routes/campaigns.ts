@@ -2,7 +2,7 @@
 // the in-app agents, saved in campaigns / campaign_tasks (migration 030). Any signed-in user may write wishes and get a plan; seeing a
 // campaign needs being its author or an approver; starting it needs an approver (owner, or approve on the manager tab). Nothing here
 // touches an ad account.
-import { sb, json, readJson, handle, requireUser, audit, missingSchema, notApplied, NO_APPROVE, type AuthEnv, type Session } from '../../lib/auth';
+import { sb, json, readJson, handle, requireUser, audit, claimDaily, missingSchema, notApplied, NO_APPROVE, type AuthEnv, type Session } from '../../lib/auth';
 import { scoped } from '../../lib/tenant';
 import { generate, llmMessage, pick, type LlmEnv, type Provider } from '../../lib/llm';
 import { overCap, usageCtx } from '../../lib/usage';
@@ -57,8 +57,11 @@ export const create = { POST: handle(async (request, e: Env) => {
   if (!w.wishes) return json(400, { error: w.error });
   const model = pick(e, TASK);
   if (!model) return json(503, { error: 'احلم يحتاج الذكاء الاصطناعي، وهو غير متصل الحين' });
-  const today = await sb<unknown[]>(cfg, `/rest/v1/audit_log?select=id&action=eq.campaign_create&user_id=eq.${encodeURIComponent(user.uid)}&at=gte.${encodeURIComponent(dayStart(Date.now()))}&limit=${PLANS_PER_DAY}`, { admin: true });
-  if (today.ok && Array.isArray(today.data) && today.data.length >= PLANS_PER_DAY) return json(429, { error: `وصلت حدّك اليوم (${PLANS_PER_DAY} خطط حملات). جرّب بكرة.` });
+  // The counting row is written before the model is paid (and counted right after), so parallel requests cannot all pass
+  // and a row that could not be saved refuses instead of removing the limit
+  const slot = await claimDaily(cfg, user, 'campaign_create', PLANS_PER_DAY, dayStart(Date.now()));
+  if (slot === 'over') return json(429, { error: `وصلت حدّك اليوم (${PLANS_PER_DAY} خطط حملات). جرّب بكرة.` });
+  if (slot === 'error') return json(503, { error: 'ما قدرت أتأكد من حدّك اليوم. جرّب بعد لحظات.' });
   let plan, used_model = model.model, used_provider: Provider = model.provider;
   try {
     const out = await generate(e, TASK, { messages: planMessages(w.wishes), max_tokens: 3000, response_format: { type: 'json_schema', json_schema: PLAN_SCHEMA } }, fetch, usageCtx(cfg, user, TASK));
@@ -75,7 +78,7 @@ export const create = { POST: handle(async (request, e: Env) => {
   const tasks = await sb(cfg, '/rest/v1/campaign_tasks', { method: 'POST', admin: true, headers: { Prefer: 'return=minimal' },
     body: plan.tasks.map((t, i) => ({ campaign_id: id, company_id: user.co, position: i, agent: t.agent, title: t.title, spec: { detail: t.detail, ...(t.kind ? { kind: t.kind } : {}) }, depends_on: t.after, estimate_usd: est.perTask[i] })) });
   if (!tasks.ok) { await sb(cfg, scoped(`/rest/v1/campaigns?id=eq.${id}`, user.co), { method: 'DELETE', admin: true }); return fail(user, tasks, 'ما انحفظت مهام الحملة'); }
-  await audit(cfg, user, 'campaign_create', { target: { id, tasks: plan.tasks.length, estimate_usd: est.usd } });   // never the wishes' text
+  await audit(cfg, user, 'campaign_created', { target: { id, tasks: plan.tasks.length, estimate_usd: est.usd } });   // never the wishes' text
   return json(200, { id, rough: est.rough });
 }) };
 

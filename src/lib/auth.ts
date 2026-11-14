@@ -3,6 +3,7 @@
 
 import { companyOf, WELL_COMPANY } from './tenant';
 import { MODULES, LIVE, isModule } from '../modules/registry';
+import { hit } from './ratelimit';
 
 export const SESSION = '__Host-well_session';
 export const SESSION_HOURS = 12;
@@ -43,14 +44,16 @@ export interface Session {
   off?: string[]; // modules locked for this company (companies.disabled_modules)
   lvl?: Record<string, Level>; // level per dashboard (profiles.access)
   exp: number; chk: number;
+  iat?: number; // when this login was made: a login older than the user's `valid_after` is refused (see revoked)
   stale?: boolean;
 }
 export interface Profile {
   id: string; email?: string | null; name?: string | null; role?: string | null;
   dashboards?: string[] | null; departments?: string[] | null; active?: boolean | null;
   company_id?: string | null;
-  company?: { disabled_modules?: string[] | null } | null;
+  company?: { disabled_modules?: string[] | null; active?: boolean | null } | null;
   access?: Record<string, string> | null;
+  valid_after?: string | null; // every login made before this moment is void (password change, reset, logout)
 }
 
 export function env(e: AuthEnv): Cfg {
@@ -173,9 +176,19 @@ export function sessionFor(profile: Profile, cfg: Cfg, now = Date.now()): Sessio
     depts: owner ? [] : ((profile.departments || []).filter(d => d in DEPTS) as Dept[]),
     co: companyOf(profile.company_id),
     off: (profile.company?.disabled_modules || []).filter(isModule),
-    exp: now + SESSION_HOURS * 3600 * 1000, chk: now,
+    exp: now + SESSION_HOURS * 3600 * 1000, chk: now, iat: now,
   };
 }
+
+// A login made before the profile's `valid_after` (a cookie without a time counts as the oldest) is void: this is what makes a
+// stolen cookie stop working when the password changes or the user signs out. A profile without the column (migration 036 not
+// applied yet) never revokes, as before.
+export const revoked = (p: Profile, s: { iat?: number | undefined }): boolean => {
+  const at = p.valid_after ? Date.parse(p.valid_after) : 0;
+  return at > 0 && (s.iat ?? 0) < at;
+};
+// A company that is switched off (companies.active = false): nobody in it signs in or reaches the API, the owner included
+export const companyOff = (p: Profile): boolean => p.company?.active === false;
 
 // ---- Supabase REST. The service key stays on the server; every call is server-side.
 export interface SbResult<T = unknown> { ok: boolean; status: number; data: T }
@@ -229,7 +242,7 @@ export async function readProfile(cfg: Cfg, uid: string): Promise<ProfileRead> {
   };
   const hiccup = (r: SbResult<unknown>) => r.status >= 500 || r.status === 429;
   let r: SbResult<Profile[]>;
-  try { r = await sb<Profile[]>(cfg, q + '*,company:companies(disabled_modules)', { admin: true }); } catch { return { kind: 'error' }; }
+  try { r = await sb<Profile[]>(cfg, q + '*,company:companies(disabled_modules,active)', { admin: true }); } catch { return { kind: 'error' }; }
   const first = done(r);
   if (first) return first;
   if (hiccup(r)) return { kind: 'error' };
@@ -254,10 +267,12 @@ export type Renewed = { kind: 'ok'; session: Session; cookie: string } | { kind:
 export async function renew(cfg: Cfg, s: Session): Promise<Renewed> {
   const read = await readProfile(cfg, s.uid);
   if (read.kind === 'error') return { kind: 'error' }; // Supabase hiccup: keep the session as it is
-  if (read.kind === 'missing' || read.profile.active === false) return { kind: 'login' };
+  if (read.kind === 'missing' || read.profile.active === false || companyOff(read.profile) || revoked(read.profile, s)) return { kind: 'login' };
   const profile = read.profile;
   const fresh = sessionFor(profile, cfg);
   fresh.exp = s.exp;
+  // renewing keeps the time of the original login: a renewed cookie must not outlive a later revocation
+  if (s.iat === undefined) delete fresh.iat; else fresh.iat = s.iat;
   const left = Math.max(0, Math.floor((s.exp - Date.now()) / 1000));
   if (!left) return { kind: 'expired' };
   return { kind: 'ok', session: fresh, cookie: setCookie(await sign(fresh, cfg.secret), left) };
@@ -273,6 +288,38 @@ export async function audit(cfg: Cfg, user: Who, action: string, fields: Record<
     method: 'POST', admin: true, headers: { Prefer: 'return=minimal' },
     body: { user_id: user ? user.uid || user.id || null : null, email: user ? user.email ?? null : null, ...(user?.co ? { company_id: user.co } : {}), action, ...fields },
   }).catch(() => {});
+}
+
+// An event anyone can cause without signing in (a wrong password, a reset request). audit_log is append-only, so a flood of these
+// can never be cleaned: each kind is written at most a few times a minute per isolate, the rest only reach the Worker log.
+export async function auditAnon(cfg: Cfg, user: Who, action: string, fields: Record<string, unknown> = {}): Promise<void> {
+  if (!hit(`anon-audit:${action}`, 6, 60_000)) return;
+  await audit(cfg, user, action, fields);
+}
+
+// Voids every login the user has made so far (their cookies are stateless, so this is the only way to end them). Returns the
+// moment written, or null when it could not be saved (the column is missing until migration 036, or Supabase failed).
+export async function revokeSessions(cfg: Cfg, uid: string, now = Date.now()): Promise<number | null> {
+  if (!/^[0-9a-f-]{36}$/i.test(uid)) return null;
+  try {
+    const r = await sb(cfg, `/rest/v1/profiles?id=eq.${uid}`, { method: 'PATCH', admin: true, headers: { Prefer: 'return=minimal' }, body: { valid_after: new Date(now).toISOString() } });
+    if (r.ok) return now;
+    console.warn('revoke_sessions_failed', r.status);
+  } catch { console.warn('revoke_sessions_failed'); }
+  return null;
+}
+
+// A daily limit that cannot be skipped: the counting row is written FIRST (and must be saved), then the day's rows are counted.
+// Two requests at once both write before either counts, so the one over the limit is refused; a failed write or count refuses
+// too (fail closed), where the old way (check, spend, write the row afterwards) let parallel calls through and a lost row meant no limit.
+export async function claimDaily(cfg: Cfg, user: { uid: string; email?: string; co?: string }, action: string, limit: number, since: string): Promise<'ok' | 'over' | 'error'> {
+  if (!/^[0-9a-f-]{36}$/i.test(user.uid)) return 'error';
+  const w = await sb(cfg, '/rest/v1/audit_log', { method: 'POST', admin: true, headers: { Prefer: 'return=minimal' },
+    body: { user_id: user.uid, email: user.email ?? null, ...(user.co ? { company_id: user.co } : {}), action } }).catch(() => null);
+  if (!w || !w.ok) return 'error';
+  const r = await sb<unknown[]>(cfg, `/rest/v1/audit_log?select=id&action=eq.${encodeURIComponent(action)}&user_id=eq.${user.uid}&at=gte.${encodeURIComponent(since)}&limit=${limit + 1}`, { admin: true }).catch(() => null);
+  if (!r || !r.ok || !Array.isArray(r.data)) return 'error';
+  return r.data.length > limit ? 'over' : 'ok';
 }
 
 // ---- Responses
@@ -312,7 +359,8 @@ export async function requireUser(request: Request, e: AuthEnv, need: Need, { wr
   const read = await readProfile(cfg, s.uid);
   // A Supabase hiccup answers 503 and keeps the cookie; only a missing or disabled account clears it
   if (read.kind === 'error') throw json(503, { error: 'تعذّر التحقق من حسابك الحين. جرّب بعد لحظات.' });
-  if (read.kind === 'missing' || read.profile.active === false) throw json(401, { error: 'الحساب موقوف' }, { 'set-cookie': clearCookie() });
+  if (read.kind === 'missing' || read.profile.active === false || companyOff(read.profile)) throw json(401, { error: 'الحساب موقوف' }, { 'set-cookie': clearCookie() });
+  if (revoked(read.profile, s)) throw json(401, { error: 'انتهت الجلسة، سجّل الدخول من جديد' }, { 'set-cookie': clearCookie() });
   const user = sessionFor(read.profile, cfg);
   if (locked(user, need)) throw json(403, { error: LOCKED });
   if (well && user.co !== WELL_COMPANY) throw json(403, { error: WELL_ONLY });

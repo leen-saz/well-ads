@@ -1,7 +1,7 @@
 // /api/maestro/usage|budgets|reconcile: what the AI costs, per tab and month, the owner's monthly cap per tab, and the
 // check against a provider invoice. Owner only (PRD: the cost screen is Leen's alone in phase 1). Nothing here logs a figure.
 import { sb, json, readJson, handle, requireUser, audit, missingSchema, notApplied } from '../../lib/auth';
-import { scoped } from '../../lib/tenant';
+import { scoped, WELL_COMPANY } from '../../lib/tenant';
 import { MODULES } from '../registry';
 import { PRICES, priceOf, type Billed } from '../../lib/prices';
 import { cost as priceCost, USD_SAR, DEFAULT_ALERT_PCT, defaultCap, clearSnaps, levelOf, monthStart, reconcile as compare, type Row } from '../../lib/usage';
@@ -11,6 +11,9 @@ const MIGRATION = 'migration 019_ai_usage.sql';
 const TABS = [...MODULES.filter(m => m.status === 'live').map(m => ({ key: m.key, ar: m.ar })), { key: 'ahlam', ar: 'احلم' }, { key: 'ahlam_campaign', ar: 'احلم: حملة جديدة' }];
 const TAB_KEYS = new Set(TABS.map(t => t.key));
 const MONTH = /^(\d{4})-(0[1-9]|1[0-2])$/;
+// The model keys are the platform's (Worker secrets, billed to Well): another company's owner sets a cap of their own up to this
+// ceiling and cannot remove it, while Well's owner keeps the full range
+export const TENANT_CAP_MAX_SAR = 200;
 const r2 = (n: number) => Math.round(n * 100) / 100;
 const num = (x: unknown) => { const n = Number(x); return isFinite(n) ? n : 0; };
 type ModelRow = { month: string; provider: string; model: string; calls: number; tokens_in: number; tokens_out: number; cost_usd: number; unpriced: number; estimated: number };
@@ -73,7 +76,10 @@ export const budgets = { POST: handle(async (request, e) => {
   const tab = String(b.tab || '');
   if (!TAB_KEYS.has(tab)) return json(400, { error: 'اختر تاب' });
   const raw = b.cap_sar === null || b.cap_sar === undefined || String(b.cap_sar).trim() === '' ? null : Number(b.cap_sar);
+  const well = user.co === WELL_COMPANY;
+  if (!well && raw === null) return json(403, { error: 'السقف ما ينشال لشركتك. اكتب رقم.' });
   if (raw !== null && !(isFinite(raw) && raw > 0 && raw <= 10_000_000)) return json(400, { error: 'السقف رقم أكبر من صفر، أو اتركه فاضي لو ما تبي سقف' });
+  if (!well && raw !== null && raw > TENANT_CAP_MAX_SAR) return json(403, { error: `أعلى سقف لشركتك ${TENANT_CAP_MAX_SAR} ريال بالشهر. للزيادة تواصل مع الإدارة.` });
   const pct = b.alert_pct === undefined || b.alert_pct === '' ? DEFAULT_ALERT_PCT : Math.round(Number(b.alert_pct));
   if (!(pct >= 1 && pct <= 99)) return json(400, { error: 'نسبة التنبيه بين 1 و99' });
   const r = await sb(cfg, '/rest/v1/ai_budgets?on_conflict=company_id,module', { method: 'POST', admin: true, headers: { Prefer: 'resolution=merge-duplicates,return=minimal' },
