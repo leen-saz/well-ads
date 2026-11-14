@@ -9,7 +9,7 @@
 ### 2026-11-14 · رابط «انتقل إلى المحتوى» لمستخدم الكيبورد
 - **الدرس:** كل صفحة فيها قائمة جانبية قبل المحتوى، ومن يتنقل بالكيبورد يمر على كل روابطها في كل صفحة. WCAG 2.4.1 (Bypass Blocks) يطلب آلية تتجاوز الكتل المكررة؛ الأبسط رابط أول يظهر عند التركيز فقط ويشير إلى `<main id="content">`، مع `tabindex="-1"` على الـmain حتى ينتقل التركيز فعلاً.
 - **المصدر:** https://www.w3.org/WAI/WCAG22/Understanding/bypass-blocks.html و https://www.w3.org/WAI/WCAG22/Techniques/general/G1 (اطُّلع عليهما 2026-11-14).
-- **الأثر:** طُبّق في PR هذه الجولة: `router.js` يضيفه بعد كل تنقل (الـbody يُستبدل مع ClientRouter) و`.skip-link` في `app.css` + `tests/unit/skip-link.test.ts`. لم يُتحقق بصرياً في متصفح. لا يغطي لوحتي `/` و`/creative` (تستخدمان `nav.js` لا `router.js`).
+- **الأثر:** طُبّق في PR هذه الجولة: `router.js` يضيفه بعد كل تنقل (الـbody يُستبدل مع ClientRouter) و`.skip-link` في `app.css` + `tests/unit/skip-link.test.ts`. أول نسخة اختارت لغة النص من `<html lang>` وهو لا يزال «ar» لحظة تشغيل `router.js` (قبل `i18n.js`)، ففشل فحص smoke «English leaves no Arabic»؛ صُحّحت لتتبع `?lang` ثم الاختيار المحفوظ مثل `i18n.js`. الدرس: أي نص يضيفه سكربت مشترك يُفحص بـ`npm run test:smoke` قبل الرفع، مو بالوحدات فقط. لا يغطي لوحتي `/` و`/creative` (تستخدمان `nav.js` لا `router.js`).
 - **مؤجل:** أزرار العرض في `src/modules/maestro/Page.astro` (سطر 123) نصها رمز (☰ ▦) و`title` فقط، فاسمها عند القارئ هو الرمز؛ تحتاج `aria-label` من صاحب التاب. صغير.
 
 ### 2026-11-13 · حقل الإيميل والرابط يحتاج اتجاهه في الـHTML

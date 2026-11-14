@@ -14,6 +14,10 @@ describe('skip link', () => {
     expect(router).toContain('document.body.prepend(a)');
     expect(router).toMatch(/skipLink\(\);\s*const name/);
   });
+  it('picks its language like i18n.js, not from <html lang> (still "ar" when the router runs)', () => {
+    expect(router).toContain("get('lang')");
+    expect(router).not.toContain('documentElement.lang');
+  });
   it('is hidden until focused and sits above the sidebar', () => {
     expect(css).toMatch(/\.skip-link\{[^}]*transform:translateY\(-200%\)/);
     expect(css).toMatch(/\.skip-link:focus\{transform:none\}/);
