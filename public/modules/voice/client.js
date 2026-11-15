@@ -25,10 +25,12 @@ export default async function mount() {
       <div class="dg-list">${a.checks.map(c => `<div class="card vc-c ${c.ok ? 'ok' : 'no'}"><b>${c.ok ? '✓' : '!'} ${esc(c.title)}</b><span class="muted">${esc(c.detail)}</span></div>`).join('')}</div>`;
   }
 
+  let checking = 0;   // pressing a length chip several times quickly: only the last check is drawn
   async function run(btn) {
+    const mine = ++checking;
     busy(btn, true);
-    try { drawAnalysis(await api('/api/voice/check', { method: 'POST', body: { text: $('#txt').value } })); say($('#msg'), 'انفحص.', true); }
-    catch (err) { say($('#msg'), err.message); }
+    try { const a = await api('/api/voice/check', { method: 'POST', body: { text: $('#txt').value } }); if (mine === checking) { drawAnalysis(a); say($('#msg'), 'انفحص.', true); } }
+    catch (err) { if (mine === checking) say($('#msg'), err.message); }
     busy(btn, false);
   }
 

@@ -13,6 +13,7 @@
 import json, os, sys, urllib.error, urllib.parse, urllib.request
 from datetime import datetime, timedelta, timezone
 
+from common import is_transient
 from modules.core import enabled
 from modules.core.supa import Supa
 from modules.suggest.run import digest
@@ -40,7 +41,7 @@ class Meta:
                 e = json.loads(ex.read().decode()).get("error") or {}
             except Exception:
                 e = {}
-            raise RuntimeError(f"Meta {ex.code}: {e.get('message', '')} (code {e.get('code')}, subcode {e.get('error_subcode')}) {e.get('error_user_msg', '')}".strip()) from None
+            raise RuntimeError(f"HTTP {ex.code} Meta: {e.get('message', '')} (code {e.get('code')}, subcode {e.get('error_subcode')}) {e.get('error_user_msg', '')}".strip()) from None
 
     def ad(self, ad_id):
         return self._call(ad_id, fields="name,status,effective_status,campaign{id,name},adset{id,name}")
@@ -140,6 +141,10 @@ def main():
         try:
             status, receipt = execute(s, meta, canary, now)
         except Exception as ex:
+            if is_transient(ex if isinstance(ex, RuntimeError) else RuntimeError(str(ex))):
+                # a rate limit, 5xx or network blip: the approval is not burned, the next hourly run tries again
+                print(f"execute: #{s['id']} تأجّل لتشغيل ثاني (خطأ مؤقت)")
+                continue
             status, receipt = "failed", {"error": str(ex)[:300], "at": now.isoformat()}
         if not status:
             continue
@@ -156,3 +161,4 @@ if __name__ == "__main__":
         main()
     except Exception as ex:
         print("execute: ما اشتغل —", str(ex)[:200], file=sys.stderr)
+        sys.exit(1)   # the step wrapper records a crash as failed, not ok

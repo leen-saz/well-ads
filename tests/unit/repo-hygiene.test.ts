@@ -11,8 +11,10 @@ const SKIP = /^(package-lock\.json|tests\/parity\/golden\.json|tests\/unit\/repo
 const EMAIL_OK = /(^|\.)(example\.(com|org|net)|example|test|invalid|localhost)$|^(x|b|e|f|d|c|other|acme)\.(co|com)$|^elsewhere\.org$|^(gmail|users\.noreply\.github)\.com$|^(anthropic|github|noreply)\.com$|^[a-z]\.(co|com|test)$/i;
 const FAKE_ID = /(\d)\1{6,}/;   // a long run of one digit: 9000000000000000001, 17840000000000001
 const FAKE_PHONE = /1234567|(\d)\1{5,}/;   // 0551234567, 966500000000
-// A file that still holds a real-looking id on purpose until the change that owns it lands. Remove the entry when it does.
-const ID_EXEMPT = new Set(['pipeline/tests/test_report.py']);   // the excluded TikTok account id the page script still carries (data-pull fix PR removes both)
+// A file that must hold a real-looking id on purpose: add it here with the reason.
+// test_report.py: asserts the page no longer carries the excluded TikTok advertiser id (a negative check). It still spells the real id; ideally it would assert
+// against the TIKTOK_EXCLUDED_ADVERTISER_IDS secret's value at run time instead, then this entry can go.
+const ID_EXEMPT = new Set<string>(['pipeline/tests/test_report.py']);
 
 async function tracked(): Promise<{ path: string; text: string }[]> {
   const cp = 'node:child_process', fsm = 'node:fs';

@@ -138,7 +138,7 @@ class PullTests(unittest.TestCase):
             pull(_env(WELL), START, END, eur)
         self.assertFalse(any("/report/" in url for url in eur.urls))
 
-    def test_named_spring_rose_account_is_not_reported(self):
+    def test_excluded_named_account_is_not_reported(self):
         transport = FixtureTransport(info=FIXTURE["rose_named_advertiser_info"])
         with self.assertRaises(RuntimeError):
             pull(_env(WELL), START, END, transport)
@@ -431,14 +431,14 @@ class DestinationUnknownAndRecomputed(unittest.TestCase):
         old = {k: os.environ.pop(k, None) for k in ("TIKTOK_EXCLUDED_ADVERTISER_IDS", "TIKTOK_EXCLUDED_MARKERS")}
         try:
             self.assertFalse(merge.exclusions_configured())
-            self.assertFalse(merge.is_spring_rose_account("7999999999999999999", "Other Co"))
+            self.assertFalse(merge.is_excluded_account("7999999999999999999", "Other Co"))
             os.environ["TIKTOK_EXCLUDED_ADVERTISER_IDS"] = "7999999999999999999, 7888888888888888888"
             os.environ["TIKTOK_EXCLUDED_MARKERS"] = "other co;zz_marker"
             self.assertTrue(merge.exclusions_configured())
-            self.assertTrue(merge.is_spring_rose_account("7888888888888888888", ""))
-            self.assertTrue(merge.is_spring_rose_account("", "The OTHER CO account"))
-            self.assertTrue(merge.is_spring_rose_ad({"platform": "tiktok", "campaign": "ZZ_Marker | x"}))
-            self.assertFalse(merge.is_spring_rose_account("7000000000000000001", "Well"))
+            self.assertTrue(merge.is_excluded_account("7888888888888888888", ""))
+            self.assertTrue(merge.is_excluded_account("", "The OTHER CO account"))
+            self.assertTrue(merge.is_excluded_ad({"platform": "tiktok", "campaign": "ZZ_Marker | x"}))
+            self.assertFalse(merge.is_excluded_account("7000000000000000001", "Well"))
         finally:
             for k, v in old.items():
                 os.environ.pop(k, None)

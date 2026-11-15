@@ -1,6 +1,6 @@
 // لوحة القرارات: صندوق قرارات مرتب حسب الأثر بالريال، مع لوحة تفاصيل وقرارات جماعية واختصارات.
 // المرحلة الحالية: القرار ينحفظ في السجل بس، وما ينرسل شي للمنصات.
-import { $, $$, esc, api, icon, when, day, fmt, sar, shell, toast, busy, t, pageSignal, LANG, failure } from './common.js';
+import { $, $$, esc, api, icon, when, day, fmt, sar, shell, toast, busy, t, pageSignal, LANG, failure, safeUrl, safeSrc, arabicOr } from './common.js';
 import { hitsHTML } from './compliance-ui.js';
 
 // Runs on every visit of this page (assets/router.js calls it after each ClientRouter navigation).
@@ -27,9 +27,10 @@ export default async function mount() {
   }
   const adOf = s => S.ads[(PRE[s.platform] || '') + s.target_id] || null;
   const ageOf = s => { const a = adOf(s); if (!a || !a.first) return null; return Math.round((Date.now() - new Date(a.first + 'T00:00:00+03:00')) / 864e5); };
-  // المراجع الثاني: الاقتراح اللي ما عدّى قواعد لين ينرفض بس
-  const blocked = s => s.critic && s.critic.ok === false ? (s.critic.issues || [])[0] || 'المراجع رفضه' : s.kind === 'new_campaign' && !S.owner ? 'لين بس توافق على الحملات الجديدة' : '';
-  const criticChip = s => !s.critic ? '' : s.critic.ok ? `<span class="chip line crit" data-tip="عدّى قواعد لين">${icon('check')}المراجع</span>`
+  // المراجع الثاني: الاقتراح اللي ما عدّى قواعد الشركة ينرفض بس
+  const blocked = s => s.critic && s.critic.ok === false ? (s.critic.issues || [])[0] || 'المراجع رفضه' : s.kind === 'new_campaign' && !S.owner ? 'المالك بس يوافق على الحملات الجديدة' : '';
+  const PSTATE = { ACTIVE: 'شغّال', PAUSED: 'موقوف', ARCHIVED: 'مؤرشف', DELETED: 'محذوف' };   // the platform's words for a status, in ours
+  const criticChip = s => !s.critic ? '' : s.critic.ok ? `<span class="chip line crit" data-tip="عدّى قواعد الشركة">${icon('check')}المراجع</span>`
     : `<span class="chip line crit bad" data-tip="${esc((s.critic.issues || []).join(' · '))}">${icon('alert')}المراجع رفضه</span>`;
   // إعلان واتساب ومعه إعلانات ثانية شغّالة في مجموعته: Meta يرفض إيقافه بمفتاحنا (ما عنده صلاحية واتساب)، فينفّذه الفريق يدوي
   const waManual = s => s.platform === 'meta' && s.level === 'ad' && s.kind === 'pause' ? (adOf(s) || {}).wa_siblings || 0 : 0;
@@ -56,7 +57,7 @@ export default async function mount() {
   function topTools() {
     const fresh = S.gen ? `<span class="chip" data-tip="آخر سحب للأرقام من المنصات"><span class="dot"></span>آخر تحديث للبيانات ${esc(when(S.gen))}</span>` : '';
     const kill = S.kill.kill
-      ? `<button class="btn sm danger" id="killBtn" data-on="0"${S.owner ? '' : ' disabled'} data-tip="${S.owner ? 'إلغاء إيقاف الطوارئ' : 'لين بس تلغي إيقاف الطوارئ'}">${icon('power')}إيقاف الطوارئ مفعّل</button>`
+      ? `<button class="btn sm danger" id="killBtn" data-on="0"${S.owner ? '' : ' disabled'} data-tip="${S.owner ? 'إلغاء إيقاف الطوارئ' : 'المالك بس يلغي إيقاف الطوارئ'}">${icon('power')}إيقاف الطوارئ مفعّل</button>`
       : `<button class="btn sm secondary" id="killBtn" data-on="1" data-tip="يوقف أي تنفيذ على حسابات الإعلانات فوراً">${icon('power')}إيقاف طوارئ</button>`;
     const n = (S.kill.canary || []).length;
     const exec = S.kill.kill ? '' : n
@@ -71,7 +72,7 @@ export default async function mount() {
     const b = $('#killBtn'); if (!b || b.disabled) return;
     b.onclick = () => {
       const on = b.dataset.on === '1';
-      popover(b, `<h3>${on ? 'تفعيل إيقاف الطوارئ؟' : 'إلغاء إيقاف الطوارئ؟'}</h3><p class="muted" style="margin:0 0 12px">${on ? 'يوقف أي تنفيذ على حسابات الإعلانات فوراً. لين بس تقدر توقفه بعدين.' : 'يرجع التنفيذ حسب الحدود والموافقات.'}</p>
+      popover(b, `<h3>${on ? 'تفعيل إيقاف الطوارئ؟' : 'إلغاء إيقاف الطوارئ؟'}</h3><p class="muted" style="margin:0 0 12px">${on ? 'يوقف أي تنفيذ على حسابات الإعلانات فوراً. المالك بس يقدر يوقفه بعدين.' : 'يرجع التنفيذ حسب الحدود والموافقات.'}</p>
         <div class="bar" style="justify-content:flex-end"><button class="btn sm ghost" data-x>إلغاء</button><button class="btn sm ${on ? 'danger' : 'primary'}" data-go>${on ? 'فعّل الإيقاف' : 'ألغِ الإيقاف'}</button></div><div class="msg"></div>`, pop => {
         $('[data-x]', pop).onclick = closePop;
         $('[data-go]', pop).onclick = async e => { busy(e.currentTarget, true); try { S.kill = await api('/api/control/kill', { method: 'POST', body: { on } }); closePop(); drawTop(); window.dispatchEvent(new Event('buyer-reload')); toast(on ? 'إيقاف الطوارئ مفعّل' : 'انلغى إيقاف الطوارئ'); } catch (err) { busy(e.currentTarget, false); const m = $('.msg', pop); m.className = 'msg err'; m.textContent = err.message; } };
@@ -104,7 +105,7 @@ export default async function mount() {
       <li>${icon('check')}أقصى تغيير ميزانية بخطوة وحدة: <b class="num">20%</b></li>
       <li>${icon('check')}سقف الصرف اليومي: يتحدد مع المرحلة B</li>
       <li>${icon('check')}ما فيه إيقاف قبل <b class="num">3</b> أيام من التشغيل</li>
-      <li>${icon('check')}أي حملة جديدة تحتاج موافقة لين، حتى في التنفيذ التلقائي</li>
+      <li>${icon('check')}أي حملة جديدة تحتاج موافقة المالك، حتى في التنفيذ التلقائي</li>
       <li>${icon('check')}التنفيذ الحين: <b>إيقاف إعلان في Meta بس</b>، داخل حملات التجربة، وبحد أقصى <b class="num">10</b> بالساعة</li></ul>
       <h3 style="margin-top:14px">حملات التجربة</h3>${canaryHtml()}`, pop => {
       const save = $('[data-canary]', pop); if (!save) return;
@@ -153,7 +154,7 @@ export default async function mount() {
   }
   function thumb(s, cls = 'thumb48') {
     const a = adOf(s);
-    return a && a.thumb ? `<img class="${cls}" src="${a.thumb}" alt="" loading="lazy">` : `<span class="${cls} ph">${icon('image')}</span>`;
+    return a && safeSrc(a.thumb) ? `<img class="${cls}" src="${esc(safeSrc(a.thumb))}" alt="" loading="lazy">` : `<span class="${cls} ph">${icon('image')}</span>`;
   }
   function evidence(s) {
     const e = s.evidence || {}, b = [];
@@ -192,7 +193,7 @@ export default async function mount() {
     $('#inbox').innerHTML = list.length ? `<table><thead><tr><th>الوقت</th><th>الإعلان</th><th>المنصة</th><th>الاقتراح</th><th>القرار</th><th>مين</th><th>الملاحظة</th></tr></thead><tbody>
       ${list.map(s => `<tr><td class="num">${esc(when(s.decided_at))}</td><td class="ad"><b>${esc(s.target_name || s.target_id)}</b></td><td><span class="chip">${PLAT[s.platform]}</span></td>
         <td>${KIND[s.kind] || esc(s.kind)}</td><td><span class="chip ${s.status === 'rejected' || s.status === 'expired' ? 'line' : 'solid'}">${STATUS[s.status] || s.status}${s.status === 'approved' ? (s.platform === 'meta' && (s.level === 'ad' || s.level === 'adset') && (s.kind === 'pause' || s.kind === 'resume') && !waManual(s) ? ' · ينتظر التنفيذ' : ' · ينفّذ يدوي') : ''}</span></td>
-        <td>${esc(s.decided_by || '')}</td><td>${esc(s.note || '')}${s.result && s.result.error ? `<div class="muted">${icon('alert')}${esc(s.result.error)}</div>` : ''}${s.result && s.result.after ? `<div class="muted">Meta: ${esc(s.result.before)} ← ${esc(s.result.after)}${s.result.via_adset ? ' · تنفّذ على المجموعة كاملة (إعلان واتساب)' : ''}</div>` : ''}
+        <td>${esc(s.decided_by || '')}</td><td>${esc(s.note || '')}${s.result && s.result.error ? `<div class="muted">${icon('alert')}${esc(arabicOr(s.result.error, 'ما تنفّذ التغيير على المنصة. جرّب مرة ثانية.'))}</div>` : ''}${s.result && s.result.after ? `<div class="muted">ميتا: ${esc(PSTATE[s.result.before] || s.result.before)} ← ${esc(PSTATE[s.result.after] || s.result.after)}${s.result.via_adset ? ' · تنفّذ على المجموعة كاملة (إعلان واتساب)' : ''}</div>` : ''}
         ${s.status === 'executed' && s.kind === 'pause' && s.platform === 'meta' ? `<button class="btn sm secondary" data-revert="${s.id}">${icon('refresh')}تراجع</button>` : ''}</td></tr>`).join('')}</tbody></table>` : `<div class="empty">${icon('clock')}<div>ما فيه قرارات سابقة</div></div>`;
     $('#selbar').hidden = true;
     $('#inbox').querySelectorAll('[data-revert]').forEach(b => b.onclick = e => { e.stopPropagation(); const id = +b.dataset.revert;
@@ -206,7 +207,7 @@ export default async function mount() {
           catch (err) { busy(ev.currentTarget, false); m.className = 'msg err'; m.textContent = err.message; } };
       }); });
   }
-  // توصيات القواعد: توصيات الميديا باير وتنفيذها بموافقة لين، داخل اللوحة (public/modules/buyer/client.js). تتحمّل أول ما ينفتح التبويب
+  // توصيات القواعد: توصيات الميديا باير وتنفيذها بموافقة المالك، داخل اللوحة (public/modules/buyer/client.js). تتحمّل أول ما ينفتح التبويب
   function buyerPane() {
     $('#filters').innerHTML = ''; $('#selbar').hidden = true;
     if (S.buyerLoaded) { $('#buyerPane').hidden = false; return; }
@@ -313,9 +314,9 @@ export default async function mount() {
     const p = $('#panel');
     p.innerHTML = `<header><h2 style="margin:0">${esc(s.target_name || s.target_id)}</h2><button class="btn icon ghost" data-close aria-label="إغلاق">${icon('x')}</button></header>
       <div class="body">
-        ${a && a.thumb ? `<img class="hero" src="${a.thumb}" alt="">` : ''}
+        ${a && safeSrc(a.thumb) ? `<img class="hero" src="${esc(safeSrc(a.thumb))}" alt="">` : ''}
         <div class="bar"><span class="chip">${PLAT[s.platform]}</span><span class="chip solid">${KIND[s.kind] || esc(s.kind)}${(s.params || {}).pct ? ` ${s.params.pct}%` : ''}</span><span class="chip line">${LEVEL[s.level]}</span>
-          ${a && a.open ? `<a class="btn sm secondary" href="${esc(a.open)}" target="_blank" rel="noopener">${icon('ext')}افتح في المنصة</a>` : ''}</div>
+          ${a && safeUrl(a.open) ? `<a class="btn sm secondary" href="${esc(safeUrl(a.open))}" target="_blank" rel="noopener">${icon('ext')}افتح في المنصة</a>` : ''}</div>
         ${waManual(s) ? `<p class="msg err">${icon('alert')}${esc(WA_NOTE(waManual(s)))}</p>` : ''}
         <div><h3>ليش؟</h3><p style="margin:6px 0 0">${esc(s.reason)}</p><p class="muted" style="margin:4px 0 0">${esc(t(ruleOf(s)))}${s.campaign ? ` · ${esc(s.campaign)}` : ''}</p></div>
         <dl class="kv">
@@ -336,6 +337,7 @@ export default async function mount() {
     $('[data-close]', p).focus();
     try {
       const r = await api('/api/control/history?target=' + encodeURIComponent(s.target_id));
+      if (String(p.dataset.id) !== String(s.id)) return;   // another suggestion was opened while this was loading
       $('#phist').innerHTML = r.log.length ? r.log.map(x => `<div>${esc(when(x.at))} · ${esc(x.email || '')} · ${esc(STATUS[x.action.replace('suggestion_', '')] || x.action)}${x.note ? ` · ${esc(x.note)}` : ''}</div>`).join('') : 'ما فيه قرارات سابقة على هذا الإعلان';
     } catch { $('#phist').textContent = 'ما قدرت أقرأ السجل'; }
   }
@@ -347,15 +349,15 @@ export default async function mount() {
     return '—';
   }
   const FIELD = { dept: 'القسم', objective: 'الهدف', budget: 'الميزانية اليومية', start: 'البداية', end: 'النهاية', geo: 'الموقع', age_min: 'العمر من', age_max: 'إلى', gender: 'الجنس', lang: 'اللغة',
-    influencer: 'المؤثرة', wa_message: 'رسالة واتساب', creative: 'المادة الإعلانية', primary: 'النص', headline: 'العنوان', cta: 'الزر', destination: 'الوجهة', optimization: 'التحسين', placements: 'أماكن الظهور',
+    influencer: 'المؤثر', wa_message: 'رسالة واتساب', creative: 'المادة الإعلانية', primary: 'النص', headline: 'العنوان', cta: 'الزر', destination: 'الوجهة', optimization: 'التحسين', placements: 'أماكن الظهور',
     budget_type: 'نوع الميزانية', partnership: 'شراكة', radius: 'نصف القطر', pixel: 'البكسل', ad_type: 'نوع الإعلان', goal: 'الهدف في سناب', qualify: 'سؤال التأهيل', bid: 'المزايدة', spark: 'Spark',
     spark_code: 'كود Spark', lead_form: 'نموذج فوري', type: 'النوع', keywords: 'الكلمات', negatives: 'السلبية', headlines: 'العناوين', descriptions: 'الأوصاف', final_url: 'الرابط', bidding: 'المزايدة' };
   function campaignHTML(s) {
     const p = s.params || {}, e = s.evidence || {}, pend = new Set(e.missing || e.ai_pending || []);  // ai_pending: requests saved before the form stopped promising AI filling
-    const VAL = { iv: 'المحاليل الوريدية', midwife: 'القبالة / رعاية الحمل', foot: 'تقويم القدم', renan: 'رينان لصحة الطفل', leads: 'Leads', sales: 'Sales', all: 'الكل', female: 'نساء', male: 'رجال',
+    const VAL = { iv: 'المحاليل الوريدية', midwife: 'القبالة / رعاية الحمل', foot: 'تقويم القدم', renan: 'رينان لصحة الطفل', leads: 'جمع الليدز', sales: 'مبيعات', all: 'الكل', female: 'نساء', male: 'رجال',
       ar: 'عربي', en: 'إنجليزي', whatsapp: 'واتساب', form: 'نموذج فوري', site: 'الموقع', conversations: 'المحادثات', purchase: 'الشراء', abo: 'على المجموعة (ABO)', cbo: 'على الحملة (CBO)',
       single: 'صورة أو فيديو', story: 'ستوري', collection: 'كولكشن', lead_form: 'نموذج ليد داخل سناب', website: 'سوايب للموقع', pixel_purchase: 'شراء (Pixel)', auto: 'تلقائي', target: 'تكلفة مستهدفة',
-      complete_payment: 'Complete Payment', max_conv: 'أكبر عدد تحويلات', tcpa: 'تكلفة تحويل مستهدفة', book: 'احجز الآن', learn: 'اعرف أكثر', signup: 'سجّل', '65': '65+',
+      complete_payment: 'إتمام الدفع', max_conv: 'أكبر عدد تحويلات', tcpa: 'تكلفة تحويل مستهدفة', book: 'احجز الآن', learn: 'اعرف أكثر', signup: 'سجّل', '65': '65+',
       fb_feed: 'فيسبوك فيد', ig_feed: 'انستقرام فيد', ig_stories: 'ستوري', ig_reels: 'ريلز' };
     const lab = v => VAL[v] || v;
     const val = (k, v) => pend.has(k) ? '<span class="chip line">ناقص</span>' : v === '' || v == null ? '—' : Array.isArray(v) ? esc(v.map(lab).join('، ')) : typeof v === 'string' && VAL[v] && k !== 'creative' ? esc(lab(v)) : Array.isArray(v) ? esc(v.join('، ')) : typeof v === 'boolean' ? (v ? 'نعم' : 'لا')
@@ -376,7 +378,7 @@ export default async function mount() {
       ${s.measure_plan ? `<dt>القياس</dt><dd>${esc(s.measure_plan)}</dd>` : ''}
       ${s.reversal_plan ? `<dt>التراجع</dt><dd>${esc(s.reversal_plan)}</dd>` : ''}
       ${(s.risk || []).length ? `<dt>الخطر</dt><dd>${s.risk.map(r => `<span class="chip line">${esc(r)}</span>`).join(' ')}</dd>` : ''}
-      ${s.critic ? `<dt>المراجع</dt><dd>${s.critic.ok ? 'عدّى قواعد لين' : esc((s.critic.issues || []).join(' · '))}</dd>` : ''}
+      ${s.critic ? `<dt>المراجع</dt><dd>${s.critic.ok ? 'عدّى قواعد الشركة' : esc((s.critic.issues || []).join(' · '))}</dd>` : ''}
     </dl></div>`;
   }
   function closePanel() { const p = $('#panel'); p.classList.remove('open'); p.setAttribute('aria-hidden', 'true'); $('#veil').classList.remove('open'); }

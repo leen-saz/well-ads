@@ -5,9 +5,9 @@ const KINDS = { 'text-to-video': 'من وصف', 'image-to-video': 'من صورة
 const STATE = { queued: 'بالانتظار', running: 'يتولّد', done: 'جاهزة', failed: 'ما تمت', cancelled: 'موقوفة' };
 
 export default async function mount() {
-  let META = null, NOT_READY = false, LIST = [], CUR = null, JOBS = [], timer = 0;
+  let META = null, NOT_READY = false, LIST = [], CUR = null, JOBS = [], timer = 0, gen = 0;
   const sig = pageSignal();
-  const stop = () => { clearTimeout(timer); timer = 0; };
+  const stop = () => { clearTimeout(timer); timer = 0; gen++; };   // gen: an answer still on its way from before stop() is ignored
   sig.addEventListener('abort', stop);
 
   const fillSelect = (el, items, sel) => { el.innerHTML = items.map(([v, l]) => `<option value="${esc(v)}"${String(v) === String(sel) ? ' selected' : ''}>${esc(l)}</option>`).join(''); };
@@ -25,7 +25,9 @@ export default async function mount() {
     fillSelect($('#ratio'), META.ratios.map(r => [r, r]), CUR?.ratio || '9:16');
     fillSelect($('#seconds'), META.seconds.map(s => [s, `${s} ثانية`]), CUR?.seconds || 15);
     fillSelect($('#avatar'), [['', 'بدون أفاتار'], ...META.avatars.map(a => [a.id, LANG === 'en' ? a.en : a.ar])], CUR?.avatar_id || '');
-    $('#save').textContent = CUR ? 'احفظ' : 'أنشئ الفيديو';
+    $('#save').textContent = 'أنشئ الفيديو';
+    $('#save').hidden = !!CUR;                 // an existing project's title, size and length are fixed: nothing to save here
+    $('#title').readOnly = !!CUR;
     for (const k of ['ratio', 'seconds', 'avatar']) $('#' + k).disabled = !!CUR;   // the size and length are fixed once clips exist
     avatarNote();
     const caps = e?.caps;
@@ -72,20 +74,39 @@ export default async function mount() {
   const avatarNote = () => { const a = META.avatars.find(x => x.id === $('#avatar').value); $('#avatarDoes').textContent = a ? (LANG === 'en' ? a.doesEn : a.does) : ''; };
   const kindBoxes = () => { const k = $('#kind').value; $('#imgBox').hidden = k !== 'image-to-video'; $('#voiceBox').hidden = k !== 'avatar'; };
 
+  // Only the cards whose content changed are redrawn: a clip the user is watching is not restarted every 5 seconds
   function drawJobs() {
-    $('#jobs').innerHTML = JOBS.length ? JOBS.map(j => `<article class="vd-job" data-id="${j.id}">
+    const box = $('#jobs'), html = JOBS.map(jobCard);
+    if (!JOBS.length) { box.innerHTML = ''; return; }
+    const have = [...box.children];
+    if (have.length !== html.length || have.some((el, i) => el.dataset.id !== String(JOBS[i].id))) { box.innerHTML = html.join(''); return; }
+    html.forEach((h, i) => {
+      if (have[i].dataset.sig === h) return;
+      const t = document.createElement('div'); t.innerHTML = h; const fresh = t.firstElementChild;
+      const v = have[i].querySelector('video'), nv = fresh.querySelector('video');
+      if (v && nv && v.getAttribute('src') === nv.getAttribute('src')) nv.replaceWith(v);   // same clip: keep the playing element
+      fresh.dataset.sig = h; have[i].replaceWith(fresh);
+    });
+  }
+  function jobCard(j) {
+    return `<article class="vd-job" data-id="${j.id}">
       <header><b>لقطة ${j.shot_no}</b><span class="chip line">${esc(KINDS[j.kind] || '')}</span><span class="vd-st ${esc(j.status)}">${esc(STATE[j.status] || '')}</span>
         ${j.status === 'queued' ? `<button class="btn sm ghost" type="button" data-stop="${j.id}">وقّف</button>` : ''}</header>
       ${j.say ? `<span class="muted">${esc(j.say)}</span>` : ''}
-      ${j.ready ? `<video controls preload="metadata" src="/api/video/file?job=${j.id}"></video>` : ''}</article>`).join('') : '';
+      ${j.ready ? `<video controls preload="metadata" src="/api/video/file?job=${j.id}"></video>` : ''}</article>`;
   }
 
   // Polling: asking for the jobs also moves the due ones forward. Every 5 seconds while something is waiting.
   async function poll() {
     stop();
     if (!CUR || sig.aborted) return;
-    try { JOBS = (await api(`/api/video/jobs?project=${CUR.id}`)).jobs; drawJobs(); } catch (err) { say($('#cmsg'), err.message); }
-    if (!sig.aborted && JOBS.some(j => j.status === 'queued' || j.status === 'running')) timer = setTimeout(poll, 5000);
+    const mine = gen, project = CUR.id;
+    try {
+      const jobs = (await api(`/api/video/jobs?project=${project}`)).jobs;
+      if (mine !== gen || CUR?.id !== project) return;   // the user moved to another project, or another poll started
+      JOBS = jobs; drawJobs();
+    } catch (err) { if (mine === gen) say($('#cmsg'), err.message); }
+    if (mine === gen && !sig.aborted && JOBS.some(j => j.status === 'queued' || j.status === 'running')) timer = setTimeout(poll, 5000);
   }
 
   // The list has the rows; the detail adds the compliance notices of the script
@@ -101,8 +122,7 @@ export default async function mount() {
   $('#pf').addEventListener('submit', async e => {
     e.preventDefault(); const b = e.submitter; busy(b, true);
     try {
-      if (CUR) { say($('#pmsg'), 'ما فيه شي يتعدّل للحين.', true); }
-      else { const r = await api('/api/video/projects', { method: 'POST', body: { title: $('#title').value, ratio: $('#ratio').value, seconds: Number($('#seconds').value), avatar_id: $('#avatar').value } }); say($('#pmsg'), 'انحفظ.', true); await load(r.project.id); }
+      if (!CUR) { const r = await api('/api/video/projects', { method: 'POST', body: { title: $('#title').value, ratio: $('#ratio').value, seconds: Number($('#seconds').value), avatar_id: $('#avatar').value } }); say($('#pmsg'), 'انحفظ.', true); await load(r.project.id); }
     } catch (err) { say($('#pmsg'), err.message); }
     busy(b, false);
   });
