@@ -92,22 +92,22 @@ class PullTests(unittest.TestCase):
         self.assertTrue(any("data_level=AUCTION_AD" in url and "stat_time_day" in url for url in transport.urls))
         self.assertTrue(any("STATUS_ALL" in url for url in transport.urls))
         by = _rows_by_day(rows)
-        live = by[("t1878109843378193", "2026-10-17")]
+        live = by[("t9000000000000000001", "2026-10-17")]
         self.assertEqual(live[2:], [50.29, 17367, 86, 2.0, 3])
-        talks = by[("t1878109843378193", "2026-10-15")]
+        talks = by[("t9000000000000000001", "2026-10-15")]
         self.assertEqual(talks[6], 4)
-        self.assertNotIn(("t1878109843378193", "2026-10-18"), by)
+        self.assertNotIn(("t9000000000000000001", "2026-10-18"), by)
         self.assertNotIn(("t9", "2026-10-17"), by)
         self.assertEqual(by[("t555", "2026-10-16")][3:5], [10, 1])
         deleted = by[("t777", "2026-10-17")]
         self.assertEqual(deleted[2], 3.5)
         self.assertEqual(deleted[5], 0.5)
         self.assertNotIn("2026-10-13", {r[1] for r in rows})
-        lead = ads["t1878109843378193"]
+        lead = ads["t9000000000000000001"]
         self.assertEqual(lead["name"], "Well lead video")
-        self.assertEqual(lead["campaign"], "Tiktok_Leads_WELL_iv")
+        self.assertEqual(lead["campaign"], "Sample_TikTok_Leads_iv")
         self.assertEqual(lead["group"], "Female2")
-        self.assertEqual(lead["link"], "https://www.tiktok.com/embed/v2/7692055113619442965")
+        self.assertEqual(lead["link"], "https://www.tiktok.com/embed/v2/9000000000000000002")
         self.assertTrue(lead["live"])
         self.assertEqual(lead["status"], "نشط")
         self.assertEqual(lead["goal"], "lead")
@@ -132,7 +132,7 @@ class PullTests(unittest.TestCase):
             report_pages={"1": FIXTURE["usd_report"]},
         )
         _ads, rows = pull(_env(WELL), START, END, usd)
-        self.assertEqual(rows, [["t1878109843378193", "2026-10-17", 37.5, 100, 4, 1.0, 0]])
+        self.assertEqual(rows, [["t9000000000000000001", "2026-10-17", 37.5, 100, 4, 1.0, 0]])
         eur = FixtureTransport(info=FIXTURE["eur_advertiser_info"])
         with self.assertRaises(RuntimeError):
             pull(_env(WELL), START, END, eur)
@@ -151,8 +151,8 @@ class PullTests(unittest.TestCase):
         self.assertIn("messaging_total_conversation", transport.report_metrics[0])
         self.assertNotIn("messaging_total_conversation", transport.report_metrics[1])
         self.assertIn("spend", transport.report_metrics[1])
-        self.assertEqual(_rows_by_day(rows)[("t1878109843378193", "2026-10-17")][2], 50.29)
-        self.assertTrue(ads["t1878109843378193"]["live"])
+        self.assertEqual(_rows_by_day(rows)[("t9000000000000000001", "2026-10-17")][2], 50.29)
+        self.assertTrue(ads["t9000000000000000001"]["live"])
 
     def test_stat_time_day_windows_stay_within_thirty_days(self):
         seen = []
@@ -201,8 +201,8 @@ class IngestTests(unittest.TestCase):
     def test_recent_window_keeps_older_days_and_skips_the_gap(self):
         prev = {
             "ads": {
-                "tOLD": {"platform": "tiktok", "family": "tiktok", "name": "قديم", "campaign": "Tiktok_Leads_WELL", "live": True, "status": "نشط"},
-                "tKEEP": {"platform": "tiktok", "family": "tiktok", "name": "متوقف سابقاً", "campaign": "Tiktok_Leads_WELL", "live": False, "status": "المجموعة متوقفة"},
+                "tOLD": {"platform": "tiktok", "family": "tiktok", "name": "قديم", "campaign": "Sample_TikTok_Leads", "live": True, "status": "نشط"},
+                "tKEEP": {"platform": "tiktok", "family": "tiktok", "name": "متوقف سابقاً", "campaign": "Sample_TikTok_Leads", "live": False, "status": "المجموعة متوقفة"},
             },
             "rows": [
                 ["tOLD", "2026-09-01", 7, 5, 1, 0, 0],
@@ -236,7 +236,7 @@ class IngestTests(unittest.TestCase):
             with open(path, "w", encoding="utf-8") as handle:
                 json.dump({
                     "generated_at": "2026-10-12T12:38+03:00",
-                    "ads": {"t2": {"platform": "tiktok", "name": "Well lead", "campaign": "Tiktok_Leads_WELL", "group": "g"}},
+                    "ads": {"t2": {"platform": "tiktok", "name": "Well lead", "campaign": "Sample_TikTok_Leads", "group": "g"}},
                     "rows": [
                         ["t2", "2026-09-01", 10, 5, 1, 0, 0],
                         ["t2", "2026-10-16", 99, 9, 1, 0, 0],
@@ -246,7 +246,7 @@ class IngestTests(unittest.TestCase):
         marked = {(r[0], r[1], r[2]) for r in got["rows"]}
         self.assertIn(("t2", "2026-09-01", 10), marked)
         self.assertNotIn(("t2", "2026-10-16", 99), marked)
-        self.assertTrue(any(r[0] == "t1878109843378193" and r[1] == "2026-10-17" and r[2] == 50.29 for r in got["rows"]))
+        self.assertTrue(any(r[0] == "t9000000000000000001" and r[1] == "2026-10-17" and r[2] == 50.29 for r in got["rows"]))
         self.assertEqual(got["status"]["source"], "api")
         self.assertNotIn("2026-10-13", {r[1] for r in got["rows"]})
 
@@ -275,7 +275,7 @@ class IngestTests(unittest.TestCase):
             json.dump({
                 "generated_at": "2026-10-12T12:38+03:00",
                 "organic": {"status": "ok", "name": "تيك توك", "followers": 10, "posts": []},
-                "ads": {"t2": {"platform": "tiktok", "name": "Well lead", "campaign": "Tiktok_Leads_WELL", "group": "g", "text": "", "live": False}},
+                "ads": {"t2": {"platform": "tiktok", "name": "Well lead", "campaign": "Sample_TikTok_Leads", "group": "g", "text": "", "live": False}},
                 "rows": [
                     ["t2", "2026-09-01", 10, 5, 1, 0, 0],
                     ["t2", "2026-10-12", 4, 8, 2, 1, 0],

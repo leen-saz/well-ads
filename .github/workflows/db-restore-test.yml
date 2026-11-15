@@ -8,7 +8,7 @@ name: db-restore-test
 on:
   workflow_dispatch:
   schedule:
-    - cron: "47 2 1 * *" # the 1st of each month, 05:47 Riyadh
+    - cron: "47 3 1 * *" # the 1st of each month, 06:47 Riyadh (after the weekly backup window, like the Worker trigger at 03 UTC)
 
 permissions:
   contents: read
