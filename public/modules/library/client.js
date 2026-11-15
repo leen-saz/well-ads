@@ -35,9 +35,13 @@ export default async function mount() {
     $('#list').innerHTML = D.items.length ? D.items.map(card).join('')
       : `<div class="card lb-empty"><p class="muted" style="margin:0">${query() ? 'ما فيه شي يطابق الفلتر.' : 'المكتبة فاضية. من أي تاب، اضغط «احفظ في المكتبة» على الناتج اللي عجبك.'}</p></div>`;
   }
+  let seq = 0;   // typing in the filters starts many loads: only the last one is drawn
   async function load() {
+    const mine = ++seq;
     try {
-      D = await api('/api/library' + (query() ? '?' + query() : ''));
+      const got = await api('/api/library' + (query() ? '?' + query() : ''));
+      if (mine !== seq) return;
+      D = got;
       if (!$('#fmod').dataset.done) {
         $('#fmod').insertAdjacentHTML('beforeend', D.modules.filter(m => m.ok).map(m => `<option value="${esc(m.key)}">${esc(m.ar)}</option>`).join(''));
         $('#fkind').insertAdjacentHTML('beforeend', Object.entries(D.kinds).map(([k, v]) => `<option value="${esc(k)}">${esc(v)}</option>`).join(''));

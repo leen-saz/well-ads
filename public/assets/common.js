@@ -17,6 +17,8 @@ window.addEventListener('unhandledrejection', e => {
 export const pageSignal = () => PAGE.signal;
 export const $ = (s, el = document) => el.querySelector(s);
 export const $$ = (s, el = document) => [...el.querySelectorAll(s)];
+import { friendly, safeUrl, safeSrc, arabicOr } from './safe.js';
+export { friendly, safeUrl, safeSrc, arabicOr };
 export const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 
 // Every failure reaches the page as an Error with a message in Arabic: a dropped connection, a request that hangs
@@ -86,7 +88,7 @@ export const liveText = raw => [...String(raw).matchAll(/"((?:[^"\\]|\\.)*)"(\s*
 // `retry` runs again the load that failed. Used by every tab's first load.
 export function failure(el, err, retry) {
   if (!el) return;
-  el.innerHTML = `<div class="card empty failure" role="alert">${icon('alert')}<div>${esc(err?.message || 'صار خطأ')}</div>`
+  el.innerHTML = `<div class="card empty failure" role="alert">${icon('alert')}<div>${esc(friendly(err?.message || 'صار خطأ'))}</div>`
     + (retry ? `<button class="btn secondary" type="button" data-retry style="margin-top:12px">${icon('refresh')}حاول مرة ثانية</button>` : '') + '</div>';
   const b = $('[data-retry]', el);
   if (b) b.onclick = () => { b.disabled = true; el.innerHTML = '<p class="muted">يحمّل…</p>'; Promise.resolve().then(retry).catch(e => failure(el, e, retry)); };
@@ -143,13 +145,22 @@ export const day = iso => iso ? DD.format(new Date(iso)) : '—';
 export const fmt = (n, d = 0) => n == null || !isFinite(n) ? '—' : Number(n).toLocaleString('en-US', { maximumFractionDigits: d, minimumFractionDigits: d });
 export const sar = n => n == null || !isFinite(n) ? '—' : fmt(n, Math.abs(n) < 100 ? 2 : 0);
 
+// One-key shortcuts (c, /, 1-5 …) can be switched off (WCAG 2.1.4: a single-key shortcut must have a way to turn it off). Kept on this device.
+export const shortcutsOn = () => { try { return localStorage.getItem('wl-keys') !== 'off'; } catch { return true; } };
+export function shortcutSwitch(host) {
+  if (!host || host.querySelector('[data-keys]')) return;
+  const b = document.createElement('button'); b.type = 'button'; b.className = 'btn sm ghost'; b.dataset.keys = '1';
+  const paint = () => { const on = shortcutsOn(); b.setAttribute('aria-pressed', String(on)); b.textContent = on ? 'اختصارات الكيبورد: شغّالة' : 'اختصارات الكيبورد: موقفة'; if (LANG === 'en') b.textContent = t(b.textContent); };
+  b.onclick = () => { try { localStorage.setItem('wl-keys', shortcutsOn() ? 'off' : 'on'); } catch { /* storage blocked */ } paint(); };
+  paint(); host.append(b);
+}
 export function say(el, text, ok = false) {
   el.className = 'msg ' + (text ? (ok ? 'ok' : 'err') : '');
-  el.innerHTML = text ? (ok ? icon('check') : icon('alert')) + `<span>${esc(text)}</span>` : '';
+  el.innerHTML = text ? (ok ? icon('check') : icon('alert')) + `<span>${esc(ok ? text : friendly(text))}</span>` : '';
 }
 export function toast(text, bad = false) {
   const t = document.createElement('div'); t.className = 'toast'; t.setAttribute('role', bad ? 'alert' : 'status');
-  t.innerHTML = icon(bad ? 'alert' : 'check') + `<span>${esc(text)}</span>`; document.body.appendChild(t);
+  t.innerHTML = icon(bad ? 'alert' : 'check') + `<span>${esc(bad ? friendly(text) : text)}</span>`; document.body.appendChild(t);
   setTimeout(() => t.remove(), 2600);
 }
 export function busy(btn, on) { if (!btn) return; btn.classList.toggle('loading', on); btn.disabled = on; }
@@ -191,12 +202,13 @@ function drawSide(side, me, active) {
     ${sections(me, L).map(sec => `<div class="side-sec${startsShut(sec, active) ? ' shut' : ''}"><button type="button" class="side-h" data-g="${sec.key}" aria-expanded="${!startsShut(sec, active)}" aria-controls="sg-${sec.key}"><span>${esc(sec.label)}</span>${icon('chev', 'chv')}</button><div class="side-items" id="sg-${sec.key}">${sec.items.map(it => {
       const ic = it.svg ? `<svg class="i" viewBox="0 0 24 24" aria-hidden="true">${it.svg}</svg>` : icon(it.ic);
       if (it.state === 'ok' || it.state === 'soon') return `<a class="navi${it.state === 'soon' ? ' soon' : ''}" href="${it.href}" data-k="${esc(it.key)}"${FULL(it.href)}${it.key === active ? ' aria-current="page"' : ''}>${ic}<span>${esc(it.text)}</span>${it.state === 'soon' ? `<small class="tag">${L('قريباً', 'Soon')}</small>` : ''}</a>`;
-      return `<span class="navi locked" aria-disabled="true" data-tip="${L(...TIP[it.state])}">${ic}<span>${esc(it.text)}</span>${icon('lock', 'lk')}</span>`;
+      // A locked entry can be reached by keyboard and says why (a screen reader reads the reason, the tooltip shows it on hover and focus)
+      return `<span class="navi locked" role="link" tabindex="0" aria-disabled="true" aria-label="${esc(it.text)}، ${L(...TIP[it.state])}" data-tip="${L(...TIP[it.state])}">${ic}<span>${esc(it.text)}</span>${icon('lock', 'lk')}</span>`;
     }).join('')}</div></div>`).join('')}
     <div class="grow"></div>
     <a class="navi" href="/settings/" data-k="settings"${active === 'settings' ? ' aria-current="page"' : ''}>${icon('settings')}<span>الإعدادات</span></a>
     <button class="me" id="meBtn" aria-haspopup="menu" aria-expanded="false"><span class="avatar">${esc(initials)}</span>
-      <span class="who"><b>${esc(me.name || me.email || '')}</b><span class="muted">${me.role === 'owner' ? 'المالكة' : (me.departments || []).length ? 'مدير قسم' : 'عضو'}</span></span></button>
+      <span class="who"><b>${esc(me.name || me.email || '')}</b><span class="muted">${me.role === 'owner' ? 'المالك' : (me.departments || []).length ? 'مدير قسم' : 'عضو'}</span></span></button>
     <div class="menu" id="meMenu" role="menu" hidden><a href="/account/" role="menuitem">${icon('user')}حسابي</a><form method="post" action="/api/auth/logout" style="margin:0"><button type="submit" role="menuitem">${icon('out')}خروج</button></form></div>`;
   wireGroups(side);
   if (!side.dataset.dots) { side.dataset.dots = '1'; agentDots(side, L); }
@@ -308,6 +320,6 @@ export function sectionTabs(me, host, active, first) {
     ...kids.map(k => ({ key: k.key, href: `/${host}/?tab=${k.key}`, text: L(k.ar, k.en), on: !k.locked && k.ok, why: k.locked ? 'locked' : 'noaccess' }))];
   el.innerHTML = items.map(it => it.on
     ? `<a class="sec-tab" href="${it.href}"${it.key === active ? ' aria-current="page"' : ''}>${esc(it.text)}</a>`
-    : `<span class="sec-tab locked" aria-disabled="true" title="${esc(L(...TIP[it.why]))}">${esc(it.text)}</span>`).join('');
+    : `<span class="sec-tab locked" role="link" tabindex="0" aria-disabled="true" aria-label="${esc(it.text)}، ${esc(L(...TIP[it.why]))}" title="${esc(L(...TIP[it.why]))}">${esc(it.text)}</span>`).join('');
   el.hidden = false;
 }

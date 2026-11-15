@@ -110,12 +110,12 @@ side.addEventListener('focusin', prefetch);
 function draw(me) {
   const owner = me.role === 'owner';
   const initials = (me.name || me.email || '·').trim().split(/\s+/).map(w => w[0]).join('').slice(0, 2).toUpperCase();
-  const role = owner ? L('المالكة', 'Owner') : (me.departments || []).length ? L('مدير قسم', 'Department manager') : L('عضو', 'Member');
+  const role = owner ? L('المالك', 'Owner') : (me.departments || []).length ? L('مدير قسم', 'Department manager') : L('عضو', 'Member');
   side.innerHTML = `<div class="wl-top"><a class="wl-mark" href="/today/">Well<i>.</i></a><button type="button" class="wl-x" aria-label="${L('إغلاق القائمة', 'Close menu')}">${I('x')}</button></div>
     ${sections(me, L).map(sec => `<div class="wl-sec${startsShut(sec, here) ? ' shut' : ''}"><button type="button" class="wl-h" data-g="${sec.key}" aria-expanded="${!startsShut(sec, here)}" aria-controls="sg-${sec.key}"><span>${esc(sec.label)}</span>${I('chev')}</button><div class="wl-items" id="sg-${sec.key}">${sec.items.map(it => {
       const ic = it.svg ? `<svg class="wl-i" viewBox="0 0 24 24" aria-hidden="true">${it.svg}</svg>` : I(it.ic);
       if (it.state === 'ok' || it.state === 'soon') return `<a class="wl-navi${it.state === 'soon' ? ' wl-soon' : ''}" href="${it.href}" data-k="${esc(it.key)}"${it.key === here ? ' aria-current="page"' : ''}>${ic}<span>${esc(it.text)}</span>${it.state === 'soon' ? `<small class="wl-tag">${L('قريباً', 'Soon')}</small>` : ''}</a>`;
-      return `<span class="wl-navi wl-locked" aria-disabled="true" title="${L(...TIP[it.state])}">${ic}<span>${esc(it.text)}</span>${I('lock')}</span>`;
+      return `<span class="wl-navi wl-locked" role="link" tabindex="0" aria-disabled="true" aria-label="${esc(it.text)}، ${L(...TIP[it.state])}" title="${L(...TIP[it.state])}">${ic}<span>${esc(it.text)}</span>${I('lock')}</span>`;
     }).join('')}</div></div>`).join('')}
     <div class="wl-grow"></div>
     <a class="wl-navi" href="/settings/">${I('settings')}<span>${L('الإعدادات', 'Settings')}</span></a>
