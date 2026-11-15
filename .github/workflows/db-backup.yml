@@ -41,7 +41,7 @@ jobs:
         with:
           node-version: "24"
           cache: npm
-      - run: npm ci
+      - run: npm ci --ignore-scripts
       - name: Dump Supabase and encrypt
         env:
           SUPABASE_URL: ${{ secrets.SUPABASE_URL }}

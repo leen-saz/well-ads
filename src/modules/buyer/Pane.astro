@@ -40,12 +40,12 @@
 .by-ack{display:flex;gap:8px;align-items:center;margin:0 0 10px;font-size:14px}
 </style>
 <div id="buyerPane" hidden>
-      <p class="muted" style="margin:0 0 14px">توصيات من أرقام الإعلانات مقارنة بقاعدة أفضل الممارسات لكل منصة ولقواعد الشركة. كل توصية تمر على حكم التسويق أول. ما يتغيّر شي في أي حساب إعلاني إلا بعد موافقة لين على كل إجراء وتأكيد ثانٍ، والتجربة بدون تنفيذ هي الأساس.</p>
+      <p class="muted" style="margin:0 0 14px">توصيات من أرقام الإعلانات مقارنة بقاعدة أفضل الممارسات لكل منصة ولقواعد الشركة. كل توصية تمر على حكم التسويق أول. ما يتغيّر شي في أي حساب إعلاني إلا بعد موافقة المالك على كل إجراء وتأكيد ثانٍ، والتجربة بدون تنفيذ هي الأساس.</p>
       <div class="by-sum" id="by-sum"></div>
       <section class="card pad" id="by-execBox" hidden style="margin:0 0 16px">
         <div class="bar" style="justify-content:space-between;margin:0 0 8px"><h2 style="margin:0">التنفيذ بموافقتك</h2><div class="bar"><button class="btn sm secondary" type="button" id="by-proposeAll">حوّل التوصيات لإجراءات</button></div></div>
         <div id="by-execCtl">
-          <div class="by-kill" id="by-killBanner" hidden role="alert">التنفيذ موقوف لكل المنصات (إيقاف الطوارئ مفعّل). الرفع من زر «إيقاف الطوارئ» فوق، ولين بس ترفعه.</div>
+          <div class="by-kill" id="by-killBanner" hidden role="alert">التنفيذ موقوف لكل المنصات (إيقاف الطوارئ مفعّل). الرفع من زر «إيقاف الطوارئ» فوق، والمالك بس يرفعه.</div>
           <div id="by-execState"></div>
           <p class="muted" id="by-execLimits" style="margin:10px 0 0"></p>
           <div class="bar" id="by-limitsForm" hidden style="margin:8px 0 0;gap:8px;flex-wrap:wrap"><input id="by-limPct" type="number" min="1" max="50" step="1" inputmode="decimal" placeholder="سقف نسبة التغيير %" aria-label="سقف نسبة التغيير %" style="width:170px"><input id="by-limDaily" type="number" min="1" step="1" inputmode="decimal" placeholder="السقف اليومي الإجمالي" aria-label="السقف اليومي الإجمالي" style="width:190px"><button class="btn sm secondary" type="button" id="by-limitsSave">احفظ الحدود</button></div>

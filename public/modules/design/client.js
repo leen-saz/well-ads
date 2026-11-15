@@ -1,7 +1,7 @@
 // التصميم: تفاصيل تصميم من أفضل إعلاناتنا، نصوص مقترحة مفحوصة على قواعد الامتثال، ومعاينة لكل مقاس.
 // الصورة يصممها المصمم (OpenAI Images: منتجك في مشهد جديد، أو خلفية)، والنص دايم طبقة فوقها في المتصفح، والتحميل PNG.
 // «نوع التصميم»: صورة (هذا الملف) أو موشن جرافيك (motion.js)، والنوع ينحفظ في الرابط ?type=motion.
-import { $, $$, api, say, esc, shell, busy, fmt } from '/assets/common.js';
+import { $, $$, api, say, esc, shell, busy, fmt, friendly } from '/assets/common.js';
 
 const PLAT = { meta: 'ميتا', snapchat: 'سناب شات', tiktok: 'تيك توك', google: 'جوجل' };
 const LEVEL = { critical: 'مخالفة', warn: 'انتبه', info: 'ملاحظة' };
@@ -166,6 +166,7 @@ export default async function mount() {
         <p class="muted" style="margin:8px 0 0">${r.medianWords ? `النص الناجح حوالي ${fmt(r.medianWords)} كلمة. ` : ''}${Object.entries(r.formats).map(([f, n]) => `${esc(f)}: ${fmt(n)}`).join(' · ')}</p>
         ${r.hooks.length ? `<div class="ls-topics" style="margin-top:8px">${r.hooks.map(h => `<span class="so-chip">${esc(h)}</span>`).join('')}</div>` : ''}`
         : '<p class="muted">ما فيه إعلانات ليدز بثلاث ليدز أو أكثر آخر 30 يوم، فالنصوص من القوالب.</p>'}`;
+    $('#vars').hidden = false;
     $('#vars').innerHTML = `<h2>النصوص المقترحة <span class="muted" style="font-size:13px">${res.engine === 'templates' ? '· قوالب' : ''}</span></h2>
       <div class="dz-vars">${res.variants.map((v, i) => `<label class="card dz-var${i === pick ? ' on' : ''}"><input type="radio" name="var" value="${i}" ${i === pick ? 'checked' : ''}>
         <b>${esc(v.headline)}</b><span>${esc(v.sub)}</span><span class="so-chip">${esc(v.cta)}</span>
@@ -181,7 +182,7 @@ export default async function mount() {
       btn.dataset.ok = '1'; $('#offer').focus();
       say($('#msg'), 'ما كتبت وش نعلن عنه: لو ضغطت «صمّم» مرة ثانية، المصمم يعتمد على معرفة العلامة وأفضل إعلاناتنا آخر 30 يوم.', true); return;
     }
-    delete btn.dataset.ok; busy(btn, true); say($('#msg'), 'المصمم شغّال والتصميم بالطريق… (حوالي دقيقة)', true);
+    delete btn.dataset.ok; busy(btn, true); $('#bgRetry').disabled = true; say($('#msg'), 'المصمم شغّال والتصميم بالطريق… (حوالي دقيقة)', true);
     try {
       last = { type: $('#type').value, offer: $('#offer').value, audience: $('#aud').value, dept: $('#dept').value, sizes: sizes(),
         product: img ? small(img, 1024).toDataURL('image/jpeg', 0.9) : '' };
@@ -191,27 +192,34 @@ export default async function mount() {
       pick = 0; drawResult(); await render(); showMiss();
       say($('#msg'), drawn ? 'جاهز. عدّل النص أو اختر خيار ثاني، والمعاينة تتحدث.' : 'النصوص جاهزة، بس الخلفية ما انرسمت. السبب فوق المعاينة.', !!drawn);
     } catch (err) { say($('#msg'), err.message); }
-    busy(btn, false);
+    busy(btn, false); $('#bgRetry').disabled = false;
   });
   // No picture: say why above the preview, and offer «جرّب مرة ثانية» where trying again can help
   function showMiss() {
     const err = drawn || !res ? null : res.imageError || { message: res.image ? 'وصلت الخلفية بس المتصفح ما قدر يفتحها.' : 'المصمم ما رجّع خلفية هالمرة.', retry: true };
     $('#bgNote').hidden = !err;
     if (!err) return;
-    $('#bgMsg').textContent = `${err.message} ${img ? 'المعاينة الحين على صورتك الأصلية.' : 'المعاينة الحين على خلفية من هوية Well لين تنرسم.'}`;
+    const why = friendly(err.message, 'ما انرسمت الخلفية هالمرة.');
+    $('#bgWhy').textContent = why;
+    $('#bgNow').textContent = img ? 'المعاينة الحين على صورتك الأصلية.' : 'المعاينة الحين على خلفية من هوية Well لين تنرسم.';
+    // the reason names the connections page when the drawing service is not set up: a link there, not a dead end
+    $('#bgLink').hidden = !/الربط|تفعيل|مفعّل|مفعل/.test(why);
     $('#bgRetry').hidden = !err.retry || !last;
   }
   $('#bgRetry').onclick = async () => {
     const btn = $('#bgRetry');
-    busy(btn, true); $('#bgMsg').textContent = 'المصمم يرسم الخلفية… (حوالي دقيقة)';
+    const mine = res, again = $('#f [type=submit]');
+    busy(btn, true); if (again) again.disabled = true; $('#bgWhy').textContent = 'المصمم يرسم الخلفية… (حوالي دقيقة)'; $('#bgNow').textContent = ''; $('#bgLink').hidden = true;
     try {
       const r = await api('/api/design/background', { method: 'POST', body: { ...last, style: res.style || '' } });
+      if (res !== mine) return;   // a new brief replaced this one while it was drawing: this answer is for the old brief
       res.image = r.image; res.imageError = r.imageError;
       drawn = r.image ? await picture(r.image).catch(() => null) : null;
       await render();
       if (drawn) say($('#msg'), 'انرسمت الخلفية.', true);
-    } catch (err) { res.imageError = { message: err.message, retry: true }; }
-    showMiss(); busy(btn, false);
+    } catch (err) { if (res === mine) res.imageError = { message: friendly(err.message), retry: true }; }
+    finally { if (again) again.disabled = false; busy(btn, false); }
+    if (res === mine) showMiss();
   };
   function thumbs() {
     const all = [...(img ? [[img, 'المنتج']] : []), ...refs.map((r, i) => [r, `مرجع ${i + 1}`])];
@@ -233,7 +241,14 @@ export default async function mount() {
     thumbs(); render();
   });
   $('#useRefColors').addEventListener('change', render);
-  $('#vars').addEventListener('change', e => { if (e.target.name === 'var') { pick = +e.target.value; drawResult(); render(); } });
+  // the chosen text changes in place: rebuilding the list would drop the keyboard focus of the radio the user is moving with the arrow keys
+  $('#vars').addEventListener('change', e => {
+    if (e.target.name !== 'var') return;
+    pick = +e.target.value;
+    $$('.dz-var', $('#vars')).forEach((el, i) => el.classList.toggle('on', i === pick));
+    const v = res.variants[pick]; $('#eh').value = v.headline; $('#es').value = v.sub; $('#ec').value = v.cta;
+    render();
+  });
   $('#vars').addEventListener('input', e => { if (!res || !['eh', 'es', 'ec'].includes(e.target.id)) return; const v = res.variants[pick]; v.headline = $('#eh').value; v.sub = $('#es').value; v.cta = $('#ec').value; render(); });
   $$('input[name=size]').forEach(x => x.addEventListener('change', render));
   $('#prev').addEventListener('click', e => { const a = e.target.closest('[data-dl]'); if (!a) return; const c = $(`#prev canvas[data-size="${a.dataset.dl}"]`); a.href = c.toDataURL('image/png'); });
@@ -253,7 +268,7 @@ export default async function mount() {
     const isMotion = kind === 'motion';
     $$('#kind [data-kind]').forEach(b => b.setAttribute('aria-pressed', String(b.dataset.kind === (isMotion ? 'motion' : 'image'))));
     $('#imageFlow').hidden = isMotion; $('#motionFlow').hidden = !isMotion;
-    if (isMotion) motion ||= import('/modules/design/motion.js').then(m => m.mountMotion()).catch(err => say($('#mmsg'), err.message));
+    if (isMotion) motion ||= import('/modules/design/motion.js').then(m => m.mountMotion()).catch(() => say($('#mmsg'), 'ما انفتح قسم الموشن. حدّث الصفحة وجرّب مرة ثانية.'));
   };
   $('#kind').onclick = ev => {
     const b = ev.target.closest('[data-kind]');

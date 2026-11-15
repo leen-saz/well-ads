@@ -69,12 +69,23 @@ Every Google Ads call needs these secrets in the `production` environment (Setti
 
 ## TikTok history (private bucket, not a git branch)
 - **Where:** `well-ads-files` at `private/tiktok/tiktok.json`. The Worker only serves the mapped `site/…` and `thumbs/…` keys, so this key is never public. The old public branch `tiktok-data` is no longer read by anything.
-- **How it works:** every hourly run restores the file, the TikTok MCP step merges the last ~90 days into it, and the run writes it back (never a version with fewer rows). Days older than the MCP window exist only in this file.
+- **How it works:** every hourly run restores the file, the TikTok MCP step merges the last ~90 days into it, and the run writes it back only if it passes `pipeline/tiktok/history_check.py` (valid rows, same first and last day, no more than 5% fewer rows). Days older than the MCP window exist only in this file.
 - **No file in the bucket:** the MCP step is skipped (warning `tiktok-history`) and the dashboard keeps the previous TikTok numbers. Nothing is lost, but TikTok stops updating until the file is seeded.
 - **One-time seed (Leen, from the last good snapshot):**
   `git clone --branch tiktok-data --single-branch https://github.com/leen-saz/well-ads.git /tmp/tt && npx wrangler r2 object put well-ads-files/private/tiktok/tiktok.json --file /tmp/tt/tiktok.json --content-type application/json --remote`
   then delete the clone. Do this before the PR that drops the checkout is merged, or right after: until then TikTok shows the previous numbers.
 - **Delete the old branch (after the seed and one green hourly run):** `gh api -X DELETE repos/leen-saz/well-ads/git/refs/heads/tiktok-data`
+
+## Data pull safety (what the hourly run does when something goes wrong)
+- **Windows are replaced after the write:** the last 3 days (90 at 05:00 Riyadh) of a platform are upserted first and only the rows the fresh fetch no longer returns are deleted, and only if the fetch returned rows. A failed or empty pull never leaves a hole.
+- **Nothing is saved to the database from a bad pull:** the pull is validated first (shape, and a platform that had spend and now has neither spend nor ads is refused).
+- **Currency is read per platform** (Meta account currency, Google `customer.currency_code`, Snap `adaccount.currency`). SAR and USD are converted, any other currency fails that platform. If the lookup itself fails the old assumption stays (Meta USD, Google and Snap SAR) with a note.
+- **Retries:** 429, 5xx, network errors and Meta throttle codes are retried with growing waits and jitter, within `RETRY_BUDGET_SECONDS` (default 1200) for the whole run.
+- **Errors are short codes** (`auth`, `rate_limit`, `http_5xx`, `network`, `http_4xx`, `error`) in `data.json` and the public log, never the upstream text.
+- **Steps report failure:** `data-status.json` marks the TikTok pull, observe, outcomes and execute steps as failed when they crash (they used to report ok).
+- **Upload order:** per-audience data, `data.json` and the pages go up first, `dash.json` and `data-status.json` last, each with up to 3 tries.
+- **Workflow tokens:** the Cloudflare token is on the steps that run wrangler only, `npm ci --ignore-scripts` everywhere, and the deploy checkout keeps no git credentials.
+- **`execute-smoke`** needs an `approval_id` (an approved decision from the last 48 hours) and writes its audit row before it pauses anything. Add required reviewers to the `production` environment for a second pair of eyes.
 
 ## Settings only the repository owner can change
 - **Branch protection / rulesets on `main`**: add the status check `smoke` (the job of `.github/workflows/smoke.yml`) next to `ci / gate`, so a PR cannot merge with a red smoke run.

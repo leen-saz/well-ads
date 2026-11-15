@@ -16,7 +16,7 @@ export function agentDots(side, L, fetcher = () => fetch('/api/campaigns/agents'
       const st = state.agents?.[agent] === 'running' ? 'running' : state.agents?.[agent] === 'failed' ? 'failed' : 'idle';
       let d = a.querySelector('.agent-dot');
       if (!d) { d = document.createElement('i'); d.className = 'agent-dot'; d.setAttribute('role', 'img'); a.append(d); }
-      if (d.dataset.s !== st) { d.dataset.s = st; d.setAttribute('aria-label', label(st)); }
+      if (d.dataset.s !== st) { d.dataset.s = st; d.setAttribute('aria-label', label(st)); d.title = label(st); }
     });
   };
   const tick = async () => {
