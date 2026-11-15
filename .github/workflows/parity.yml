@@ -1,6 +1,8 @@
 name: parity
 
-# Phase 4.1 (docs/phase-4.md): the dashboard numbers must match tests/parity/golden.json.
+# Phase 4.1 (docs/phase-4.md): the numbers of the dashboards built by the pipeline (pipeline/template.html + pipeline/dash/*.js, the pages served
+# from R2) must match tests/parity/golden.json. It does NOT render the Astro pages in src/pages, so those are not in the path filter: a change there
+# is covered by ci / smoke, not by this check.
 on:
   pull_request:
     paths:
@@ -9,7 +11,6 @@ on:
       - pipeline/dash_template.py
       - pipeline/build.py
       - public/assets/**
-      - src/pages/**
       - tests/parity/**
       - playwright.config.ts
       - package-lock.json
