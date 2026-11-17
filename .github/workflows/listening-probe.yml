@@ -1,6 +1,7 @@
 # Which social-listening sources answer from Cloudflare's servers (Actions > listening-probe > Run workflow).
 # Calls staging's GET /api/listening/probe: a sample watch with the free sources, and each news source alone,
-# and prints the count or the refusal per source. Reads only; needs no secret.
+# and prints the count or the refusal per source. Reads only. Sends the repository secret LISTENING_PROBE_SECRET
+# (the same value as the staging Worker's PROBE_SECRET) in the x-probe-secret header; without it the endpoint answers 401.
 name: listening-probe
 
 on:
@@ -17,9 +18,11 @@ jobs:
       - name: Ask staging's Worker
         env:
           URL: https://well-ads-staging.leen-b9b.workers.dev/api/listening/probe
+          PROBE_SECRET: ${{ secrets.LISTENING_PROBE_SECRET }}
         run: |
           set -euo pipefail
-          body="$(curl -fsS --max-time 60 "$URL")"
+          [ -n "$PROBE_SECRET" ] || { echo "::error::add the repository secret LISTENING_PROBE_SECRET (docs/secrets/worker.env.example)"; exit 1; }
+          body="$(curl -fsS --max-time 60 -H "x-probe-secret: $PROBE_SECRET" "$URL")"
           echo "$body" | jq .
           {
             echo "### Listening sources from Cloudflare"
