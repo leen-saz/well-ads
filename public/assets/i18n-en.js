@@ -839,7 +839,7 @@ export const EN = {
   'اللهجة': 'Dialect', 'كلمة': 'words', 'انفحص.': 'Checked.', 'انكتب بصوت العلامة. راجعه قبل ما تستخدمه.': 'Rewritten in the brand voice. Review it before you use it.',
   'اكتب النص أول': 'Write the text first', 'الذكاء الاصطناعي ما رد الحين، جرّب بعد دقيقة': 'The AI did not answer; try again in a minute', 'سعودي': 'Saudi', 'فصحى': 'Formal Arabic', 'خليط': 'Mixed', 'محايد': 'Neutral', 'نعم:': 'Do:', 'لا:': "Don't:",
   // أخطاء السيرفر
-  'طلب مرفوض': 'Request refused', 'سجّل الدخول': 'Please sign in', 'الحساب موقوف': 'Account disabled', 'ما عندك صلاحية': 'You don\'t have access',
+  'طلب مرفوض': 'Request refused', 'سجّل الدخول': 'Please sign in', 'الحساب موقوف': 'Account disabled', 'ما عندك صلاحية': 'You don\'t have access', 'ما عندك صلاحية على أرقام التحليلات': 'You don\'t have access to the analytics numbers', 'ملخص الأداء يحتاج صلاحية أرقام التحليلات. اطلب من المالك يفتحها لك.': 'The performance summary needs access to the analytics numbers. Ask the owner to open it for you.',
   'صار خطأ، جرّب مرة ثانية': 'Something went wrong, try again', 'صار خطأ': 'Something went wrong', 'الإعداد غير مكتمل': 'Setup is incomplete',
   'ما قدرت أقرأ الاقتراحات': 'Couldn\'t read suggestions', 'قرار غير معروف': 'Unknown decision', 'اكتب سبب الرفض': 'Write the reason for rejecting',
   'اكتب وش التعديل المطلوب': 'Write what should change', 'انحسمت من قبل': 'Already decided', 'ما قدرت أقرأ المستخدمين': 'Couldn\'t read users',

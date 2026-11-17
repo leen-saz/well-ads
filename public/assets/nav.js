@@ -1,6 +1,6 @@
 // نفس القائمة الجانبية حق لوحة القرارات، فوق اللوحات (/ و/creative): موقع واحد.
 // كل الأقسام تطلع للكل، واللي ما له صلاحية عليه يطلع مقفل. في الجوال: زر قائمة يفتح درج.
-import { sections, TIP, startsShut, wireGroups, isHere } from './sidebar.js';
+import { sections, groupNav, stripHtml, wireStrip } from './sidebar.js';
 import { agentDots } from './agentdots.js';
 import { ME_KEY, FRESH, readMe, slim } from './me-cache.js';
 const EN = (() => { try { return new URLSearchParams(location.search).get('lang') === 'en' || localStorage.getItem('well-ads-lang') === 'en'; } catch { return false; } })();
@@ -70,13 +70,18 @@ body{padding-inline-start:256px}
 .wl-navi:hover{background:rgba(126,87,253,.07);color:#1D1069}
 .wl-navi:focus-visible{outline:2px solid #7E57FD;outline-offset:2px}
 .wl-navi[aria-current]{background:#7E57FD;color:#FFFFFF;font-weight:500;box-shadow:0 6px 18px rgba(126,87,253,.28)}
-.wl-locked{opacity:.45;cursor:not-allowed}.wl-locked:hover{background:transparent}.wl-locked .wl-i:last-child{width:14px;height:14px;margin-inline-start:auto}
 .wl-i{width:18px;height:18px;stroke:currentColor;fill:none;stroke-width:1.75;stroke-linecap:round;stroke-linejoin:round;flex:none}
-.wl-soon{height:40px;font-size:14px}
-.wl-tag{margin-inline-start:auto;flex:none;font:500 11px/1 "Thmanyah Sans",system-ui,sans-serif;padding:4px 8px;border-radius:999px;background:rgba(126,87,253,.12);color:#1D1069}
 .wl-grow{flex:1}
-.wl-sec{display:flex;flex-direction:column;gap:2px;margin:0 0 10px}
-.wl-h{display:flex;align-items:center;justify-content:space-between;width:100%;border:0;background:transparent;cursor:pointer;font:500 11px/1 "Thmanyah Sans",system-ui,sans-serif;letter-spacing:.04em;color:rgba(29,16,105,.55);padding:8px 16px 6px}.wl-h:hover{color:#1D1069}.wl-h .wl-i{width:14px;height:14px;transition:transform .15s}.wl-sec.shut .wl-h .wl-i{transform:rotate(-90deg)}[dir=rtl] .wl-sec.shut .wl-h .wl-i{transform:rotate(90deg)}.wl-items{display:flex;flex-direction:column;gap:2px}.wl-sec.shut .wl-items{display:none}
+.wl-items{display:flex;flex-direction:column;gap:2px}
+.gtabs{display:flex;gap:6px;overflow-x:auto;scrollbar-width:none;padding:14px 32px 0;max-width:100%;font:600 14px "Thmanyah Sans",system-ui,sans-serif}
+.gtabs::-webkit-scrollbar{display:none}
+.gtab{flex:none;display:inline-flex;align-items:center;gap:8px;height:36px;padding:0 16px;border-radius:999px;color:rgba(29,16,105,.62);text-decoration:none;white-space:nowrap}
+.gtab:hover{background:rgba(126,87,253,.08);color:#1D1069}
+.gtab:focus-visible{outline:2px solid #7E57FD;outline-offset:2px}
+.gtab[aria-current]{background:#7E57FD;color:#FFFFFF;box-shadow:0 6px 18px rgba(126,87,253,.28)}
+.gtab.soon{font-weight:500;opacity:.8}
+.gtab .tag{font:500 11px/1 "Thmanyah Sans",system-ui,sans-serif;padding:4px 8px;border-radius:999px;background:rgba(126,87,253,.12);color:#1D1069}
+.gtab .agent-dot{margin-inline-start:0}
 .wl-me{display:flex;align-items:center;gap:10px;padding:10px 8px 0;border-top:1px solid rgba(172,166,225,.35);margin-top:6px}
 .wl-me b{display:block;font-size:14px;font-weight:700;max-width:170px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.wl-me small{color:rgba(29,16,105,.62);font-size:12px}
 .wl-av{width:34px;height:34px;border-radius:50%;background:#1D1069;color:#FFFFFF;display:grid;place-items:center;font-size:13px;font-weight:700;flex:none}
@@ -92,6 +97,7 @@ body{padding-inline-start:256px}
   .wl-burger{display:grid;place-items:center;position:fixed;inset-block-start:14px;inset-inline-start:14px;z-index:58;width:44px;height:44px;border-radius:999px;border:0;
     background:rgba(255,255,255,.86);-webkit-backdrop-filter:blur(12px);backdrop-filter:blur(12px);color:#1D1069;box-shadow:0 6px 18px rgba(126,87,253,.18);cursor:pointer}
   .brand{padding-inline-start:52px}
+  .gtabs{padding-inline:16px;padding-block-start:68px}
 }`;
 document.head.appendChild(css);
 document.body.append(side, scrim, burger);
@@ -112,17 +118,16 @@ function draw(me) {
   const initials = (me.name || me.email || '·').trim().split(/\s+/).map(w => w[0]).join('').slice(0, 2).toUpperCase();
   const role = owner ? L('المالك', 'Owner') : (me.departments || []).length ? L('مدير قسم', 'Department manager') : L('عضو', 'Member');
   side.innerHTML = `<div class="wl-top"><a class="wl-mark" href="/today/">Well<i>.</i></a><button type="button" class="wl-x" aria-label="${L('إغلاق القائمة', 'Close menu')}">${I('x')}</button></div>
-    ${sections(me, L).map(sec => `<div class="wl-sec${startsShut(sec, here) ? ' shut' : ''}"><button type="button" class="wl-h" data-g="${sec.key}" aria-expanded="${!startsShut(sec, here)}" aria-controls="sg-${sec.key}"><span>${esc(sec.label)}</span>${I('chev')}</button><div class="wl-items" id="sg-${sec.key}">${sec.items.map(it => {
-      const ic = it.svg ? `<svg class="wl-i" viewBox="0 0 24 24" aria-hidden="true">${it.svg}</svg>` : I(it.ic);
-      if (it.state === 'ok' || it.state === 'soon') return `<a class="wl-navi${it.state === 'soon' ? ' wl-soon' : ''}" href="${it.href}" data-k="${esc(it.key)}"${isHere(it, here) ? ' aria-current="page"' : ''}>${ic}<span>${esc(it.text)}</span>${it.state === 'soon' ? `<small class="wl-tag">${L('قريباً', 'Soon')}</small>` : ''}</a>`;
-      return `<span class="wl-navi wl-locked" role="link" tabindex="0" aria-disabled="true" aria-label="${esc(it.text)}، ${L(...TIP[it.state])}" title="${L(...TIP[it.state])}">${ic}<span>${esc(it.text)}</span>${I('lock')}</span>`;
-    }).join('')}</div></div>`).join('')}
+    <div class="wl-items">${groupNav(sections(me, L), here).entries.map(g => `<a class="wl-navi" href="${g.href}" data-k="${esc('g:' + g.key)}" data-grp="${g.key}" data-ks="${esc(g.ks.join(','))}"${g.on ? ' aria-current="page"' : ''}><svg class="wl-i" viewBox="0 0 24 24" aria-hidden="true">${g.svg}</svg><span>${esc(g.label)}</span></a>`).join('')}</div>
     <div class="wl-grow"></div>
     <a class="wl-navi" href="/settings/">${I('settings')}<span>${L('الإعدادات', 'Settings')}</span></a>
     <form method="post" action="/api/auth/logout" class="wl-out"><button type="submit" class="wl-navi">${I('out')}<span>${L('خروج', 'Sign out')}</span></button></form>
     <div class="wl-me"><span class="wl-av">${esc(initials)}</span><span><b>${esc(me.name || me.email || '')}</b><small>${role}</small></span></div>`;
-  wireGroups(side);
-  if (!side.dataset.dots) { side.dataset.dots = '1'; agentDots(side, L); }
+  if (!side.dataset.dots) { side.dataset.dots = '1'; side._dots = agentDots(side, L); }
+  // The group's tools as sub-tabs at the top of the page (same strip as the app pages; this page's own markup is not touched)
+  document.querySelector('[data-gtabs]')?.remove();
+  const strip = groupNav(sections(me, L), here).strip;
+  if (strip) { document.body.insertAdjacentHTML('afterbegin', stripHtml(strip, here, L, esc, h => (h === '/' || h.startsWith('/?') ? ' data-astro-reload' : ''))); wireStrip(document.querySelector('[data-gtabs]')); side._dots?.paint(); }
   side.querySelector('.wl-out')?.addEventListener('submit', () => { try { localStorage.removeItem(ME_KEY); } catch { /* storage blocked */ } });
 }
 
