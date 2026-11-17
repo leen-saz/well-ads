@@ -13,9 +13,10 @@ Production is deployed by hand (ADR-0005): Actions → **deploy** → Run workfl
    never drop or rename in the same release). Migrations are not rolled back with the Worker.
 4. **Secrets and variables.** A new secret named in the release goes into Cloudflare → Workers → well-ads → Settings first
    (`docs/secrets/worker.env.example` lists them). `/api/health` shows `ok: false` (and, as the owner, `/api/health/details` shows `supabase: down`) if the Supabase ones are wrong.
-5. **Owner email.** `OWNER_EMAIL` is a Worker secret per environment, not a line in the public `wrangler.jsonc`. If it is missing the Worker answers every
-   request with an error, so `deploy` stops before deploying. Set it once per environment: `npx wrangler secret put OWNER_EMAIL --env production` (and `--env staging`),
-   and type the owner's sign-in email. A secret survives every deploy; a plain variable set in the dashboard would be wiped by the next `wrangler deploy`.
+5. **Owner email.** `OWNER_EMAIL` is not in the public `wrangler.jsonc`. If it is missing the Worker answers every request with an error, so `deploy`
+   stops before deploying. Easiest: set it once per GitHub environment, `gh secret set OWNER_EMAIL -R leen-saz/well-ads --env production` (and `--env staging`),
+   and type the owner's sign-in email; every deploy then passes it to the Worker as a variable. If a Worker secret of that name already exists
+   (`npx wrangler secret put OWNER_EMAIL --name well-ads`), the deploy leaves it alone. A variable and a secret cannot have the same name, so do not do both.
 6. **Scheduled jobs token.** `GH_DISPATCH_TOKEN` (fine-grained token, Actions read and write on this repo) must be a Worker secret too: without it the hourly refresh,
    the weekly backup and the monthly restore test never start, and the only sign is a console error and a note in R2. Check it after every deploy.
 7. Write down the current version for a rollback: `npx wrangler deployments list --env production` (top line = live version id), or the

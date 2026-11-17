@@ -16,7 +16,7 @@ const PUBLIC = [/^\/login\/?$/, /^\/reset\/?$/, /^\/welcome\/?$/, /^\/api\/auth\
 // the first tool of the destination this user may open, in sidebar order, and /today/ when none.
 export const HUBS: Record<string, [Need, string][]> = {
   performance: [['ceo', '/'], ['creative', '/?view=creative'], ['listening', '/listening/']],
-  create: [['design', '/design/'], ['voice', '/voice/'], ['voiceover', '/voice/?tab=voiceover'], ['social', '/social/'], ['content', '/content/'], ['copy', '/content/?tab=copy'], ['journeys', '/journeys/']],
+  create: [['design', '/design/'], ['vision', '/design/?tab=vision'], ['voice', '/voice/'], ['voiceover', '/voice/?tab=voiceover'], ['transcribe', '/voice/?tab=transcribe'], ['video', '/voice/?tab=video'], ['social', '/social/'], ['content', '/content/'], ['copy', '/content/?tab=copy'], ['journeys', '/journeys/']],
   review: [['control', '/control/'], ['compliance', '/compliance/'], ['maestro', '/maestro/']],
   system: [['connectors', '/connectors/'], ['knowledge', '/knowledge/'], ['debugger', '/debugger/']],
 };
@@ -133,7 +133,11 @@ async function decide(request: Request, e: AuthEnv, renewed: { cookie?: string }
   if (can(s, want, cfg)) {
     // The old address of a section: its place inside the tab it moved into
     const host = !api ? intoOf(want) : undefined;
-    if (host && url.pathname.replace(/\/$/, '') === '/' + want) return redirect(new URL(`/${host}/?tab=${want}`, url.origin).toString());
+    if (host && url.pathname.replace(/\/$/, '') === '/' + want) {
+      const to = new URL(`/${host}/`, url.origin); to.searchParams.set('tab', want);
+      for (const [k, v] of url.searchParams) if (k !== 'tab') to.searchParams.set(k, v); // keep ?lang= and the like
+      return redirect(to.toString());
+    }
     // Department manager: analytics and creative open from their department copy only
     const scope: string[] = Array.isArray(s.depts) ? s.depts : [];
     const m = url.pathname.match(/^\/dept\/([a-z]+)\/?/);

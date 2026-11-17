@@ -1,5 +1,5 @@
 // التفريغ: رفع ملف، وخطوات التفريغ تمشي والصفحة مفتوحة (وإذا انقفلت يكملها الخادم)، والنتيجة: ملخص وبنود عمل والنص.
-import { $, api, say, esc, shell, busy, when, pageSignal, failure, friendly, arabicOr } from '/assets/common.js';
+import { $, api, say, esc, shell, busy, when, pageSignal, failure, friendly, arabicOr, sectionTabs } from '/assets/common.js';
 
 // Runs on every visit of this page (assets/router.js calls it after each ClientRouter navigation).
 export default async function mount() {
@@ -136,5 +136,5 @@ export default async function mount() {
     catch (err) { why.className = 'tr-why msg err'; why.textContent = friendly(err, 'ما قدرنا نجيب النص. سكّر القسم وافتحه مرة ثانية.'); }
   }, true);
 
-  shell({ active: 'transcribe', title: 'التفريغ' }).then(load).catch(err => say($('#msg'), err.message));
+  shell({ active: 'voice', section: 'transcribe', title: 'التفريغ' }).then(me => { sectionTabs(me, 'voice', 'transcribe', ['فحص النص والصوت', 'Text & voice']); return load(); }).catch(err => say($('#msg'), err.message));
 }
