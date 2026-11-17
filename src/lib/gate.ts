@@ -131,7 +131,11 @@ async function decide(request: Request, e: AuthEnv, renewed: { cookie?: string }
   if (can(s, want, cfg)) {
     // The old address of a section: its place inside the tab it moved into
     const host = !api ? intoOf(want) : undefined;
-    if (host && url.pathname.replace(/\/$/, '') === '/' + want) return redirect(new URL(`/${host}/?tab=${want}`, url.origin).toString());
+    if (host && url.pathname.replace(/\/$/, '') === '/' + want) {
+      const to = new URL(`/${host}/`, url.origin); to.searchParams.set('tab', want);
+      for (const [k, v] of url.searchParams) if (k !== 'tab') to.searchParams.set(k, v); // keep ?lang= and the like
+      return redirect(to.toString());
+    }
     // Department manager: analytics and creative open from their department copy only
     const scope: string[] = Array.isArray(s.depts) ? s.depts : [];
     const m = url.pathname.match(/^\/dept\/([a-z]+)\/?/);
