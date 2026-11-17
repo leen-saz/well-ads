@@ -185,6 +185,9 @@ jobs:
       # Well CRM (Marketing API v1, read-only): leads, bookings and Moyasar payments per ad, upserted by lead_id
       - name: CRM leads
         continue-on-error: true
+        # A rate-limited CRM (429 with waits) used to keep this step running until the 30-minute job limit killed the WHOLE job:
+        # no upload, so the dashboard went stale for hours. The step now stops itself after 8 minutes (the job goes on without it).
+        timeout-minutes: 8
         working-directory: pipeline
         env:
           CRM_API_KEY: ${{ secrets.CRM_API_KEY }}
