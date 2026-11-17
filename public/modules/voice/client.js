@@ -78,7 +78,7 @@ export default async function mount() {
     busy(btn, false);
   });
 
-  sectionTabs(await shell({ active: 'voice', title: 'الصوت' }), 'voice', 'voice', ['فحص النص والصوت', 'Text & voice']);
+  sectionTabs(await shell({ active: 'voice', title: 'صوت وفيديو' }), 'voice', 'voice', ['فحص النص والصوت', 'Text & voice']);
   try {
     const g = await api('/api/voice/guide');
     const t = g.tts || { voices: [], accents: {}, tones: {} };
