@@ -4,6 +4,7 @@
 // write and then stops: it never calls a platform with anything but a GET. Nothing here stores or returns a credential.
 import { audit, missingSchema, sb, type Cfg, type Session } from '../../../lib/auth';
 import { scoped } from '../../../lib/tenant';
+import { patchGuardrails } from '../../../lib/guardrails';
 import type { Rec } from '../buyer';
 import { configured, PlatformError, type Adapter, type Entity, type ExecEnv } from './adapters';
 import { cleanSettings, evaluate, idemKey, newBudget, pctOf, reachedTarget, round2, sameAsShown, type Block, type Change, type Level, type Plat, type Recent, type Settings } from './guards';
@@ -30,6 +31,7 @@ export const MSG: Record<string, string> = {
   read_failed: 'ما قدرنا نقرأ الحالة الفعلية من المنصة، فما نفّذنا شي', changed: 'القيمة في المنصة تغيّرت عن اللي ظهر لك، فانلغى الإجراء', blocked: 'حاجز يمنع التنفيذ',
   kill: 'زر الطوارئ شغّال، التنفيذ موقوف لكل المنصات', write_failed: 'المنصة رفضت التغيير', verify_failed: 'ما تأكدنا من التغيير بعد التنفيذ، راجعه في المنصة',
   not_last: 'التراجع يكون لآخر إجراء منفّذ بس', changed_since: 'القيمة تغيّرت بعد التنفيذ، ما نتراجع فوقها', not_applied: 'هذا الإجراء ما انتفّذ عشان نتراجع عنه',
+  no_previous: 'ما نعرف الحالة قبل التغيير، فما نتراجع تلقائياً. رجّعها يدوياً من المنصة',
   not_actionable: 'هذي التوصية ما تتحول لإجراء على الحساب', no_rec: 'التوصية ما لقيناها في التحليل الحالي', not_found: 'ما لقيت الإجراء', forbidden: 'لين بس تغيّر إعدادات التنفيذ',
 };
 const fail = (status: number, code: string, extra: Record<string, unknown> = {}): Out => out(status, { error: MSG[code] ?? 'ما تم', code, ...extra });
@@ -53,12 +55,20 @@ export async function loadSettings(cfg: Cfg): Promise<Settings> {
 const ts = (v: unknown) => { const t = Date.parse(String(v ?? '')); return isFinite(t) ? t : 0; };
 export async function loadRecent(cfg: Cfg, co: string, now: number): Promise<Recent[]> {
   const since = new Date(now - 49 * 3600e3).toISOString();
-  const r = await sb<Action[]>(cfg, scoped(`/rest/v1/buyer_actions?select=platform,entity_id,change,applied_at,rolled_back_at,decided_at,status&or=(decided_at.gte.${since},applied_at.gte.${since},rolled_back_at.gte.${since})&status=in.(applied,rolled_back,applying)`, co), { admin: true });
+  const r = await sb<Action[]>(cfg, scoped(`/rest/v1/buyer_actions?select=platform,entity_id,change,applied_at,rolled_back_at,decided_at,status&or=(decided_at.gte.${since},applied_at.gte.${since},rolled_back_at.gte.${since})&status=in.(applied,rolled_back,applying,failed)`, co), { admin: true });
   const rows = r.ok && Array.isArray(r.data) ? r.data : [];
   const recent: Recent[] = [];
   for (const a of rows) {
     if (!a.entity_id) continue;
     const c = a.change, inc = c.op === 'budget' && c.from != null && c.to != null ? Math.max(0, round2(c.to - c.from)) : 0;
+    // A write that reached the platform but could not be read back is marked `failed`, yet the change may well have happened:
+    // it counts toward the cooldown and the daily cap like an applied one. Only a clear refusal by the platform (HTTP 4xx) means
+    // nothing changed; a 5xx, a timeout or an unreadable result stays counted until someone looks at it.
+    if (a.status === 'failed') {
+      const res = (a.result ?? {}) as Row, code = String(res.code ?? '');
+      if (!/^(meta_4\d\d_|snap_(auth_)?4\d\d$|snap_gone$)/.test(code)) recent.push({ platform: a.platform, entityId: a.entity_id, at: ts(res.at ?? a.decided_at), increase: inc });
+      continue;
+    }
     if (a.status === 'applying' && a.decided_at) recent.push({ platform: a.platform, entityId: a.entity_id, at: ts(a.decided_at), increase: inc });   // in flight counts as done
     if (a.applied_at) recent.push({ platform: a.platform, entityId: a.entity_id, at: ts(a.applied_at), increase: inc });
     if (a.rolled_back_at) recent.push({ platform: a.platform, entityId: a.entity_id, at: ts(a.rolled_back_at), increase: 0 });
@@ -207,10 +217,20 @@ export async function apply(ctx: Ctx, id: string, body: ApplyBody): Promise<Out>
     await audit(cfg, user, 'buyer_aborted', { target: { id, platform: a.platform, level: a.level, entity_id: a.entity_id }, before: stateOf(entity), after: { shown: c }, note: 'changed' });
     return fail(409, 'changed', { live_state: stateOf(entity) });
   }
-  // The emergency stop may have been pressed while this request was running: read it once more right before the write
-  if ((await loadSettings(cfg)).kill) {
+  // The emergency stop may have been pressed while this request was running, and another approval may have used the day's room or
+  // the entity's cooldown since `recent` was read: read both again now that this row is claimed (an in-flight `applying` row of
+  // another action is counted by loadRecent; this row is left out of its own tally) and check once more right before the write.
+  const [latest, again] = await Promise.all([loadSettings(cfg), loadRecent(cfg, user.co, now)]);
+  if (latest.kill) {
     await move(cfg, user.co, id, 'applying', { status: 'proposed' });
     return fail(409, 'kill');
+  }
+  const mine = again.filter(r => !(r.platform === a.platform && r.entityId === a.entity_id && r.at === ts(new Date(now).toISOString())));
+  const v2 = evaluate(subject(a), latest, mine, now);
+  if (!v2.ok) {
+    await move(cfg, user.co, id, 'applying', { status: 'proposed' });
+    await audit(cfg, user, 'buyer_blocked', { target: { id, platform: a.platform, level: a.level, entity_id: a.entity_id }, result: { blocks: codes(v2.blocks), recheck: true } });
+    return fail(409, 'blocked', { blocks: v2.blocks });
   }
   return write(ctx, a, adapter, entity, c, 'applied');
 }
@@ -260,6 +280,17 @@ export async function rollback(ctx: Ctx, id: string, body: { confirm?: unknown }
   if (!entity) return fail(409, 'gone');
   // Only undo what we did: if someone changed it since, the rollback would overwrite their change
   if (!reachedTarget(a.change, entity)) return fail(409, 'changed_since', { live_state: stateOf(entity) });
+  // A rollback restores the earlier value, so it needs to know it. With no known earlier status it would guess «active»: refused, done by hand.
+  const c = a.change;
+  if (c.op === 'status' && c.from == null) return fail(409, 'no_previous');
+  // Undoing a budget DECREASE raises the budget: that goes through the same limits as any increase (percent step and daily room).
+  // The cooldown does not apply: a rollback restores.
+  if (c.op === 'budget' && c.from != null && c.to != null && c.from > c.to) {
+    const back: Change = { op: 'budget', from: c.to, to: c.from, pct: pctOf(c.to, c.from) };
+    const v = evaluate(subject({ ...a, change: back }), settings, await loadRecent(cfg, user.co, ctx.now ?? Date.now()), ctx.now ?? Date.now());
+    const blocks = v.blocks.filter(b => b.code !== 'cooldown');
+    if (blocks.length) return fail(409, 'blocked', { blocks });
+  }
   if (!await move(cfg, user.co, id, 'applied', { status: 'applying' })) return fail(409, 'not_open');
   return write(ctx, a, adapter, entity, a.change, 'rolled_back');
 }
@@ -270,27 +301,40 @@ export async function saveSettings(ctx: Ctx, patch: SettingsPatch, owner: boolea
   const { cfg, user } = ctx;
   const touchesMore = patch.maxPct !== undefined || patch.dailyCap !== undefined || patch.live !== undefined || patch.kill === false;
   if (touchesMore && !owner) return fail(403, 'forbidden');   // anyone with approval may press the stop; only the owner lifts it or loosens anything
-  const r = await sb<{ platform: string; guardrails?: Row }[]>(cfg, '/rest/v1/control_settings?select=platform,guardrails', { admin: true });
-  if (!r.ok || !Array.isArray(r.data)) return out(500, { error: 'ما انحفظ', code: 'save_failed' });
-  const rows = r.data, before = await loadSettings(cfg);
-  const put = async (platform: string, guardrails: Row) => sb(cfg, '/rest/v1/control_settings', { method: 'POST', admin: true, headers: { Prefer: 'return=minimal,resolution=merge-duplicates' }, body: { platform, mode: 'manual', guardrails, updated_by: user.email, updated_at: new Date().toISOString() } });
-  const g = { ...(rows.find(x => x.platform === 'global')?.guardrails ?? {}) } as Row, ex = { ...((g.exec as Row | undefined) ?? {}) };
-  let touchedGlobal = false;
-  if (typeof patch.kill === 'boolean') { g.kill = patch.kill; touchedGlobal = true; }
-  if (patch.maxPct !== undefined) { const n = Number(patch.maxPct); if (!(n > 0) || !isFinite(n)) return out(400, { error: 'قيمة غير صحيحة', code: 'bad_value' }); ex.maxPct = Math.min(50, n); g.exec = ex; touchedGlobal = true; }
+  const before = await loadSettings(cfg);
+  // Validate everything first, so nothing is half-saved on a bad value
+  let maxPct: number | undefined, dailyCap: number | null | undefined;
+  if (patch.maxPct !== undefined) { const n = Number(patch.maxPct); if (!(n > 0) || !isFinite(n)) return out(400, { error: 'قيمة غير صحيحة', code: 'bad_value' }); maxPct = Math.min(50, n); }
   if (patch.dailyCap !== undefined) {
-    if (patch.dailyCap === null) delete ex.dailyCap; else { const n = Number(patch.dailyCap); if (!(n > 0) || !isFinite(n)) return out(400, { error: 'قيمة غير صحيحة', code: 'bad_value' }); ex.dailyCap = n; }
-    g.exec = ex; touchedGlobal = true;
+    if (patch.dailyCap === null) dailyCap = null;
+    else { const n = Number(patch.dailyCap); if (!(n > 0) || !isFinite(n)) return out(400, { error: 'قيمة غير صحيحة', code: 'bad_value' }); dailyCap = n; }
   }
-  if (touchedGlobal) { const w = await put('global', g); if (!w.ok) return out(500, { error: 'ما انحفظ', code: 'save_failed' }); }
+  let livePlat: 'meta' | 'snapchat' | null = null, on = false;
   if (patch.live) {
     const p = patch.live.platform;
     if (p !== 'meta' && p !== 'snapchat') return out(400, { error: 'قيمة غير صحيحة', code: 'bad_value' });
-    const on = patch.live.on === true;
+    on = patch.live.on === true;
     if (on && !configured(ctx.env)[p]) return fail(409, 'not_configured');   // no real execution on a platform without its key
-    const pg = { ...(rows.find(x => x.platform === DB_KEY[p])?.guardrails ?? {}) } as Row;
-    pg.exec = { ...((pg.exec as Row | undefined) ?? {}), live: on };
-    const w = await put(DB_KEY[p], pg); if (!w.ok) return out(500, { error: 'ما انحفظ', code: 'save_failed' });
+    livePlat = p;
+  }
+  // Each write changes only the keys named here, on top of the row as it is now: a stop pressed by someone else while the owner
+  // saves limits is never put back to «off» by this save.
+  const touchedGlobal = typeof patch.kill === 'boolean' || maxPct !== undefined || dailyCap !== undefined;
+  if (touchedGlobal) {
+    const w = await patchGuardrails(cfg, 'global', g => {
+      const ex = { ...((g.exec as Row | undefined) ?? {}) };
+      if (maxPct !== undefined) ex.maxPct = maxPct;
+      if (dailyCap === null) delete ex.dailyCap; else if (dailyCap !== undefined) ex.dailyCap = dailyCap;
+      const next: Row = { ...g };
+      if (typeof patch.kill === 'boolean') next.kill = patch.kill;
+      if (maxPct !== undefined || dailyCap !== undefined) next.exec = ex;
+      return next;
+    }, user.email);
+    if (!w.ok) return out(500, { error: 'ما انحفظ', code: 'save_failed' });
+  }
+  if (livePlat) {
+    const w = await patchGuardrails(cfg, DB_KEY[livePlat], g => ({ ...g, exec: { ...((g.exec as Row | undefined) ?? {}), live: on } }), user.email);
+    if (!w.ok) return out(500, { error: 'ما انحفظ', code: 'save_failed' });
   }
   const after = await loadSettings(cfg);
   await audit(cfg, user, typeof patch.kill === 'boolean' && Object.keys(patch).length === 1 ? (patch.kill ? 'buyer_kill_on' : 'buyer_kill_off') : 'buyer_exec_settings', { target: { scope: 'exec' }, before, after });
