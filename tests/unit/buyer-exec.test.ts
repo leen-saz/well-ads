@@ -27,6 +27,7 @@ interface World {
   camp: { id: string; name: string; status: string; daily_budget: string };
   platformCalls: { url: string; method: string; body: string; auth: string | null }[];
   duplicateCampaign: boolean;
+  onClaim?: () => void;   // runs right after a row is claimed ('applying'), i.e. between the first checks and the platform write
 }
 let W: World;
 let profile: Profile;
@@ -88,7 +89,7 @@ function install() {
         W.actions.push(row); return json([row], 201);
       }
       let rows = W.actions.filter(r => match(r, q));
-      if (method === 'PATCH') { const patch = JSON.parse(body) as Row; rows.forEach(r => Object.assign(r, patch)); return json(rows); }
+      if (method === 'PATCH') { const patch = JSON.parse(body) as Row; rows.forEach(r => Object.assign(r, patch)); if (patch['status'] === 'applying' && rows.length) W.onClaim?.(); return json(rows); }
       if (q.get('order')?.startsWith('applied_at')) rows = rows.filter(r => r.status === 'applied').sort((a, b) => String(b.applied_at).localeCompare(String(a.applied_at))).slice(0, 1);
       return json(rows);
     }
@@ -361,5 +362,27 @@ describe('reject and hand-done', () => {
     expect(r.body.settings).toMatchObject({ kill: false, maxPct: 20, dailyCap: 50, live: { meta: true, snapchat: false }, configured: { meta: true, snapchat: false } });
     expect(r.body.actions[0].guards.impact).toMatchObject({ dayDelta: 20, weekDelta: 140, pct: 20 });
     expect(JSON.stringify(r.body)).not.toContain(SECRET);
+  });
+});
+
+describe('races the single-threaded happy path cannot show', () => {
+  it('the emergency stop pressed AFTER the first checks but BEFORE the platform write still stops the write (the second read of the flag)', async () => {
+    await propose(); as(APPROVER);
+    // Every other kill test sets the flag before the request, so the first check already catches it. Here it flips only once the row is claimed.
+    W.onClaim = () => { (W.settings[0]!['guardrails'] as Row)['kill'] = true; };
+    const r = await call('/api/buyer/apply', { method: 'POST', body: applyBody(open()) });
+    expect(r.status).toBe(409); expect(r.body['code']).toBe('kill');
+    expect(writes()).toEqual([]);                       // nothing reached the platform
+    expect(W.camp.daily_budget).toBe('10000');          // and the budget is untouched
+    expect(open()['status']).toBe('proposed');          // the claim was handed back: it can be applied after the stop is lifted
+  });
+  it('two approvers clicking at the same moment produce exactly one platform write', async () => {
+    await propose(); as(APPROVER);
+    const body = applyBody(open());
+    const [a, b] = await Promise.all([call('/api/buyer/apply', { method: 'POST', body }), call('/api/buyer/apply', { method: 'POST', body })]);
+    expect([a.status, b.status].sort()).toEqual([200, 409]);
+    expect([a, b].find(x => x.status === 409)!.body['code']).toBe('not_open');
+    expect(writes()).toHaveLength(1);
+    expect(open()['status']).toBe('applied');
   });
 });
