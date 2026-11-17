@@ -216,6 +216,25 @@ test.describe('sidebar and language (browser)', () => {
     for (const k of LIVE.filter(k => MODULES.find(m => m.key === k)?.into)) expect(ks, k).not.toContain(k);
     expect(ks).toContain('admin');
   });
+  for (const lang of ['ar', 'en'] as const) {
+    test(`${lang}: without analytics access the Measure strip offers no page that answers 403, and the summary explains instead of leaking the refusal`, async ({ page, context, request }) => {
+      await addSession(context, await login(request, 'ovnoceo'));
+      await page.goto(`/overview/creative/?lang=${lang}`);
+      await expect(page.locator('[data-gtabs] a.gtab')).toHaveText(lang === 'en' ? ['Creatives', 'Social listening'] : ['المواد الإعلانية', 'الرصد']);
+      await page.goto(`/overview/?lang=${lang}`);
+      const msg = page.locator('.no-ceo-msg');
+      await expect(msg).toBeVisible();
+      await expect(msg).toContainText(lang === 'en' ? 'needs access to the analytics numbers' : 'يحتاج صلاحية أرقام التحليلات');
+      await expect(page.locator('#content')).not.toContainText('ما عندك صلاحية على أرقام التحليلات');
+    });
+    test(`${lang}: the owner's Measure tab holds the summary, the ads board, the creatives and listening`, async ({ page, context, request }) => {
+      await addSession(context, await login(request, 'owner'));
+      await page.goto(`/overview/?lang=${lang}`);
+      await expect(page.locator('[data-gtabs] a.gtab')).toHaveText(lang === 'en' ? ['Performance summary', 'Ads board', 'Creatives', 'Social listening'] : ['ملخص الأداء', 'لوحة الإعلانات', 'المواد الإعلانية', 'الرصد']);
+      await expect(page.locator('a.navi[data-grp="measure"]')).toHaveAttribute('aria-current', 'page');
+      await expect(page.locator('a.navi')).toHaveCount(7);   // six groups and Settings: no second entry for these pages
+    });
+  }
   test('the sidebar has one tab per group; a group opens its first tool and its tools show as sub-tabs above the page', async ({ page, context, request }) => {
     await addSession(context, await login(request, 'owner'));
     await page.goto('/today/');

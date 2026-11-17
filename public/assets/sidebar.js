@@ -77,20 +77,21 @@ export function sections(me, L) {
     return e.state === 'noaccess' && c ? { ...named, href: `/${m.key}/?tab=${c.key}`, state: 'ok' } : named;
   };
   const mods = (g, keep = () => true) => (me.modules || []).filter(m => m.group === g && !m.into && keep(m)).flatMap(m => [host(m), ...sub(m)]);
-  // One entry per place. The performance summary and the creatives exist twice (the Overview module's new pages and
-  // the dashboard's): the entry opens the new page when Overview is on for this company and this user may open it,
-  // else the dashboard. Overview's other numbers are reached from its own page, not from a second sidebar entry.
+  // Measure is one tab with four pages: the performance summary, the ads board, the creatives, listening. The summary and the creatives
+  // exist twice (the Overview module's pages and the dashboard's): the Overview pages are used when Overview is on for this company and
+  // this user may open it, else the dashboard's. Each page shows only when this user can open it (summary: overview + ceo, board: ceo,
+  // creatives: creative), so the strip never offers a tab that answers 403. The permission rules themselves are unchanged.
   const ov = (me.modules || []).find(m => m.key === 'overview' && m.status === 'live' && m.ok && !m.locked);
-  const one = (useNew, newer, older) => (useNew ? newer : older);
   const items = {
     home: [core('/today/', 'احلم', 'Ahlam', SUN, 'today', true), ...mods('home')],
     // نص، تصميم، صوت وفيديو (كل واحد يحمل أقسامه)، ثم المكتبة: كل ما تحفظه من أي تاب
     produce: [...mods('produce'), core('/library/', 'المكتبة', 'Library', FOLDER, 'library', true)],
     distribute: mods('distribute'),
-    // ملخص الأداء (موديول overview وصفحاته) أول، بعده المواد الإعلانية، بعدها الرصد
+    // ملخص الأداء، لوحة الإعلانات (الحملات والمنصات والعضوي)، المواد الإعلانية، الرصد
     measure: [
-      one(ov, core('/overview/', 'ملخص الأداء', 'Performance summary', 'chart', 'overview', true), core('/', 'ملخص الأداء', 'Performance summary', 'chart', 'ceo')),
-      one(ov, core('/overview/creative/', 'المواد الإعلانية', 'Creatives', 'image', 'overview:creative', true), core('/?view=creative', 'المواد الإعلانية', 'Creatives', 'image', 'creative')),
+      ov ? core('/overview/', 'ملخص الأداء', 'Performance summary', 'chart', 'overview', has('ceo')) : core('/', 'ملخص الأداء', 'Performance summary', 'chart', 'ceo'),
+      ...(ov ? [core('/', 'لوحة الإعلانات', 'Ads board', 'chart', 'ceo')] : []),
+      { ...(ov ? core('/overview/creative/', 'المواد الإعلانية', 'Creatives', 'image', 'overview:creative', has('creative')) : core('/?view=creative', 'المواد الإعلانية', 'Creatives', 'image', 'creative')), also: ['creative', 'overview:creative'] },
       ...mods('measure', m => m.key !== 'overview')],
     optimize: [core('/control/', 'لوحة القرارات', 'Decision board', 'gavel', 'control'), ...mods('optimize')],
     // المعرفة، الامتثال، الربط، السجل، المستخدمون (للمالك)

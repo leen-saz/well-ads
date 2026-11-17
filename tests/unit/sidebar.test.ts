@@ -14,7 +14,8 @@ const me = (over: { off?: string[]; role?: string; no?: string[]; dashboards?: s
 });
 const secs = (m: ReturnType<typeof me>) => sections(m, L) as { key: string; label: string; items: Item[] }[];
 const items = (m: ReturnType<typeof me>) => secs(m).flatMap(s => s.items);
-const SAME: Record<string, string> = { '/overview/': '/', '/overview/creative/': '/?view=creative' };
+// The summary and the creatives exist as Overview pages and as dashboard views; the ads board (/) is its own page next to the Overview summary
+const SAME: Record<string, string> = { '/overview/creative/': '/?view=creative' };
 
 describe('sidebar', () => {
   for (const [name, m] of [['Overview on', me()], ['Overview off', me({ off: ['overview'] })]] as const) {
@@ -28,14 +29,26 @@ describe('sidebar', () => {
       expect(dup(list.map(i => view(i.href)))).toEqual([]);
     });
   }
-  it('keeps the performance summary, creatives and listening as their own entries under Measure', () => {
+  it('puts the summary, the ads board, the creatives and listening in one Measure tab', () => {
     const on = items(me()), off = items(me({ off: ['overview'] }));
     expect(on.find(i => i.text === 'ملخص الأداء')?.href).toBe('/overview/');
+    expect(on.find(i => i.text === 'لوحة الإعلانات')?.href).toBe('/');
     expect(on.find(i => i.text === 'المواد الإعلانية')?.href).toBe('/overview/creative/');
     expect(off.find(i => i.text === 'ملخص الأداء')?.href).toBe('/');
     expect(off.find(i => i.text === 'المواد الإعلانية')?.href).toBe('/?view=creative');
-    const measure = secs(me()).find(s => s.key === 'measure')!.items.map(i => i.text);
-    expect(measure).toEqual(['ملخص الأداء', 'المواد الإعلانية', 'الرصد']);
+    expect(off.some(i => i.text === 'لوحة الإعلانات')).toBe(false);
+    expect(secs(me()).find(s => s.key === 'measure')!.items.map(i => i.text)).toEqual(['ملخص الأداء', 'لوحة الإعلانات', 'المواد الإعلانية', 'الرصد']);
+    expect(secs(me({ off: ['overview'] })).find(s => s.key === 'measure')!.items.map(i => i.text)).toEqual(['ملخص الأداء', 'المواد الإعلانية', 'الرصد']);
+  });
+  it('offers a Measure tab only to a user who can open it (no tab that answers 403)', () => {
+    const tabs = (d: string[]) => secs(me({ role: 'member', dashboards: d })).find(s => s.key === 'measure')?.items.map(i => i.text);
+    expect(tabs(['ceo', 'creative'])).toEqual(['ملخص الأداء', 'لوحة الإعلانات', 'المواد الإعلانية', 'الرصد']);
+    expect(tabs(['creative'])).toEqual(['المواد الإعلانية', 'الرصد']);
+    expect(tabs(['ceo'])).toEqual(['ملخص الأداء', 'لوحة الإعلانات', 'الرصد']);
+    expect(tabs([])).toEqual(['الرصد']);
+    // the creatives dashboard view lights the creatives tab
+    expect(isHere(items(me()).find(i => i.text === 'المواد الإعلانية')!, 'creative')).toBe(true);
+    expect(isHere(items(me()).find(i => i.text === 'لوحة الإعلانات')!, 'ceo')).toBe(true);
   });
   it('highlights an entry on the page it stands for', () => {
     expect(isHere({ key: 'soon:a', also: ['social', 'journeys'] }, 'social')).toBe(true);
@@ -143,7 +156,7 @@ describe('group tabs and the sub-tab strip', () => {
     const n = nav(me(), 'overview:creative');
     expect(n.cur?.key).toBe('measure');
     expect(n.entries.filter(e => e.on).map(e => e.key)).toEqual(['measure']);
-    expect(n.strip!.items.map(i => i.text)).toEqual(['ملخص الأداء', 'المواد الإعلانية', 'الرصد']);
+    expect(n.strip!.items.map(i => i.text)).toEqual(['ملخص الأداء', 'لوحة الإعلانات', 'المواد الإعلانية', 'الرصد']);
     const html = stripHtml(n.strip!, 'overview:creative', L, esc);
     expect(html.match(/aria-current="page"/g)).toHaveLength(1);
     expect(html).toMatch(/href="\/overview\/creative\/"[^>]*aria-current="page"/);

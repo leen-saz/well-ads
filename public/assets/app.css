@@ -427,6 +427,7 @@ body{background:
 .gtabs{display:flex;gap:6px;overflow-x:auto;scrollbar-width:none;padding:0 32px;margin:0;max-width:100%;min-width:0;-webkit-overflow-scrolling:touch}
 .gtabs::-webkit-scrollbar{display:none}
 .gtabs[data-gtabs-ph]{min-height:36px}
+.no-ceo>:not(.no-ceo-msg){display:none}
 /* The performance pages carry their own two-tab row (summary, creatives): the strip above now holds the same tabs, so it is hidden here (the page itself is unchanged) */
 .app:has([data-gtabs]) #content>nav.settings-tabs{display:none}
 .gtab{flex:none;display:inline-flex;align-items:center;gap:8px;height:36px;padding:0 16px;border-radius:999px;color:var(--muted);font:600 14px var(--f-ar);text-decoration:none;white-space:nowrap;transition:background var(--ease),color var(--ease)}
