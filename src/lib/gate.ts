@@ -8,7 +8,7 @@ export type Pass = { pass: true; rewrite?: string; cookie?: string };
 export type Decision = Pass | Response;
 
 const PUBLIC = [/^\/login\/?$/, /^\/reset\/?$/, /^\/welcome\/?$/, /^\/api\/auth\//, /^\/api\/health\/?$/, /^\/api\/connectors\/callback\/?$/,
-  // Listening sources check: open on staging only, the owner elsewhere (src/modules/listening/probe.ts)
+  // Listening sources check: no session needed, but the handler wants the PROBE_SECRET header or the owner (src/modules/listening/probe.ts)
   /^\/api\/listening\/probe\/?$/,
   /^\/assets\//, /^\/_astro\//, /^\/m\/[0-9a-f-]{36}\/[0-9a-f]{32}\.(jpg|png|webp|mp4|mov)$/i, /^\/robots\.txt$/, /^\/favicon/];
 
@@ -36,6 +36,8 @@ export function need(pathname: string, search: string): Need | null {
   if (PUBLIC.some(r => r.test(pathname))) return null;
   if (HUB.test(pathname) || ALIAS[pathname.replace(/\/$/, '')] || /^\/(api\/)?today(\/|$)/.test(pathname)) return 'any';
   if (/^\/(api\/)?admin(\/|$)/.test(pathname)) return 'owner';
+  // Full health (dependencies, migrations, data age, env): the owner only. /api/health itself is public and says only ok + version
+  if (/^\/api\/health\/details\/?$/.test(pathname)) return 'owner';
   // Data health (a sub-page of the Manager): the owner only
   if (/^\/(api\/)?maestro\/(health|crm|vitals|audit|critique)(\/|$)/.test(pathname)) return 'owner';
   if (/^\/(api\/)?control(\/|$)/.test(pathname)) return 'control';

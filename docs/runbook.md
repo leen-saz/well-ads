@@ -12,7 +12,7 @@ Production is deployed by hand (ADR-0005): Actions → **deploy** → Run workfl
    (SQL Editor) **before** deploying, and only if the *previous* version still works with the new schema (add columns and tables,
    never drop or rename in the same release). Migrations are not rolled back with the Worker.
 4. **Secrets and variables.** A new secret named in the release goes into Cloudflare → Workers → well-ads → Settings first
-   (`docs/secrets/worker.env.example` lists them). `/api/health` shows `supabase: down` if the Supabase ones are wrong.
+   (`docs/secrets/worker.env.example` lists them). `/api/health` shows `ok: false` (and, as the owner, `/api/health/details` shows `supabase: down`) if the Supabase ones are wrong.
 5. **Owner email.** `OWNER_EMAIL` is not in the public `wrangler.jsonc`. If it is missing the Worker answers every request with an error, so `deploy`
    stops before deploying. Easiest: set it once per GitHub environment, `gh secret set OWNER_EMAIL -R leen-saz/well-ads --env production` (and `--env staging`),
    and type the owner's sign-in email; every deploy then passes it to the Worker as a variable. If a Worker secret of that name already exists
@@ -26,10 +26,10 @@ Production is deployed by hand (ADR-0005): Actions → **deploy** → Run workfl
 Actions → **deploy** → Run workflow → branch `main`, target `production` → approve the `production` environment.
 The run does, in order: `ci` (lint, typecheck, unit, integration, build, migrations, security) → `smoke` (end-to-end on this commit) → deploy →
 **health check**. The job is green only when `https://<production link>/api/health` answers 200 with `version` equal to the deployed commit
-and every dependency `up`. A red health step means the version is live but wrong: roll back now (below), then investigate.
+and `ok: true` (every dependency `up`; which one is down is in `/api/health/details`, owner login). A red health step means the version is live but wrong: roll back now (below), then investigate.
 
 ## After you deploy (3 minutes)
-- `/api/health`: `version` = the commit, `env` = `production`, `checks.supabase` / `checks.storage` = `up`.
+- `/api/health` (public): `version` = the commit and `ok` = `true`. Signed in as the owner, open `/api/health/details`: `env` = `production`, `checks.supabase` / `checks.storage` = `up`.
 - Sign in as the owner: start page loads, sidebar shows every tab, open two tabs you did not change.
 - Cloudflare → Workers → well-ads → Logs: no burst of errors after the deploy time.
 - Cron: the next `*/5` run is not erroring (`scheduled` events in the same logs).
