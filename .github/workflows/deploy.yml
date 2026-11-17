@@ -151,7 +151,7 @@ jobs:
           fi
           # A dependency that does not answer means a wrong secret or binding: the site is up but broken
           if [ "$(jq -r '.ok' <<<"$body")" != true ]; then
-            echo "::error title=health::a dependency is down: $(jq -c .checks <<<"$body"). Roll back: docs/runbook.md"
+            echo "::error title=health::a dependency is down (the public check shows only ok; sign in as owner and open /api/health/details for which one). Roll back: docs/runbook.md"
             exit 1
           fi
       - name: Headers

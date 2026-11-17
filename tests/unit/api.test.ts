@@ -7,9 +7,9 @@ describe('api', () => {
     const res = await api.request('/api/health');
     expect(res.status).toBe(200);
     // No bindings in the test: the version defaults to dev and nothing is configured
-    expect(await res.json()).toMatchObject({ ok: false, version: 'dev', env: 'local', checks: { supabase: 'unset', storage: 'unset', ai: 'unset' }, data: { level: 'unknown' } });
+    // Public: only ok + version (no env, checks, migrations or data age)
+    expect(await res.json()).toEqual({ ok: false, version: 'dev' });
   });
-
   it('unknown /api route is a JSON 404', async () => {
     const res = await api.request('/api/nope');
     expect(res.status).toBe(404);
