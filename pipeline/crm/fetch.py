@@ -8,7 +8,7 @@ a payment recorded in the CRM without a new `updated_at` would otherwise never r
 That full pass is chunked (a few pages per hourly run; its cursor is kept in `crm_sync_state.full_pass_cursor`) and counts as done
 (`last_full_pass_at`) only when it finishes. Progress is saved after every page, a run stops by itself after a time budget (below the
 workflow step timeout), and a rate-limited CRM (429) pauses the run instead of failing it: the next hourly run resumes where it stopped.
-Before migration 037 the new columns do not exist: the code then falls back to the old once-a-day logic and says so in the log.
+Before migration 036 the new columns do not exist: the code then falls back to the old once-a-day logic and says so in the log.
 The key (CRM_API_KEY) is never printed. Docs: the Marketing API v1 document from the CRM owner.
 """
 import json, os, sys, time, urllib.error, urllib.parse, urllib.request
@@ -177,13 +177,13 @@ class _Run:
         self.row = state[0] if state else {}
         if state:
             self.migrated = "last_full_pass_at" in self.row
-        else:  # no row yet: ask for the new column to learn whether migration 037 was applied
+        else:  # no row yet: ask for the new column to learn whether migration 036 was applied
             try:
                 supabase_store._request("GET", "/rest/v1/crm_sync_state?select=last_full_pass_at&limit=1", transport=self.transport)
             except RuntimeError:
                 self.migrated = False
         if not self.migrated:
-            self.log("crm: migration 037 not applied yet, using the old once-a-day logic (progress inside a full pass is not kept)")
+            self.log("crm: migration 036 not applied yet, using the old once-a-day logic (progress inside a full pass is not kept)")
         self.newest = self.row.get("last_updated_at")
         self.newest_dt = _dt(self.newest)
 
@@ -299,7 +299,7 @@ class _Run:
                 status = "chunk"
         except RateLimited:
             status = "rate_limited"
-        # Save what we have. last_updated_at only moves forward. The new columns are written only once migration 037 is there.
+        # Save what we have. last_updated_at only moves forward. The new columns are written only once migration 036 is there.
         if self.newest:
             final["last_updated_at"] = self.newest
         finished_pass = bool(done)  # a pass finished, or none was due

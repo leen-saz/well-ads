@@ -397,7 +397,7 @@ class ResilientSync(unittest.TestCase):
         db = StateDb({"last_updated_at": LAST, "last_run_at": YESTERDAY}, migrated=False)
         crm = FakeCrm(full_pages=3)
         r = fetch.sync_detailed("k", now=NOW, get=crm, transport=db, sleep=self.clock.sleep, clock=self.clock, page_pause=0, log=logs.append)
-        self.assertTrue(any("migration 037" in l for l in logs))
+        self.assertTrue(any("migration 036" in l for l in logs))
         self.assertEqual(r["status"], "complete")  # whole pass in one go, like before
         self.assertEqual(db.row["last_run_at"], NOW.isoformat())
         self.assertTrue(all("full_pass_cursor" not in w and "last_full_pass_at" not in w for w in db.state_writes))
