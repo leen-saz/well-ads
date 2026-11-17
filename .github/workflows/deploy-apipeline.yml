@@ -1,4 +1,4 @@
-# Deploys the Apipeline site (leen-saz/pipeline, public) to the same Cloudflare account, reusing this repo's
+# Deploys the Apipeline sites (leen-saz/pipeline, public): the board site and Apipeline Security, to the same Cloudflare account, reusing this repo's
 # Cloudflare credentials (approved by Leen). Runs on push to this ops branch only.
 name: deploy-apipeline
 on:
@@ -20,6 +20,11 @@ jobs:
       - run: npm test
       - run: npm run build
       - run: npx wrangler deploy --env production
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+      - run: npm run build:security
+      - run: npx wrangler deploy --env security
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
