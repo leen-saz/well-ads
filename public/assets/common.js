@@ -1,6 +1,6 @@
 // أدوات مشتركة: الطلبات، والأيقونات، والتواريخ، وهيكل التطبيق (القائمة الجانبية والشريط العلوي)
 import { LANG, t, langSwitch, restoreDraft } from './i18n.js';
-import { sections, TIP, groupNav, stripHtml, wireStrip } from './sidebar.js';
+import { sections, TIP, groupNav, stripHtml, wireStrip, stripLikely } from './sidebar.js';
 import { agentDots } from './agentdots.js';
 import { ME_KEY, FRESH, readMe, slim } from './me-cache.js';
 export { LANG, t, langSwitch };
@@ -218,7 +218,7 @@ function drawSide(side, me, active) {
 // The group's tools as a strip of sub-tabs between the top bar and the page (every module page gets it from here, with no change
 // to the page itself). Drawn on every page, since the page body is replaced on each navigation; a group with one tool has none.
 function drawStrip(app, me, active, side) {
-  app.querySelector('[data-gtabs]')?.remove();
+  app.querySelectorAll('[data-gtabs],[data-gtabs-ph]').forEach(e => e.remove());
   const L = (ar, en) => (LANG === 'en' ? en : ar), top = $('#top', app);
   const sec = groupNav(sections(me, L), active).strip;
   if (!sec || !top) return;
@@ -247,6 +247,7 @@ export async function shell({ active, title, badge = '', tools = '', section = a
   const app = $('#app'), side = $('#side', app);
   // The title bar needs nothing from the server: it goes up before the user is known
   $('#top', app).innerHTML = `<div class="t"><button class="btn icon ghost burger" id="burger" aria-label="القائمة" aria-controls="side" aria-expanded="false">${icon('menu')}</button><h1>${esc(title)}</h1>${badge}</div><div class="tools"><span id="tools">${tools}</span>${langSwitch()}</div>`;
+  if (stripLikely(active)) $('#top', app).insertAdjacentHTML('afterend', '<div class="gtabs" data-gtabs-ph aria-hidden="true"></div>');
   let me;
   if (!ME?.v) { try { me = await fetchMe(); } catch (err) { if (err.status !== 401) pageFailure(err); throw err; } }
   else {

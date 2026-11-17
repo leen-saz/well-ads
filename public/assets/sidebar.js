@@ -110,3 +110,7 @@ export function sections(me, L) {
   return GROUPS.map(([k, ar, en]) => ({ key: k, label: L(ar, en), items: items[k] })).filter(s => s.items.length);
 }
 export const TIP = { noaccess: ['ما عندك صلاحية', 'No access'], locked: ['مقفل لشركتك', 'Locked for your company'] };
+
+// Whether the page being opened will probably have a strip (every page of a group with several tools): the shell holds its space
+// before the profile arrives, so the page does not jump when the strip appears. Today, settings and the coming-soon pages have none.
+export const stripLikely = active => !(['', 'today', 'settings'].includes(active) || String(active).startsWith('soon:'));

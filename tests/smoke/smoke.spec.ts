@@ -210,6 +210,7 @@ test.describe('sidebar and language (browser)', () => {
     await addSession(context, await login(request, 'owner'));
     await page.goto('/today/');
     // Every live tool is a sub-tab of a group (sections, voiceover, transcribe, video, vision, copy, are tabs inside Voice, Design and Content)
+    await expect(page.locator('a.navi[data-ks]')).toHaveCount(6);
     const ks = (await page.locator('a.navi[data-ks]').evaluateAll(els => els.map(e => (e as HTMLElement).dataset['ks']!.split(',')))).flat();
     for (const k of LIVE.filter(k => !MODULES.find(m => m.key === k)?.into)) expect(ks, k).toContain(k);
     for (const k of LIVE.filter(k => MODULES.find(m => m.key === k)?.into)) expect(ks, k).not.toContain(k);
