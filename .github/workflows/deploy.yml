@@ -97,12 +97,22 @@ jobs:
           bucket="well-ads-files"; [ "$TARGET" = staging ] && bucket="well-ads-files-staging"
           if npx wrangler r2 bucket info "$bucket" >/dev/null 2>&1; then echo "$bucket exists"
           else npx wrangler r2 bucket create "$bucket"; fi
-      - name: The owner email secret exists (it is not in the public wrangler.jsonc)
+      - name: The owner email is available (it is not in the public wrangler.jsonc)
+        id: owner
+        env:
+          OWNER_EMAIL: ${{ secrets.OWNER_EMAIL }}
         run: |
-          # OWNER_EMAIL is a Worker secret per environment. Without it the Worker refuses every request (env() in src/lib/auth.ts),
-          # so stop here, before a deploy that would lock everyone out. Fix: docs/runbook.md, "Owner email".
-          if ! npx wrangler secret list --env "$TARGET" 2>/dev/null | grep -q '"OWNER_EMAIL"'; then
-            echo "::error title=OWNER_EMAIL::the $TARGET Worker has no OWNER_EMAIL secret. Run: npx wrangler secret put OWNER_EMAIL --env $TARGET"
+          # Without OWNER_EMAIL the Worker refuses every request (env() in src/lib/auth.ts), so stop before a deploy that would lock
+          # everyone out. Two ways to provide it, in this order:
+          #  1. a Worker secret already set on the Worker (`wrangler secret put`): kept as it is, the deploy does not touch it;
+          #  2. the GitHub environment secret OWNER_EMAIL: the deploy passes it as a plain variable (`--var`), so no email is in the repo.
+          # Fix: docs/runbook.md, "Owner email".
+          if npx wrangler secret list --env "$TARGET" 2>/dev/null | grep -q '"OWNER_EMAIL"'; then
+            echo "mode=secret" >> "$GITHUB_OUTPUT"
+          elif [ -n "$OWNER_EMAIL" ]; then
+            echo "mode=var" >> "$GITHUB_OUTPUT"
+          else
+            echo "::error title=OWNER_EMAIL::the $TARGET environment has no OWNER_EMAIL. Run: gh secret set OWNER_EMAIL --env $TARGET"
             exit 1
           fi
       - name: Build for ${{ env.TARGET }}
@@ -115,9 +125,14 @@ jobs:
           CLOUDFLARE_ENV: ${{ env.TARGET }}
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          OWNER_MODE: ${{ steps.owner.outputs.mode }}
+          OWNER_EMAIL: ${{ secrets.OWNER_EMAIL }}
         run: |
-          # BUILD_VERSION = the commit; /api/health reports it so the check below knows this deploy is the one answering
-          npx wrangler deploy --var BUILD_VERSION:"$GITHUB_SHA" --message "deploy ${GITHUB_SHA::7}"
+          # BUILD_VERSION = the commit; /api/health reports it so the check below knows this deploy is the one answering.
+          # OWNER_EMAIL goes in as a variable only when no Worker secret of that name exists (a variable and a secret cannot share a name).
+          extra=()
+          [ "$OWNER_MODE" = var ] && extra=(--var "OWNER_EMAIL:$OWNER_EMAIL")
+          npx wrangler deploy --var BUILD_VERSION:"$GITHUB_SHA" "${extra[@]}" --message "deploy ${GITHUB_SHA::7}"
           if [ "$TARGET" = staging ]; then
             url="https://well-ads-staging.${{ steps.sub.outputs.sub }}.workers.dev"
           else
