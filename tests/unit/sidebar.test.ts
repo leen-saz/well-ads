@@ -2,7 +2,7 @@
 // Production has four entries (text, design, voice and video, library). Measure keeps its own entries (the performance summary
 // and the creatives pages are untouched). What a user cannot open is not shown, and what is off for the company folds into one row.
 import { describe, expect, it } from 'vitest';
-import { sections, isHere } from '../../public/assets/sidebar.js';
+import { sections, isHere, groupNav, stripHtml } from '../../public/assets/sidebar.js';
 import { MODULES, sectionsOf } from '../../src/modules/registry';
 import { need } from '../../src/lib/gate';
 
@@ -125,5 +125,54 @@ describe('one list of groups', () => {
     const keys = GROUPS.map(g => g.key);
     expect(keys).toEqual(['home', 'produce', 'distribute', 'measure', 'optimize', 'system']);
     for (const m of MODULES) expect(keys, m.key).toContain(m.group);
+  });
+});
+
+describe('group tabs and the sub-tab strip', () => {
+  type Entry = { key: string; href: string; on: boolean };
+  type Strip = { items: Item[] };
+  const nav = (m: ReturnType<typeof me>, active: string) => groupNav(secs(m), active) as { cur?: { key: string }; entries: Entry[]; strip: Strip | null };
+  const esc = (x: unknown) => String(x);
+  it('has one sidebar entry per group, opening the first tool of the group', () => {
+    const { entries } = nav(me(), 'today');
+    expect(entries.map(e => e.key)).toEqual(['home', 'produce', 'distribute', 'measure', 'optimize', 'system']);
+    expect(entries.find(e => e.key === 'measure')!.href).toBe('/overview/');
+    expect(entries.find(e => e.key === 'optimize')!.href).toBe('/control/');
+  });
+  it('lights the group while any of its tabs is open, and gives the strip its tabs', () => {
+    const n = nav(me(), 'overview:creative');
+    expect(n.cur?.key).toBe('measure');
+    expect(n.entries.filter(e => e.on).map(e => e.key)).toEqual(['measure']);
+    expect(n.strip!.items.map(i => i.text)).toEqual(['ملخص الأداء', 'المواد الإعلانية', 'الرصد']);
+    const html = stripHtml(n.strip!, 'overview:creative', L, esc);
+    expect(html.match(/aria-current="page"/g)).toHaveLength(1);
+    expect(html).toMatch(/href="\/overview\/creative\/"[^>]*aria-current="page"/);
+  });
+  it('has no strip for a group with one tool, and none on a page outside the groups', () => {
+    expect(nav(me(), 'today').strip).toBeNull();
+    expect(nav(me(), 'settings').cur).toBeUndefined();
+    expect(nav(me(), 'settings').strip).toBeNull();
+  });
+  it('hides a group the user cannot open at all, and a tool the user cannot open', () => {
+    const m = me({ role: 'member', no: ['social', 'journeys', 'control', 'maestro', 'debugger'], dashboards: ['today'] });
+    const keys = nav(m, 'library').entries.map(e => e.key);
+    expect(keys).not.toContain('distribute');
+    expect(keys).not.toContain('optimize');
+    const strip = nav(me({ no: ['design', 'vision'] }), 'content').strip!;
+    expect(strip.items.some(i => i.key === 'design')).toBe(false);
+  });
+  it('a user with a single tool in a group opens it directly, with no strip', () => {
+    const m = me({ no: ['journeys'] });
+    const n = nav(m, 'social');
+    expect(n.entries.find(e => e.key === 'distribute')!.href).toBe('/social/');
+    expect(n.strip).toBeNull();
+  });
+  it('keeps what is off for the company in one quiet row inside the System strip, never a row of locked tabs', () => {
+    const n = nav(me({ off: ['social', 'journeys', 'compliance'] }), 'knowledge');
+    const soon = n.strip!.items.filter(i => i.state === 'soon');
+    expect(soon).toHaveLength(1);
+    expect(n.strip!.items.some(i => i.state === 'locked' || i.state === 'noaccess')).toBe(false);
+    expect(stripHtml(n.strip!, 'knowledge', L, esc)).toContain('class="gtab soon"');
+    expect(n.entries.some(e => e.key === 'distribute')).toBe(false);
   });
 });

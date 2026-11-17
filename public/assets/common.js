@@ -1,6 +1,6 @@
 // أدوات مشتركة: الطلبات، والأيقونات، والتواريخ، وهيكل التطبيق (القائمة الجانبية والشريط العلوي)
 import { LANG, t, langSwitch, restoreDraft } from './i18n.js';
-import { sections, TIP, startsShut, wireGroups, isHere } from './sidebar.js';
+import { sections, TIP, groupNav, stripHtml, wireStrip } from './sidebar.js';
 import { agentDots } from './agentdots.js';
 import { ME_KEY, FRESH, readMe, slim } from './me-cache.js';
 export { LANG, t, langSwitch };
@@ -186,7 +186,8 @@ function drawSide(side, me, active) {
   const L = (ar, en) => (LANG === 'en' ? en : ar);
   const sig = LANG + JSON.stringify(slim(me));
   if (side.dataset.sig === sig) {
-    side.querySelectorAll('[data-k]').forEach(a => a.dataset.k === active ? a.setAttribute('aria-current', 'page') : a.removeAttribute('aria-current'));
+    const cur = groupNav(sections(me, L), active).cur?.key;
+    side.querySelectorAll('[data-k]').forEach(a => (a.dataset.k === active || a.dataset.grp === cur) ? a.setAttribute('aria-current', 'page') : a.removeAttribute('aria-current'));
     return;
   }
   side.dataset.sig = sig;
@@ -199,25 +200,31 @@ function drawSide(side, me, active) {
   side.innerHTML = `<div class="side-top"><a class="brand mark" href="/today/" aria-label="Well">Well<i>.</i></a><button type="button" class="btn icon ghost side-fold" id="sideFold" aria-label="${L('طي القائمة', 'Collapse menu')}" aria-pressed="false">${icon('panel')}</button><button class="btn icon ghost side-x" type="button" data-close-side aria-label="${L('إغلاق القائمة', 'Close menu')}">${icon('x')}</button></div>
     ${quick.length ? `<div class="qc"><button type="button" class="btn primary qc-btn" id="qcBtn" aria-haspopup="menu" aria-expanded="false">${icon('plus')}<span>${L('جديد', 'New')}</span></button>
       <div class="menu qc-menu" id="qcMenu" role="menu" hidden>${quick.map(([, href, t, ic]) => `<a href="${href}" role="menuitem">${icon(ic)}${t}</a>`).join('')}</div></div>` : ''}
-    ${sections(me, L).map(sec => `<div class="side-sec${startsShut(sec, active) ? ' shut' : ''}"><button type="button" class="side-h" data-g="${sec.key}" aria-expanded="${!startsShut(sec, active)}" aria-controls="sg-${sec.key}"><span>${esc(sec.label)}</span>${icon('chev', 'chv')}</button><div class="side-items" id="sg-${sec.key}">${sec.items.map(it => {
-      const ic = it.svg ? `<svg class="i" viewBox="0 0 24 24" aria-hidden="true">${it.svg}</svg>` : icon(it.ic);
-      if (it.state === 'ok' || it.state === 'soon') return `<a class="navi${it.state === 'soon' ? ' soon' : ''}" href="${it.href}" data-k="${esc(it.key)}"${FULL(it.href)}${isHere(it, active) ? ' aria-current="page"' : ''}>${ic}<span>${esc(it.text)}</span>${it.state === 'soon' ? `<small class="tag">${L('قريباً', 'Soon')}</small>` : ''}</a>`;
-      // A locked entry can be reached by keyboard and says why (a screen reader reads the reason, the tooltip shows it on hover and focus)
-      return `<span class="navi locked" role="link" tabindex="0" aria-disabled="true" aria-label="${esc(it.text)}، ${L(...TIP[it.state])}" data-tip="${L(...TIP[it.state])}">${ic}<span>${esc(it.text)}</span>${icon('lock', 'lk')}</span>`;
-    }).join('')}</div></div>`).join('')}
+    <div class="side-items">${groupNav(sections(me, L), active).entries.map(g => `<a class="navi" href="${g.href}" data-k="${esc('g:' + g.key)}" data-grp="${g.key}" data-ks="${esc(g.ks.join(','))}"${FULL(g.href)}${g.on ? ' aria-current="page"' : ''}><svg class="i" viewBox="0 0 24 24" aria-hidden="true">${g.svg}</svg><span>${esc(g.label)}</span></a>`).join('')}</div>
     <div class="grow"></div>
     <a class="navi" href="/settings/" data-k="settings"${active === 'settings' ? ' aria-current="page"' : ''}>${icon('settings')}<span>الإعدادات</span></a>
     <button class="me" id="meBtn" aria-haspopup="menu" aria-expanded="false"><span class="avatar">${esc(initials)}</span>
       <span class="who"><b>${esc(me.name || me.email || '')}</b><span class="muted">${me.role === 'owner' ? 'المالك' : (me.departments || []).length ? 'مدير قسم' : 'عضو'}</span></span></button>
     <div class="menu" id="meMenu" role="menu" hidden><a href="/account/" role="menuitem">${icon('user')}حسابي</a><form method="post" action="/api/auth/logout" style="margin:0"><button type="submit" role="menuitem">${icon('out')}خروج</button></form></div>`;
-  wireGroups(side);
-  if (!side.dataset.dots) { side.dataset.dots = '1'; agentDots(side, L); }
+  if (!side.dataset.dots) { side.dataset.dots = '1'; side._dots = agentDots(side, L); }
   side.querySelector('form')?.addEventListener('submit', () => { try { localStorage.removeItem(ME_KEY); } catch { /* storage blocked */ } });
   // Navigation labels as tooltips, used when the menu is folded to icons
   side.querySelectorAll('.navi').forEach(a => { const t = a.querySelector('span')?.textContent; if (t && !a.title) a.title = t; });
   const qb = $('#qcBtn', side), qm = $('#qcMenu', side);
   if (qb) qb.onclick = e => { e.stopPropagation(); qm.hidden = !qm.hidden; qb.setAttribute('aria-expanded', String(!qm.hidden)); };
   $('#sideFold', side).onclick = () => fold(!document.getElementById('app')?.classList.contains('mini'));
+}
+
+// The group's tools as a strip of sub-tabs between the top bar and the page (every module page gets it from here, with no change
+// to the page itself). Drawn on every page, since the page body is replaced on each navigation; a group with one tool has none.
+function drawStrip(app, me, active, side) {
+  app.querySelector('[data-gtabs]')?.remove();
+  const L = (ar, en) => (LANG === 'en' ? en : ar), top = $('#top', app);
+  const sec = groupNav(sections(me, L), active).strip;
+  if (!sec || !top) return;
+  top.insertAdjacentHTML('afterend', stripHtml(sec, active, L, esc, FULL));
+  wireStrip(app.querySelector('[data-gtabs]'));
+  side?._dots?.paint();
 }
 
 // Folded menu (icons only), remembered on this device
@@ -244,9 +251,10 @@ export async function shell({ active, title, badge = '', tools = '', section = a
   if (!ME?.v) { try { me = await fetchMe(); } catch (err) { if (err.status !== 401) pageFailure(err); throw err; } }
   else {
     me = ME.v;
-    if (Date.now() - ME.t > FRESH) fetchMe().then(v => { if (JSON.stringify(slim(v)) !== JSON.stringify(slim(me))) { drawSide(side, v, active); bindMe(); } }).catch(() => {});
+    if (Date.now() - ME.t > FRESH) fetchMe().then(v => { if (JSON.stringify(slim(v)) !== JSON.stringify(slim(me))) { drawSide(side, v, active); drawStrip(app, v, active, side); bindMe(); } }).catch(() => {});
   }
   drawSide(side, me, active);
+  drawStrip(app, me, active, side);
   let mini = false; try { mini = localStorage.getItem('wl-mini') === '1'; } catch { /* storage blocked */ }
   app.classList.toggle('mini', mini); $('#sideFold')?.setAttribute('aria-pressed', String(mini));
   document.addEventListener('click', e => { const m = $('#qcMenu'); if (m && !m.hidden && !e.target.closest('.qc')) { m.hidden = true; $('#qcBtn')?.setAttribute('aria-expanded', 'false'); } }, { signal: pageSignal() });

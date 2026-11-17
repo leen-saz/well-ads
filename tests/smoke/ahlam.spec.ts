@@ -8,7 +8,7 @@ test.describe('احلم', () => {
     await addSession(context, await login(request, 'owner'));
     await page.goto('/today/');
     await expect(page).toHaveTitle(/احلم/);
-    await expect(page.locator('a.navi[href="/today/"]').first()).toContainText('احلم');
+    await expect(page.locator('a.navi[data-grp="home"]')).toContainText('الرئيسية');
     await expect(page.locator('#ahForm')).toBeVisible();
     await expect(page.locator('#paneSum')).toBeHidden();
     await page.locator('#tdTabs button[data-k="summary"]').click();
@@ -20,7 +20,7 @@ test.describe('احلم', () => {
     await addSession(context, await login(request, 'owner'));
     await page.goto('/today/?lang=en');
     await expect(page.locator('html')).toHaveAttribute('dir', 'ltr');
-    await expect(page.locator('a.navi[href="/today/"]').first()).toContainText('Ahlam');
+    await expect(page.locator('a.navi[data-grp="home"]')).toContainText('Home');
     await expect(page.locator('#ahQ')).toHaveAttribute('placeholder', 'Type your question…');
     await expect(page.locator('#tdTabs button[data-k="summary"]')).toHaveText('Today summary');
   });
@@ -133,11 +133,14 @@ test.describe('احلم', () => {
       await addSession(context, await login(request, 'owner'));
       await page.route('**/api/campaigns/agents', r => r.fulfill({ json: { active: true, agents: { content: 'running', social: 'failed' } } }));
       await page.goto('/today/' + (lang === 'en' ? '?lang=en' : ''));
-      await expect(page.locator('a.navi[data-k="content"] .agent-dot')).toHaveAttribute('data-s', 'running');
-      await expect(page.locator('a.navi[data-k="social"] .agent-dot')).toHaveAttribute('data-s', 'failed');
-      await expect(page.locator('a.navi[data-k="content"] .agent-dot')).toHaveText('');
-      await expect(page.locator('a.navi[data-k="design"] .agent-dot')).toHaveAttribute('data-s', 'idle');
-      await expect(page.locator('a.navi[data-k="content"] .agent-dot')).toHaveAttribute('aria-label', lang === 'en' ? 'Working on a campaign task now' : 'يشتغل الحين على مهمة حملة');
+      // A group's tab carries one dot for its agents (working if any works, else failed if any failed); inside the group each tab has its own
+      await expect(page.locator('a.navi[data-grp="produce"] .agent-dot')).toHaveAttribute('data-s', 'running');
+      await expect(page.locator('a.navi[data-grp="distribute"] .agent-dot')).toHaveAttribute('data-s', 'failed');
+      await expect(page.locator('a.navi[data-grp="produce"] .agent-dot')).toHaveText('');
+      await page.locator('a.navi[data-grp="produce"]').click();
+      await expect(page.locator('.gtabs a[data-k="content"] .agent-dot')).toHaveAttribute('data-s', 'running');
+      await expect(page.locator('.gtabs a[data-k="design"] .agent-dot')).toHaveAttribute('data-s', 'idle');
+      await expect(page.locator('.gtabs a[data-k="content"] .agent-dot')).toHaveAttribute('aria-label', lang === 'en' ? 'Working on a campaign task now' : 'يشتغل الحين على مهمة حملة');
     });
   }
   test('no dots when no campaign is active; and on a phone the page does not scroll sideways', async ({ page, context, request }) => {
@@ -148,7 +151,7 @@ test.describe('احلم', () => {
     await expect(page.locator('.agent-dot')).toHaveCount(0);
     await page.route('**/api/campaigns/agents', r => r.fulfill({ json: { active: true, agents: { design: 'running' } } }), { times: 1 });
     await page.reload();
-    await expect(page.locator('a.navi[data-k="design"] .agent-dot')).toHaveAttribute('data-s', 'running');
+    await expect(page.locator('a.navi[data-grp="produce"] .agent-dot')).toHaveAttribute('data-s', 'running');
     expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
   });
   for (const lang of ['ar', 'en'] as const) {
