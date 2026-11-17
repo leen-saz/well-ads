@@ -1,5 +1,5 @@
 // وصف الصور: الصورة تنصغّر وتنعاد ترميزها في المتصفح (وهذا يشيل بيانات موقعها)، وتنرسل مع بصمتها، ويرجع الوصف والنص وملاحظات الامتثال.
-import { $, api, say, esc, shell, busy, when, failure } from '/assets/common.js';
+import { $, api, say, esc, shell, busy, when, failure, sectionTabs } from '/assets/common.js';
 
 // Runs on every visit of this page (assets/router.js calls it after each ClientRouter navigation).
 export default async function mount() {
@@ -74,5 +74,5 @@ export default async function mount() {
     }
   });
 
-  shell({ active: 'vision', title: 'وصف الصور' }).then(load).catch(err => say($('#msg'), err.message));
+  shell({ active: 'design', section: 'vision', title: 'وصف الصور' }).then(me => { sectionTabs(me, 'design', 'vision', ['التصميم', 'Design']); return load(); }).catch(err => say($('#msg'), err.message));
 }

@@ -1,6 +1,6 @@
 // أدوات مشتركة: الطلبات، والأيقونات، والتواريخ، وهيكل التطبيق (القائمة الجانبية والشريط العلوي)
 import { LANG, t, langSwitch, restoreDraft } from './i18n.js';
-import { sections, TIP, startsShut, wireGroups } from './sidebar.js';
+import { sections, TIP, startsShut, wireGroups, isHere } from './sidebar.js';
 import { agentDots } from './agentdots.js';
 import { ME_KEY, FRESH, readMe, slim } from './me-cache.js';
 export { LANG, t, langSwitch };
@@ -201,7 +201,7 @@ function drawSide(side, me, active) {
       <div class="menu qc-menu" id="qcMenu" role="menu" hidden>${quick.map(([, href, t, ic]) => `<a href="${href}" role="menuitem">${icon(ic)}${t}</a>`).join('')}</div></div>` : ''}
     ${sections(me, L).map(sec => `<div class="side-sec${startsShut(sec, active) ? ' shut' : ''}"><button type="button" class="side-h" data-g="${sec.key}" aria-expanded="${!startsShut(sec, active)}" aria-controls="sg-${sec.key}"><span>${esc(sec.label)}</span>${icon('chev', 'chv')}</button><div class="side-items" id="sg-${sec.key}">${sec.items.map(it => {
       const ic = it.svg ? `<svg class="i" viewBox="0 0 24 24" aria-hidden="true">${it.svg}</svg>` : icon(it.ic);
-      if (it.state === 'ok' || it.state === 'soon') return `<a class="navi${it.state === 'soon' ? ' soon' : ''}" href="${it.href}" data-k="${esc(it.key)}"${FULL(it.href)}${it.key === active ? ' aria-current="page"' : ''}>${ic}<span>${esc(it.text)}</span>${it.state === 'soon' ? `<small class="tag">${L('قريباً', 'Soon')}</small>` : ''}</a>`;
+      if (it.state === 'ok' || it.state === 'soon') return `<a class="navi${it.state === 'soon' ? ' soon' : ''}" href="${it.href}" data-k="${esc(it.key)}"${FULL(it.href)}${isHere(it, active) ? ' aria-current="page"' : ''}>${ic}<span>${esc(it.text)}</span>${it.state === 'soon' ? `<small class="tag">${L('قريباً', 'Soon')}</small>` : ''}</a>`;
       // A locked entry can be reached by keyboard and says why (a screen reader reads the reason, the tooltip shows it on hover and focus)
       return `<span class="navi locked" role="link" tabindex="0" aria-disabled="true" aria-label="${esc(it.text)}، ${L(...TIP[it.state])}" data-tip="${L(...TIP[it.state])}">${ic}<span>${esc(it.text)}</span>${icon('lock', 'lk')}</span>`;
     }).join('')}</div></div>`).join('')}

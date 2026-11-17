@@ -16,7 +16,7 @@ const PUBLIC = [/^\/login\/?$/, /^\/reset\/?$/, /^\/welcome\/?$/, /^\/api\/auth\
 // the first tool of the destination this user may open, in sidebar order, and /today/ when none.
 export const HUBS: Record<string, [Need, string][]> = {
   performance: [['ceo', '/'], ['creative', '/?view=creative'], ['listening', '/listening/']],
-  create: [['design', '/design/'], ['voice', '/voice/'], ['voiceover', '/voice/?tab=voiceover'], ['social', '/social/'], ['content', '/content/'], ['copy', '/content/?tab=copy'], ['journeys', '/journeys/']],
+  create: [['design', '/design/'], ['vision', '/design/?tab=vision'], ['voice', '/voice/'], ['voiceover', '/voice/?tab=voiceover'], ['transcribe', '/voice/?tab=transcribe'], ['video', '/voice/?tab=video'], ['social', '/social/'], ['content', '/content/'], ['copy', '/content/?tab=copy'], ['journeys', '/journeys/']],
   review: [['control', '/control/'], ['compliance', '/compliance/'], ['maestro', '/maestro/']],
   system: [['connectors', '/connectors/'], ['knowledge', '/knowledge/'], ['debugger', '/debugger/']],
 };

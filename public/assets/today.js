@@ -16,7 +16,7 @@ export default async function mount() {
 
   // قسمين: احلم (المساعد) وملخص اليوم (اللي كان الصفحة كلها). الاختيار في الرابط ?tab=summary
   const tabs = [['ahlam', L('احلم', 'Ahlam'), '#paneAhlam'], ['campaign', L('حملة جديدة', 'New campaign'), '#paneCamp'], ['summary', L('ملخص اليوم', 'Today summary'), '#paneSum']];
-  const show = k => { for (const [key, , sel] of tabs) $(sel).hidden = key !== k; $('#tdTabs').querySelectorAll('button').forEach(b => b.setAttribute('aria-pressed', String(b.dataset.k === k))); };
+  const show = k => { for (const [key, , sel] of tabs) $(sel).hidden = key !== k; if ($('#quickRow')) $('#quickRow').hidden = k !== 'ahlam' || !$('#quickRow').innerHTML; $('#tdTabs').querySelectorAll('button').forEach(b => b.setAttribute('aria-pressed', String(b.dataset.k === k))); };
   $('#tdTabs').setAttribute('aria-label', L('الأقسام', 'Sections'));
   $('#tdTabs').innerHTML = tabs.map(([k, name]) => `<button type="button" data-k="${k}" aria-pressed="false">${esc(name)}</button>`).join('');
   $('#tdTabs').onclick = ev => { const k = ev.target.closest('button')?.dataset.k; if (!k) return; show(k); history.replaceState(null, '', k === 'ahlam' ? location.pathname + (LANG === 'en' ? '?lang=en' : '') : `?tab=${k}` + (LANG === 'en' ? '&lang=en' : '')); };
@@ -27,9 +27,16 @@ export default async function mount() {
 
   // أدواتك: نفس أقسام القائمة، بس اللي يفتح لك
   const secs = sections(me, L).map(s => ({ ...s, items: s.items.filter(it => it.state === 'ok' && it.key !== 'today') })).filter(s => s.items.length);
-  $('#mytools').innerHTML = secs.length ? secs.map(s => `<div class="td-sec"><h3>${esc(s.label)}</h3><div class="td-links">${s.items.map(it =>
+  // ابدأ بسرعة: نص، تصميم، صوت، فيديو. بس اللي يفتح لك (نفس شرط القائمة)، وما فيه أرقام ولا نتائج مخترعة هنا
+  const mod = k => (me.modules || []).find(m => m.key === k && m.status === 'live' && m.ok && !m.locked);
+  const quick = [['content', '/content/', 'نص', 'Text'], ['design', '/design/', 'تصميم', 'Design'], ['voice', '/voice/', 'صوت', 'Voice'], ['video', '/voice/?tab=video', 'فيديو', 'Video']]
+    .filter(([k]) => mod(k)).map(([k, href, ar, en]) => ({ href, text: L(ar, en), svg: mod(k).icon }));
+  $('#quickRow').innerHTML = quick.length ? `<h2 class="td-qh">${esc(L('ابدأ بسرعة', 'Start quickly'))}</h2><div class="td-links td-quick">${quick.map(q =>
+    `<a href="${esc(q.href)}"><svg class="i" viewBox="0 0 24 24" aria-hidden="true">${q.svg}</svg><span>${esc(q.text)}</span></a>`).join('')}</div>` : '';
+  $('#quickRow').hidden = !quick.length || $('#paneAhlam').hidden;
+  $('#mytools').innerHTML = (secs.length ? secs.map(s => `<div class="td-sec"><h3>${esc(s.label)}</h3><div class="td-links">${s.items.map(it =>
     `<a href="${esc(it.href)}"${it.href === '/' || it.href.startsWith('/?') ? ' data-astro-reload' : ''}>${it.svg ? `<svg class="i" viewBox="0 0 24 24" aria-hidden="true">${it.svg}</svg>` : icon(it.ic)}<span>${esc(it.text)}</span></a>`).join('')}</div></div>`).join('')
-    : '<p class="muted">ما عندك أدوات مفتوحة للحين. اطلب الصلاحية من مالك اللوحة.</p>';
+    : '<p class="muted">ما عندك أدوات مفتوحة للحين. اطلب الصلاحية من مالك اللوحة.</p>');
 
   let st;
   try { st = await api('/api/today/state'); } catch (err) { show('summary'); say($('#msg'), err.message); $('#next').hidden = true; failure($('#perf'), err, () => location.reload()); return; }

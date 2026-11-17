@@ -21,7 +21,7 @@ addresses from `BASE` / `FAKE` in `tests/smoke/helpers.ts`, never a written port
 - Core dashboards (`/`, `/control/`, `/connectors/`) per permission.
 - Old URLs redirect (`/maestro/video`, `/design/video`, `/history`, `/review/history`, `/analytics`, `/home`, `/start`, `/permissions`),
   `?id=` rides along, and the destination links (`/performance/`, `/system/`...) open the first tool the user may open.
-- In a browser: the sidebar draws an entry per permission and shows locked entries for the rest; the owner sees every live tab and
+- In a browser: the sidebar draws only what the user may open (no locked rows; what is off for the company is one «أقسام قادمة» row), and Production hosts its sections (`/design/?tab=vision`, `/voice/?tab=transcribe|video|voiceover`, `/content/?tab=copy`) with the old addresses redirecting there; the owner sees every live tab and
   the permissions page; the language switch flips `lang`/`dir` to English and back.
 - Failure behaviour (`failure.spec.ts`): for each tab's first load, a 500 with a message, a gateway HTML page and a dropped connection each show one
   error state with a retry button (`failure`/`pageFailure` in `public/assets/common.js`), and retry recovers; a failed sidebar call shows a page banner;

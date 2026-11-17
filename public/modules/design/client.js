@@ -1,7 +1,7 @@
 // التصميم: تفاصيل تصميم من أفضل إعلاناتنا، نصوص مقترحة مفحوصة على قواعد الامتثال، ومعاينة لكل مقاس.
 // الصورة يصممها المصمم (OpenAI Images: منتجك في مشهد جديد، أو خلفية)، والنص دايم طبقة فوقها في المتصفح، والتحميل PNG.
 // «نوع التصميم»: صورة (هذا الملف) أو موشن جرافيك (motion.js)، والنوع ينحفظ في الرابط ?type=motion.
-import { $, $$, api, say, esc, shell, busy, fmt, friendly } from '/assets/common.js';
+import { $, $$, api, say, esc, shell, busy, fmt, friendly, sectionTabs } from '/assets/common.js';
 
 const PLAT = { meta: 'ميتا', snapchat: 'سناب شات', tiktok: 'تيك توك', google: 'جوجل' };
 const LEVEL = { critical: 'مخالفة', warn: 'انتبه', info: 'ملاحظة' };
@@ -262,7 +262,7 @@ export default async function mount() {
     try { sessionStorage.setItem('well-design', JSON.stringify(keep)); } catch { try { sessionStorage.setItem('well-design', JSON.stringify({ ...keep, img: '' })); } catch {} }
   };
   document.addEventListener('well:before-lang', keepState);
-  await shell({ active: 'design', title: 'التصميم' });
+  sectionTabs(await shell({ active: 'design', title: 'التصميم' }), 'design', 'design', ['التصميم', 'Design']);
   let motion = null;
   const showKind = kind => {
     const isMotion = kind === 'motion';

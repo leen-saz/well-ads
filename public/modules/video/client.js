@@ -1,5 +1,5 @@
 // الفيديو: مشروع (مقاس ومدة وأفاتار)، لقطات تتولّد بالخلفية وتتابع حالتها، والناتج مسودة داخل النظام.
-import { $, api, say, esc, shell, busy, pageFailure, pageSignal, LANG } from '/assets/common.js';
+import { $, api, say, esc, shell, busy, pageFailure, pageSignal, LANG, sectionTabs } from '/assets/common.js';
 
 const KINDS = { 'text-to-video': 'من وصف', 'image-to-video': 'من صورة', avatar: 'أفاتار يتكلم' };
 const STATE = { queued: 'بالانتظار', running: 'يتولّد', done: 'جاهزة', failed: 'ما تمت', cancelled: 'موقوفة' };
@@ -173,5 +173,5 @@ export default async function mount() {
     try { await api('/api/video/jobs', { method: 'PATCH', body: { id: Number(id) } }); poll(); } catch (err) { say($('#cmsg'), err.message); }
   });
 
-  shell({ active: 'video', title: 'الفيديو' }).then(async () => { META = await api('/api/video/engines'); await load(); }).catch(pageFailure);
+  shell({ active: 'voice', section: 'video', title: 'الفيديو' }).then(async me => { sectionTabs(me, 'voice', 'video', ['فحص النص والصوت', 'Text & voice']); META = await api('/api/video/engines'); await load(); }).catch(pageFailure);
 }

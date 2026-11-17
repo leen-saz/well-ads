@@ -1,6 +1,6 @@
 // نفس القائمة الجانبية حق لوحة القرارات، فوق اللوحات (/ و/creative): موقع واحد.
 // كل الأقسام تطلع للكل، واللي ما له صلاحية عليه يطلع مقفل. في الجوال: زر قائمة يفتح درج.
-import { sections, TIP, startsShut, wireGroups } from './sidebar.js';
+import { sections, TIP, startsShut, wireGroups, isHere } from './sidebar.js';
 import { agentDots } from './agentdots.js';
 import { ME_KEY, FRESH, readMe, slim } from './me-cache.js';
 const EN = (() => { try { return new URLSearchParams(location.search).get('lang') === 'en' || localStorage.getItem('well-ads-lang') === 'en'; } catch { return false; } })();
@@ -114,7 +114,7 @@ function draw(me) {
   side.innerHTML = `<div class="wl-top"><a class="wl-mark" href="/today/">Well<i>.</i></a><button type="button" class="wl-x" aria-label="${L('إغلاق القائمة', 'Close menu')}">${I('x')}</button></div>
     ${sections(me, L).map(sec => `<div class="wl-sec${startsShut(sec, here) ? ' shut' : ''}"><button type="button" class="wl-h" data-g="${sec.key}" aria-expanded="${!startsShut(sec, here)}" aria-controls="sg-${sec.key}"><span>${esc(sec.label)}</span>${I('chev')}</button><div class="wl-items" id="sg-${sec.key}">${sec.items.map(it => {
       const ic = it.svg ? `<svg class="wl-i" viewBox="0 0 24 24" aria-hidden="true">${it.svg}</svg>` : I(it.ic);
-      if (it.state === 'ok' || it.state === 'soon') return `<a class="wl-navi${it.state === 'soon' ? ' wl-soon' : ''}" href="${it.href}" data-k="${esc(it.key)}"${it.key === here ? ' aria-current="page"' : ''}>${ic}<span>${esc(it.text)}</span>${it.state === 'soon' ? `<small class="wl-tag">${L('قريباً', 'Soon')}</small>` : ''}</a>`;
+      if (it.state === 'ok' || it.state === 'soon') return `<a class="wl-navi${it.state === 'soon' ? ' wl-soon' : ''}" href="${it.href}" data-k="${esc(it.key)}"${isHere(it, here) ? ' aria-current="page"' : ''}>${ic}<span>${esc(it.text)}</span>${it.state === 'soon' ? `<small class="wl-tag">${L('قريباً', 'Soon')}</small>` : ''}</a>`;
       return `<span class="wl-navi wl-locked" role="link" tabindex="0" aria-disabled="true" aria-label="${esc(it.text)}، ${L(...TIP[it.state])}" title="${L(...TIP[it.state])}">${ic}<span>${esc(it.text)}</span>${I('lock')}</span>`;
     }).join('')}</div></div>`).join('')}
     <div class="wl-grow"></div>
