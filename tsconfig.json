@@ -1,6 +1,6 @@
 {
   "extends": "astro/tsconfigs/strictest",
   "include": [".astro/types.d.ts", "**/*"],
-  "exclude": ["dist", "node_modules", "tests/parity", "tests/smoke", "playwright.config.ts", "playwright.smoke.config.ts"],
+  "exclude": ["dist", "vendor", "node_modules", "tests/parity", "tests/smoke", "playwright.config.ts", "playwright.smoke.config.ts"],
   "compilerOptions": { "types": ["./worker-configuration.d.ts"], "jsx": "react-jsx", "jsxImportSource": "react", "paths": { "@/*": ["./src/*"] } }
 }
