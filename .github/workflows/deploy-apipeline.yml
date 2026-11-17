@@ -1,0 +1,25 @@
+# Deploys the Apipeline site (leen-saz/pipeline, public) to the same Cloudflare account, reusing this repo's
+# Cloudflare credentials (approved by Leen). Runs on push to this ops branch only.
+name: deploy-apipeline
+on:
+  push:
+    branches: [ops/deploy-apipeline]
+permissions:
+  contents: read
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    environment: staging
+    steps:
+      - uses: actions/checkout@v4
+        with: { repository: leen-saz/pipeline, ref: main }
+      - uses: actions/setup-node@v4
+        with: { node-version: 24, cache: npm }
+      - run: npm ci
+      - run: npm test
+      - run: npm run build
+      - run: npx wrangler deploy --env production
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
