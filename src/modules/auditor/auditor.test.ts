@@ -4,7 +4,7 @@ import { describe, expect, it } from 'vitest';
 import { audit as runAudit } from './audit';
 import { claimFromJudge } from './adapter';
 import { backtest } from './backtest';
-import { OWNER_RULE, type Claim } from './contract';
+import { DEFAULT_CONFIG, OWNER_RULE, type Claim } from './contract';
 import { recompute } from './facts';
 import { synth } from './synth';
 import checksSrc from './checks.ts?raw';
@@ -284,6 +284,49 @@ describe('auditor: back-test on history', () => {
   });
   it('is silent about windows without data', () => {
     expect(backtest({ ads: {}, rows: [], range: { start: '2026-01-01', end: to } } as never, to).windows).toBe(0);
+  });
+});
+
+describe('auditor: chain_product holds on any data, within the rounding of the quoted rates only', () => {
+  // A grid of made-up shops, from rates at the floors to well above them. The three true rates multiply to the end to end
+  // rate by identity. Each quoted rate may be off by the declared tolerance (rounding): any mix of that must pass. One rate
+  // wrong by more than the rounding of all three could hide must not.
+  const tol = DEFAULT_CONFIG.tol;
+  const shops: Parameters<typeof synth>[0][] = [];
+  for (const seed of [3, 7, 11, 19]) for (const [ctr, c2r, tied, paidTied] of [[0.007, 0.015, 0.9, 12], [0.007, 0.03, 0.35, 16], [0.012, 0.02, 0.9, 8],
+    [0.017, 0.058, 0.35, 16], [0.035, 0.12, 0.7, 60], [0.035, 0.12, 0.9, 400]] as const) shops.push({ seed, ctr, c2r, tied, paidTied, paidAll: paidTied + 10 });
+  const cases = shops.map(o => {
+    const d = synth(o), f = recompute(d, from, to);
+    return { d, base: claimFromJudge(d, from, to), rates: [f.scope.ctr!, f.scope.c2r!, f.crm.closeRate!] as const };
+  });
+  const product = (rs: readonly number[]) => rs.reduce((x, v) => (x * v) / 100, 1);
+  const chain = (d: ReturnType<typeof synth>, base: Claim, rates: readonly number[]) => {
+    const c = structuredClone(base);
+    (['click', 'lead', 'sale'] as const).forEach((k, i) => { const s = c.steps.find(x => x.key === k)!; s.now = rates[i]!; s.unattributed = false; });
+    return ids(audit(d, c)).includes('chain_product');
+  };
+
+  it('the grid spans rates at the floors to well above them', () => {
+    const ps = cases.map(c => product(c.rates));
+    expect(cases.length).toBe(24);
+    expect(Math.min(...cases.map(c => c.rates[0]))).toBeLessThan(1);
+    expect(Math.max(...ps)).toBeGreaterThan(25 * Math.min(...ps));
+    for (const c of cases) expect(c.rates.every(x => x > 0)).toBe(true);
+  });
+  it('every rate off by up to the tolerance, in any direction, never trips it (no false alarm)', () => {
+    let tripped = 0;
+    for (const c of cases) for (let m = 0; m < 8; m++) if (chain(c.d, c.base, c.rates.map((x, i) => x + ((m >> i) & 1 ? tol : -tol)))) tripped++;
+    expect(tripped).toBe(0);
+  });
+  it('one rate wrong by more than the rounding of all three could hide always trips it (no miss)', () => {
+    let missed = 0;
+    for (const c of cases) {
+      // The share of the product that rounding of the three quoted rates can move it by
+      const w = c.rates.reduce((x, v) => x * (1 + tol / (v - tol)), 1) - 1;
+      for (let i = 0; i < 3; i++) for (const sign of [1, -1])
+        if (!chain(c.d, c.base, c.rates.map((x, j) => (j === i ? x * (1 + sign * 2.5 * w) : x)))) missed++;
+    }
+    expect(missed).toBe(0);
   });
 });
 

@@ -46,7 +46,7 @@ describe('auth', () => {
     expect(await A.verify(t, cfg.secret)).toBeTruthy();
     expect(await A.verify(t.slice(0, -2) + 'aa', cfg.secret)).toBeNull();
     expect(await A.verify(t, 'y'.repeat(40))).toBeNull();
-    const old = await A.sign(A.sessionFor(member, cfg, Date.now() - 13 * 3600e3), cfg.secret);
+    const old = await A.sign(A.sessionFor(member, cfg, Date.now() - (A.SESSION_HOURS + 1) * 3600e3), cfg.secret);
     expect(await A.verify(old, cfg.secret)).toBeNull();
   });
 
@@ -277,5 +277,93 @@ describe('one password rule wherever a password is set', () => {
       { method: 'POST', headers: { ...same, cookie: await cookieFor(member) }, body: JSON.stringify({ current: 'not-checked', password: long }) }, E);
     expect(a.status).toBe(400);
     expect(calls.some(c => c.includes('/auth/v1/'))).toBe(false);
+  });
+});
+
+describe('reset link: token_hash flow', () => {
+  const same = { origin: 'https://well.example', 'sec-fetch-site': 'same-origin', 'content-type': 'application/json' };
+  const post = (body: unknown) => authRoutes.reset.POST(req('/api/auth/reset', null, { method: 'POST', headers: same, body: JSON.stringify(body) }), E);
+  const stub = (verify: Response) => {
+    const calls: { url: string; method: string; body: string }[] = [];
+    vi.stubGlobal('fetch', async (u: string, init?: RequestInit) => {
+      calls.push({ url: String(u), method: String(init?.method || 'GET'), body: String(init?.body || '') });
+      if (String(u).includes('/auth/v1/verify')) return verify.clone();
+      if (String(u).includes('/auth/v1/user')) return new Response(JSON.stringify({ id: 'u1', email: 'p@example.com' }), { status: 200 });
+      return new Response('[]', { status: 200 });
+    });
+    return calls;
+  };
+  const ok = () => new Response(JSON.stringify({ access_token: 'AT' }), { status: 200 });
+
+  it('verifies the token_hash on submit, then sets the password with the returned access token', async () => {
+    const calls = stub(ok());
+    const r = await post({ token_hash: 'abc', type: 'recovery', password: 'long-enough-pass' });
+    expect(r.status).toBe(200);
+    const v = calls.find(c => c.url.includes('/auth/v1/verify'))!;
+    expect(JSON.parse(v.body)).toEqual({ type: 'recovery', token_hash: 'abc' });
+    expect(calls.some(c => c.url.includes('/auth/v1/user') && c.method === 'PUT')).toBe(true);
+  });
+  it('accepts invite, rejects any other type before calling Supabase', async () => {
+    stub(ok());
+    expect((await post({ token_hash: 'abc', type: 'invite', password: 'long-enough-pass' })).status).toBe(200);
+    const calls = stub(ok());
+    for (const type of ['magiclink', 'signup', '', undefined]) expect((await post({ token_hash: 'abc', type, password: 'long-enough-pass' })).status).toBe(400);
+    expect(calls.length).toBe(0);
+  });
+  it('a weak password does not spend the token', async () => {
+    const calls = stub(ok());
+    const r = await post({ token_hash: 'abc', type: 'recovery', password: 'short' });
+    expect(r.status).toBe(400);
+    expect(((await r.json()) as { error: string }).error).toMatch(/أحرف أو أكثر/);
+    expect(calls.length).toBe(0);
+  });
+  it('an expired or used token gives the expired message', async () => {
+    stub(new Response(JSON.stringify({ error_code: 'otp_expired' }), { status: 403 }));
+    const r = await post({ token_hash: 'abc', type: 'recovery', password: 'long-enough-pass' });
+    expect(r.status).toBe(400);
+    expect(((await r.json()) as { error: string }).error).toMatch(/انتهى أو انستخدم/);
+  });
+  it('the old hash flow (access_token) still works', async () => {
+    const calls = stub(ok());
+    expect((await post({ access_token: 'OLD', password: 'long-enough-pass' })).status).toBe(200);
+    expect(calls.some(c => c.url.includes('/auth/v1/verify'))).toBe(false);
+  });
+  it('same-origin and size limits are unchanged; no token or password reaches the logs', async () => {
+    stub(ok());
+    const spies = [vi.spyOn(console, 'warn'), vi.spyOn(console, 'error'), vi.spyOn(console, 'log')];
+    spies.forEach(s => s.mockImplementation(() => {}));
+    expect((await authRoutes.reset.POST(req('/api/auth/reset', null, { method: 'POST', headers: { origin: 'https://evil.example', 'sec-fetch-site': 'cross-site' }, body: '{}' }), E)).status).toBe(403);
+    expect((await post({ token_hash: 'x'.repeat(30000), type: 'recovery', password: 'long-enough-pass' })).status).toBeGreaterThanOrEqual(400);
+    await post({ token_hash: 'SECRETHASH', type: 'recovery', password: 'SECRETPASSWORD1' });
+    expect(JSON.stringify(spies.map(s => s.mock.calls))).not.toMatch(/SECRETHASH|SECRETPASSWORD1/);
+    spies.forEach(s => s.mockRestore());
+  });
+  it('forgot answers 200 and logs password_reset_email_failed (no address) when Supabase refuses', async () => {
+    const seen: string[] = [];
+    vi.stubGlobal('fetch', async (u: string, init?: RequestInit) => {
+      seen.push(String(u) + ' ' + String(init?.body || ''));
+      if (String(u).includes('/auth/v1/')) return new Response(JSON.stringify({ error_code: 'over_email_send_rate_limit' }), { status: 429 });
+      return new Response('[]', { status: 200 });
+    });
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
+    const r = await authRoutes.forgot.POST(req('/api/auth/forgot', null, { method: 'POST', headers: same, body: JSON.stringify({ email: 'p@example.com' }) }), E);
+    expect(r.status).toBe(200);
+    expect(await r.json()).toEqual({ ok: true });
+    const line = warn.mock.calls.map(c => c.join(' ')).find(l => l.includes('password_reset_email_failed')) || '';
+    expect(line).toContain('over_email_send_rate_limit');
+    expect(line).not.toContain('p@example.com');
+    const row = seen.find(x => x.includes('/rest/v1/audit_log') && x.includes('password_reset_email_failed')) || '';
+    expect(row).toContain('over_email_send_rate_limit');
+    warn.mockRestore();
+  });
+});
+
+describe('reset page', () => {
+  it('does not call the API on load, only on submit', async () => {
+    const src = ((await import('../../public/assets/reset.js?raw')) as { default: string }).default;
+    const beforeSubmit = src.slice(0, src.indexOf("addEventListener('submit'"));
+    expect(beforeSubmit).not.toMatch(/api\(/);
+    expect(src).toMatch(/history\.replaceState/);
+    expect(src).toMatch(/token_hash/);
   });
 });

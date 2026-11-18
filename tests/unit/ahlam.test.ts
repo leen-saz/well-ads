@@ -1,4 +1,4 @@
-// «احلم» (src/lib/ahlam.ts, POST /api/today/ask): the plan -> read -> answer turn with a fake OpenRouter and synthetic data.
+// «أحلم» (src/lib/ahlam.ts, POST /api/today/ask): the plan -> read -> answer turn with a fake OpenRouter and synthetic data.
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import * as A from '../../src/lib/auth';
 import { api } from '../../src/api/index';
@@ -305,7 +305,7 @@ describe('questions about campaigns (read-only, with the link to the pack)', () 
     expect(toolsRead(ev)).toEqual(['campaigns']);
     const sys = system();
     expect(sys).toContain('كم الميزانية؟'); expect(sys).toContain('افتراض: متوسطة'); expect(sys).toContain('جواب المستخدم: رسمية'); expect(sys).toContain('الواقف الحين');
-    expect(sys).toContain('«الحملة» أو «حملتي» بدون تحديد تعني حملة احلم الجديدة');
+    expect(sys).toContain('«الحملة» أو «حملتي» بدون تحديد تعني حملة أحلم الجديدة');
   });
   it('the stopped tasks and their reasons are what «واقف» answers with', async () => {
     camps = [{ id: CID, title: 'Longevity', status: 'review', brief: {} }];

@@ -10,19 +10,24 @@ const KIND = { new_campaign: 'حملة جديدة', pause: 'إيقاف', pause_c
 const L = (ar, en) => (LANG === 'en' ? en : ar);
 
 export default async function mount() {
-  const me = await shell({ active: 'today', title: L('احلم', 'Ahlam') });
+  const me = await shell({ active: 'today', title: L('أحلم', 'Ahlam') });
   const owner = me.role === 'owner', dept = (me.departments || []).length;
   $('#hello').textContent = L(`أهلاً ${me.name || ''}. ${owner ? 'هذي صورة اليوم للنظام كله.' : dept ? 'هذي صورة اليوم لقسمك.' : 'هذي صورة اليوم للي تشتغل عليه.'}`, `Hello ${me.name || ''}. ${owner ? 'Here is today for the whole system.' : dept ? "Here is today for your department." : 'Here is today for what you work on.'}`);
 
-  // قسمين: احلم (المساعد) وملخص اليوم (اللي كان الصفحة كلها). الاختيار في الرابط ?tab=summary
-  const tabs = [['ahlam', L('احلم', 'Ahlam'), '#paneAhlam'], ['campaign', L('حملة جديدة', 'New campaign'), '#paneCamp'], ['summary', L('ملخص اليوم', 'Today summary'), '#paneSum']];
+  // قسمين: أحلم (المساعد) وملخص اليوم (اللي كان الصفحة كلها). الاختيار في الرابط ?tab=summary
+  const tabs = [['ahlam', L('أحلم', 'Ahlam'), '#paneAhlam'], ['campaign', L('حملة جديدة', 'New campaign'), '#paneCamp'], ['summary', L('ملخص اليوم', 'Today summary'), '#paneSum']];
   const show = k => { for (const [key, , sel] of tabs) $(sel).hidden = key !== k; if ($('#quickRow')) $('#quickRow').hidden = k !== 'ahlam' || !$('#quickRow').innerHTML; $('#tdTabs').querySelectorAll('button').forEach(b => b.setAttribute('aria-pressed', String(b.dataset.k === k))); };
   $('#tdTabs').setAttribute('aria-label', L('الأقسام', 'Sections'));
   $('#tdTabs').innerHTML = tabs.map(([k, name]) => `<button type="button" data-k="${k}" aria-pressed="false">${esc(name)}</button>`).join('');
   $('#tdTabs').onclick = ev => { const k = ev.target.closest('button')?.dataset.k; if (!k) return; show(k); history.replaceState(null, '', k === 'ahlam' ? location.pathname + (LANG === 'en' ? '?lang=en' : '') : `?tab=${k}` + (LANG === 'en' ? '&lang=en' : '')); };
   const want = new URLSearchParams(location.search).get('tab');
   show(want === 'summary' || want === 'campaign' ? want : 'ahlam');
-  mountAhlam($('#paneAhlam'), me, L);
+  // The campaign that the Ahlam chat starts lives under the chat on the same page (progress, dots and the pack); the «حملة جديدة» tab keeps the form
+  let embedded = null;
+  mountAhlam($('#paneAhlam'), me, L, goal => embedded?.plan(goal));
+  const box = document.createElement('div'); box.id = 'ahCampBox';
+  $('#paneAhlam').append(box);
+  embedded = mountCampaign(box, me, L, { embedded: true });
   mountCampaign($('#paneCamp'), me, L);
 
   // أدواتك: نفس أقسام القائمة، بس اللي يفتح لك

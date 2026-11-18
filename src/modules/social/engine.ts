@@ -65,13 +65,27 @@ export const CAPS: Record<SocialPlatform, Cap> = {
 // twitter-text config v3: https://github.com/twitter/twitter-text/blob/master/config/v3.json, read 2026-11-13). The text is
 // counted in NFC, as X does. Counting by .length would refuse a post X accepts whenever it carries a long booking link, and
 // would accept a post X refuses when it is near the limit and carries those signs.
-const URL_RE = /https?:\/\/[^\s]+/gi, EMOJI_RE = /\p{Extended_Pictographic}|\p{Regional_Indicator}/u;
+// A link as X ends it (twitter-text validUrlPath, https://github.com/twitter/twitter-text, read 2026-11-14): it stops at the first
+// character a path cannot hold (so Arabic text glued to it is outside), and its last character must be a letter, digit or one of
+// + - = _ # / or a closing bracket of a balanced pair. So a trailing . , ! ? : ; or the Arabic comma is not part of the link and
+// counts 1 on its own.
+const URL_RE = /https?:\/\/[A-Za-z0-9!*';:=+,.$\/%#[\]\-_~&|@()?\u00c0-\u024f\u0400-\u052f]+/gi, EMOJI_RE = /\p{Extended_Pictographic}|\p{Regional_Indicator}/u;
 const GRAPHEMES = new Intl.Segmenter(undefined, { granularity: 'grapheme' });
 const xWeight = (cp: number): number => (cp <= 0x10ff || (cp >= 0x2000 && cp <= 0x200d) || (cp >= 0x2010 && cp <= 0x201f) || (cp >= 0x2032 && cp <= 0x2037) ? 1 : 2);
 export function textLength(platform: SocialPlatform, body: string): number {
   if (platform !== 'x') return body.length;
   let n = 0;
-  for (const part of body.normalize('NFC').split(URL_RE).flatMap((t, i, a) => (i < a.length - 1 ? [t, null] : [t]))) {
+  const text = body.normalize('NFC'), parts: (string | null)[] = [];
+  let at = 0;
+  for (const m of text.matchAll(URL_RE)) {
+    let link = m[0];
+    while (link.length > 8 && (/[^a-z0-9+\-=_#\/)\u00c0-\u024f\u0400-\u04ff]$/i.test(link) || (link.endsWith(')') && link.split(')').length > link.split('(').length))) link = link.slice(0, -1);
+    if (!/^https?:\/\/[^/?#]/i.test(link)) continue;
+    parts.push(text.slice(at, m.index), null);
+    at = m.index! + link.length;
+  }
+  parts.push(text.slice(at));
+  for (const part of parts) {
     if (part === null) { n += 23; continue; }
     for (const { segment: g } of GRAPHEMES.segment(part)) {
       if (EMOJI_RE.test(g)) n += 2;

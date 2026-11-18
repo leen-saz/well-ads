@@ -29,7 +29,7 @@ const HUB = /^\/(performance|create|review|system)\/?$/;
 // Short and earlier links of the same places
 const ALIAS: Record<string, string> = { '/analytics': '/', '/home': '/today/', '/start': '/today/', '/history': '/control/?tab=log', '/review/history': '/control/?tab=log', '/permissions': '/admin/',
   // Motion graphics moved from Maestro into Design, then from /design/video/ into Design's type switch; ?id= rides along
-  '/maestro/video': '/design/?type=motion', '/design/video': '/design/?type=motion' };
+  '/overview/creative': '/?view=creative', '/maestro/video': '/design/?type=motion', '/design/video': '/design/?type=motion' };
 
 // Tabs shown as a section of another tab: /voiceover/ is /voice/?tab=voiceover, /copy/ is /content/?tab=copy (same access as before)
 const intoOf = (key: string): string | undefined => MODULES.find(m => m.key === key)?.into;

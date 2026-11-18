@@ -13,13 +13,13 @@ export function agentDots(side, L, fetcher = () => fetch('/api/campaigns/agents'
     // A tab of an agent shows that agent's dot. A group's entry in the sidebar shows one dot for all its tabs: working if any works, else failed if any failed.
     const one = k => (state.agents?.[TAB_AGENT[k]] === 'running' ? 'running' : state.agents?.[TAB_AGENT[k]] === 'failed' ? 'failed' : 'idle');
     const rank = { running: 2, failed: 1, idle: 0 };
-    const mine = [...side.querySelectorAll('a[data-k]'), ...document.querySelectorAll('[data-gtabs] a[data-k]')];
+    const mine = side.querySelectorAll('[data-k]');
     mine.forEach(a => {
       const keys = a.dataset.ks ? a.dataset.ks.split(',').filter(k => TAB_AGENT[k]) : TAB_AGENT[a.dataset.k] ? [a.dataset.k] : [];
       if (!keys.length) return;
       const st = keys.map(one).reduce((x, y) => (rank[y] > rank[x] ? y : x), 'idle');
       let d = a.querySelector('.agent-dot');
-      if (!d) { d = document.createElement('i'); d.className = 'agent-dot'; d.setAttribute('role', 'img'); a.append(d); }
+      if (!d) { d = document.createElement('i'); d.className = 'agent-dot'; d.setAttribute('role', 'img'); const c = a.querySelector('.nv-c'); if (c) a.insertBefore(d, c); else a.append(d); }
       if (d.dataset.s !== st) { d.dataset.s = st; d.setAttribute('aria-label', label(st)); d.title = label(st); }
     });
   };

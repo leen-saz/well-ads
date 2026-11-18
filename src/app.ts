@@ -13,6 +13,7 @@ import { runWatchdog, type WatchdogEnv } from './lib/watchdog';
 import { runListening, type ListenEnv } from './modules/listening/fetcher';
 import { runSocial } from './modules/social/cron';
 import { runTranscribe } from './modules/transcribe/service';
+import { driveCampaigns } from './lib/campaign-cron';
 // Cloudflare Workflows: the class must be exported from the Worker entry
 export { JourneyRun } from './modules/journeys/workflow';
 
@@ -81,8 +82,8 @@ export default {
   // the data-age watchdog, and on their day the weekly backup and the monthly restore test. Each trigger is matched explicitly.
   scheduled(event: ScheduledController, env: CronEnv & AuthEnv & WatchdogEnv, ctx: ExecutionContext) {
     if (event.cron === SOCIAL_CRON) {
-      // Due social posts, then one social-listening keyword that has not been fetched in a day
-      withWaiter(p => ctx.waitUntil(p), () => ctx.waitUntil(Promise.allSettled([runSocial(env), runListening(env as ListenEnv), runTranscribe(env as Parameters<typeof runTranscribe>[0])]).then(rs => rs.forEach((r, i) => { if (r.status === 'rejected') console.error('cron: job failed', ['social', 'listening', 'transcribe'][i], String(r.reason).slice(0, 200)); }))));
+      // Due social posts, one social-listening keyword that has not been fetched in a day, and the approved campaigns that are running (no page needed)
+      withWaiter(p => ctx.waitUntil(p), () => ctx.waitUntil(Promise.allSettled([runSocial(env), runListening(env as ListenEnv), runTranscribe(env as Parameters<typeof runTranscribe>[0]), driveCampaigns(env as Parameters<typeof driveCampaigns>[0])]).then(rs => rs.forEach((r, i) => { if (r.status === 'rejected') console.error('cron: job failed', ['social', 'listening', 'transcribe', 'campaigns'][i], String(r.reason).slice(0, 200)); }))));
       return;
     }
     if (event.cron !== HOURLY_CRON) { console.error('cron: unknown trigger', event.cron); return; }

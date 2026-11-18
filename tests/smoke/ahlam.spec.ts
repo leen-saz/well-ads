@@ -1,14 +1,14 @@
-// «احلم»: the home page (/today/). Arabic and English, the chat is there, the old daily summary is one tab away, and a question
+// «أحلم»: the home page (/today/). Arabic and English, the chat is there, the old daily summary is one tab away, and a question
 // with no model connected gets a plain Arabic sentence (the smoke Worker has no OpenRouter key). Synthetic data only.
 import { expect, test } from '@playwright/test';
 import { addSession, login } from './helpers';
 
-test.describe('احلم', () => {
-  test('Arabic: the first sidebar item is احلم, the chat opens, the daily summary is on the second tab', async ({ page, context, request }) => {
+test.describe('أحلم', () => {
+  test('Arabic: the first sidebar item is أحلم, the chat opens, the daily summary is on the second tab', async ({ page, context, request }) => {
     await addSession(context, await login(request, 'owner'));
     await page.goto('/today/');
-    await expect(page).toHaveTitle(/احلم/);
-    await expect(page.locator('a.navi[data-grp="home"]')).toContainText('الرئيسية');
+    await expect(page).toHaveTitle(/أحلم/);
+    await expect(page.locator('a.navi[data-grp="home"]')).toContainText('أحلم');
     await expect(page.locator('#ahForm')).toBeVisible();
     await expect(page.locator('#paneSum')).toBeHidden();
     await page.locator('#tdTabs button[data-k="summary"]').click();
@@ -20,7 +20,7 @@ test.describe('احلم', () => {
     await addSession(context, await login(request, 'owner'));
     await page.goto('/today/?lang=en');
     await expect(page.locator('html')).toHaveAttribute('dir', 'ltr');
-    await expect(page.locator('a.navi[data-grp="home"]')).toContainText('Home');
+    await expect(page.locator('a.navi[data-grp="home"]')).toContainText('Ahlam');
     await expect(page.locator('#ahQ')).toHaveAttribute('placeholder', 'Type your question…');
     await expect(page.locator('#tdTabs button[data-k="summary"]')).toHaveText('Today summary');
   });
@@ -82,6 +82,71 @@ test.describe('احلم', () => {
       } else await expect(page.locator('[data-retry]')).toContainText('أعد الكتابة');
     });
   }
+  // ---- «ابدأ حملة»: one action on the Ahlam page: the sentence, the plan with its cost, ONE confirm, then the run on the same page
+  const PLANNED = (mayApprove: boolean) => ({ ...PACK, campaign: { id: 'c1', title: 'Foot', status: 'planned', estimate_usd: 0.4, brief: { summary: 'Brief', messages: [], risks: [] }, approved_by: null },
+    tasks: [{ id: 1, position: 0, agent: 'content', title: 'Copy', status: 'waiting', depends_on: [], spec: {}, estimate_usd: 0.1 }, { id: 2, position: 1, agent: 'compliance', title: 'Scan', status: 'waiting', depends_on: [0], spec: {}, estimate_usd: 0 }],
+    outputs: [], mayApprove });
+  for (const lang of ['ar', 'en'] as const) {
+    test(`${lang}: «${lang === 'en' ? 'Start a campaign' : 'ابدأ حملة'}» on the Ahlam page: sentence -> plan and cost -> one confirm -> it runs on the same page and says it keeps going without the tab`, async ({ page, context, request }) => {
+      await addSession(context, await login(request, 'owner'));
+      const seen: string[] = []; let goal = '', phase: 'planned' | 'running' = 'planned', steps = 0;
+      await page.route('**/api/campaigns/create', r => { goal = r.request().postDataJSON().goal; seen.push('create'); return r.fulfill({ json: { id: 'c1' } }); });
+      await page.route('**/api/campaigns/approve', r => { seen.push('approve'); phase = 'running'; return r.fulfill({ json: { ok: true } }); });
+      await page.route('**/api/campaigns/step', r => { seen.push('step'); steps++; return r.fulfill({ json: { done: true, status: 'review' } }); });
+      await page.route('**/api/campaigns/get**', r => r.fulfill({ json: phase === 'planned' ? PLANNED(true)
+        : { ...PLANNED(true), campaign: { ...PLANNED(true).campaign, status: 'running', approved_by: 'a@x.co' }, tasks: PLANNED(true).tasks.map((t, i) => ({ ...t, status: i === 0 ? 'running' : 'waiting' })) } }));
+      await page.goto('/today/' + (lang === 'en' ? '?lang=en' : ''));
+      await expect(page.locator('#ahStart')).toHaveText(lang === 'en' ? 'Start a campaign' : 'ابدأ حملة');
+      await expect(page.locator('#ahGo')).toBeHidden();
+      await page.locator('#ahStart').click();
+      await page.locator('#ahGoal').fill(lang === 'en' ? 'Start a campaign for foot alignment' : 'سوّ حملة لتقويم القدم');
+      await page.locator('#ahPlan').click();
+      // the plan: its cost and the single confirm button; nothing has been approved or run yet
+      await expect(page.locator('#ahCampBox .cm-cost')).toContainText(lang === 'en' ? 'SAR' : 'ريال');
+      await expect(page.locator('#ahCampBox #cmOk')).toHaveText(lang === 'en' ? 'Approve and run the campaign' : 'اعتمد وشغّل الحملة');
+      expect(seen).toEqual(['create']); expect(goal).toContain(lang === 'en' ? 'foot alignment' : 'تقويم القدم');
+      await expect(page.locator('#ahCampBox #cmAuto')).toBeHidden();
+      await page.locator('#ahCampBox #cmOk').click();
+      await expect(page.locator('#ahCampBox .cm-bar')).toBeVisible();
+      await expect(page.locator('#ahCampBox #cmAuto')).toBeVisible();
+      await expect(page.locator('#ahCampBox #cmAuto')).toContainText(lang === 'en' ? 'keeps running by itself even if you close this page' : 'تكمل لوحدها حتى لو سكّرت هالصفحة');
+      await expect.poll(() => steps).toBeGreaterThan(0);
+      expect(seen.slice(0, 3)).toEqual(['create', 'approve', 'step']);
+      if (lang === 'en') await expect(page.locator('#paneAhlam')).not.toContainText(/[\u0600-\u06FF]/);
+    });
+    test(`${lang}: someone who cannot approve sees the plan, who can approve it, and no confirm button`, async ({ page, context, request }) => {
+      await addSession(context, await login(request, 'owner'));
+      await page.route('**/api/campaigns/create', r => r.fulfill({ json: { id: 'c1' } }));
+      await page.route('**/api/campaigns/get**', r => r.fulfill({ json: PLANNED(false) }));
+      await page.goto('/today/' + (lang === 'en' ? '?lang=en' : ''));
+      await page.locator('#ahStart').click();
+      await page.locator('#ahGoal').fill('x campaign');
+      await page.locator('#ahPlan').click();
+      await expect(page.locator('#ahCampBox .cm-cost')).toBeVisible();
+      await expect(page.locator('#ahCampBox #cmOk')).toBeHidden();
+      await expect(page.locator('#ahCampBox #cmHint')).toBeVisible();
+      await expect(page.locator('#ahCampBox #cmHint')).toContainText(lang === 'en' ? 'owner of the dashboard or anyone with approval rights' : 'مالك اللوحة أو من عنده صلاحية الاعتماد');
+    });
+  }
+  test('the chat recognises «سوّ حملة …», offers a chip and answers nothing from the model; only the tap builds a plan; a plain question still goes to the model', async ({ page, context, request }) => {
+    await addSession(context, await login(request, 'owner'));
+    const seen: string[] = []; let goal = '';
+    await page.route('**/api/today/ask', r => { seen.push('ask'); return r.fulfill({ status: 503, json: { error: 'غير متصل' } }); });
+    await page.route('**/api/campaigns/create', r => { goal = r.request().postDataJSON().goal; seen.push('create'); return r.fulfill({ json: { id: 'c1' } }); });
+    await page.route('**/api/campaigns/get**', r => r.fulfill({ json: PLANNED(true) }));
+    await page.goto('/today/');
+    await page.locator('#ahQ').fill('سوّ حملة لتقويم القدم للأطفال في الرياض');
+    await page.locator('#ahSend').click();
+    const chip = page.locator('.ah-m.bot [data-plan]');
+    await expect(chip).toHaveText('ابدأ حملة بهذا الطلب');
+    expect(seen).toEqual([]);   // nothing asked, nothing created, nothing spent
+    await chip.click();
+    await expect(page.locator('#ahCampBox #cmOk')).toBeVisible();
+    expect(seen).toEqual(['create']); expect(goal).toBe('سوّ حملة لتقويم القدم للأطفال في الرياض');
+    await page.locator('#ahQ').fill('وش وضع الحملة هالأسبوع؟');
+    await page.locator('#ahSend').click();
+    await expect.poll(() => seen.includes('ask')).toBe(true);
+  });
   test('a link ?tab=campaign&c=<id> opens that campaign\'s pack directly', async ({ page, context, request }) => {
     await addSession(context, await login(request, 'owner'));
     await page.route('**/api/campaigns/get**', r => r.fulfill({ json: PACK }));
@@ -134,13 +199,13 @@ test.describe('احلم', () => {
       await page.route('**/api/campaigns/agents', r => r.fulfill({ json: { active: true, agents: { content: 'running', social: 'failed' } } }));
       await page.goto('/today/' + (lang === 'en' ? '?lang=en' : ''));
       // A group's tab carries one dot for its agents (working if any works, else failed if any failed); inside the group each tab has its own
-      await expect(page.locator('a.navi[data-grp="produce"] .agent-dot')).toHaveAttribute('data-s', 'running');
-      await expect(page.locator('a.navi[data-grp="distribute"] .agent-dot')).toHaveAttribute('data-s', 'failed');
-      await expect(page.locator('a.navi[data-grp="produce"] .agent-dot')).toHaveText('');
-      await page.locator('a.navi[data-grp="produce"]').click();
-      await expect(page.locator('.gtabs a[data-k="content"] .agent-dot')).toHaveAttribute('data-s', 'running');
-      await expect(page.locator('.gtabs a[data-k="design"] .agent-dot')).toHaveAttribute('data-s', 'idle');
-      await expect(page.locator('.gtabs a[data-k="content"] .agent-dot')).toHaveAttribute('aria-label', lang === 'en' ? 'Working on a campaign task now' : 'يشتغل الحين على مهمة حملة');
+      await expect(page.locator('.nv-h[data-grp="produce"] .agent-dot')).toHaveAttribute('data-s', 'running');
+      await expect(page.locator('.nv-h[data-grp="distribute"] .agent-dot')).toHaveAttribute('data-s', 'failed');
+      await expect(page.locator('.nv-h[data-grp="produce"] .agent-dot')).toHaveText('');
+      await page.locator('.nv-h[data-grp="produce"]').click();
+      await expect(page.locator('#nv-produce a[data-k="content"] .agent-dot')).toHaveAttribute('data-s', 'running');
+      await expect(page.locator('#nv-produce a[data-k="design"] .agent-dot')).toHaveAttribute('data-s', 'idle');
+      await expect(page.locator('#nv-produce a[data-k="content"] .agent-dot')).toHaveAttribute('aria-label', lang === 'en' ? 'Working on a campaign task now' : 'يشتغل الحين على مهمة حملة');
     });
   }
   test('no dots when no campaign is active; and on a phone the page does not scroll sideways', async ({ page, context, request }) => {
@@ -151,7 +216,7 @@ test.describe('احلم', () => {
     await expect(page.locator('.agent-dot')).toHaveCount(0);
     await page.route('**/api/campaigns/agents', r => r.fulfill({ json: { active: true, agents: { design: 'running' } } }), { times: 1 });
     await page.reload();
-    await expect(page.locator('a.navi[data-grp="produce"] .agent-dot')).toHaveAttribute('data-s', 'running');
+    await expect(page.locator('.nv-h[data-grp="produce"] .agent-dot')).toHaveAttribute('data-s', 'running');
     expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
   });
   for (const lang of ['ar', 'en'] as const) {

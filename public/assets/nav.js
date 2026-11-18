@@ -1,6 +1,6 @@
 // نفس القائمة الجانبية حق لوحة القرارات، فوق اللوحات (/ و/creative): موقع واحد.
 // كل الأقسام تطلع للكل، واللي ما له صلاحية عليه يطلع مقفل. في الجوال: زر قائمة يفتح درج.
-import { sections, groupNav, stripHtml, wireStrip } from './sidebar.js';
+import { sections, groupNav, navHtml, syncNav, wireNav, boardActive } from './sidebar.js';
 import { agentDots } from './agentdots.js';
 import { ME_KEY, FRESH, readMe, slim } from './me-cache.js';
 const EN = (() => { try { return new URLSearchParams(location.search).get('lang') === 'en' || localStorage.getItem('well-ads-lang') === 'en'; } catch { return false; } })();
@@ -36,8 +36,7 @@ const fetchMe = () => fetch('/api/account/password', { credentials: 'same-origin
   .then(v => { try { if (v) localStorage.setItem(ME_KEY, JSON.stringify({ t: Date.now(), v: slim(v) })); } catch { /* storage blocked */ } return v; });
 
 // The frame (space, colours, burger) goes up before the user is known, so the page does not jump when it fills in
-const creative = /view=creative/.test(location.search) || location.pathname.startsWith('/creative');
-const here = creative ? 'creative' : 'ceo';
+const here = boardActive(location.pathname, location.search);
 const side = document.createElement('aside');
 side.className = 'wl-side'; side.setAttribute('aria-label', L('القائمة', 'Menu'));
 const burger = document.createElement('button');
@@ -56,6 +55,7 @@ side.inert = mobile.matches;
 const css = document.createElement('style');
 css.textContent = `
 body{padding-inline-start:256px}
+body:has(.wl-side) #tabs[data-mode=ads]{display:none}
 .brand .mark{display:none}
 .wl-side{position:fixed;inset-block:0;inset-inline-start:0;width:256px;z-index:60;overflow-y:auto;display:flex;flex-direction:column;gap:4px;padding:24px 16px;
   background:rgba(255,255,255,.62);-webkit-backdrop-filter:blur(12px);backdrop-filter:blur(12px);font:400 15px/1.4 "Thmanyah Sans",system-ui,sans-serif;color:#1D1069}
@@ -73,15 +73,20 @@ body{padding-inline-start:256px}
 .wl-i{width:18px;height:18px;stroke:currentColor;fill:none;stroke-width:1.75;stroke-linecap:round;stroke-linejoin:round;flex:none}
 .wl-grow{flex:1}
 .wl-items{display:flex;flex-direction:column;gap:2px}
-.gtabs{display:flex;gap:6px;overflow-x:auto;scrollbar-width:none;padding:14px 32px 0;max-width:100%;font:600 14px "Thmanyah Sans",system-ui,sans-serif}
-.gtabs::-webkit-scrollbar{display:none}
-.gtab{flex:none;display:inline-flex;align-items:center;gap:8px;height:36px;padding:0 16px;border-radius:999px;color:rgba(29,16,105,.62);text-decoration:none;white-space:nowrap}
-.gtab:hover{background:rgba(126,87,253,.08);color:#1D1069}
-.gtab:focus-visible{outline:2px solid #7E57FD;outline-offset:2px}
-.gtab[aria-current]{background:#7E57FD;color:#FFFFFF;box-shadow:0 6px 18px rgba(126,87,253,.28)}
-.gtab.soon{font-weight:500;opacity:.8}
-.gtab .tag{font:500 11px/1 "Thmanyah Sans",system-ui,sans-serif;padding:4px 8px;border-radius:999px;background:rgba(126,87,253,.12);color:#1D1069}
-.gtab .agent-dot{margin-inline-start:0}
+.wl-items{gap:2px}
+.nv-g{display:flex;flex-direction:column;gap:2px;position:relative}
+.nv-h{width:100%;border:0;background:none;font:inherit;cursor:pointer;text-align:start}
+.nv-c{width:16px;height:16px;stroke:currentColor;fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round;flex:none;margin-inline-start:auto;transition:transform .2s}
+.agent-dot+.nv-c{margin-inline-start:8px}
+.nv-g[data-open] .nv-c{transform:none}
+.nv-g:not([data-open]) .nv-c{transform:rotate(90deg)}
+html[lang=en] .nv-g:not([data-open]) .nv-c,[dir=ltr] .nv-g:not([data-open]) .nv-c{transform:rotate(-90deg)}
+.nv-h[data-cur]{color:#1D1069;font-weight:600}
+.nv-s{display:none;flex-direction:column;gap:2px;padding-inline-start:30px;position:relative}
+.nv-s::before{content:'';position:absolute;inset-block:4px;inset-inline-start:25px;width:1px;background:rgba(172,166,225,.45)}
+.nv-g[data-open] .nv-s{display:flex}
+.nv-i{height:38px;font-size:14px}
+.nv-i .tag{margin-inline-start:auto;font:500 11px/1 "Thmanyah Sans",system-ui,sans-serif;padding:4px 8px;border-radius:999px;background:rgba(126,87,253,.12);color:#1D1069}
 .wl-me{display:flex;align-items:center;gap:10px;padding:10px 8px 0;border-top:1px solid rgba(172,166,225,.35);margin-top:6px}
 .wl-me b{display:block;font-size:14px;font-weight:700;max-width:170px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.wl-me small{color:rgba(29,16,105,.62);font-size:12px}
 .wl-av{width:34px;height:34px;border-radius:50%;background:#1D1069;color:#FFFFFF;display:grid;place-items:center;font-size:13px;font-weight:700;flex:none}
@@ -97,7 +102,6 @@ body{padding-inline-start:256px}
   .wl-burger{display:grid;place-items:center;position:fixed;inset-block-start:14px;inset-inline-start:14px;z-index:58;width:44px;height:44px;border-radius:999px;border:0;
     background:rgba(255,255,255,.86);-webkit-backdrop-filter:blur(12px);backdrop-filter:blur(12px);color:#1D1069;box-shadow:0 6px 18px rgba(126,87,253,.18);cursor:pointer}
   .brand{padding-inline-start:52px}
-  .gtabs{padding-inline:16px;padding-block-start:68px}
 }`;
 document.head.appendChild(css);
 document.body.append(side, scrim, burger);
@@ -118,16 +122,16 @@ function draw(me) {
   const initials = (me.name || me.email || '·').trim().split(/\s+/).map(w => w[0]).join('').slice(0, 2).toUpperCase();
   const role = owner ? L('المالك', 'Owner') : (me.departments || []).length ? L('مدير قسم', 'Department manager') : L('عضو', 'Member');
   side.innerHTML = `<div class="wl-top"><a class="wl-mark" href="/today/">Well<i>.</i></a><button type="button" class="wl-x" aria-label="${L('إغلاق القائمة', 'Close menu')}">${I('x')}</button></div>
-    <div class="wl-items">${groupNav(sections(me, L), here).entries.map(g => `<a class="wl-navi" href="${g.href}" data-k="${esc('g:' + g.key)}" data-grp="${g.key}" data-ks="${esc(g.ks.join(','))}"${g.on ? ' aria-current="page"' : ''}><svg class="wl-i" viewBox="0 0 24 24" aria-hidden="true">${g.svg}</svg><span>${esc(g.label)}</span></a>`).join('')}</div>
+    <div class="wl-items" data-nv>${navHtml(groupNav(sections(me, L), here).entries, { item: 'wl-navi', icon: 'wl-i', L, esc, extra: h => (h === '/' || h.startsWith('/?') ? ' data-astro-reload' : '') })}</div>
     <div class="wl-grow"></div>
     <a class="wl-navi" href="/settings/">${I('settings')}<span>${L('الإعدادات', 'Settings')}</span></a>
     <form method="post" action="/api/auth/logout" class="wl-out"><button type="submit" class="wl-navi">${I('out')}<span>${L('خروج', 'Sign out')}</span></button></form>
     <div class="wl-me"><span class="wl-av">${esc(initials)}</span><span><b>${esc(me.name || me.email || '')}</b><small>${role}</small></span></div>`;
   if (!side.dataset.dots) { side.dataset.dots = '1'; side._dots = agentDots(side, L); }
-  // The group's tools as sub-tabs at the top of the page (same strip as the app pages; this page's own markup is not touched)
-  document.querySelector('[data-gtabs]')?.remove();
-  const strip = groupNav(sections(me, L), here).strip;
-  if (strip) { document.body.insertAdjacentHTML('afterbegin', stripHtml(strip, here, L, esc, h => (h === '/' || h.startsWith('/?') ? ' data-astro-reload' : ''))); wireStrip(document.querySelector('[data-gtabs]')); side._dots?.paint(); }
+  const nv = side.querySelector('[data-nv]'), gn = groupNav(sections(me, L), here);
+  wireNav(nv); syncNav(nv, here, gn.cur?.key); side._dots?.paint();
+  // The board's bare address was the summary of the old board; the performance overview page replaces it when this user has it
+  if (location.pathname === '/' && !location.search.replace(/[?&]lang=en/, '').replace(/^&/, '') && gn.cur?.items.some(it => it.key === 'overview')) location.replace('/overview/' + location.search);
   side.querySelector('.wl-out')?.addEventListener('submit', () => { try { localStorage.removeItem(ME_KEY); } catch { /* storage blocked */ } });
 }
 

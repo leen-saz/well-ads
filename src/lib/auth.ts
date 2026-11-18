@@ -5,7 +5,7 @@ import { companyOf, WELL_COMPANY } from './tenant';
 import { MODULES, LIVE, isModule } from '../modules/registry';
 
 export const SESSION = '__Host-well_session';
-export const SESSION_HOURS = 12;
+export const SESSION_HOURS = 24 * 14; // 14 days, renewed on use (the page gate renews in place every RECHECK_MS), so only 14 idle days log a user out
 export const RECHECK_MS = 10 * 60 * 1000; // pages re-read the user's permissions every 10 minutes
 // Core dashboards, then one per live module (src/modules/registry.ts)
 const CORE = { ceo: 'الحملات والمنصات', creative: 'المواد الإعلانية', control: 'لوحة القرارات', connectors: 'الربط' };

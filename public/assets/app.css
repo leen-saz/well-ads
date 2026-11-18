@@ -49,6 +49,7 @@ h1{font:700 30px/1.25 var(--f-display);margin:0}:lang(en) h1{letter-spacing:-.00
 h2{font:700 20px/1.35 var(--f-display);margin:0 0 12px}
 h3{font:700 15px/1.4 var(--f-ar);margin:0}
 svg.i{width:18px;height:18px;stroke:currentColor;fill:none;stroke-width:1.75;stroke-linecap:round;stroke-linejoin:round;flex:none}
+.skip-link{position:fixed;inset-block-start:8px;inset-inline-start:8px;z-index:200;padding:10px 16px;border-radius:10px;background:var(--accent);color:#fff;font-weight:600;transform:translateY(-200%);text-decoration:none}.skip-link:focus{transform:none}
 :focus-visible{outline:2px solid var(--accent);outline-offset:2px;box-shadow:0 0 0 4px var(--focus)}   /* the outline reads on any surface (3:1) and in forced colours; the glow alone did not */
 
 /* ---- الأزرار */
@@ -424,20 +425,7 @@ body{background:
 .pf-wrap .pf-cancel{background:transparent;border:1px solid var(--line);color:var(--text)}
 @media (max-width:640px){.pf-wrap .pf-pop{position:fixed;inset-inline:16px;top:auto;bottom:16px;width:auto;max-width:none;z-index:400}.pf-wrap .pf-fields label{min-width:100%}.pf-wrap .pf{display:flex}.pf-wrap .pf button{flex:1 1 auto;justify-content:center;padding:0 10px}}
 /* Sections of one tab (voice, content): a switch of links at the top of the page */
-.gtabs{display:flex;gap:6px;overflow-x:auto;scrollbar-width:none;padding:0 32px;margin:0;max-width:100%;min-width:0;-webkit-overflow-scrolling:touch}
-.gtabs::-webkit-scrollbar{display:none}
-.gtabs[data-gtabs-ph]{min-height:36px}
 .no-ceo>:not(.no-ceo-msg){display:none}
-/* The performance pages carry their own two-tab row (summary, creatives): the strip above now holds the same tabs, so it is hidden here (the page itself is unchanged) */
-.app:has([data-gtabs]) #content>nav.settings-tabs{display:none}
-.gtab{flex:none;display:inline-flex;align-items:center;gap:8px;height:36px;padding:0 16px;border-radius:999px;color:var(--muted);font:600 14px var(--f-ar);text-decoration:none;white-space:nowrap;transition:background var(--ease),color var(--ease)}
-.gtab:hover{background:var(--tint);color:var(--text)}
-.gtab:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
-.gtab[aria-current]{background:var(--accent);color:#FFFFFF;box-shadow:0 6px 18px color-mix(in srgb,var(--accent) 28%,transparent)}
-.gtab.soon{font-weight:500;opacity:.8}
-.gtab .tag{font:500 11px/1 var(--f-ar);padding:4px 8px;border-radius:999px;background:var(--tint-2);color:var(--text)}
-.gtab .agent-dot{margin-inline-start:0}
-@media (max-width:900px){.gtabs{padding:0 16px}}
 .sec-tabs{display:inline-flex;padding:4px;gap:2px;background:var(--tint);border-radius:999px;margin:0 0 14px;max-width:100%;flex-wrap:wrap}
 .sec-tabs[hidden]{display:none}
 .sec-tab{height:32px;padding:0 16px;border-radius:999px;color:var(--muted);font:600 13px var(--f-ar);display:inline-flex;align-items:center;text-decoration:none}
@@ -467,3 +455,24 @@ body{background:
 .sk{border-radius:16px;background:linear-gradient(90deg,var(--tint) 25%,rgba(255,255,255,.65) 50%,var(--tint) 75%);background-size:200% 100%;animation:sk 1.4s linear infinite}
 @keyframes sk{to{background-position:-200% 0}}
 @media (prefers-reduced-motion:reduce){.sk{animation:none}}
+
+/* Sidebar groups: one entry that expands and lists its tools under it (public/assets/sidebar.js). Folded to icons, the tools open as a flyout. */
+.nv-g{display:flex;flex-direction:column;gap:2px;position:relative}
+.nv-h{width:100%;border:0;background:none;font:inherit;font-size:15px;cursor:pointer;text-align:start}
+.navi:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+.nv-c{width:16px;height:16px;stroke:currentColor;fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round;flex:none;margin-inline-start:auto;transition:transform .2s}
+.agent-dot+.nv-c{margin-inline-start:8px}
+.nv-g[data-open] .nv-c{transform:none}
+.nv-g:not([data-open]) .nv-c{transform:rotate(90deg)}
+html[lang=en] .nv-g:not([data-open]) .nv-c,[dir=ltr] .nv-g:not([data-open]) .nv-c{transform:rotate(-90deg)}
+.nv-h[data-cur]{color:var(--text);font-weight:600}
+.nv-s{display:none;flex-direction:column;gap:2px;padding-inline-start:30px;position:relative}
+.nv-s::before{content:'';position:absolute;inset-block:4px;inset-inline-start:25px;width:1px;background:var(--line)}
+.nv-g[data-open] .nv-s{display:flex}
+.navi.nv-i{height:38px;font-size:14px}
+.app.mini .nv-c{display:none}
+.app.mini .nv-s{padding:0}.app.mini .nv-s::before{display:none}
+.app.mini .nv-g .nv-s{display:none}
+.app.mini .nv-g:hover .nv-s,.app.mini .nv-g:focus-within .nv-s{display:flex;position:absolute;inset-inline-start:calc(100% + 6px);inset-block-start:0;z-index:70;min-width:200px;padding:8px;gap:2px;background:var(--surface);border:1px solid var(--line);border-radius:16px;box-shadow:var(--shadow)}
+.app.mini .nv-s .navi{justify-content:flex-start;padding:0 14px}
+.app.mini .nv-s .navi>span{display:inline}
