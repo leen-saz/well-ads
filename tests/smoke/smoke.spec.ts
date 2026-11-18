@@ -185,8 +185,9 @@ test.describe('sidebar and language (browser)', () => {
   test('the sidebar draws only what the user may open, with no locked rows', async ({ page, context, request }) => {
     await addSession(context, await login(request, 'u-listening'));
     await page.goto('/listening/');
-    await expect(page.locator('a.navi[data-grp="measure"][aria-current="page"]')).toBeVisible();
-    // One accessible tool in the group: no strip. The Production tab opens the one tool this user may open (the library).
+    // One accessible tool in the group: a plain entry (no expander). The Production entry opens the one tool this user may open (the library).
+    await expect(page.locator('a.navi.nv-p[data-grp="measure"][aria-current="page"]')).toHaveAttribute('href', '/listening/');
+    await expect(page.locator('.nv-h')).toHaveCount(0);
     await expect(page.locator('[data-gtabs]')).toHaveCount(0);
     await expect(page.locator('a.navi[data-grp="produce"]')).toHaveAttribute('href', '/library/');
     await expect(page.locator('a.navi[data-grp="optimize"], a.navi[data-grp="distribute"]')).toHaveCount(0);
@@ -205,58 +206,91 @@ test.describe('sidebar and language (browser)', () => {
     await expect(page.locator('#tabsw .sec-tab[aria-current="page"]')).toBeVisible();
     await expect(page.locator('#tabsw .sec-tab')).toHaveCount(4);
     await expect(page.locator('a.navi[data-grp="produce"][aria-current="page"]')).toBeVisible();
-    await expect(page.locator('.gtabs a[data-k="voice"][aria-current="page"]')).toBeVisible();
+    await expect(page.locator('.nv-i[data-k="voice"][aria-current="page"]')).toBeVisible();
+    await expect(page.locator('[data-gtabs]')).toHaveCount(0);
   });
   test('the owner sees every live tab and the permissions page', async ({ page, context, request }) => {
     await addSession(context, await login(request, 'owner'));
     await page.goto('/today/');
     // Every live tool is a sub-tab of a group (sections, voiceover, transcribe, video, vision, copy, are tabs inside Voice, Design and Content)
-    await expect(page.locator('a.navi[data-ks]')).toHaveCount(6);
-    const ks = (await page.locator('a.navi[data-ks]').evaluateAll(els => els.map(e => (e as HTMLElement).dataset['ks']!.split(',')))).flat();
+    await expect(page.locator('[data-nv] [data-ks]')).toHaveCount(6);
+    const ks = (await page.locator('[data-nv] [data-ks]').evaluateAll(els => els.map(e => (e as HTMLElement).dataset['ks']!.split(',')))).flat();
     for (const k of LIVE.filter(k => !MODULES.find(m => m.key === k)?.into)) expect(ks, k).toContain(k);
     for (const k of LIVE.filter(k => MODULES.find(m => m.key === k)?.into)) expect(ks, k).not.toContain(k);
     expect(ks).toContain('admin');
   });
   for (const lang of ['ar', 'en'] as const) {
-    test(`${lang}: without analytics access the Measure strip offers no page that answers 403, and the summary explains instead of leaking the refusal`, async ({ page, context, request }) => {
+    test(`${lang}: without analytics access the Measure group offers no page that answers 403, and the summary explains instead of leaking the refusal`, async ({ page, context, request }) => {
       await addSession(context, await login(request, 'ovnoceo'));
-      await page.goto(`/overview/creative/?lang=${lang}`);
-      await expect(page.locator('[data-gtabs] a.gtab')).toHaveText(lang === 'en' ? ['Creatives', 'Social listening'] : ['المواد الإعلانية', 'الرصد']);
+      await page.goto(`/listening/?lang=${lang}`);
+      await expect(page.locator('#nv-measure .nv-i')).toHaveText(lang === 'en' ? ['Creatives', 'Social listening'] : ['المواد الإعلانية', 'الرصد']);
       await page.goto(`/overview/?lang=${lang}`);
       const msg = page.locator('.no-ceo-msg');
       await expect(msg).toBeVisible();
       await expect(msg).toContainText(lang === 'en' ? 'needs access to the analytics numbers' : 'يحتاج صلاحية أرقام التحليلات');
       await expect(page.locator('#content')).not.toContainText('ما عندك صلاحية على أرقام التحليلات');
     });
-    test(`${lang}: the owner's Measure tab holds the summary, the ads board, the creatives and listening`, async ({ page, context, request }) => {
+    test(`${lang}: the owner's Measure group lists overview, platforms and campaigns, departments, creatives and listening under it`, async ({ page, context, request }) => {
       await addSession(context, await login(request, 'owner'));
       await page.goto(`/overview/?lang=${lang}`);
-      await expect(page.locator('[data-gtabs] a.gtab')).toHaveText(lang === 'en' ? ['Performance summary', 'Ads board', 'Creatives', 'Social listening'] : ['ملخص الأداء', 'لوحة الإعلانات', 'المواد الإعلانية', 'الرصد']);
-      await expect(page.locator('a.navi[data-grp="measure"]')).toHaveAttribute('aria-current', 'page');
-      await expect(page.locator('a.navi')).toHaveCount(7);   // six groups and Settings: no second entry for these pages
+      await expect(page.locator('#nv-measure .nv-i')).toHaveText(lang === 'en' ? ['Overview', 'Platforms and campaigns', 'Departments', 'Creatives', 'Social listening'] : ['نظرة عامة', 'المنصات والحملات', 'الأقسام', 'المواد الإعلانية', 'الرصد']);
+      await expect(page.locator('.nv-h[data-grp="measure"]')).toHaveAttribute('aria-expanded', 'true');
+      await expect(page.locator('#nv-measure .nv-i[aria-current="page"]')).toHaveAttribute('href', '/overview/');
+      await expect(page.locator('[data-nv] > a.navi, [data-nv] .nv-g > .nv-h')).toHaveCount(6);   // six groups: no second entry for these pages
+      await expect(page.locator('[data-gtabs], .gtabs, nav.settings-tabs')).toHaveCount(0);   // no tab strip inside the page
     });
   }
-  test('the sidebar has one tab per group; a group opens its first tool and its tools show as sub-tabs above the page', async ({ page, context, request }) => {
+  test('a group expands and collapses (click and keys), remembers it on this device, and opens while one of its pages is open', async ({ page, context, request }) => {
     await addSession(context, await login(request, 'owner'));
     await page.goto('/today/');
-    await expect(page.locator('a.navi[data-grp]')).toHaveText(['الرئيسية', 'الإنتاج', 'النشر', 'القياس', 'القرارات', 'النظام']);
-    await expect(page.locator('.side-h')).toHaveCount(0);
-    await expect(page.locator('[data-gtabs]')).toHaveCount(0);   // Home has one tool: no strip
-    await page.locator('a.navi[data-grp="produce"]').click();
-    await expect(page.locator('[data-gtabs] a.gtab')).toHaveText(['نص', 'التصميم', 'صوت وفيديو', 'المكتبة']);
-    await expect(page.locator('a.navi[data-grp="produce"]')).toHaveAttribute('aria-current', 'page');
-    await expect(page.locator('[data-gtabs] a[aria-current="page"]')).toHaveCount(1);
-    // Arrow keys move between sub-tabs (right-to-left: the right arrow goes to the previous tab); Home and End jump
-    const tabs = page.locator('[data-gtabs] a.gtab');
-    await tabs.first().focus();
+    const head = (g: string) => page.locator(`.nv-h[data-grp="${g}"]`);
+    await expect(page.locator('a.nv-p[data-grp="home"]')).toHaveText('أحلم');
+    await expect(head('produce')).toHaveAttribute('aria-expanded', 'false');
+    await expect(page.locator('#nv-produce')).toBeHidden();
+    await head('produce').click();
+    await expect(head('produce')).toHaveAttribute('aria-expanded', 'true');
+    await expect(page.locator('#nv-produce .nv-i')).toHaveText(['نص', 'التصميم', 'صوت وفيديو', 'المكتبة']);
+    // remembered after a reload
+    await page.reload();
+    await expect(head('produce')).toHaveAttribute('aria-expanded', 'true');
+    // keys: Space/Enter toggle, arrows move (right-to-left: the left arrow opens, the right arrow closes)
+    await head('produce').focus();
+    await page.keyboard.press('ArrowRight');
+    await expect(head('produce')).toHaveAttribute('aria-expanded', 'false');
     await page.keyboard.press('ArrowLeft');
-    await expect(tabs.nth(1)).toBeFocused();
-    await page.keyboard.press('End');
-    await expect(tabs.last()).toBeFocused();
-    await tabs.nth(1).click();
-    await expect(page).toHaveURL(/\/design\//);
-    await expect(page.locator('a.navi[data-grp="produce"]')).toHaveAttribute('aria-current', 'page');
-    await expect(page.locator('[data-gtabs] a[data-k="design"]')).toHaveAttribute('aria-current', 'page');
+    await expect(head('produce')).toHaveAttribute('aria-expanded', 'true');
+    await page.keyboard.press('ArrowDown');
+    await expect(page.locator('#nv-produce .nv-i').first()).toBeFocused();
+    await page.keyboard.press('ArrowRight');
+    await expect(head('produce')).toBeFocused();
+    await page.keyboard.press('Space');
+    await expect(head('produce')).toHaveAttribute('aria-expanded', 'false');
+    // opening a page of a closed group opens the group and marks the page
+    await page.goto('/design/');
+    await expect(head('produce')).toHaveAttribute('aria-expanded', 'true');
+    await expect(page.locator('#nv-produce .nv-i[data-k="design"]')).toHaveAttribute('aria-current', 'page');
+    await expect(page.locator('[data-gtabs]')).toHaveCount(0);
+  });
+  test('English: the group header and its sub-items are English and open left to right', async ({ page, context, request }) => {
+    await addSession(context, await login(request, 'owner'));
+    await page.goto('/overview/?lang=en');
+    await expect(page.locator('.nv-h[data-grp="measure"] span')).toHaveText('Measure');
+    await page.keyboard.press('Tab');
+    await page.locator('.nv-h[data-grp="measure"]').focus();
+    await page.keyboard.press('ArrowLeft');
+    await expect(page.locator('.nv-h[data-grp="measure"]')).toHaveAttribute('aria-expanded', 'false');
+    await page.keyboard.press('ArrowRight');
+    await expect(page.locator('.nv-h[data-grp="measure"]')).toHaveAttribute('aria-expanded', 'true');
+  });
+  test('the board views open from the sidebar as views of the one board, and the old addresses land on them', async ({ page, context, request }) => {
+    const o = await login(request, 'owner');
+    await addSession(context, o);
+    const r = await request.get('/overview/creative/?lang=en', { headers: { cookie: o.header }, maxRedirects: 0 });
+    expect(r.headers()['location']).toBe(`${BASE}/?view=creative&lang=en`);
+    await page.goto('/overview/');
+    await page.locator('#nv-measure .nv-i[href="/?p=channels"]').click();
+    await expect(page).toHaveURL(/\/\?p=channels/);
+    // (the board page is a stub in the smoke setup: its sidebar and its hidden tab row are not exercised here)
   });
   test('the language switch flips the page to English, left to right, and back', async ({ page, context, request }) => {
     await addSession(context, await login(request, 'owner'));

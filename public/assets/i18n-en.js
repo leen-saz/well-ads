@@ -134,7 +134,7 @@ export const EN = {
   'آخر تحديث للأرقام قبل أكثر من يوم. الأرقام اللي تشوفها قد تكون قديمة، فلا تبني عليها قرار قبل ما تتحدّث.': 'The numbers were last updated more than a day ago. What you see may be out of date, so do not base a decision on it until it updates.',
   'آخر تحديث للأرقام قبل أكثر من ٣ أيام. الأرقام اللي تشوفها قد تكون قديمة، فلا تبني عليها قرار قبل ما تتحدّث.': 'The numbers were last updated more than 3 days ago. What you see may be out of date, so do not base a decision on it until it updates.',
   // التنقل والهيكل
-  'التحليلات': 'Analytics', 'ملخص الأداء': 'Performance summary', 'المواد الإعلانية بالتفصيل': 'Creatives in detail', 'الحملات والمنصات': 'Campaigns & platforms', 'ملخص اليوم': 'Today summary', 'احلم': 'Ahlam', 'الأداء': 'Performance', 'إنشاء المحتوى': 'Content creation', 'المراجعة والتنفيذ': 'Review & execution', 'إدارة النظام': 'System', 'السجل': 'History', 'الصلاحيات': 'Permissions', 'اليوم': 'Today', 'إغلاق القائمة': 'Close menu', 'المواد الإعلانية': 'Creatives', 'المادة الإعلانية': 'Creative', 'بموافقتي': 'With my approval', 'تنفيذ تلقائي': 'Auto-run', 'التنفيذ التلقائي': 'auto-run', 'لوحة القرارات': 'Decision board', 'الصلاحيات والدخول': 'Access & sign-in', 'السوشال': 'Social', 'صورة أو فيديو': 'Photo or video', 'أو حط رابط': 'Or paste a link', 'يرفع…': 'Uploading…', 'انرفع ✓': 'Uploaded ✓', 'الرحلات والرسائل': 'Journeys', 'المحتوى و SEO': 'Content & SEO', 'المدير': 'Manager', 'الموديولات': 'Modules', 'موديولات الشركة': 'Company modules', 'الإعدادات': 'Settings', 'أساسي': 'Core', 'أساسية لتشغيل النظام': 'Needed to run the system',
+  'التحليلات': 'Analytics', 'ملخص الأداء': 'Performance summary', 'المواد الإعلانية بالتفصيل': 'Creatives in detail', 'الحملات والمنصات': 'Campaigns & platforms', 'ملخص اليوم': 'Today summary', 'أحلم': 'Ahlam', 'الأداء': 'Performance', 'إنشاء المحتوى': 'Content creation', 'المراجعة والتنفيذ': 'Review & execution', 'إدارة النظام': 'System', 'السجل': 'History', 'الصلاحيات': 'Permissions', 'اليوم': 'Today', 'إغلاق القائمة': 'Close menu', 'المواد الإعلانية': 'Creatives', 'المادة الإعلانية': 'Creative', 'بموافقتي': 'With my approval', 'تنفيذ تلقائي': 'Auto-run', 'التنفيذ التلقائي': 'auto-run', 'لوحة القرارات': 'Decision board', 'الصلاحيات والدخول': 'Access & sign-in', 'السوشال': 'Social', 'صورة أو فيديو': 'Photo or video', 'أو حط رابط': 'Or paste a link', 'يرفع…': 'Uploading…', 'انرفع ✓': 'Uploaded ✓', 'الرحلات والرسائل': 'Journeys', 'المحتوى و SEO': 'Content & SEO', 'المدير': 'Manager', 'الموديولات': 'Modules', 'موديولات الشركة': 'Company modules', 'الإعدادات': 'Settings', 'أساسي': 'Core', 'أساسية لتشغيل النظام': 'Needed to run the system',
   'حسابي': 'My account', 'خروج': 'Sign out', 'المالكة': 'Owner', 'عضو': 'Member', 'القائمة': 'Menu', 'التنقل': 'Navigation',
   'عربي': 'عربي', 'English': 'English', 'اللغة': 'Language',
   // الدخول
@@ -969,10 +969,10 @@ export const EN = {
   "السجل ما ينعدّل ولا ينحذف. كل الفترة: آخر 200 فعل.": "The log is never edited or deleted. All time: the last 200 actions.",
   "السعر بالريال": "Price in riyals",
   "السقف الشهري (ريال)": "Monthly cap (SAR)",
-  "السقف الشهري لتاب احلم": "Monthly cap for the Ahlam tab",
-  "السقف الشهري لتاب احلم: حملة جديدة": "Monthly cap for the Ahlam: new campaign tab",
-  "احلم: حملة جديدة": "Ahlam: new campaign",
-  "احلم (الصفحة الرئيسية)": "Ahlam (home page)",
+  "السقف الشهري لتاب أحلم": "Monthly cap for the Ahlam tab",
+  "السقف الشهري لتاب أحلم: حملة جديدة": "Monthly cap for the Ahlam: new campaign tab",
+  "أحلم: حملة جديدة": "Ahlam: new campaign",
+  "أحلم (الصفحة الرئيسية)": "Ahlam (home page)",
   "السقف الشهري لتاب الامتثال": "Monthly cap for the Compliance tab",
   "السقف الشهري لتاب التتبع": "Monthly cap for the Tracking tab",
   "السقف الشهري لتاب الميديا باير": "Monthly cap for the Media buyer tab",

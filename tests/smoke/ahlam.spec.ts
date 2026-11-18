@@ -1,14 +1,14 @@
-// «احلم»: the home page (/today/). Arabic and English, the chat is there, the old daily summary is one tab away, and a question
+// «أحلم»: the home page (/today/). Arabic and English, the chat is there, the old daily summary is one tab away, and a question
 // with no model connected gets a plain Arabic sentence (the smoke Worker has no OpenRouter key). Synthetic data only.
 import { expect, test } from '@playwright/test';
 import { addSession, login } from './helpers';
 
-test.describe('احلم', () => {
-  test('Arabic: the first sidebar item is احلم, the chat opens, the daily summary is on the second tab', async ({ page, context, request }) => {
+test.describe('أحلم', () => {
+  test('Arabic: the first sidebar item is أحلم, the chat opens, the daily summary is on the second tab', async ({ page, context, request }) => {
     await addSession(context, await login(request, 'owner'));
     await page.goto('/today/');
-    await expect(page).toHaveTitle(/احلم/);
-    await expect(page.locator('a.navi[data-grp="home"]')).toContainText('الرئيسية');
+    await expect(page).toHaveTitle(/أحلم/);
+    await expect(page.locator('a.navi[data-grp="home"]')).toContainText('أحلم');
     await expect(page.locator('#ahForm')).toBeVisible();
     await expect(page.locator('#paneSum')).toBeHidden();
     await page.locator('#tdTabs button[data-k="summary"]').click();
@@ -20,7 +20,7 @@ test.describe('احلم', () => {
     await addSession(context, await login(request, 'owner'));
     await page.goto('/today/?lang=en');
     await expect(page.locator('html')).toHaveAttribute('dir', 'ltr');
-    await expect(page.locator('a.navi[data-grp="home"]')).toContainText('Home');
+    await expect(page.locator('a.navi[data-grp="home"]')).toContainText('Ahlam');
     await expect(page.locator('#ahQ')).toHaveAttribute('placeholder', 'Type your question…');
     await expect(page.locator('#tdTabs button[data-k="summary"]')).toHaveText('Today summary');
   });
@@ -134,13 +134,13 @@ test.describe('احلم', () => {
       await page.route('**/api/campaigns/agents', r => r.fulfill({ json: { active: true, agents: { content: 'running', social: 'failed' } } }));
       await page.goto('/today/' + (lang === 'en' ? '?lang=en' : ''));
       // A group's tab carries one dot for its agents (working if any works, else failed if any failed); inside the group each tab has its own
-      await expect(page.locator('a.navi[data-grp="produce"] .agent-dot')).toHaveAttribute('data-s', 'running');
-      await expect(page.locator('a.navi[data-grp="distribute"] .agent-dot')).toHaveAttribute('data-s', 'failed');
-      await expect(page.locator('a.navi[data-grp="produce"] .agent-dot')).toHaveText('');
-      await page.locator('a.navi[data-grp="produce"]').click();
-      await expect(page.locator('.gtabs a[data-k="content"] .agent-dot')).toHaveAttribute('data-s', 'running');
-      await expect(page.locator('.gtabs a[data-k="design"] .agent-dot')).toHaveAttribute('data-s', 'idle');
-      await expect(page.locator('.gtabs a[data-k="content"] .agent-dot')).toHaveAttribute('aria-label', lang === 'en' ? 'Working on a campaign task now' : 'يشتغل الحين على مهمة حملة');
+      await expect(page.locator('.nv-h[data-grp="produce"] .agent-dot')).toHaveAttribute('data-s', 'running');
+      await expect(page.locator('.nv-h[data-grp="distribute"] .agent-dot')).toHaveAttribute('data-s', 'failed');
+      await expect(page.locator('.nv-h[data-grp="produce"] .agent-dot')).toHaveText('');
+      await page.locator('.nv-h[data-grp="produce"]').click();
+      await expect(page.locator('#nv-produce a[data-k="content"] .agent-dot')).toHaveAttribute('data-s', 'running');
+      await expect(page.locator('#nv-produce a[data-k="design"] .agent-dot')).toHaveAttribute('data-s', 'idle');
+      await expect(page.locator('#nv-produce a[data-k="content"] .agent-dot')).toHaveAttribute('aria-label', lang === 'en' ? 'Working on a campaign task now' : 'يشتغل الحين على مهمة حملة');
     });
   }
   test('no dots when no campaign is active; and on a phone the page does not scroll sideways', async ({ page, context, request }) => {
@@ -151,7 +151,7 @@ test.describe('احلم', () => {
     await expect(page.locator('.agent-dot')).toHaveCount(0);
     await page.route('**/api/campaigns/agents', r => r.fulfill({ json: { active: true, agents: { design: 'running' } } }), { times: 1 });
     await page.reload();
-    await expect(page.locator('a.navi[data-grp="produce"] .agent-dot')).toHaveAttribute('data-s', 'running');
+    await expect(page.locator('.nv-h[data-grp="produce"] .agent-dot')).toHaveAttribute('data-s', 'running');
     expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
   });
   for (const lang of ['ar', 'en'] as const) {

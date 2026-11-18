@@ -9,7 +9,7 @@ import { TECH_WORDS } from '../shared/tech-words';
 import { settle } from './settle';
 
 const PAGES = [
-  '/', '/today/', '/control/', '/control/new/', '/account/', '/library/', '/overview/', '/overview/creative/', '/listening/',
+  '/', '/today/', '/control/', '/control/new/', '/account/', '/library/', '/overview/', '/listening/',
   '/design/', '/video/', '/content/?tab=copy', '/voice/', '/social/', '/content/', '/journeys/', '/compliance/', '/maestro/', '/knowledge/', '/debugger/', '/soon/',
 ];
 
