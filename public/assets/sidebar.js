@@ -1,5 +1,5 @@
 // أقسام القائمة الجانبية، نفسها في common.js (صفحات Astro) و nav.js (لوحات التحليلات والمواد الإعلانية).
-// ستة أقسام على ترتيب العمل: الرئيسية ← الإنتاج ← النشر ← القياس ← القرارات ← النظام. كل قسم تاب واحد في القائمة، وأدواته تاب فرعي فوق الصفحة (groupNav). الموديولات تجي من السيرفر (me.modules ← src/modules/registry.ts)
+// ستة أقسام على ترتيب العمل: الرئيسية ← الإنتاج ← النشر ← القياس ← القرارات ← النظام. القسم اللي فيه أدوات كثيرة يتمدد في القائمة وتحته أدواته (groupNav، navHtml)، والقسم اللي فيه أداة وحدة سطر عادي. الموديولات تجي من السيرفر (me.modules ← src/modules/registry.ts)
 // وكل موديول يحدد قسمه بـ group. HUBS (src/lib/gate.ts) تبقى للروابط القديمة /performance و/create و/review و/system.
 // state: ok = يفتح، noaccess = ما عندك صلاحية، locked = مقفل لشركتك، soon = قريباً.
 const SUN = '<circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/>';
@@ -21,9 +21,8 @@ const HOST_NAME = { content: ['نص', 'Text'], voice: ['صوت وفيديو', 'V
 // An entry is the open page when its key is the page, or one of the other keys it stands for (the folded «أقسام قادمة» row)
 export const isHere = (it, active) => it.key === active || (it.also || []).includes(active);
 
-// One sidebar entry per group, and the group's tools as a strip of sub-tabs above the page (the shells draw both from this).
-// A group opens its first tool the user may open. The group is lit while any of its tools is the open page.
-// A group with one tool has no strip: its entry opens that tool directly.
+// One sidebar entry per group. A group with several tools the user may open is an accordion: the entry expands and lists its tools
+// under it (sub-items). A group with one tool is a plain entry that opens it. Both shells (common.js, nav.js) draw from here.
 const GI = {
   home: '<path d="m3 11 9-8 9 8"/><path d="M5 10v10h14V10"/><path d="M10 20v-6h4v6"/>',
   produce: '<path d="M12 3l1.9 5.8L20 11l-6.1 2.2L12 19l-1.9-5.8L4 11l6.1-2.2Z"/><path d="M19 16v4M17 18h4"/>',
@@ -37,28 +36,74 @@ export function groupNav(secs, active) {
   const first = s => (s.items.find(it => it.state === 'ok') || s.items[0]);
   return {
     cur,
-    entries: secs.map(s => ({ key: s.key, label: s.label, svg: GI[s.key] || GI.system, href: first(s).href, on: s === cur, ks: s.items.map(it => it.key) })),
-    strip: cur && cur.items.length > 1 ? cur : null,
+    entries: secs.map(s => ({
+      key: s.key, label: s.label, svg: GI[s.key] || GI.system, href: first(s).href, on: s === cur, multi: s.items.length > 1, ks: s.items.map(it => it.key),
+      items: s.items.map(it => ({ key: it.key, text: it.text, href: it.href, soon: it.state === 'soon', on: isHere(it, active), also: it.also || [] })),
+    })),
   };
 }
-// The sub-tab strip: links (each tab is its own page), the open one marked aria-current. `extra(href)` adds shell-specific attributes.
-export function stripHtml(sec, active, L, esc, extra = () => '') {
-  return `<nav class="gtabs" aria-label="${esc(sec.label)}" data-gtabs>${sec.items.map(it =>
-    `<a class="gtab${it.state === 'soon' ? ' soon' : ''}" href="${it.href}" data-k="${esc(it.key)}"${extra(it.href)}${isHere(it, active) ? ' aria-current="page"' : ''}><span>${esc(it.text)}</span>${it.state === 'soon' ? `<small class="tag">${L('قريباً', 'Soon')}</small>` : ''}</a>`).join('')}</nav>`;
+
+// Which sidebar item the board (/, built by the pipeline) is showing: its view is in the address (?p=channels, ?p=depts, ?view=creative)
+export function boardActive(pathname, search) {
+  const q = new URLSearchParams(search), p = q.get('p');
+  if (q.get('view') === 'creative' || p === 'creative' || /^\/(creative|c)\/?$/.test(pathname)) return 'creative';
+  if (p === 'channels') return 'board:channels';
+  if (p === 'depts' || p === 'dept') return 'board:depts';
+  return 'ceo';
 }
-// Arrow keys move between the tabs (Home/End jump); in right-to-left the arrows follow the reading direction. The open tab scrolls into view.
-export function wireStrip(nav) {
-  if (!nav) return;
-  const tabs = () => [...nav.querySelectorAll('a.gtab')];
-  nav.addEventListener('keydown', e => {
-    const rtl = getComputedStyle(nav).direction === 'rtl', list = tabs(), i = list.indexOf(document.activeElement);
-    if (i < 0) return;
-    const step = e.key === 'ArrowRight' ? (rtl ? -1 : 1) : e.key === 'ArrowLeft' ? (rtl ? 1 : -1) : 0;
-    const to = e.key === 'Home' ? 0 : e.key === 'End' ? list.length - 1 : step ? (i + step + list.length) % list.length : -1;
+
+// ---- the accordion: markup, open/closed memory, keys
+const OPEN_KEY = 'wl-nav-open';
+const readOpen = () => { try { const v = JSON.parse(localStorage.getItem(OPEN_KEY) || '{}'); return v && typeof v === 'object' ? v : {}; } catch { return {}; } };
+const saveOpen = m => { try { localStorage.setItem(OPEN_KEY, JSON.stringify(m)); } catch { /* storage blocked */ } };
+const CHEV = '<svg class="nv-c" viewBox="0 0 24 24" aria-hidden="true"><path d="m6 9 6 6 6-6"/></svg>';
+// o = { item: 'navi' | 'wl-navi', icon: 'i' | 'wl-i', L, esc, extra(href) }. Every entry has data-grp; a plain entry opens its one tool.
+export function navHtml(entries, o) {
+  const open = readOpen(), { item, icon, L, esc } = o, ex = o.extra || (() => '');
+  const ico = g => `<svg class="${icon}" viewBox="0 0 24 24" aria-hidden="true">${g.svg}</svg>`;
+  return entries.map(g => {
+    if (!g.multi) return `<a class="${item} nv-p" href="${g.href}" data-k="${esc('g:' + g.key)}" data-grp="${g.key}" data-ks="${esc(g.ks.join(','))}"${ex(g.href)}${g.on ? ' aria-current="page"' : ''}>${ico(g)}<span>${esc(g.label)}</span></a>`;
+    const isOpen = open[g.key] || g.on;
+    return `<div class="nv-g" data-g="${g.key}"${isOpen ? ' data-open' : ''}>
+      <button type="button" class="${item} nv-h" data-k="${esc('g:' + g.key)}" data-grp="${g.key}" data-ks="${esc(g.ks.join(','))}" aria-expanded="${isOpen ? 'true' : 'false'}" aria-controls="nv-${g.key}"${g.on ? ' data-cur' : ''}>${ico(g)}<span>${esc(g.label)}</span>${CHEV}</button>
+      <div class="nv-s" id="nv-${g.key}" role="group" aria-label="${esc(g.label)}">${g.items.map(it =>
+        `<a class="${item} nv-i" href="${it.href}" data-k="${esc(it.key)}" data-also="${esc(it.also.join(','))}" data-grp="${g.key}"${ex(it.href)}${it.on ? ' aria-current="page"' : ''}><span>${esc(it.text)}</span>${it.soon ? `<small class="tag">${L('قريباً', 'Soon')}</small>` : ''}</a>`).join('')}</div>
+    </div>`;
+  }).join('');
+}
+const setG = (g, on) => { g.toggleAttribute('data-open', on); g.querySelector('.nv-h')?.setAttribute('aria-expanded', String(on)); };
+// After navigation (or any redraw): mark the open page and its group; open the group that holds the open page.
+export function syncNav(root, active, curKey) {
+  if (!root) return;
+  root.querySelectorAll('.nv-i').forEach(a => { const on = a.dataset.k === active || (a.dataset.also || '').split(',').includes(active); if (on) a.setAttribute('aria-current', 'page'); else a.removeAttribute('aria-current'); });
+  root.querySelectorAll('.nv-p').forEach(a => { if (a.dataset.grp === curKey) a.setAttribute('aria-current', 'page'); else a.removeAttribute('aria-current'); });
+  root.querySelectorAll('.nv-h').forEach(h => h.toggleAttribute('data-cur', h.dataset.grp === curKey));
+  if (curKey && root.dataset.curg !== curKey) { const m = readOpen(); if (!m[curKey]) { m[curKey] = true; saveOpen(m); } }
+  root.dataset.curg = curKey || '';
+  const m = readOpen();
+  root.querySelectorAll('.nv-g').forEach(g => setG(g, !!m[g.dataset.g]));
+}
+// Click toggles a group (remembered on this device). Arrow keys: up/down move through the visible entries, the key that points
+// toward the sub-items opens a group (and the opposite one closes it, or moves from a sub-item back to its group); Home/End jump.
+export function wireNav(root) {
+  if (!root || root._nv) return;
+  root._nv = true;
+  const toggle = (g, on) => { setG(g, on); const m = readOpen(); m[g.dataset.g] = on; saveOpen(m); };
+  root.addEventListener('click', e => { const h = e.target.closest('.nv-h'); if (h && root.contains(h)) toggle(h.parentElement, !h.parentElement.hasAttribute('data-open')); });
+  root.addEventListener('keydown', e => {
+    const list = [...root.querySelectorAll('.nv-h, .nv-p, .nv-i')].filter(x => x.getClientRects().length), i = list.indexOf(document.activeElement);
+    if (i < 0 || e.altKey || e.ctrlKey || e.metaKey) return;
+    const rtl = getComputedStyle(root).direction === 'rtl', fwd = rtl ? 'ArrowLeft' : 'ArrowRight', back = rtl ? 'ArrowRight' : 'ArrowLeft', cur = list[i];
+    let to = -1;
+    if (e.key === 'ArrowDown') to = (i + 1) % list.length;
+    else if (e.key === 'ArrowUp') to = (i - 1 + list.length) % list.length;
+    else if (e.key === 'Home') to = 0;
+    else if (e.key === 'End') to = list.length - 1;
+    else if (e.key === fwd && cur.matches('.nv-h')) { e.preventDefault(); const g = cur.parentElement; if (!g.hasAttribute('data-open')) toggle(g, true); else cur.parentElement.querySelector('.nv-i')?.focus(); return; }
+    else if (e.key === back && cur.matches('.nv-h')) { e.preventDefault(); toggle(cur.parentElement, false); return; }
+    else if (e.key === back && cur.matches('.nv-i')) { e.preventDefault(); cur.closest('.nv-g')?.querySelector('.nv-h')?.focus(); return; }
     if (to >= 0) { e.preventDefault(); list[to].focus(); }
   });
-  const cur = nav.querySelector('[aria-current]');
-  cur?.scrollIntoView?.({ block: 'nearest', inline: 'center' });
 }
 
 export function sections(me, L) {
@@ -77,21 +122,25 @@ export function sections(me, L) {
     return e.state === 'noaccess' && c ? { ...named, href: `/${m.key}/?tab=${c.key}`, state: 'ok' } : named;
   };
   const mods = (g, keep = () => true) => (me.modules || []).filter(m => m.group === g && !m.into && keep(m)).flatMap(m => [host(m), ...sub(m)]);
-  // Measure is one tab with four pages: the performance summary, the ads board, the creatives, listening. The summary and the creatives
-  // exist twice (the Overview module's pages and the dashboard's): the Overview pages are used when Overview is on for this company and
-  // this user may open it, else the dashboard's. Each page shows only when this user can open it (summary: overview + ceo, board: ceo,
-  // creatives: creative), so the strip never offers a tab that answers 403. The permission rules themselves are unchanged.
+  // Measure: one tab, five pages, all reached from the sidebar only: overview, platforms and campaigns, departments, creatives, listening.
+  // Overview is the performance summary (/overview/) when that module is on for this company and this user may use it (it needs overview AND
+  // ceo, and its numbers are for all departments, so a department manager gets the board's overview instead); else the board's own first view.
+  // Platforms, departments and creatives are views of the board (/): ?p=channels, ?p=depts, ?view=creative. The board's own tab row is hidden.
+  // Each page shows only when this user can open it (board: ceo, creatives: creative, listening: listening), so the sidebar never offers a 403.
+  // The permission rules themselves are unchanged.
   const ov = (me.modules || []).find(m => m.key === 'overview' && m.status === 'live' && m.ok && !m.locked);
+  const ovOk = !!ov && has('ceo') && !(me.role !== 'owner' && (me.departments || []).length);
   const items = {
     home: [core('/today/', 'احلم', 'Ahlam', SUN, 'today', true), ...mods('home')],
     // نص، تصميم، صوت وفيديو (كل واحد يحمل أقسامه)، ثم المكتبة: كل ما تحفظه من أي تاب
     produce: [...mods('produce'), core('/library/', 'المكتبة', 'Library', FOLDER, 'library', true)],
     distribute: mods('distribute'),
-    // ملخص الأداء، لوحة الإعلانات (الحملات والمنصات والعضوي)، المواد الإعلانية، الرصد
+    // نظرة عامة، المنصات والحملات، الأقسام، المواد الإعلانية، الرصد
     measure: [
-      ov ? core('/overview/', 'ملخص الأداء', 'Performance summary', 'chart', 'overview', has('ceo')) : core('/', 'ملخص الأداء', 'Performance summary', 'chart', 'ceo'),
-      ...(ov ? [core('/', 'لوحة الإعلانات', 'Ads board', 'chart', 'ceo')] : []),
-      { ...(ov ? core('/overview/creative/', 'المواد الإعلانية', 'Creatives', 'image', 'overview:creative', has('creative')) : core('/?view=creative', 'المواد الإعلانية', 'Creatives', 'image', 'creative')), also: ['creative', 'overview:creative'] },
+      { ...(ovOk ? core('/overview/', 'نظرة عامة', 'Overview', 'chart', 'overview') : core('/', 'نظرة عامة', 'Overview', 'chart', 'ceo')), also: ['ceo'] },
+      core('/?p=channels', 'المنصات والحملات', 'Platforms and campaigns', 'chart', 'board:channels', has('ceo')),
+      core('/?p=depts', 'الأقسام', 'Departments', 'users', 'board:depts', has('ceo')),
+      { ...core('/?view=creative', 'المواد الإعلانية', 'Creatives', 'image', 'creative'), also: ['overview:creative'] },
       ...mods('measure', m => m.key !== 'overview')],
     optimize: [core('/control/', 'لوحة القرارات', 'Decision board', 'gavel', 'control'), ...mods('optimize')],
     // المعرفة، الامتثال، الربط، السجل، المستخدمون (للمالك)
@@ -111,7 +160,3 @@ export function sections(me, L) {
   return GROUPS.map(([k, ar, en]) => ({ key: k, label: L(ar, en), items: items[k] })).filter(s => s.items.length);
 }
 export const TIP = { noaccess: ['ما عندك صلاحية', 'No access'], locked: ['مقفل لشركتك', 'Locked for your company'] };
-
-// Whether the page being opened will probably have a strip (every page of a group with several tools): the shell holds its space
-// before the profile arrives, so the page does not jump when the strip appears. Today, settings and the coming-soon pages have none.
-export const stripLikely = active => !(['', 'today', 'settings'].includes(active) || String(active).startsWith('soon:'));
