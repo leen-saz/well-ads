@@ -148,6 +148,7 @@ export const EN = {
   'هذا الرابط انتهى.': 'This link has expired.', 'هذي الصفحة تنفتح من رابط الإيميل بس.': 'This page opens from the email link only.',
   'إذا وصلك أكثر من إيميل، افتح آخر واحد بس.': 'If you got more than one email, open only the newest one.', 'الدخول': 'Sign in', 'إذا وصلك أكثر من إيميل، افتح': 'If you got more than one email, open only the', 'آخر واحد': 'newest one', 'بس. أو': '. Or', 'اطلب رابط جديد': 'request a new link',
   'الرابط ناقص. اطلب رابط جديد.': 'The link is incomplete. Request a new one.', 'الرابط انتهى أو استُخدم. اطلب رابط جديد.': 'The link expired or was used. Request a new one.',
+  'الرابط انتهى أو انستخدم. اطلب رابط جديد.': 'The link expired or was already used. Request a new one.',
   // الحساب
   'تغيير الباسوورد': 'Change password', 'الباسوورد الحالي': 'Current password', 'تغيّر الباسوورد.': 'Password changed.',
   'الباسوورد الحالي غلط': 'Current password is wrong', 'ما تغيّر الباسوورد، جرّب مرة ثانية': 'Password not changed, try again',

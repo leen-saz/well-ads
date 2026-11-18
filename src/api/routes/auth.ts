@@ -73,27 +73,48 @@ export const forgot = { POST: handle(async (request, e) => {
   if (email) {
     const to = new URL('/reset/', request.url).toString();
     // Leen's first time: no account yet, so she gets an invite email to set her password
-    const invited = email === cfg.owner
-      ? (await sb(cfg, `/auth/v1/invite?redirect_to=${encodeURIComponent(to)}`, { method: 'POST', admin: true, body: { email, data: { name: 'Leen' } } })).ok
-      : false;
-    if (!invited) await sb(cfg, `/auth/v1/recover?redirect_to=${encodeURIComponent(to)}`, { method: 'POST', body: { email } });
+    let sent = email === cfg.owner
+      ? await sb(cfg, `/auth/v1/invite?redirect_to=${encodeURIComponent(to)}`, { method: 'POST', admin: true, body: { email, data: { name: 'Leen' } } })
+      : null;
+    if (!sent || !sent.ok) sent = await sb(cfg, `/auth/v1/recover?redirect_to=${encodeURIComponent(to)}`, { method: 'POST', body: { email } });
+    if (!sent.ok) {
+      // Visitor still gets the generic 200. The owner sees why no email arrived (for example over_email_send_rate_limit). No address, no token.
+      const d = (sent.data && typeof sent.data === 'object' ? sent.data : {}) as Record<string, unknown>;
+      const code = String(d.error_code ?? d.code ?? '').slice(0, 60);
+      console.warn('password_reset_email_failed', JSON.stringify({ status: sent.status, code }));
+      await audit(cfg, null, 'password_reset_email_failed', { target: { status: sent.status, code } });
+    }
     await audit(cfg, { email: auditEmail(email) ?? undefined }, 'password_reset_requested');
   }
   return json(200, { ok: true });
 }) };
 
-// New password from the email link (reset or invite). The token comes from the link itself.
+// New password from the email link (reset or invite). Two shapes:
+//  - { token_hash, type, password }: the link in the email template carries a token_hash; it is spent here, on submit,
+//    so a mail scanner that only opens the link cannot use it up.
+//  - { access_token, password }: links sent before the template change (token in the URL hash).
+const EXPIRED = 'الرابط انتهى أو انستخدم. اطلب رابط جديد.';
 export const reset = { POST: handle(async (request, e) => {
   if (!sameOrigin(request)) return json(403, { error: 'طلب مرفوض' });
   const cfg = env(e);
   const body = await readJson(request);
-  const token = String(body.access_token || '');
   const password = String(body.password || '');
+  let token = String(body.access_token || '');
+  const tokenHash = String(body.token_hash || '');
+  if (tokenHash) {
+    if (body.type !== 'recovery' && body.type !== 'invite') return json(400, { error: 'الرابط ناقص. اطلب رابط جديد.' });
+    if (tokenHash.length > 200) return json(400, { error: EXPIRED });
+    const bad = passwordError(password);
+    if (bad) return json(400, { error: bad });
+    const v = await sb<{ access_token?: string }>(cfg, '/auth/v1/verify', { method: 'POST', body: { type: body.type, token_hash: tokenHash } });
+    if (!v.ok || !v.data || !v.data.access_token) return json(400, { error: EXPIRED });
+    token = v.data.access_token;
+  }
   if (!token) return json(400, { error: 'الرابط ناقص. اطلب رابط جديد.' });
   const bad = passwordError(password);
   if (bad) return json(400, { error: bad });
   const r = await sb<{ id?: string; email?: string }>(cfg, '/auth/v1/user', { method: 'PUT', token, body: { password } });
-  if (!r.ok) return json(400, { error: 'الرابط انتهى أو استُخدم. اطلب رابط جديد.' });
+  if (!r.ok) return json(400, { error: EXPIRED });
   await audit(cfg, { id: r.data?.id, email: r.data?.email }, 'password_set');
   return json(200, { ok: true });
 }) };

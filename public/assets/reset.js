@@ -3,11 +3,16 @@ import { langSwitch } from './i18n.js';
 document.getElementById('lang').innerHTML = langSwitch();
 
 // رابط الإيميل يحط التوكن بعد # في العنوان، ونشيله من العنوان فوراً
+// الرابط الجديد: ?token_hash=…&type=… في الاستعلام. ما نستخدمه عند فتح الصفحة، بس عند الضغط على «احفظ»،
+// عشان ماسحات الإيميل اللي تفتح الرابط بس ما تستهلكه.
 const h = new URLSearchParams(location.hash.slice(1));
+const q = new URLSearchParams(location.search);
+const tokenHash = q.get('token_hash');
+const linkType = q.get('type');
 const token = h.get('access_token');
 history.replaceState(null, '', location.pathname);
 // بدون توكن: الرابط قديم (انرسل بعده إيميل أحدث) أو انستخدم. نقفل النموذج ونوضح وش تسوي.
-if (!token) {
+if (!token && !(tokenHash && (linkType === 'recovery' || linkType === 'invite'))) {
   const expired = h.get('error_code') === 'otp_expired' || /expired|invalid/i.test(h.get('error_description') || '');
   $('#f').querySelectorAll('input,button').forEach(x => { x.disabled = true; });
   $('#msg').className = 'msg err';
@@ -18,7 +23,7 @@ $('#f').addEventListener('submit', async e => {
   if ($('#p1').value !== $('#p2').value) { say($('#msg'), 'الباسووردين مو نفس بعض'); return; }
   const btn = e.submitter; btn.disabled = true;
   try {
-    await api('/api/auth/reset', { method: 'POST', body: { access_token: token, password: $('#p1').value } });
+    await api('/api/auth/reset', { method: 'POST', body: token ? { access_token: token, password: $('#p1').value } : { token_hash: tokenHash, type: linkType, password: $('#p1').value } });
     say($('#msg'), 'انحفظ. ادخل الحين بالباسوورد الجديد.', true);
     setTimeout(() => { location.href = '/login/'; }, 1500);
   } catch (err) { say($('#msg'), err.message); btn.disabled = false; }
