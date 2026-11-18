@@ -46,7 +46,7 @@ describe('auth', () => {
     expect(await A.verify(t, cfg.secret)).toBeTruthy();
     expect(await A.verify(t.slice(0, -2) + 'aa', cfg.secret)).toBeNull();
     expect(await A.verify(t, 'y'.repeat(40))).toBeNull();
-    const old = await A.sign(A.sessionFor(member, cfg, Date.now() - 13 * 3600e3), cfg.secret);
+    const old = await A.sign(A.sessionFor(member, cfg, Date.now() - (A.SESSION_HOURS + 1) * 3600e3), cfg.secret);
     expect(await A.verify(old, cfg.secret)).toBeNull();
   });
 
