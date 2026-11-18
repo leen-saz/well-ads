@@ -55,6 +55,7 @@ side.inert = mobile.matches;
 const css = document.createElement('style');
 css.textContent = `
 body{padding-inline-start:256px}
+body:has(.wl-side) #tabs[data-mode=ads]{display:none}
 .brand .mark{display:none}
 .wl-side{position:fixed;inset-block:0;inset-inline-start:0;width:256px;z-index:60;overflow-y:auto;display:flex;flex-direction:column;gap:4px;padding:24px 16px;
   background:rgba(255,255,255,.62);-webkit-backdrop-filter:blur(12px);backdrop-filter:blur(12px);font:400 15px/1.4 "Thmanyah Sans",system-ui,sans-serif;color:#1D1069}

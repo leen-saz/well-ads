@@ -4,9 +4,9 @@ const PAGES = () => S.mode==='organic'
   : [['overview','نظرة عامة'],['depts','الأقسام'],...DORDER.map(k=>['dept:'+k, DEP[k].ar]),['channels','المنصات والحملات'],['creative','المواد الإعلانية']];
 function renderTabs(){
   const el=$('#tabs'); if(!el) return;
-  // The sidebar (Measure: platforms and campaigns, departments, creatives) is the one place to pick a view of the ads board: its own tab row stays hidden.
-  // Organic mode keeps its row (accounts, posts): the sidebar has no entry for those.
-  el.hidden = CREATIVE_ONLY || S.mode!=='organic';
+  // Inside the app the sidebar (Measure: platforms and campaigns, departments, creatives) is the one place to pick a view: nav.js hides this row in ads mode
+  // (public/assets/nav.js). Standalone it stays. Organic mode keeps its row: the sidebar has no entry for accounts and posts.
+  el.hidden = CREATIVE_ONLY; el.dataset.mode = S.mode;
   el.innerHTML = PAGES().filter(([id])=>!id.startsWith('dept:')).map(([id,l])=>`<button type="button" data-p="${id}" aria-current="${tabOn(id)||(id==='depts'&&S.page==='dept')?'page':'false'}">${tr(l)}</button>`).join('');
 }
 function tabOn(id){ return id.startsWith('dept:') ? S.page==='dept' && S.dept===id.slice(5) : S.page===id; }
