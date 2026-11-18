@@ -1,6 +1,6 @@
 // أدوات مشتركة: الطلبات، والأيقونات، والتواريخ، وهيكل التطبيق (القائمة الجانبية والشريط العلوي)
 import { LANG, t, langSwitch, restoreDraft } from './i18n.js';
-import { sections, TIP, startsShut, wireGroups } from './sidebar.js';
+import { sections, TIP, groupNav, stripHtml, wireStrip, stripLikely } from './sidebar.js';
 import { agentDots } from './agentdots.js';
 import { ME_KEY, FRESH, readMe, slim } from './me-cache.js';
 export { LANG, t, langSwitch };
@@ -17,6 +17,8 @@ window.addEventListener('unhandledrejection', e => {
 export const pageSignal = () => PAGE.signal;
 export const $ = (s, el = document) => el.querySelector(s);
 export const $$ = (s, el = document) => [...el.querySelectorAll(s)];
+import { friendly, safeUrl, safeSrc, arabicOr } from './safe.js';
+export { friendly, safeUrl, safeSrc, arabicOr };
 export const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 
 // Every failure reaches the page as an Error with a message in Arabic: a dropped connection, a request that hangs
@@ -86,7 +88,7 @@ export const liveText = raw => [...String(raw).matchAll(/"((?:[^"\\]|\\.)*)"(\s*
 // `retry` runs again the load that failed. Used by every tab's first load.
 export function failure(el, err, retry) {
   if (!el) return;
-  el.innerHTML = `<div class="card empty failure" role="alert">${icon('alert')}<div>${esc(err?.message || 'صار خطأ')}</div>`
+  el.innerHTML = `<div class="card empty failure" role="alert">${icon('alert')}<div>${esc(friendly(err?.message || 'صار خطأ'))}</div>`
     + (retry ? `<button class="btn secondary" type="button" data-retry style="margin-top:12px">${icon('refresh')}حاول مرة ثانية</button>` : '') + '</div>';
   const b = $('[data-retry]', el);
   if (b) b.onclick = () => { b.disabled = true; el.innerHTML = '<p class="muted">يحمّل…</p>'; Promise.resolve().then(retry).catch(e => failure(el, e, retry)); };
@@ -143,13 +145,22 @@ export const day = iso => iso ? DD.format(new Date(iso)) : '—';
 export const fmt = (n, d = 0) => n == null || !isFinite(n) ? '—' : Number(n).toLocaleString('en-US', { maximumFractionDigits: d, minimumFractionDigits: d });
 export const sar = n => n == null || !isFinite(n) ? '—' : fmt(n, Math.abs(n) < 100 ? 2 : 0);
 
+// One-key shortcuts (c, /, 1-5 …) can be switched off (WCAG 2.1.4: a single-key shortcut must have a way to turn it off). Kept on this device.
+export const shortcutsOn = () => { try { return localStorage.getItem('wl-keys') !== 'off'; } catch { return true; } };
+export function shortcutSwitch(host) {
+  if (!host || host.querySelector('[data-keys]')) return;
+  const b = document.createElement('button'); b.type = 'button'; b.className = 'btn sm ghost'; b.dataset.keys = '1';
+  const paint = () => { const on = shortcutsOn(); b.setAttribute('aria-pressed', String(on)); b.textContent = on ? 'اختصارات الكيبورد: شغّالة' : 'اختصارات الكيبورد: موقفة'; if (LANG === 'en') b.textContent = t(b.textContent); };
+  b.onclick = () => { try { localStorage.setItem('wl-keys', shortcutsOn() ? 'off' : 'on'); } catch { /* storage blocked */ } paint(); };
+  paint(); host.append(b);
+}
 export function say(el, text, ok = false) {
   el.className = 'msg ' + (text ? (ok ? 'ok' : 'err') : '');
-  el.innerHTML = text ? (ok ? icon('check') : icon('alert')) + `<span>${esc(text)}</span>` : '';
+  el.innerHTML = text ? (ok ? icon('check') : icon('alert')) + `<span>${esc(ok ? text : friendly(text))}</span>` : '';
 }
 export function toast(text, bad = false) {
   const t = document.createElement('div'); t.className = 'toast'; t.setAttribute('role', bad ? 'alert' : 'status');
-  t.innerHTML = icon(bad ? 'alert' : 'check') + `<span>${esc(text)}</span>`; document.body.appendChild(t);
+  t.innerHTML = icon(bad ? 'alert' : 'check') + `<span>${esc(bad ? friendly(text) : text)}</span>`; document.body.appendChild(t);
   setTimeout(() => t.remove(), 2600);
 }
 export function busy(btn, on) { if (!btn) return; btn.classList.toggle('loading', on); btn.disabled = on; }
@@ -175,7 +186,8 @@ function drawSide(side, me, active) {
   const L = (ar, en) => (LANG === 'en' ? en : ar);
   const sig = LANG + JSON.stringify(slim(me));
   if (side.dataset.sig === sig) {
-    side.querySelectorAll('[data-k]').forEach(a => a.dataset.k === active ? a.setAttribute('aria-current', 'page') : a.removeAttribute('aria-current'));
+    const cur = groupNav(sections(me, L), active).cur?.key;
+    side.querySelectorAll('[data-k]').forEach(a => (a.dataset.k === active || a.dataset.grp === cur) ? a.setAttribute('aria-current', 'page') : a.removeAttribute('aria-current'));
     return;
   }
   side.dataset.sig = sig;
@@ -188,24 +200,31 @@ function drawSide(side, me, active) {
   side.innerHTML = `<div class="side-top"><a class="brand mark" href="/today/" aria-label="Well">Well<i>.</i></a><button type="button" class="btn icon ghost side-fold" id="sideFold" aria-label="${L('طي القائمة', 'Collapse menu')}" aria-pressed="false">${icon('panel')}</button><button class="btn icon ghost side-x" type="button" data-close-side aria-label="${L('إغلاق القائمة', 'Close menu')}">${icon('x')}</button></div>
     ${quick.length ? `<div class="qc"><button type="button" class="btn primary qc-btn" id="qcBtn" aria-haspopup="menu" aria-expanded="false">${icon('plus')}<span>${L('جديد', 'New')}</span></button>
       <div class="menu qc-menu" id="qcMenu" role="menu" hidden>${quick.map(([, href, t, ic]) => `<a href="${href}" role="menuitem">${icon(ic)}${t}</a>`).join('')}</div></div>` : ''}
-    ${sections(me, L).map(sec => `<div class="side-sec${startsShut(sec, active) ? ' shut' : ''}"><button type="button" class="side-h" data-g="${sec.key}" aria-expanded="${!startsShut(sec, active)}" aria-controls="sg-${sec.key}"><span>${esc(sec.label)}</span>${icon('chev', 'chv')}</button><div class="side-items" id="sg-${sec.key}">${sec.items.map(it => {
-      const ic = it.svg ? `<svg class="i" viewBox="0 0 24 24" aria-hidden="true">${it.svg}</svg>` : icon(it.ic);
-      if (it.state === 'ok' || it.state === 'soon') return `<a class="navi${it.state === 'soon' ? ' soon' : ''}" href="${it.href}" data-k="${esc(it.key)}"${FULL(it.href)}${it.key === active ? ' aria-current="page"' : ''}>${ic}<span>${esc(it.text)}</span>${it.state === 'soon' ? `<small class="tag">${L('قريباً', 'Soon')}</small>` : ''}</a>`;
-      return `<span class="navi locked" aria-disabled="true" data-tip="${L(...TIP[it.state])}">${ic}<span>${esc(it.text)}</span>${icon('lock', 'lk')}</span>`;
-    }).join('')}</div></div>`).join('')}
+    <div class="side-items">${groupNav(sections(me, L), active).entries.map(g => `<a class="navi" href="${g.href}" data-k="${esc('g:' + g.key)}" data-grp="${g.key}" data-ks="${esc(g.ks.join(','))}"${FULL(g.href)}${g.on ? ' aria-current="page"' : ''}><svg class="i" viewBox="0 0 24 24" aria-hidden="true">${g.svg}</svg><span>${esc(g.label)}</span></a>`).join('')}</div>
     <div class="grow"></div>
     <a class="navi" href="/settings/" data-k="settings"${active === 'settings' ? ' aria-current="page"' : ''}>${icon('settings')}<span>الإعدادات</span></a>
     <button class="me" id="meBtn" aria-haspopup="menu" aria-expanded="false"><span class="avatar">${esc(initials)}</span>
-      <span class="who"><b>${esc(me.name || me.email || '')}</b><span class="muted">${me.role === 'owner' ? 'المالكة' : (me.departments || []).length ? 'مدير قسم' : 'عضو'}</span></span></button>
+      <span class="who"><b>${esc(me.name || me.email || '')}</b><span class="muted">${me.role === 'owner' ? 'المالك' : (me.departments || []).length ? 'مدير قسم' : 'عضو'}</span></span></button>
     <div class="menu" id="meMenu" role="menu" hidden><a href="/account/" role="menuitem">${icon('user')}حسابي</a><form method="post" action="/api/auth/logout" style="margin:0"><button type="submit" role="menuitem">${icon('out')}خروج</button></form></div>`;
-  wireGroups(side);
-  if (!side.dataset.dots) { side.dataset.dots = '1'; agentDots(side, L); }
+  if (!side.dataset.dots) { side.dataset.dots = '1'; side._dots = agentDots(side, L); }
   side.querySelector('form')?.addEventListener('submit', () => { try { localStorage.removeItem(ME_KEY); } catch { /* storage blocked */ } });
   // Navigation labels as tooltips, used when the menu is folded to icons
   side.querySelectorAll('.navi').forEach(a => { const t = a.querySelector('span')?.textContent; if (t && !a.title) a.title = t; });
   const qb = $('#qcBtn', side), qm = $('#qcMenu', side);
   if (qb) qb.onclick = e => { e.stopPropagation(); qm.hidden = !qm.hidden; qb.setAttribute('aria-expanded', String(!qm.hidden)); };
   $('#sideFold', side).onclick = () => fold(!document.getElementById('app')?.classList.contains('mini'));
+}
+
+// The group's tools as a strip of sub-tabs between the top bar and the page (every module page gets it from here, with no change
+// to the page itself). Drawn on every page, since the page body is replaced on each navigation; a group with one tool has none.
+function drawStrip(app, me, active, side) {
+  app.querySelectorAll('[data-gtabs],[data-gtabs-ph]').forEach(e => e.remove());
+  const L = (ar, en) => (LANG === 'en' ? en : ar), top = $('#top', app);
+  const sec = groupNav(sections(me, L), active).strip;
+  if (!sec || !top) return;
+  top.insertAdjacentHTML('afterend', stripHtml(sec, active, L, esc, FULL));
+  wireStrip(app.querySelector('[data-gtabs]'));
+  side?._dots?.paint();
 }
 
 // Folded menu (icons only), remembered on this device
@@ -228,13 +247,15 @@ export async function shell({ active, title, badge = '', tools = '', section = a
   const app = $('#app'), side = $('#side', app);
   // The title bar needs nothing from the server: it goes up before the user is known
   $('#top', app).innerHTML = `<div class="t"><button class="btn icon ghost burger" id="burger" aria-label="القائمة" aria-controls="side" aria-expanded="false">${icon('menu')}</button><h1>${esc(title)}</h1>${badge}</div><div class="tools"><span id="tools">${tools}</span>${langSwitch()}</div>`;
+  if (stripLikely(active)) $('#top', app).insertAdjacentHTML('afterend', '<div class="gtabs" data-gtabs-ph aria-hidden="true"></div>');
   let me;
   if (!ME?.v) { try { me = await fetchMe(); } catch (err) { if (err.status !== 401) pageFailure(err); throw err; } }
   else {
     me = ME.v;
-    if (Date.now() - ME.t > FRESH) fetchMe().then(v => { if (JSON.stringify(slim(v)) !== JSON.stringify(slim(me))) { drawSide(side, v, active); bindMe(); } }).catch(() => {});
+    if (Date.now() - ME.t > FRESH) fetchMe().then(v => { if (JSON.stringify(slim(v)) !== JSON.stringify(slim(me))) { drawSide(side, v, active); drawStrip(app, v, active, side); bindMe(); } }).catch(() => {});
   }
   drawSide(side, me, active);
+  drawStrip(app, me, active, side);
   let mini = false; try { mini = localStorage.getItem('wl-mini') === '1'; } catch { /* storage blocked */ }
   app.classList.toggle('mini', mini); $('#sideFold')?.setAttribute('aria-pressed', String(mini));
   document.addEventListener('click', e => { const m = $('#qcMenu'); if (m && !m.hidden && !e.target.closest('.qc')) { m.hidden = true; $('#qcBtn')?.setAttribute('aria-expanded', 'false'); } }, { signal: pageSignal() });
@@ -308,6 +329,6 @@ export function sectionTabs(me, host, active, first) {
     ...kids.map(k => ({ key: k.key, href: `/${host}/?tab=${k.key}`, text: L(k.ar, k.en), on: !k.locked && k.ok, why: k.locked ? 'locked' : 'noaccess' }))];
   el.innerHTML = items.map(it => it.on
     ? `<a class="sec-tab" href="${it.href}"${it.key === active ? ' aria-current="page"' : ''}>${esc(it.text)}</a>`
-    : `<span class="sec-tab locked" aria-disabled="true" title="${esc(L(...TIP[it.why]))}">${esc(it.text)}</span>`).join('');
+    : `<span class="sec-tab locked" role="link" tabindex="0" aria-disabled="true" aria-label="${esc(it.text)}، ${esc(L(...TIP[it.why]))}" title="${esc(L(...TIP[it.why]))}">${esc(it.text)}</span>`).join('');
   el.hidden = false;
 }
