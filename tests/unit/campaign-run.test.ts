@@ -7,6 +7,7 @@ import { clearRoutes } from '../../src/lib/ai-routes';
 import { clearSnaps, withWaiter } from '../../src/lib/usage';
 import { WELL_COMPANY } from '../../src/lib/tenant';
 import { companyRules } from '../../src/modules/compliance/compliance';
+import { driveCampaigns } from '../../src/lib/campaign-cron';
 import { affectedTasks, kpis, packMarkdown, parsePosts, readyTask, rollup, socialTargets, verdict, type TaskRow } from '../../src/lib/campaign-run';
 
 const E = { SUPABASE_URL: 'https://sb.example', SUPABASE_SERVICE_ROLE_KEY: 's', SESSION_SECRET: 'x'.repeat(40), OWNER_EMAIL: 'boss@example.com', OPENROUTER_API_KEY: 'or-test-key' };
@@ -69,12 +70,12 @@ let stateful = false;
 let motion: { table: string; body: any }[] = [], images: Record<string, unknown>[] = [], speech: Record<string, unknown>[] = [], imageStatus = 200, imageCode = '', ttsStatus = 200, campaignSeen = true;
 const store = new Map<string, Uint8Array>();
 const R2 = { put: async (k: string, v: ArrayBuffer | Uint8Array) => { store.set(k, new Uint8Array(v as ArrayBuffer)); }, get: async (k: string) => (store.has(k) ? { body: new Response(store.get(k) as unknown as BodyInit).body, arrayBuffer: async () => store.get(k)!.slice().buffer } : null), delete: async (k: string | string[]) => { for (const x of [k].flat()) store.delete(x); } };
-let calls: Call[], tasks: Record<string, unknown>[], outputs: Record<string, unknown>[], campaign: Record<string, unknown>, access: Record<string, string>, llm: (n: number) => string, llmN: number, claimable: boolean;
+let calls: Call[], tasks: Record<string, unknown>[], outputs: Record<string, unknown>[], campaign: Record<string, unknown>, access: Record<string, string>, llm: (n: number) => string, llmN: number, claimable: boolean, capped = false, killed = false;
 const profile = (): A.Profile => ({ id: UID, email: 'm@example.com', role: 'member', active: true, access, company_id: WELL_COMPANY });
 const task = (position: number, agent: string, status: string, depends_on: number[] = [], extra: Record<string, unknown> = {}) => ({ id: position + 1, position, agent, title: 'مهمة ' + agent, spec: { detail: 'د' }, depends_on, status, blocked_reason: null, updated_at: new Date().toISOString(), ...extra });
 beforeEach(() => {
-  ENV = E; stateful = false; motion = []; images = []; speech = []; imageStatus = 200; imageCode = ''; ttsStatus = 200; campaignSeen = true; store.clear(); calls = []; llmN = 0; claimable = true; access = { maestro: 'approve' }; clearRoutes(); clearSnaps();
-  campaign = { id: CID, title: 'حملة', status: 'approved', wishes: { goal: 'حملة للقدم', platforms: ['meta', 'x'] }, brief: { summary: 'ملخص' } };
+  ENV = E; stateful = false; capped = false; killed = false; motion = []; images = []; speech = []; imageStatus = 200; imageCode = ''; ttsStatus = 200; campaignSeen = true; store.clear(); calls = []; llmN = 0; claimable = true; access = { maestro: 'approve' }; clearRoutes(); clearSnaps();
+  campaign = { id: CID, company_id: WELL_COMPANY, approved_by: 'm@example.com', approved_at: '2026-11-01T00:00:00Z', title: 'حملة', status: 'approved', wishes: { goal: 'حملة للقدم', platforms: ['meta', 'x'] }, brief: { summary: 'ملخص' } };
   tasks = [task(0, 'knowledge', 'waiting'), task(1, 'content', 'waiting', [0]), task(2, 'social', 'waiting', [1]), task(3, 'compliance', 'waiting', [2]), task(4, 'optimize', 'waiting', [3])];
   outputs = []; llm = () => 'نص آمن عن الزيارة المنزلية.';
   vi.stubGlobal('fetch', vi.fn(async (url: string, init: RequestInit = {}) => {
@@ -84,6 +85,18 @@ beforeEach(() => {
     if (url.includes('generativelanguage.googleapis.com')) { speech.push(body); return ttsStatus === 200 ? new Response(JSON.stringify({ candidates: [{ content: { parts: [{ inlineData: { mimeType: 'audio/L16;codec=pcm;rate=24000', data: btoa('\u0001'.repeat(48000)) } }] } }], usageMetadata: { promptTokenCount: 40, candidatesTokenCount: 50 } })) : new Response('{}', { status: ttsStatus }); }
     if (url === OR_URL) return new Response(JSON.stringify({ choices: [{ message: { content: llm(++llmN) } }], usage: { prompt_tokens: 100, completion_tokens: 100, cost: 0.001 } }));
     if (url.includes('/profiles?id=eq.')) return new Response(JSON.stringify([profile()]));
+    if (url.includes('/profiles?select=id&email=eq.')) return new Response(JSON.stringify([{ id: UID }]));
+    if (url.includes('/control_settings')) return new Response(JSON.stringify([{ guardrails: { kill: killed } }]));
+    if (capped && url.includes('/rest/v1/ai_budgets')) return new Response(JSON.stringify([{ module: 'ahlam_campaign', monthly_cap_usd: 1, alert_at_pct: 80 }]));
+    if (capped && url.includes('/rest/v1/rpc/ai_spend')) return new Response(JSON.stringify([{ module: 'ahlam_campaign', cost_usd: 5 }]));
+    if (stateful && url.endsWith('/rest/v1/campaigns') && method === 'POST') { campaign = { id: CID, approved_at: null, ...(body as Record<string, unknown>) }; return new Response(JSON.stringify([campaign])); }
+    if (stateful && url.includes('/rest/v1/campaigns') && method === 'PATCH') {
+      const eq = /[?&]status=eq\.(\w+)/.exec(url)?.[1], inn = /[?&]status=in\.\(([\w,]+)\)/.exec(url)?.[1]?.split(',');
+      if ((eq && campaign['status'] !== eq) || (inn && !inn.includes(String(campaign['status'])))) return new Response('[]');
+      Object.assign(campaign, body); return new Response(JSON.stringify([campaign]));
+    }
+    if (stateful && url.includes('/rest/v1/campaigns') && method === 'GET' && url.includes('status=in.(approved,running)')) return new Response(JSON.stringify(['approved', 'running'].includes(String(campaign['status'])) && campaign['approved_at'] ? [campaign] : []));
+    if (stateful && url.includes('/rest/v1/campaign_outputs') && method === 'DELETE') { const tid = /task_id=eq\.(\d+)/.exec(url)?.[1]; outputs = outputs.filter(o => String(o['task_id']) !== tid); return new Response('[]'); }
     if (url.endsWith('/rest/v1/campaign_tasks') && method === 'POST') { tasks = (body as Record<string, unknown>[]).map((b, i) => ({ id: i + 1, status: 'waiting', blocked_reason: null, updated_at: new Date().toISOString(), ...b })); return new Response('[]'); }
     if (url.endsWith('/rest/v1/motion_projects') && method === 'POST') { motion.push({ table: 'projects', body }); return new Response(JSON.stringify([{ id: 7 }])); }
     if (url.endsWith('/rest/v1/motion_versions') && method === 'POST') { motion.push({ table: 'versions', body }); return new Response('[]'); }
@@ -172,7 +185,7 @@ describe('POST /api/campaigns/step', () => {
     expect(calls.some(x => x.url.endsWith('/social_posts') || x.url.endsWith('/campaign_outputs'))).toBe(false);
   });
   it('the compliance task is a gate without an AI call: it scans every draft again and blocks on a critical one', async () => {
-    tasks = [task(0, 'content', 'review'), task(1, 'compliance', 'waiting', [0])];
+    tasks = [task(0, 'content', 'review'), task(1, 'compliance', 'waiting', [0], { spec: { auto: 2 } })];   // the repair loops are spent: it stops for a person
     outputs = [{ task_id: 1, kind: 'copy', platform: null, body: { text: 'نتائج مضمونة ومن غير أضرار' }, compliance: [] }];
     expect((await step()).ran!.status).toBe('blocked'); expect(calls.some(x => x.url === OR_URL)).toBe(false);
     outputs = [{ task_id: 1, kind: 'copy', platform: null, body: { text: 'زيارة منزلية مرخّصة.' }, compliance: [] }];
@@ -739,5 +752,159 @@ describe('«موشن جرافيك» in the campaign: a real motion project from 
     const { defaultTasks } = await import('../../src/lib/campaign-run');
     const d = defaultTasks(), mi = d.findIndex(x => x.kind === 'motion');
     expect(d[mi]!.agent).toBe('design'); expect(d[mi]!.after).toEqual([2, 3]); expect(d.findIndex(x => x.agent === 'compliance')).toBeGreaterThan(mi);
+  });
+});
+
+// ---- the final scan repairs itself, the server drives a started campaign, and the chat's one action runs the whole chain
+const BAD = 'نتائج مضمونة ومن غير أضرار', GOOD = 'زيارة منزلية مرخّصة.';
+describe('the final compliance scan repairs the piece that failed it', () => {
+  it('resets the task that wrote the refused piece with the scan\'s feedback, drops its draft, and runs compliance again after it', async () => {
+    stateful = true;
+    tasks = [task(0, 'content', 'approved'), task(1, 'social', 'review', [0]), task(2, 'compliance', 'waiting', [0, 1])];
+    outputs = [{ id: 1, task_id: 1, kind: 'copy', platform: null, body: { text: BAD }, compliance: [] }, { id: 2, task_id: 2, kind: 'post', platform: 'x', body: { text: GOOD, day: 1 }, compliance: [] }];
+    const j = await step();
+    expect(j.ran).toMatchObject({ agent: 'compliance', status: 'waiting', fixing: 1 });
+    expect(tasks[0]).toMatchObject({ status: 'waiting', blocked_reason: null });
+    expect((tasks[0]!['spec'] as Record<string, unknown>)['feedback']).toContain('copy');
+    expect(tasks[1]!['status']).toBe('review');   // the piece that passed is not touched
+    expect(tasks[2]).toMatchObject({ status: 'waiting' }); expect((tasks[2]!['spec'] as Record<string, unknown>)['auto']).toBe(1);
+    expect(outputs.map(o => o['task_id'])).toEqual([2]);   // the refused draft is gone, no compliance report was saved for this round
+    expect(calls.filter(x => x.url.includes('/audit_log') && x.method === 'POST').map(x => x.body.action)).toEqual(['campaign_final_autofix', 'campaign_task_autofix']);
+    expect(JSON.stringify(calls.filter(x => x.url.includes('/audit_log')).map(x => x.body))).not.toContain('مضمونة');
+    // the rewrite carries the feedback and passes, then compliance runs again and lets the campaign through to review
+    llm = () => GOOD;
+    expect((await step()).ran).toMatchObject({ agent: 'content', status: 'review' });
+    expect(calls.filter(x => x.url === OR_URL).at(-1)!.body.messages[1].content).toContain('رفضها فحص الامتثال');
+    expect((await step()).ran).toMatchObject({ agent: 'compliance', status: 'review' });
+  });
+  it('a motion storyboard built from a refused design or voice piece is written again with it', async () => {
+    stateful = true;
+    tasks = [task(0, 'voice', 'review'), task(1, 'design', 'review', [0], { spec: { kind: 'motion' } }), task(2, 'compliance', 'waiting', [0, 1])];
+    outputs = [{ id: 1, task_id: 1, kind: 'voice_script', platform: null, body: { text: BAD, label: '30' }, compliance: [] }];
+    await step();
+    expect(tasks.map(x => x['status'])).toEqual(['waiting', 'waiting', 'waiting']);
+  });
+  it('after two loops it stops for a person (blocked, with the reason), and the manual override still lets it through', async () => {
+    stateful = true;
+    tasks = [task(0, 'content', 'review'), task(1, 'compliance', 'waiting', [0], { spec: { auto: 2 } })];
+    outputs = [{ id: 1, task_id: 1, kind: 'copy', platform: null, body: { text: BAD }, compliance: [] }];
+    expect((await step()).ran).toMatchObject({ agent: 'compliance', status: 'blocked' });
+    expect(tasks[0]!['status']).toBe('review');   // nothing was reset
+    expect(outputs).toHaveLength(2);              // and the report with the refusal is saved
+    expect(tasks[1]!['blocked_reason']).toContain('copy');   // the person who decides sees what was refused (the override route itself is tested above)
+  });
+  it('an internal reference that quotes forbidden words never starts a repair', async () => {
+    tasks = [task(0, 'knowledge', 'review'), task(1, 'compliance', 'waiting', [0])];
+    outputs = [{ task_id: 1, kind: 'insight', platform: null, body: { text: BAD }, compliance: [] }];
+    expect((await step()).ran).toMatchObject({ agent: 'compliance', status: 'review' });
+  });
+});
+
+describe('the server runs a started campaign without a page (the 5-minute trigger)', () => {
+  it('advances an approved campaign as its approver: the same step, one task per call, the budget caps it', async () => {
+    stateful = true;
+    tasks = [task(0, 'knowledge', 'waiting'), task(1, 'content', 'waiting', [0]), task(2, 'compliance', 'waiting', [1]), task(3, 'optimize', 'waiting', [2])];
+    llm = () => GOOD;
+    const r = await driveCampaigns(ENV, { maxTasks: 2 });
+    expect(r).toMatchObject({ ran: 2, campaigns: 1, stopped: 'budget' });
+    expect(tasks.map(x => x['status'])).toEqual(['review', 'review', 'waiting', 'waiting']);
+    expect(campaign['status']).toBe('running');
+    expect(calls.filter(x => x.url === OR_URL)).toHaveLength(2);
+    // the next tick carries on from where it stopped, and finishes
+    const r2 = await driveCampaigns(ENV, { maxTasks: 5 });
+    expect(r2.ran).toBe(2);
+    expect(campaign['status']).toBe('review');
+  });
+  it('a time budget stops it before the next task starts', async () => {
+    stateful = true;
+    tasks = [task(0, 'knowledge', 'waiting'), task(1, 'content', 'waiting', [0])];
+    let t = 0;
+    const r = await driveCampaigns(ENV, { budgetMs: 1000, clock: () => (t += 600) });
+    expect(r.stopped).toBe('budget'); expect(r.ran).toBe(1);
+  });
+  it('a campaign nobody approved never runs, and neither does a cancelled one', async () => {
+    stateful = true;
+    campaign['status'] = 'planned'; campaign['approved_at'] = null;
+    tasks = [task(0, 'knowledge', 'waiting')];
+    expect(await driveCampaigns(ENV)).toMatchObject({ ran: 0, campaigns: 0 });
+    campaign['status'] = 'cancelled'; campaign['approved_at'] = '2026-11-01T00:00:00Z';
+    expect(await driveCampaigns(ENV)).toMatchObject({ ran: 0 });
+    expect(calls.some(x => x.url === OR_URL)).toBe(false);
+  });
+  it('the emergency stop and an approver whose account is gone both stop it, with nothing spent', async () => {
+    stateful = true; tasks = [task(0, 'knowledge', 'waiting')];
+    killed = true;
+    expect(await driveCampaigns(ENV)).toMatchObject({ ran: 0, stopped: 'kill' });
+    killed = false;
+    const f = globalThis.fetch;
+    vi.stubGlobal('fetch', vi.fn(async (url: string, init?: RequestInit) => (String(url).includes('/profiles?select=id&email=eq.') ? new Response('[]') : f(url, init))));
+    expect(await driveCampaigns(ENV)).toMatchObject({ ran: 0, paused: { [CID]: 'approver' } });
+    expect(calls.some(x => x.url === OR_URL)).toBe(false);
+  });
+  it('a campaign of another company is not run with the approver\'s rights', async () => {
+    stateful = true; tasks = [task(0, 'knowledge', 'waiting')];
+    campaign['company_id'] = '99999999-9999-9999-9999-999999999999';
+    expect(await driveCampaigns(ENV)).toMatchObject({ ran: 0, paused: { [CID]: 'company' } });
+  });
+  it('a page step and the server step at the same moment run the task ONCE', async () => {
+    stateful = true; tasks = [task(0, 'knowledge', 'waiting')];
+    const [page, srv] = await Promise.all([step(), driveCampaigns(ENV)]);
+    expect(calls.filter(x => x.url === OR_URL)).toHaveLength(1);
+    expect(calls.filter(x => x.url.endsWith('/campaign_outputs') && x.method === 'POST')).toHaveLength(1);
+    expect(calls.filter(x => x.method === 'PATCH' && x.url.includes('campaign_tasks') && x.body.status === 'running').length).toBeGreaterThanOrEqual(1);   // the claim is conditional: the loser gets nothing
+    expect((page.ran ? 1 : 0) + srv.ran).toBe(1);   // exactly one of them ran it
+    expect(tasks[0]!['status']).toBe('review');
+  });
+  it('two drivers that read the same waiting task at the same moment: one claim wins, the task runs once', async () => {
+    stateful = true; tasks = [task(0, 'knowledge', 'waiting')];
+    const [a, b] = await Promise.all([driveCampaigns(ENV), driveCampaigns(ENV)]);
+    expect(a.ran + b.ran).toBe(1);
+    expect(calls.filter(x => x.method === 'PATCH' && x.url.includes('campaign_tasks') && x.body.status === 'running' && x.url.includes('status=eq.waiting'))).toHaveLength(2);   // both tried
+    expect(calls.filter(x => x.url === OR_URL)).toHaveLength(1);
+  });
+  it('a task already claimed elsewhere is not run again (the claim is one conditional write)', async () => {
+    claimable = false;   // the claim finds the task no longer waiting
+    const r = await driveCampaigns(ENV);
+    expect(r.ran).toBe(0); expect(calls.some(x => x.url === OR_URL)).toBe(false);
+  });
+  it('a reached monthly cap pauses the run: the task goes back to waiting, nothing is generated, and the next campaign is not started either', async () => {
+    stateful = true; capped = true; tasks = [task(0, 'knowledge', 'waiting'), task(1, 'content', 'waiting', [0])];
+    const r = await driveCampaigns(ENV);
+    expect(r.ran).toBe(0); expect(r.paused[CID]).toMatch(/cap_reached|no_model/);
+    expect(tasks.map(x => x['status'])).toEqual(['waiting', 'waiting']);
+    expect(calls.some(x => x.url === OR_URL)).toBe(false);
+    expect(campaign['status']).toBe('running');   // still started: it carries on when the cap opens, nobody has to press anything
+  });
+});
+
+describe('one action from the Ahlam page: plan, one confirm, then it runs', () => {
+  const PLAN = { title: 'حملة القدم', brief: { summary: 'ملخص', audience: 'أمهات', messages: ['رسالة'], risks: [], questions: [] },
+    tasks: [{ agent: 'knowledge', title: 'سياق', detail: 'اجمع', after: [] }, { agent: 'content', title: 'نصوص', detail: 'اكتب', after: [0] }, { agent: 'compliance', title: 'فحص', detail: '', after: [1] }] };
+  it('the sentence becomes the goal; nothing but the one planning request is spent before the confirm; the confirm approves; the run follows', async () => {
+    stateful = true; campaign = {}; tasks = [];
+    llm = n => (n === 1 ? JSON.stringify(PLAN) : GOOD);
+    const made = await (await post('/api/campaigns/create', { goal: 'سوّ حملة لتقويم القدم للأطفال' })).json() as { id: string };
+    expect(made.id).toBe(CID);
+    expect(campaign).toMatchObject({ status: 'planned', wishes: { goal: 'سوّ حملة لتقويم القدم للأطفال' } });
+    expect(Number(campaign['estimate_usd'])).toBeGreaterThan(0);   // the cost the page shows beside the confirm button
+    expect(tasks).toHaveLength(3);
+    expect(calls.filter(x => x.url === OR_URL)).toHaveLength(1);   // the plan only
+    expect((await post('/api/campaigns/step', { id: CID })).status).toBe(409);   // no run before the confirm
+    expect(await driveCampaigns(ENV)).toMatchObject({ ran: 0, campaigns: 0 });     // and the server does not start it either
+    expect(calls.filter(x => x.url === OR_URL)).toHaveLength(1);
+    expect((await post('/api/campaigns/approve', { id: CID })).status).toBe(200);
+    expect(campaign).toMatchObject({ status: 'approved', approved_by: 'm@example.com' });
+    for (let i = 0; i < 6; i++) { const j = await step(); if (j.done || j.more === false) break; }
+    expect(tasks.map(x => x['status'])).toEqual(['review', 'review', 'review']);
+    expect(campaign['status']).toBe('review');
+    expect(calls.filter(x => x.url === OR_URL)).toHaveLength(3);   // the plan, knowledge, content (compliance is no AI call)
+  });
+  it('someone who may not approve gets the plan and waits: 403 on the confirm, nothing runs', async () => {
+    stateful = true; access = { content: 'edit' }; campaign = {}; tasks = [];
+    llm = () => JSON.stringify(PLAN);
+    expect((await (await post('/api/campaigns/create', { goal: 'سوّ حملة' })).json() as { id: string }).id).toBe(CID);
+    expect((await post('/api/campaigns/approve', { id: CID })).status).toBe(403);
+    expect(campaign['status']).toBe('planned');
+    expect(calls.filter(x => x.url === OR_URL)).toHaveLength(1);
   });
 });

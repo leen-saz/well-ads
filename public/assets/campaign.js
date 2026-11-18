@@ -12,8 +12,10 @@ const PLATFORMS = { meta: 'Meta', google: 'Google', tiktok: 'TikTok', snapchat: 
 const DEPTS = { iv: ['المحاليل الوريدية', 'IV Drips'], midwife: ['القبالة / رعاية الحمل', 'Midwifery / Maternity'], foot: ['تقويم القدم', 'Foot Alignment'], renan: ['رينان لصحة الطفل', 'Renan Child Health'] };
 const USD_SAR = 3.75;
 
-export function mountCampaign(root, me, L) {
-  if (!root || root.dataset.ready) return;
+// `embedded`: the copy that lives under the Ahlam chat (home). It shows nothing until a campaign is started or opened there, and its back button
+// just closes it. The «حملة جديدة» tab keeps the list and the full form. Returns { plan(goal), open(id) } for the chat to drive.
+export function mountCampaign(root, me, L, { embedded = false } = {}) {
+  if (!root || root.dataset.ready) return null;
   root.dataset.ready = '1';
   const pick = (m, k) => (m[k] ? L(m[k][0], m[k][1]) : k);
   const sar = usd => `${(Math.round(Number(usd || 0) * USD_SAR * 100) / 100).toLocaleString('en-US')} ${L('ريال', 'SAR')}`;
@@ -173,14 +175,14 @@ export function mountCampaign(root, me, L) {
         <p class="muted">${esc(L('تقدير تقريبي حسب الموديل المختار. الصرف الفعلي يظهر في «الصرف على الذكاء الاصطناعي» ويلتزم بالسقف الشهري.', 'A rough estimate for the chosen model. Actual spend shows in AI spend and follows the monthly cap.'))}</p>
         <p class="muted" id="cmAssets" hidden></p>
         <p class="msg err" id="cmCap" hidden>${esc(L('وصل السقف الشهري لأحلم: التنفيذ بيكون على الموديل المجاني أو يتوقف.', "Ahlam's monthly cap is reached: the run will use the free model or stop."))}</p></section>
-      <div class="cm-actions"><button class="btn primary" id="cmOk" type="button" hidden>${esc(L('اعتمد الخطة والتكلفة', 'Approve the plan and cost'))}</button>
+      <div class="cm-actions"><button class="btn primary" id="cmOk" type="button" hidden>${esc(L('اعتمد وشغّل الحملة', 'Approve and run the campaign'))}</button>
         <button class="btn" id="cmDl" type="button" hidden>${esc(L('نزّل الحزمة (Markdown)', 'Download the pack (Markdown)'))}</button><button class="btn" id="cmCp" type="button" hidden>${esc(L('انسخ الحزمة', 'Copy the pack'))}</button>
         <button class="btn" id="cmNo" type="button" hidden>${esc(L('إلغاء الحملة', 'Cancel the campaign'))}</button></div>
-      <p class="muted" id="cmHint" hidden></p><p class="muted" id="cmStall" hidden>${esc(L('بعض المهام تنتظر لأن مهمة قبلها موقوفة أو فاشلة. أعد كتابتها من زرها فوق.', 'Some tasks wait because an earlier one is blocked or failed. Rewrite it with its button above.'))}</p>`);
+      <p class="muted" id="cmHint" hidden></p><p class="muted" id="cmAuto" hidden>${esc(L('الحملة تكمل لوحدها حتى لو سكّرت هالصفحة: النظام يتابعها كل 5 دقائق تقريباً من السيرفر، وتلقى الحزمة هنا لما ترجع.', 'The campaign keeps running by itself even if you close this page: the server follows it about every 5 minutes, and the pack is here when you come back.'))}</p><p class="muted" id="cmStall" hidden>${esc(L('بعض المهام تنتظر لأن مهمة قبلها موقوفة أو فاشلة. أعد كتابتها من زرها فوق.', 'Some tasks wait because an earlier one is blocked or failed. Rewrite it with its button above.'))}</p>`);
     const folds = store(id);
     cur = { id, mine, d, folds, fold: folds.get(), sig: {}, prev: {}, set: {}, qsig: '', seq: 0, looping: false, live: false, timer: 0 };
     const R = root;
-    $('#cmBack', R).onclick = () => { view++; if (cur?.timer) clearInterval(cur.timer); cur = null; showList(); };
+    $('#cmBack', R).onclick = () => { view++; if (cur?.timer) clearInterval(cur.timer); cur = null; if (embedded) root.innerHTML = ''; else showList(); };
     const call = async (path, body, after) => { try { await api(path, { method: 'POST', body: { id, ...body } }); window.dispatchEvent(new Event('wl-campaign-change')); await refresh(); if (after) after(); } catch (err) { say(msg(), err.message); return false; } return true; };
     $('#cmOk', R).onclick = async ev => { ev.target.disabled = true; if (await call('/api/campaigns/approve', {}, () => cur?.live && loop())) return; ev.target.disabled = false; };
     $('#cmNo', R).onclick = async ev => { ev.target.disabled = true; if (!(await call('/api/campaigns/cancel', {}))) ev.target.disabled = false; };
@@ -271,7 +273,8 @@ export function mountCampaign(root, me, L) {
     const note = d.tasks.length ? L(`${waitingN} مهام تنتظر. التشغيل ما يحتاج اعتماد جديد، وكل شي مسودات.`, `${waitingN} tasks waiting. No new approval is needed, and everything is a draft.`) : L('ما فيه مهام محفوظة لهذي الحملة: بنجهّز الخطة القياسية أول ما تضغط، وبعدها يبدأ التنفيذ.', 'No tasks are saved for this campaign: the standard plan is prepared as soon as you press, and then the run starts.');
     set('#cmRunNote', esc(note));
     const run = $('#cmRun', R); run.disabled = cur.looping; const rl = cur.looping ? L('يشتغل…', 'Running…') : L('شغّل الإيجنتس', 'Run the agents'); if (run.textContent !== rl) run.textContent = rl;
-    show('#cmHint', planned && !d.mayApprove); set('#cmHint', esc(L('الاعتماد لمن عنده صلاحية الموافقة. أرسل له الخطة.', 'Approval needs someone with approval rights. Send them the plan.')));
+    show('#cmHint', planned && !d.mayApprove); set('#cmHint', esc(L('الخطة محفوظة وتنتظر الاعتماد، وما يشتغل شي قبله. اللي يعتمدها مالك اللوحة أو من عنده صلاحية الاعتماد في المايسترو: أرسل له رابط الحملة.', 'The plan is saved and waits for approval; nothing runs before it. The owner of the dashboard or anyone with approval rights in Maestro can approve it: send them the campaign link.')));
+    show('#cmAuto', ['approved', 'running'].includes(c.status));
     show('#cmStall', d.tasks.some(t => t.status === 'waiting') && !cur.live && !d.tasks.some(t => t.status === 'running'));
     patchQuestions(b, started);
     patchTasks(d);
@@ -339,7 +342,29 @@ export function mountCampaign(root, me, L) {
     } catch (err) { if (mine === view) { await refresh(); say(msg(), err.message); } }
     finally { if (cur && cur.mine === mine) { cur.looping = false; patch(cur.d); } }
   }
-  const showListLater = () => setTimeout(showList, 2500);
+  const showListLater = () => setTimeout(() => { if (embedded) root.innerHTML = ''; else showList(); }, 2500);
+  // The chat's one action: the sentence becomes the goal of a plan (one AI request, nothing else is spent). The plan screen then shows the cost
+  // and the single confirm button; the run starts only from it.
+  async function plan(goal) {
+    const text = String(goal || '').trim().slice(0, 400);
+    if (!text) return;
+    const mine = ++view;
+    if (cur?.timer) clearInterval(cur.timer);
+    cur = null;
+    frame(`<p class="muted" role="status">${esc(L('أجهّز لك الخطة والتكلفة… (ما يشتغل شي قبل ما تعتمد)', 'Building your plan and its cost… (nothing runs before you approve)'))}</p>`);
+    root.scrollIntoView?.({ block: 'nearest', behavior: 'smooth' });
+    try {
+      const r = await api('/api/campaigns/create', { method: 'POST', timeout: 120000, body: { goal: text } });
+      if (mine === view) await showCampaign(r.id);
+    } catch (err) {
+      if (mine !== view) return;
+      frame(`<button class="btn" id="cmBack" type="button">${esc(L('إغلاق', 'Close'))}</button>`);
+      $('#cmBack', root).onclick = () => { root.innerHTML = ''; };
+      say(msg(), err.message);
+    }
+  }
+  if (embedded) return { plan, open: id => showCampaign(id) };
   const link = new URLSearchParams(location.search).get('c');
   if (link && /^[0-9a-f-]{36}$/i.test(link)) showCampaign(link); else showList();
+  return { plan, open: id => showCampaign(id) };
 }
