@@ -435,7 +435,8 @@ describe('a campaign approved before the tasks existed (no campaign_tasks) can b
   it('gets the standard plan saved (no AI call for it), is audit-logged, and the first task then runs', async () => {
     const j = await step();
     const made = calls.find(x => x.url.endsWith('/campaign_tasks') && x.method === 'POST')!.body as Record<string, unknown>[];
-    expect(made.map(x => x['agent'])).toEqual(['knowledge', 'content', 'design', 'voice', 'design', 'social', 'compliance', 'optimize']);
+    expect(made.map(x => x['agent'])).toEqual(['knowledge', 'content', 'design', 'voice', 'design', 'social', 'compliance', 'optimize', 'design']);
+    expect(made[8]!['spec']).toMatchObject({ kind: 'video' }); expect(made[8]!['depends_on']).toEqual([4, 6]);   // the video comes after the motion and the compliance gate
     expect(made[4]!['spec']).toMatchObject({ kind: 'motion' }); expect(made[4]!['depends_on']).toEqual([2, 3]);   // the motion comes after the picture and the recording
     expect(made.every(x => x['company_id'] === WELL_COMPANY && x['campaign_id'] === CID && Number(x['estimate_usd']) > 0)).toBe(true);
     expect(made.find(x => x['agent'] === 'compliance')!['depends_on']).toEqual([1, 2, 3, 4, 5]);
@@ -747,8 +748,8 @@ describe('«موشن جرافيك» in the campaign: a real motion project from 
     const { parsePlan } = await import('../../src/lib/campaign');
     const p = parsePlan(JSON.stringify({ title: 't', brief: {}, tasks: [{ agent: 'design', title: 'a' }, { agent: 'voice', title: 'b' }, { agent: 'design', title: 'موشن', kind: 'motion', after: [0, 1] }, { agent: 'design', title: 'ثاني', kind: 'motion' }, { agent: 'content', title: 'c', kind: 'motion' }] }))!;
     // the fixture has writers and no compliance task, so parsePlan appends one (last, not motion)
-    expect(p.tasks.map(t => t.kind)).toEqual([undefined, undefined, 'motion', undefined, undefined, undefined]);
-    expect(p.tasks.at(-1)!.agent).toBe('compliance');
+    expect(p.tasks.map(t => t.kind)).toEqual([undefined, undefined, 'motion', undefined, undefined, undefined, 'video']);
+    expect(p.tasks.at(-1)!.kind).toBe('video'); expect(p.tasks.at(-2)!.agent).toBe('compliance'); expect(p.tasks.at(-1)!.after).toEqual([2, p.tasks.length - 2]);
     const { defaultTasks } = await import('../../src/lib/campaign-run');
     const d = defaultTasks(), mi = d.findIndex(x => x.kind === 'motion');
     expect(d[mi]!.agent).toBe('design'); expect(d[mi]!.after).toEqual([2, 3]); expect(d.findIndex(x => x.agent === 'compliance')).toBeGreaterThan(mi);
@@ -906,5 +907,78 @@ describe('one action from the Ahlam page: plan, one confirm, then it runs', () =
     expect((await post('/api/campaigns/approve', { id: CID })).status).toBe(403);
     expect(campaign['status']).toBe('planned');
     expect(calls.filter(x => x.url === OR_URL)).toHaveLength(1);
+  });
+});
+
+// ---- the video task: the campaign's motion deliverable as a real file from Higgsfield (src/lib/campaign-video.ts, docs/motion-video.md)
+describe('«فيديو الحملة» in the step and in the server driver', () => {
+  const KEYS = { ...E, FILES: R2 as unknown as R2Bucket, HIGGSFIELD_API_KEY: 'k-test', HIGGSFIELD_API_SECRET: 's-test' };
+  const board = { id: 51, task_id: 5, kind: 'motion_storyboard', platform: null, body: { scenes: [{ text: 'ممرضة تدخل بيت هادئ' }, { text: 'عائلة تبتسم' }], cta: { text: 'احجز زيارتك' } }, compliance: [] };
+  let vjobs: Record<string, unknown>[], hf: { word: string; submits: number; polls: number };
+  beforeEach(() => {
+    vjobs = []; hf = { word: 'in_progress', submits: 0, polls: 0 };
+    const prev = fetch;
+    vi.stubGlobal('fetch', vi.fn(async (url: string, init: RequestInit = {}) => {
+      const method = init.method || 'GET', body = init.body && typeof init.body === 'string' ? JSON.parse(init.body) : undefined;
+      if (url.startsWith('https://api.higgsfield.ai/requests/')) { hf.polls++; return new Response(JSON.stringify({ status: hf.word, ...(hf.word === 'completed' ? { video: { url: 'https://cdn.higgsfield.example/v.mp4' } } : {}) })); }
+      if (url.startsWith('https://api.higgsfield.ai/')) { hf.submits++; return new Response(JSON.stringify({ request_id: 'req-' + hf.submits + '-abcdef' })); }
+      if (url.startsWith('https://cdn.higgsfield.example')) return new Response(new Blob([new Uint8Array(64)]).stream(), { headers: { 'content-type': 'video/mp4', 'content-length': '64' } });
+      if (url.includes('/rest/v1/video_projects') && method === 'POST') return new Response(JSON.stringify([{ id: 7 }]));
+      if (url.includes('/rest/v1/video_jobs')) {
+        if (method === 'POST') { const made = (body as Record<string, unknown>[]).map((b, i) => ({ id: vjobs.length + i + 1, status: 'queued', attempts: 0, max_attempts: 3, next_attempt_at: new Date(0).toISOString(), upstream_ref: null, result_key: null, error_code: null, cost_recorded: false, updated_at: new Date().toISOString(), ...b })); vjobs.push(...made); return new Response(JSON.stringify(made)); }
+        const id = /[?&]id=eq\.(\d+)/.exec(url)?.[1], ins = /[?&]id=in\.\(([\d,]+)\)/.exec(url)?.[1]?.split(','), st = /[?&]status=eq\.(\w+)/.exec(url)?.[1], cr = /[?&]cost_recorded=eq\.(\w+)/.exec(url)?.[1];
+        const hit = vjobs.filter(r => (!id || String(r['id']) === id) && (!ins || ins.includes(String(r['id']))) && (!st || r['status'] === st) && (cr == null || String(r['cost_recorded']) === cr));
+        if (method === 'PATCH') hit.forEach(r => Object.assign(r, body));
+        return new Response(JSON.stringify(hit));
+      }
+      return prev(url, init);
+    }));
+    ENV = KEYS as unknown as typeof ENV; campaign['title'] = 'حملة العافية';
+  });
+  const vtask = (spec: Record<string, unknown> = {}) => task(0, 'design', 'waiting', [], { id: 5, spec: { kind: 'video', detail: 'x', ...spec } });
+  const sent = (k: string) => (calls.find(x => x.url.endsWith('/campaign_outputs') && x.method === 'POST')?.body as { kind: string; body: Record<string, unknown> }[] ?? []).filter(o => o.kind === k);
+  const lastSpec = () => calls.filter(x => x.method === 'PATCH' && x.url.includes('campaign_tasks')).pop()!.body;
+
+  it('queues the clip, submits it, and ENDS the call: the task goes back to waiting with the job id, nothing blocks the request', async () => {
+    tasks = [vtask()]; outputs = [board];
+    const j = await step() as unknown as { paused?: string };
+    expect(j.paused).toBe('video_pending');
+    expect(hf).toMatchObject({ submits: 1, polls: 0 });
+    expect(lastSpec()).toMatchObject({ status: 'waiting', spec: { kind: 'video', video: { project: 7, jobs: [1] } } });
+    expect(calls.filter(x => x.url.includes('/audit_log') && x.method === 'POST').map(x => x.body.action)).toEqual(['video_jobs_queued', 'campaign_video_step']);
+  });
+  it('the next call polls once and, when done, saves the clip and finishes the task for review (no second submit)', async () => {
+    tasks = [vtask({ video: { project: 7, jobs: [1] } })]; outputs = [board];
+    vjobs = [{ id: 1, company_id: WELL_COMPANY, project_id: 7, shot_no: 1, engine: 'higgsfield-seedance', params: { kind: 'text-to-video', ratio: '9:16', seconds: 10, resolution: '720p' }, status: 'running', attempts: 1, max_attempts: 3, next_attempt_at: new Date(0).toISOString(), upstream_ref: 'req-1-abcdef', result_key: null, error_code: null, cost_recorded: false, updated_at: new Date().toISOString() }];
+    hf.word = 'completed';
+    const j = await step();
+    expect(j.ran).toMatchObject({ agent: 'design', status: 'review' }); expect(hf).toMatchObject({ submits: 0, polls: 1 });
+    const clip = sent('video_clip')[0]!.body;
+    expect(clip).toMatchObject({ mime: 'video/mp4', ratio: '9:16', seconds: 10 }); expect(String(clip['key'])).toMatch(new RegExp(`^video/${WELL_COMPANY}/[0-9a-f-]{36}\\.mp4$`));
+    expect(lastSpec().spec).not.toHaveProperty('video'); expect(lastSpec().spec).not.toHaveProperty('missing');
+  });
+  it('keys missing: the campaign does NOT fail; the storyboard stays and the clip is marked missing with what to do', async () => {
+    ENV = { ...E, FILES: R2 as unknown as R2Bucket } as unknown as typeof ENV;
+    tasks = [vtask()]; outputs = [board];
+    const j = await step();
+    expect(j.ran).toMatchObject({ status: 'review' }); expect(hf.submits).toBe(0);
+    expect(sent('asset_missing')[0]!.body).toMatchObject({ what: 'video', code: 'no_keys' }); expect(String(sent('asset_missing')[0]!.body['text'])).toContain('مفاتيح Higgsfield ناقصة');
+    expect(lastSpec().spec.missing).toEqual(['video:no_keys']);
+  });
+  it('the module locked for the company: the same, with the unlock instruction; «ولّد الملفات الناقصة» is offered by the missing list', async () => {
+    const inner = fetch as unknown as (u: string, i?: RequestInit) => Promise<Response>;
+    vi.stubGlobal('fetch', vi.fn(async (url: string, init?: RequestInit) => (url.includes('/profiles?id=eq.') ? new Response(JSON.stringify([{ ...profile(), company: { disabled_modules: ['video'] } }])) : inner(url, init))));
+    tasks = [vtask()]; outputs = [board];
+    const j = await step();
+    expect(j.ran).toMatchObject({ status: 'review' }); expect(hf.submits).toBe(0);
+    expect(String(sent('asset_missing')[0]!.body['text'])).toContain('وحدة الفيديو مقفلة'); expect(lastSpec().spec.missing).toEqual(['video:locked']);
+  });
+  it('the driver polls ONCE per tick and then stops for that campaign (it never waits for the engine)', async () => {
+    stateful = true; campaign['status'] = 'running';
+    tasks = [vtask({ video: { project: 7, jobs: [1] } })]; (tasks[0] as Record<string, unknown>)['updated_at'] = new Date().toISOString(); outputs = [board];
+    vjobs = [{ id: 1, company_id: WELL_COMPANY, project_id: 7, shot_no: 1, engine: 'higgsfield-seedance', params: { kind: 'text-to-video', ratio: '9:16', seconds: 10, resolution: '720p' }, status: 'running', attempts: 1, max_attempts: 3, next_attempt_at: new Date(0).toISOString(), upstream_ref: 'req-1-abcdef', result_key: null, error_code: null, cost_recorded: false, updated_at: new Date().toISOString() }];
+    const r = await driveCampaigns(KEYS as never, { clock: () => 0 });
+    expect(r.paused[CID]).toBe('video_pending'); expect(hf.polls).toBe(1); expect(r.ran).toBe(0);
+    expect(tasks[0]!['status']).toBe('waiting');
   });
 });

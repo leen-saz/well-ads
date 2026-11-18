@@ -1,12 +1,14 @@
 // Higgsfield (Seedance) behind the Engine interface. PAID per second of finished video.
 // Secrets (Worker secrets, set by the owner; names only in docs/secrets/worker.env.example): HIGGSFIELD_API_KEY, HIGGSFIELD_API_SECRET.
-// Optional: HIGGSFIELD_SEEDANCE_MODEL (model path, default bytedance/seedance/v1/lite).
-// The request shapes follow Higgsfield Cloud's public docs as mirrored by third parties (docs.higgsfield.ai): the owner
-// should check them against the live reference before the first paid run. Nothing here logs a body: it may echo the request.
+// Optional: HIGGSFIELD_SEEDANCE_MODEL (model path, default bytedance/seedance-2.0).
+// Verified against the official reference on 2026-11-18 (docs.higgsfield.ai): base https://api.higgsfield.ai, `Authorization: Key <id>:<secret>`,
+// POST /bytedance/seedance-2.0/{text-to-video|image-to-video} (prompt, duration 4-15, resolution 480p|720p|1080p|4k, aspect_ratio, generate_audio;
+// image-to-video takes image_url), the answer carries request_id, GET /requests/<id>/status gives queued|in_progress|completed|failed|nsfw|canceled
+// and `video.url`; files live 7 days (expires_at). Failed and nsfw requests are not charged. Nothing here logs a body: it may echo the request.
 import { EngineError, avatarOf, avatarPrompt, type Engine, type EngineEnv, type Status } from './engine';
 
-const BASE = 'https://platform.higgsfield.ai';
-const DEFAULT_MODEL = 'bytedance/seedance/v1/lite';
+const BASE = 'https://api.higgsfield.ai';
+export const DEFAULT_MODEL = 'bytedance/seedance-2.0';
 const clean = (s: unknown) => String(s ?? '').replace(/[^a-z0-9/._-]/gi, '').replace(/\.\./g, '').slice(0, 80);
 const env = (e: EngineEnv, k: string) => String((e as Record<string, unknown>)[k] || '').trim();
 const key = (e: EngineEnv) => env(e, 'HIGGSFIELD_API_KEY');
@@ -33,18 +35,20 @@ export const higgsfield: Engine = {
   },
   configured: e => !!key(e) && !!secret(e),
 
-  async submit(e, i, f = fetch) {
+  async submit(e, i, f = fetch, idem) {
     const model = clean(env(e, 'HIGGSFIELD_SEEDANCE_MODEL')) || DEFAULT_MODEL;
     const hasImage = !!i.imageUrl;
     const avatar = i.kind === 'avatar' ? avatarOf(i.avatarId) : undefined;
     const prompt = avatar ? avatarPrompt(avatar, i.prompt) : i.prompt;
-    const body: Record<string, unknown> = { prompt, aspect_ratio: i.ratio, duration: i.seconds, resolution: i.resolution,
+    const body: Record<string, unknown> = { prompt, aspect_ratio: i.ratio, duration: i.seconds, resolution: i.resolution, ...(i.silent ? { generate_audio: false } : {}),
       ...(hasImage ? { image_url: i.imageUrl } : {}), ...(i.voiceUrl ? { audio_url: i.voiceUrl } : {}) };
     let r: Response;
-    try { r = await f(`${BASE}/${model}/${hasImage ? 'image-to-video' : 'text-to-video'}`, { method: 'POST', headers: auth(e), body: JSON.stringify(body) }); }
+    try { r = await f(`${BASE}/${model}/${hasImage ? 'image-to-video' : 'text-to-video'}`, { method: 'POST', headers: { ...auth(e), ...(idem ? { 'idempotency-key': idem } : {}) }, body: JSON.stringify(body) }); }
     catch { throw new EngineError('network', true, SAY_BUSY); }
-    if (r.status === 401 || r.status === 403) throw new EngineError('auth', false, 'مفاتيح محرك الفيديو مرفوضة، بلّغ الإدارة');
-    if (r.status === 429 || r.status >= 500) throw new EngineError(r.status === 429 ? 'rate' : 'upstream', true, SAY_BUSY);
+    if (r.status === 401) throw new EngineError('auth', false, 'مفاتيح محرك الفيديو مرفوضة، بلّغ الإدارة');
+    if (r.status === 403) throw new EngineError('balance', false, 'رصيد Higgsfield خلص، بلّغ الإدارة');
+    if (r.status === 404) throw new EngineError('no_access', false, 'موديل Seedance غير متاح لحساب Higgsfield، بلّغ الإدارة');
+    if (r.status === 429 || r.status === 423 || r.status >= 500) throw new EngineError(r.status === 429 ? 'rate' : 'upstream', true, SAY_BUSY);
     if (!r.ok) throw new EngineError('rejected', false, 'المحرك رفض الطلب، عدّل الوصف أو الصورة وجرّب');
     const j = (await r.json().catch(() => ({}))) as { request_id?: unknown };
     const ref = typeof j.request_id === 'string' ? j.request_id : '';
