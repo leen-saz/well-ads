@@ -10,6 +10,8 @@ export type Decision = Pass | Response;
 const PUBLIC = [/^\/login\/?$/, /^\/reset\/?$/, /^\/welcome\/?$/, /^\/api\/auth\//, /^\/api\/health\/?$/, /^\/api\/connectors\/callback\/?$/,
   // Listening sources check: no session needed, but the handler wants the PROBE_SECRET header or the owner (src/modules/listening/probe.ts)
   /^\/api\/listening\/probe\/?$/,
+  // Read-only API: no cookie, its own Authorization: Bearer key check on every path (src/lib/apiv1.ts). Nothing else under /api gets this.
+  /^\/api\/v1(\/|$)/,
   /^\/assets\//, /^\/_astro\//, /^\/m\/[0-9a-f-]{36}\/[0-9a-f]{32}\.(jpg|png|webp|mp4|mov)$/i, /^\/robots\.txt$/, /^\/favicon/];
 
 // The five sidebar destinations (public/assets/sidebar.js GROUPS). /today/ is the start page; the others open

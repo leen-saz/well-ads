@@ -1,5 +1,13 @@
 // English strings for i18n.js. Loaded only when the language is English, so Arabic pages never download them.
 export const EN = {
+  // API keys (admin page)
+  'مفاتيح الـ API (قراءة فقط)': 'API keys (read only)', 'مفتاح يخلي أداة أو سكربت يقرأ أرقام اللوحة بدون تسجيل دخول. يقرأ بس، ما يكتب ولا يغيّر شي. يظهر لك المفتاح مرة وحدة عند إنشائه، فانسخه الحين. تقدر تلغيه في أي لحظة.': 'A key lets a tool or script read the dashboard numbers without signing in. It only reads: it never writes or changes anything. The key is shown once, when you create it, so copy it right away. You can revoke it at any moment.',
+  'اسم المفتاح': 'Key name', 'مثلاً: سكربت التقارير': 'For example: reports script', 'مدة الصلاحية (يوم)': 'Valid for (days)', 'وش يقرأ المفتاح؟': 'What can the key read?', 'أنشئ المفتاح': 'Create the key',
+  'انسخ المفتاح الحين. ما ينعرض مرة ثانية.': 'Copy the key now. It is not shown again.', 'المفتاح': 'Key', 'انسخ': 'Copy', 'مفاتيحك': 'Your keys', 'البداية': 'Starts with', 'يقرأ': 'Reads', 'آخر استخدام': 'Last used', 'ينتهي': 'Expires',
+  'ما انستخدم': 'Not used yet', 'ملغى': 'Revoked', 'منتهي': 'Expired', 'شغّال': 'Active', 'ألغِ المفتاح': 'Revoke the key', 'ما فيه مفاتيح للحين': 'No keys yet',
+  'أرقام اللوحة والملخص': 'Dashboard numbers and overview', 'قائمة الإعلانات وأرقامها': 'Ads and their numbers', 'اقتراحات لوحة القرارات ونتائجها': 'Decision-board suggestions and outcomes', 'حملات احلم ومهامها': 'Ahlam campaigns and tasks', 'عمر البيانات وحالة الخطوات': 'Data freshness and step status',
+  'انعمل المفتاح. انسخه قبل لا تسكّر الصفحة.': 'The key is made. Copy it before you close the page.', 'اننسخ.': 'Copied.', 'ظلّل المفتاح وانسخه بإيدك.': 'Select the key and copy it by hand.', 'تلغي هذا المفتاح؟ يوقف شغله فوراً، وما ينفع تعيده.': 'Revoke this key? It stops working at once and cannot be turned back on.', 'انلغى المفتاح.': 'The key is revoked.',
+  'أنشأ مفتاح API': 'Created an API key', 'ألغى مفتاح API': 'Revoked an API key',
   // video
   "الموجز": "Brief",
   "الصق رابط صفحة المنتج أو الخدمة ونقرأ منها العرض والفوائد والسعر، وبعدها عدّل اللي تبي.": "Paste the link of the product or service page and we read the offer, benefits and price from it, then you edit what you want.",

@@ -15,6 +15,7 @@ import * as vitals from './routes/vitals';
 import { ROUTES } from '../modules/routes';
 import { health, type HealthEnv } from '../lib/health';
 import { dataStatus } from '../lib/datastatus';
+import { handleV1 } from '../lib/apiv1';
 
 type Group = Record<string, Partial<Record<string, Handler>>>;
 const notFound = () => json(404, { error: 'غير موجود' });
@@ -38,6 +39,10 @@ api.get('/health/details', async c => {
 });
 // Age of the numbers, codes only (the pages say it in words). Reads R2 only; kept 2 minutes by the browser.
 api.get('/data-status', async c => c.json(await dataStatus((c.env as unknown as HealthEnv)?.FILES), 200, { 'cache-control': 'private, max-age=120' }));
+// Read-only API for tools and agents: its own bearer-key auth inside (src/lib/apiv1.ts). The gate lets this prefix through without a session,
+// so every path under it, known or not, goes through the key check first.
+api.all('/v1', c => handleV1(c.req.raw, c.env as never));
+api.all('/v1/*', c => handleV1(c.req.raw, c.env as never));
 // Every route group: the core ones, then one per live module (src/modules/routes.ts). Exported for the error-behaviour test.
 export const GROUPS: Record<string, Group> = { auth, admin, account, connectors, control, buyer, dash, lessons, today, campaigns, vitals, library: { list: libraryRoot, item: libraryItem, star: libraryStar, approve: libraryApprove }, ...ROUTES };
 for (const [key, routes] of Object.entries(GROUPS)) api.all(`/${key}/:action`, group(routes));

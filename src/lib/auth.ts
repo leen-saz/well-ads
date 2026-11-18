@@ -39,6 +39,7 @@ export interface AuthEnv {
   SUPABASE_SERVICE_ROLE_KEY?: string;
   SESSION_SECRET?: string;
   OWNER_EMAIL?: string;
+  API_KEY_PEPPER?: string; // /api/v1 keys are hashed with it (src/lib/apikeys.ts)
 }
 export interface Cfg { url: string; service: string; secret: string; owner: string }
 export interface Session {

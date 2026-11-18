@@ -72,6 +72,24 @@ import { ClientRouter } from 'astro:transitions';
       </section>
       <section class="card" style="margin-top:16px"><div class="pad" style="padding-bottom:0"><h2>المستخدمون وصلاحياتهم</h2></div><div class="tbl" id="users"></div><div class="pad" style="padding-top:0"><div class="msg" id="usersMsg" role="status"></div></div></section>
       <section class="card" style="margin-top:16px" id="orphanCard" hidden><div class="pad" style="padding-bottom:0"><h2>حسابات بدون صلاحيات</h2><p class="muted" style="margin:0 0 12px">حسابات تقدر تدخل بس ما لها ملف في اللوحة، فما تطلع في القائمة فوق. أعطها صلاحيات من هنا.</p></div><div class="tbl" id="orphans"></div><div class="pad" style="padding-top:0"><div class="msg" id="orphanMsg" role="status"></div></div></section>
+      <section class="card pad" style="margin-top:16px" id="keysCard">
+        <h2>مفاتيح الـ API (قراءة فقط)</h2>
+        <p class="muted" style="margin:0">مفتاح يخلي أداة أو سكربت يقرأ أرقام اللوحة بدون تسجيل دخول. يقرأ بس، ما يكتب ولا يغيّر شي. يظهر لك المفتاح مرة وحدة عند إنشائه، فانسخه الحين. تقدر تلغيه في أي لحظة.</p>
+        <form id="keyForm" novalidate>
+          <div class="bar" style="align-items:flex-end">
+            <div style="flex:1;min-width:220px"><label for="keyName">اسم المفتاح</label><input type="text" id="keyName" maxlength="80" placeholder="مثلاً: سكربت التقارير"></div>
+            <div style="min-width:140px"><label for="keyDays">مدة الصلاحية (يوم)</label><input type="number" id="keyDays" min="1" max="365" value="90" dir="ltr"></div>
+          </div>
+          <label>وش يقرأ المفتاح؟</label><div class="checks" id="keyScopes"></div>
+          <div class="bar" style="margin-top:20px"><button class="btn primary" type="submit">أنشئ المفتاح</button></div>
+          <div class="msg" id="keyMsg" role="status"></div>
+        </form>
+        <div id="keyShown" hidden style="margin-top:14px;padding:12px;border:1px solid var(--line);border-radius:12px;background:var(--tint)">
+          <strong>انسخ المفتاح الحين. ما ينعرض مرة ثانية.</strong>
+          <div class="bar" style="margin-top:8px;align-items:center"><input type="text" id="keyValue" readonly dir="ltr" spellcheck="false" aria-label="المفتاح" style="flex:1;min-width:260px"><button class="btn sm secondary" type="button" id="keyCopy">انسخ</button></div>
+        </div>
+      </section>
+      <section class="card" style="margin-top:16px"><div class="pad" style="padding-bottom:0"><h2>مفاتيحك</h2></div><div class="tbl" id="keysList"></div><div class="pad" style="padding-top:0"><div class="msg" id="keysMsg" role="status"></div></div></section>
       <section class="card" style="margin-top:16px"><div class="pad" style="padding-bottom:0"><h2>سجل الدخول والنشاط</h2><p class="muted" style="margin:0 0 12px">السجل ما ينعدّل ولا ينحذف. كل الفترة: آخر 200 فعل.</p>
         <div class="bar log-f" role="search">
           <div id="logPeriod"></div>
