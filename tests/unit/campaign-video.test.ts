@@ -183,6 +183,13 @@ describe('the campaign never fails: it keeps the storyboard and says exactly wha
     const r = await run(task());
     expect(r.missing).toEqual(['video:capped']); expect(says(r)).toContain('سقف صرف الفيديو'); expect(submits).toHaveLength(0); expect(projects).toHaveLength(0);
   });
+  it('the module\'s cost reservation applies to a campaign clip: clips already waiting reserve their cost, so a campaign cannot queue past the cap', async () => {
+    caps = [{ module: 'video', monthly_cap_usd: 3, alert_at_pct: 80 }]; spent = [{ module: 'video', cost_usd: 0 }];
+    expect((await run(task())).pending).toBe(true);          // 2 $ reserved (the clip is running, not billed)
+    clearSnaps();
+    const r = await run(task());                              // a second campaign: 2 + 2 > 3
+    expect(r.missing).toEqual(['video:capped']); expect(submits).toHaveLength(1);
+  });
   it('the cap reached between queue and submit: the job stops by the module\'s own rule and the clip is marked missing', async () => {
     const first = await run(task());
     caps = [{ module: 'video', monthly_cap_usd: 5, alert_at_pct: 80 }]; spent = [{ module: 'video', cost_usd: 6 }]; clearSnaps();
