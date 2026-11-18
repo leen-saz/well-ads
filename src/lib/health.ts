@@ -25,7 +25,7 @@ export async function migrations(e: HealthEnv, f: typeof fetch): Promise<Migrati
   if (!e.SUPABASE_URL || !e.SUPABASE_SERVICE_ROLE_KEY) return { state: 'unknown', missing: [] };
   const base = e.SUPABASE_URL.trim().replace(/\/+$/, '').replace(/\/rest\/v1$/, ''), key = e.SUPABASE_SERVICE_ROLE_KEY.trim();
   try {
-    const r = await within(f(`${base}/rest/v1/schema_migrations?select=name&limit=1000`, { headers: { apikey: key, Authorization: `Bearer ${key}` } }), 3000);
+    const r = await within(f(`${base}/rest/v1/schema_migrations?select=name&limit=1000`, { headers: { apikey: key, Authorization: `Bearer ${key}` }, signal: AbortSignal.timeout(PROBE_MS) }), PROBE_MS);
     if (r.status === 404) return { state: 'untracked', missing: trackedMigrations() };   // PostgREST: relation does not exist
     if (!r.ok) return { state: 'unknown', missing: [] };
     const rows = (await r.json()) as { name?: unknown }[];
@@ -35,6 +35,9 @@ export async function migrations(e: HealthEnv, f: typeof fetch): Promise<Migrati
   } catch { return { state: 'unknown', missing: [] }; }
 }
 
+// Each probe is cut after 3 s. The race alone only stops waiting; the signal also cancels the request itself, so a
+// hanging Supabase does not keep a subrequest connection open in the isolate after the answer was sent.
+const PROBE_MS = 3000;
 const within = <T>(p: Promise<T>, ms: number): Promise<T> =>
   Promise.race([p, new Promise<T>((_, rej) => setTimeout(() => rej(new Error('timeout')), ms))]);
 
@@ -43,7 +46,7 @@ async function supabase(e: HealthEnv, f: typeof fetch): Promise<Dep> {
   const base = e.SUPABASE_URL.trim().replace(/\/+$/, '').replace(/\/rest\/v1$/, '');
   try {
     // One tiny authenticated read: a wrong key or an unreachable project both fail it
-    const r = await within(f(`${base}/rest/v1/profiles?select=id&limit=1`, { headers: { apikey: e.SUPABASE_SERVICE_ROLE_KEY.trim(), Authorization: `Bearer ${e.SUPABASE_SERVICE_ROLE_KEY.trim()}` } }), 3000);
+    const r = await within(f(`${base}/rest/v1/profiles?select=id&limit=1`, { headers: { apikey: e.SUPABASE_SERVICE_ROLE_KEY.trim(), Authorization: `Bearer ${e.SUPABASE_SERVICE_ROLE_KEY.trim()}` }, signal: AbortSignal.timeout(PROBE_MS) }), PROBE_MS);
     return r.ok ? 'up' : 'down';
   } catch { return 'down'; }
 }
