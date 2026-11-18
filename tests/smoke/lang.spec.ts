@@ -3,6 +3,7 @@
 import { test, expect, type Page } from '@playwright/test';
 import { login, addSession } from './helpers';
 import { pageStrings, openTabs, arabicIn } from './page-text';
+import { settle } from './settle';
 
 const PAGES = [
   '/', '/today/', '/control/', '/control/new/', '/connectors/', '/account/', '/admin/', '/admin/modules/', '/library/', '/maestro/health/', '/maestro/audit/',
@@ -20,8 +21,7 @@ test.describe('lang=en leaves no Arabic behind', () => {
     test(`${path} (signed in as owner)`, async ({ page, context, request }) => {
       await addSession(context, await login(request, 'owner'));
       await page.goto(`${path}${path.includes('?') ? '&' : '?'}lang=en`);
-      await page.waitForLoadState('networkidle');
-      await page.waitForTimeout(600);
+      await settle(page);
       const seen = new Set(await arabicLeft(page));
       for (const s of arabicIn([...(await openTabs(page))])) seen.add(s);
       expect([...seen], `Arabic left on ${path} in English`).toEqual([]);
@@ -30,8 +30,7 @@ test.describe('lang=en leaves no Arabic behind', () => {
   for (const path of PUBLIC_PAGES) {
     test(`${path} (signed out)`, async ({ page }) => {
       await page.goto(`${path}${path.includes('?') ? '&' : '?'}lang=en`);
-      await page.waitForLoadState('networkidle');
-      await page.waitForTimeout(400);
+      await settle(page);
       expect(await arabicLeft(page), `Arabic left on ${path} in English`).toEqual([]);
     });
   }

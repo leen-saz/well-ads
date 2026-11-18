@@ -218,11 +218,15 @@ describe('cost per paying customer: the headline', () => {
     expect(p.target).toBe(250);
     expect(p.level).toBe('problem');   // 250 ÷ 500 = 0.5 of target
   });
-  it('is «غير مربوط», never zero, when the CRM is missing or nothing paid is linked', () => {
+  it('is «غير مربوط», never zero, when the CRM is not connected', () => {
     const none = run({ ...healthy, sale: { ...healthy.sale, crm: false } }).payer;
     expect(none).toMatchObject({ value: null, level: 'na', text: 'غير مربوط' });
-    const zero = run({ ...healthy, sale: { ...healthy.sale, closings: 0 } }, 'en').payer;
-    expect(zero).toMatchObject({ value: null, text: 'Not linked' });
+  });
+  it('is «لا توجد إقفالات», never zero and never «غير مربوط», when the CRM is connected but nothing closed', () => {
+    const zero = run({ ...healthy, sale: { ...healthy.sale, closings: 0 } }).payer;
+    expect(zero).toMatchObject({ value: null, level: 'na', text: 'لا توجد إقفالات', closings: 0, note: 'ما فيه إقفالات مدفوعة في هالفترة.' });
+    const en = run({ ...healthy, sale: { ...healthy.sale, closings: 0 } }, 'en').payer;
+    expect(en).toMatchObject({ value: null, text: 'No closings', note: 'No paid closings in this period.' });
   });
 });
 

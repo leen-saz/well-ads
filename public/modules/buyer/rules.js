@@ -34,7 +34,7 @@ export async function mountRules() {
   box.innerHTML = HTML; box.hidden = false;
   let rules = cur.rules || [];
   const msg = $('#by-rulesMsg');
-  const info = () => { $('#by-rulesInfo').textContent = rules.length ? `القواعد المحفوظة: ${rules.length}، ومنها ${rules.filter(r => r.open).length} مفتوحة تنتظر قرار لين.` : 'ما فيه قواعد محفوظة بعد. استورد ملف القواعد.'; };
+  const info = () => { $('#by-rulesInfo').textContent = rules.length ? `القواعد المحفوظة: ${rules.length}، ومنها ${rules.filter(r => r.open).length} مفتوحة تنتظر قرار المالك.` : 'ما فيه قواعد محفوظة بعد. استورد ملف القواعد.'; };
   const edit = () => {
     $('#by-rulesEdit').innerHTML = rules.length ? `<div class="tbl"><table class="by-edit"><thead><tr><th>القاعدة</th><th>تطابق</th><th>الحدود</th><th>ينفّذ</th><th>قرار مفتوح</th><th></th></tr></thead><tbody>`
       + rules.map((r, i) => `<tr data-i="${i}"><td><b>${esc(r.id)}</b><br><small>${esc(PLAT[r.platform] || r.platform)} · ${esc(KINDS[r.kind] || r.kind)}</small></td>
@@ -84,7 +84,7 @@ export async function mountRules() {
       const r = await api('/api/buyer/rules', { method: 'POST', body: { rules: Array.isArray(body) ? body : body.rules, dry: true } });
       out.innerHTML = `<p><b>${fmt(r.rules.length)}</b> قاعدة سليمة، ومنها <b>${fmt(r.rules.filter(x => x.open).length)}</b> مفتوحة.</p>
         <div class="tbl"><table class="by-prev"><thead><tr><th>الاسم</th><th>المنصة</th><th>النوع</th><th>تطابق</th><th>الحدود</th><th>ينفّذ</th><th>مفتوح</th></tr></thead><tbody>`
-        + r.rules.map(x => `<tr><td>${esc(x.id)}</td><td>${esc(PLAT[x.platform] || x.platform)}</td><td>${esc(KINDS[x.kind] || x.kind)}</td><td>${esc(x.match.join('، '))}</td><td>${esc(LIMIT(x))}</td><td>${esc(OWNER[x.owner || 'media_buyer'] || '')}</td><td>${x.open ? `<span class="by-tag by-open">مفتوح: يحتاج قرار لين</span> ${esc(x.open)}` : ''}</td></tr>`).join('')
+        + r.rules.map(x => `<tr><td>${esc(x.id)}</td><td>${esc(PLAT[x.platform] || x.platform)}</td><td>${esc(KINDS[x.kind] || x.kind)}</td><td>${esc(x.match.join('، '))}</td><td>${esc(LIMIT(x))}</td><td>${esc(OWNER[x.owner || 'media_buyer'] || '')}</td><td>${x.open ? `<span class="by-tag by-open">مفتوح: يحتاج قرار المالك</span> ${esc(x.open)}` : ''}</td></tr>`).join('')
         + `</tbody></table></div><div class="bar" style="margin:10px 0 0"><button class="btn sm" type="button" id="by-rulesSave">أكّد واحفظ</button></div>`;
       $('#by-rulesSave').addEventListener('click', async ev => { await save(r.rules, ev.currentTarget, 'انحفظت القواعد. التوصيات تتحدّث.'); out.innerHTML = ''; $('#by-rulesText').value = ''; });
     } catch (err) { out.innerHTML = `<p class="muted">${esc(err.message)}</p>`; }

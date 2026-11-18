@@ -10,11 +10,11 @@ const TABS: { key: string; page: string; api: string }[] = [
   { key: 'overview', page: '/overview/', api: '/api/overview/data' },
   { key: 'listening', page: '/listening/', api: '/api/listening/demand' },
   { key: 'design', page: '/design/', api: '/api/design/options' },
-  { key: 'video', page: '/video/', api: '/api/video/engines' },
+  { key: 'video', page: '/voice/?tab=video', api: '/api/video/engines' },
   { key: 'copy', page: '/content/?tab=copy', api: '/api/copy/projects' },
   { key: 'voice', page: '/voice/', api: '/api/voice/guide' },
-  { key: 'transcribe', page: '/transcribe/', api: '/api/transcribe/jobs' },
-  { key: 'vision', page: '/vision/', api: '/api/vision/recent' },
+  { key: 'transcribe', page: '/voice/?tab=transcribe', api: '/api/transcribe/jobs' },
+  { key: 'vision', page: '/design/?tab=vision', api: '/api/vision/recent' },
   { key: 'voiceover', page: '/voice/?tab=voiceover', api: '/api/voiceover/guide' },
   { key: 'social', page: '/social/', api: '/api/social/posts' },
   { key: 'content', page: '/content/', api: '/api/content/plans' },
@@ -31,9 +31,9 @@ test('the suite covers every live module', () => {
   expect(TABS.map(t => t.key).sort()).toEqual([...LIVE].sort());
 });
 
-test('the old addresses of voiceover and copy open their sections inside Voice and Content', async ({ request }) => {
+test('the old addresses of the sections open them inside Design, Voice and Content', async ({ request }) => {
   const cookie = (await login(request, 'owner')).header;
-  for (const [old, now] of [['/voiceover/', '/voice/?tab=voiceover'], ['/copy/', '/content/?tab=copy']]) {
+  for (const [old, now] of [['/voiceover/', '/voice/?tab=voiceover'], ['/copy/', '/content/?tab=copy'], ['/vision/', '/design/?tab=vision'], ['/transcribe/', '/voice/?tab=transcribe'], ['/video/', '/voice/?tab=video']]) {
     const r = await request.get(old, { headers: { cookie }, maxRedirects: 0 });
     expect(r.status(), old).toBe(302);
     expect(r.headers()['location'], old).toContain(now);
@@ -45,9 +45,10 @@ test.describe('health and sign-in', () => {
     const r = await request.get('/api/health');
     expect(r.status()).toBe(200);
     const h = await r.json();
-    expect(h).toMatchObject({ ok: true, version: 'smoke-build', env: 'local', checks: { supabase: 'up', storage: 'up', ai: 'unset' } });
-    // The age of the numbers is reported as codes only (no bucket data in the smoke setup, so it is simply not claimed)
-    expect(['ok', 'warn', 'stale', 'unknown']).toContain(h.data.level);
+    // Public answer is only ok + version; the details and the sources probe need a login
+    expect(h).toEqual({ ok: true, version: 'smoke-build' });
+    expect((await request.get('/api/health/details')).status()).toBe(401);
+    expect((await request.get('/api/listening/probe', { headers: { 'x-probe-secret': 'wrong' } })).status()).toBe(401);
   });
   test('signed out: pages go to the login page, the API answers 401 JSON', async ({ request }) => {
     const p = await request.get('/overview/', { maxRedirects: 0 });
@@ -181,38 +182,81 @@ test.describe('old URLs redirect', () => {
 });
 
 test.describe('sidebar and language (browser)', () => {
-  test('the sidebar draws an entry per permission, locked ones for the rest', async ({ page, context, request }) => {
+  test('the sidebar draws only what the user may open, with no locked rows', async ({ page, context, request }) => {
     await addSession(context, await login(request, 'u-listening'));
     await page.goto('/listening/');
-    await expect(page.locator('a.navi[data-k="listening"]')).toBeVisible();
-    await expect(page.locator('a.navi[data-k="design"]')).toHaveCount(0);
-    await expect(page.locator('span.navi.locked').first()).toBeVisible();
-    await expect(page.locator('a.navi[data-k="admin"]')).toHaveCount(0);
+    await expect(page.locator('a.navi[data-grp="measure"][aria-current="page"]')).toBeVisible();
+    // One accessible tool in the group: no strip. The Production tab opens the one tool this user may open (the library).
+    await expect(page.locator('[data-gtabs]')).toHaveCount(0);
+    await expect(page.locator('a.navi[data-grp="produce"]')).toHaveAttribute('href', '/library/');
+    await expect(page.locator('a.navi[data-grp="optimize"], a.navi[data-grp="distribute"]')).toHaveCount(0);
+    // No locked rows: what the user cannot open is not shown
+    await expect(page.locator('span.navi.locked')).toHaveCount(0);
+    await expect(page.locator('a.navi[data-grp="system"]')).toHaveCount(0);
+  });
+  test('Production hosts its sections: ?tab= opens the section and the old addresses go there', async ({ page, context, request }) => {
+    const o = await login(request, 'owner');
+    await addSession(context, o);
+    for (const [from, to] of [['/vision/', '/design/?tab=vision'], ['/transcribe/', '/voice/?tab=transcribe'], ['/video/', '/voice/?tab=video'], ['/voiceover/', '/voice/?tab=voiceover'], ['/copy/', '/content/?tab=copy']] as const) {
+      const r = await request.get(from, { headers: { cookie: o.header }, maxRedirects: 0 });
+      expect(r.headers()['location'], from).toBe(`${BASE}${to}`);
+    }
+    await page.goto('/voice/?tab=video');
+    await expect(page.locator('#tabsw .sec-tab[aria-current="page"]')).toBeVisible();
+    await expect(page.locator('#tabsw .sec-tab')).toHaveCount(4);
+    await expect(page.locator('a.navi[data-grp="produce"][aria-current="page"]')).toBeVisible();
+    await expect(page.locator('.gtabs a[data-k="voice"][aria-current="page"]')).toBeVisible();
   });
   test('the owner sees every live tab and the permissions page', async ({ page, context, request }) => {
     await addSession(context, await login(request, 'owner'));
     await page.goto('/today/');
-    // voiceover and copy are sections inside Voice and Content, not entries of their own
-    for (const k of LIVE.filter(k => !MODULES.find(m => m.key === k)?.into)) await expect(page.locator(`a.navi[data-k="${k}"]`).first(), k).toBeVisible();
-    for (const k of ['voiceover', 'copy']) await expect(page.locator(`a.navi[data-k="${k}"]`), k).toHaveCount(0);
-    await expect(page.locator('a.navi[data-k="admin"]')).toBeVisible();
+    // Every live tool is a sub-tab of a group (sections, voiceover, transcribe, video, vision, copy, are tabs inside Voice, Design and Content)
+    await expect(page.locator('a.navi[data-ks]')).toHaveCount(6);
+    const ks = (await page.locator('a.navi[data-ks]').evaluateAll(els => els.map(e => (e as HTMLElement).dataset['ks']!.split(',')))).flat();
+    for (const k of LIVE.filter(k => !MODULES.find(m => m.key === k)?.into)) expect(ks, k).toContain(k);
+    for (const k of LIVE.filter(k => MODULES.find(m => m.key === k)?.into)) expect(ks, k).not.toContain(k);
+    expect(ks).toContain('admin');
   });
-  test('the sidebar groups follow the marketing order, fold, and remember it; the group of the open page never hides', async ({ page, context, request }) => {
+  for (const lang of ['ar', 'en'] as const) {
+    test(`${lang}: without analytics access the Measure strip offers no page that answers 403, and the summary explains instead of leaking the refusal`, async ({ page, context, request }) => {
+      await addSession(context, await login(request, 'ovnoceo'));
+      await page.goto(`/overview/creative/?lang=${lang}`);
+      await expect(page.locator('[data-gtabs] a.gtab')).toHaveText(lang === 'en' ? ['Creatives', 'Social listening'] : ['المواد الإعلانية', 'الرصد']);
+      await page.goto(`/overview/?lang=${lang}`);
+      const msg = page.locator('.no-ceo-msg');
+      await expect(msg).toBeVisible();
+      await expect(msg).toContainText(lang === 'en' ? 'needs access to the analytics numbers' : 'يحتاج صلاحية أرقام التحليلات');
+      await expect(page.locator('#content')).not.toContainText('ما عندك صلاحية على أرقام التحليلات');
+    });
+    test(`${lang}: the owner's Measure tab holds the summary, the ads board, the creatives and listening`, async ({ page, context, request }) => {
+      await addSession(context, await login(request, 'owner'));
+      await page.goto(`/overview/?lang=${lang}`);
+      await expect(page.locator('[data-gtabs] a.gtab')).toHaveText(lang === 'en' ? ['Performance summary', 'Ads board', 'Creatives', 'Social listening'] : ['ملخص الأداء', 'لوحة الإعلانات', 'المواد الإعلانية', 'الرصد']);
+      await expect(page.locator('a.navi[data-grp="measure"]')).toHaveAttribute('aria-current', 'page');
+      await expect(page.locator('a.navi')).toHaveCount(7);   // six groups and Settings: no second entry for these pages
+    });
+  }
+  test('the sidebar has one tab per group; a group opens its first tool and its tools show as sub-tabs above the page', async ({ page, context, request }) => {
     await addSession(context, await login(request, 'owner'));
     await page.goto('/today/');
-    const heads = page.locator('.side-h[data-g]');
-    await expect(heads).toHaveText(['الرئيسية', 'الإنتاج', 'النشر والتوزيع', 'القياس والتحليل', 'التحسين والقرارات', 'النظام والحوكمة']);
-    const design = page.locator('a.navi[data-k="design"]');
-    await expect(design).toBeVisible();
-    await page.locator('.side-h[data-g="produce"]').click();
-    await expect(page.locator('.side-h[data-g="produce"]')).toHaveAttribute('aria-expanded', 'false');
-    await expect(design).toBeHidden();
-    await page.reload();
-    await expect(design).toBeHidden();
-    // Opening a page of the folded group shows it again, with its highlight
-    await page.goto('/design/');
-    await expect(page.locator('a.navi[data-k="design"][aria-current="page"]')).toBeVisible();
-    await expect(page.locator('a.navi[data-k="design"]')).toBeVisible();
+    await expect(page.locator('a.navi[data-grp]')).toHaveText(['الرئيسية', 'الإنتاج', 'النشر', 'القياس', 'القرارات', 'النظام']);
+    await expect(page.locator('.side-h')).toHaveCount(0);
+    await expect(page.locator('[data-gtabs]')).toHaveCount(0);   // Home has one tool: no strip
+    await page.locator('a.navi[data-grp="produce"]').click();
+    await expect(page.locator('[data-gtabs] a.gtab')).toHaveText(['نص', 'التصميم', 'صوت وفيديو', 'المكتبة']);
+    await expect(page.locator('a.navi[data-grp="produce"]')).toHaveAttribute('aria-current', 'page');
+    await expect(page.locator('[data-gtabs] a[aria-current="page"]')).toHaveCount(1);
+    // Arrow keys move between sub-tabs (right-to-left: the right arrow goes to the previous tab); Home and End jump
+    const tabs = page.locator('[data-gtabs] a.gtab');
+    await tabs.first().focus();
+    await page.keyboard.press('ArrowLeft');
+    await expect(tabs.nth(1)).toBeFocused();
+    await page.keyboard.press('End');
+    await expect(tabs.last()).toBeFocused();
+    await tabs.nth(1).click();
+    await expect(page).toHaveURL(/\/design\//);
+    await expect(page.locator('a.navi[data-grp="produce"]')).toHaveAttribute('aria-current', 'page');
+    await expect(page.locator('[data-gtabs] a[data-k="design"]')).toHaveAttribute('aria-current', 'page');
   });
   test('the language switch flips the page to English, left to right, and back', async ({ page, context, request }) => {
     await addSession(context, await login(request, 'owner'));

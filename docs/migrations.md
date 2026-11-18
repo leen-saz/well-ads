@@ -39,7 +39,7 @@ Rules going forward:
 insert into public.schema_migrations (name) values ('NNN_name.sql') on conflict do nothing;
 ```
 
-(a test fails if a new file forgets it). `/api/health` then returns `migrations`:
+(a test fails if a new file forgets it). `/api/health/details` (owner login; the public `/api/health` shows only `ok` and `version`) then returns `migrations`:
 
 | state | meaning |
 |---|---|
