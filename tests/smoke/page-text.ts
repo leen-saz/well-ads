@@ -1,6 +1,7 @@
 // What a page shows, for the smoke tests that read it: every text node (hidden panes too), the attributes a user can read
 // (placeholder, aria-label, tooltip, title, alt, button values) and the document title.
 import type { Page } from '@playwright/test';
+import { nextPaint } from './settle';
 
 export async function pageStrings(page: Page): Promise<string[]> {
   const found: string[] = await page.evaluate(() => {
@@ -34,7 +35,7 @@ export async function openTabs(page: Page, into: Set<string> = new Set()): Promi
     const b = page.locator(sel).nth(i);
     if (!(await b.isVisible().catch(() => false))) continue;
     await b.click({ timeout: 1500 }).catch(() => {});
-    await page.waitForTimeout(250);
+    await nextPaint(page);
     for (const s of await pageStrings(page)) into.add(s);
   }
   return into;

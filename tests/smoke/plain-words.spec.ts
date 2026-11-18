@@ -6,6 +6,7 @@ import { test, expect } from '@playwright/test';
 import { login, addSession, FAKE } from './helpers';
 import { pageStrings, openTabs, arabicIn } from './page-text';
 import { TECH_WORDS } from '../shared/tech-words';
+import { settle } from './settle';
 
 const PAGES = [
   '/', '/today/', '/control/', '/control/new/', '/account/', '/library/', '/overview/', '/overview/creative/', '/listening/',
@@ -21,8 +22,7 @@ for (const missing of [false, true]) {
         test(`${path} as a member, ${lang}`, async ({ page, context, request }) => {
           await addSession(context, await login(request, 'member'));
           await page.goto(`${path}${path.includes('?') ? '&' : '?'}lang=${lang}`);
-          await page.waitForLoadState('networkidle');
-          await page.waitForTimeout(500);
+          await settle(page);
           const seen = new Set(await pageStrings(page));
           await openTabs(page, seen);
           const bad = [...seen].filter(s => TECH_WORDS.test(s)).map(s => s.slice(0, 120));

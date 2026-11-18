@@ -9,14 +9,18 @@ export function agentDots(side, L, fetcher = () => fetch('/api/campaigns/agents'
   let state = null, timer = 0, busy = false;
   const label = st => (st === 'running' ? L('يشتغل الحين على مهمة حملة', 'Working on a campaign task now') : st === 'failed' ? L('فشلت مهمة حملة', 'A campaign task failed') : L('ما يشتغل الحين', 'Not working now'));
   const paint = () => {
-    if (!state?.active) { side.querySelectorAll('.agent-dot').forEach(d => d.remove()); return; }
-    side.querySelectorAll('a[data-k]').forEach(a => {
-      const agent = TAB_AGENT[a.dataset.k];
-      if (!agent) return;
-      const st = state.agents?.[agent] === 'running' ? 'running' : state.agents?.[agent] === 'failed' ? 'failed' : 'idle';
+    if (!state?.active) { document.querySelectorAll('.agent-dot').forEach(d => d.remove()); return; }
+    // A tab of an agent shows that agent's dot. A group's entry in the sidebar shows one dot for all its tabs: working if any works, else failed if any failed.
+    const one = k => (state.agents?.[TAB_AGENT[k]] === 'running' ? 'running' : state.agents?.[TAB_AGENT[k]] === 'failed' ? 'failed' : 'idle');
+    const rank = { running: 2, failed: 1, idle: 0 };
+    const mine = [...side.querySelectorAll('a[data-k]'), ...document.querySelectorAll('[data-gtabs] a[data-k]')];
+    mine.forEach(a => {
+      const keys = a.dataset.ks ? a.dataset.ks.split(',').filter(k => TAB_AGENT[k]) : TAB_AGENT[a.dataset.k] ? [a.dataset.k] : [];
+      if (!keys.length) return;
+      const st = keys.map(one).reduce((x, y) => (rank[y] > rank[x] ? y : x), 'idle');
       let d = a.querySelector('.agent-dot');
       if (!d) { d = document.createElement('i'); d.className = 'agent-dot'; d.setAttribute('role', 'img'); a.append(d); }
-      if (d.dataset.s !== st) { d.dataset.s = st; d.setAttribute('aria-label', label(st)); }
+      if (d.dataset.s !== st) { d.dataset.s = st; d.setAttribute('aria-label', label(st)); d.title = label(st); }
     });
   };
   const tick = async () => {
