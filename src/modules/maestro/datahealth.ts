@@ -2,7 +2,7 @@
 // migrations are missing. Everything returned is a count, a date or a table/platform name: no ad names, no lead
 // ids, no mention text. The groupings below run inside the Worker and only their sizes leave it.
 import { missingSchema, sb, type Cfg } from '../../lib/auth';
-import { scoped } from '../../lib/tenant';
+import { scoped, WELL_COMPANY } from '../../lib/tenant';
 import { readAll } from './health';
 import { dataStatus } from '../../lib/datastatus';
 import { SCHEMA } from './schema';
@@ -85,11 +85,14 @@ export async function migrationsMissing(cfg: Cfg): Promise<{ migration: string; 
 export const PARTS = ['sources', 'content', 'counts', 'schema'] as const;
 export type Part = (typeof PARTS)[number];
 
-async function sources(cfg: Cfg, company: string, files?: R2Bucket) {                      // <= 8 + 1 + 1 + 1 + 15 = 26 calls
+// The CRM sync state, dash.json and the pipeline's status are Well's own (one pipeline, one R2 bucket): another company's
+// owner gets its own rows only, never Well's join counts, attribution reasons or freshness.
+async function sources(cfg: Cfg, company: string, bucket?: R2Bucket) {                      // <= 8 + 1 + 1 + 1 + 15 = 26 calls
+  const well = company === WELL_COMPANY, files = well ? bucket : undefined;
   const [ads, conns, sync, watches] = await Promise.all([
     readAll<AdRow>(cfg, scoped('/rest/v1/ads?select=ad_key,platform,name,campaign,updated_at&order=ad_key.asc', company), 8),
     readAll<ConnRow>(cfg, scoped('/rest/v1/connections?select=platform,expires_at', company), 1),
-    sb<{ last_updated_at: string | null; last_run_at: string | null; rows_last_run: number | null }[]>(cfg, '/rest/v1/crm_sync_state?id=eq.1&select=last_updated_at,last_run_at,rows_last_run', { admin: true }),
+    well ? sb<{ last_updated_at: string | null; last_run_at: string | null; rows_last_run: number | null }[]>(cfg, '/rest/v1/crm_sync_state?id=eq.1&select=last_updated_at,last_run_at,rows_last_run', { admin: true }) : Promise.resolve({ ok: false, status: 0, data: null }),
     readAll<{ fetched_at: string | null }>(cfg, scoped('/rest/v1/listen_watch?select=fetched_at', company), 1),
   ]);
   // The last days of metrics are enough to say when each platform last delivered a day
@@ -103,7 +106,7 @@ async function sources(cfg: Cfg, company: string, files?: R2Bucket) {           
     freshness: { platforms: freshness(ads.rows, metrics.rows, conns.rows),
       crm: state ? { last_run_at: state.last_run_at, last_updated_at: state.last_updated_at, rows_last_run: state.rows_last_run } : null,
       listening_last_fetch: watches.rows.reduce<string | null>((a, w) => newest(a, w.fetched_at), null), dash_json_uploaded: dashUploaded },
-    data_status: await dataStatus(files),
+    data_status: well ? await dataStatus(files) : null,
     joins: dash ? joinRates(dash.crm) : null,
     duplicates: { ads: surplus(ads.rows, a => (a.name ? key(a.platform, a.name, a.campaign) : null)) },
   };
@@ -126,8 +129,10 @@ async function content(cfg: Cfg, company: string) {                             
 
 async function counts(cfg: Cfg, company: string) {                                            // 11 + 1 + 4 = 16 calls
   // ad_metrics has no company column; every other table is this company's rows
-  const c = Object.fromEntries(await Promise.all(TABLES.map(async t => [t, await count(cfg, t === 'ad_metrics' ? '/rest/v1/ad_metrics?select=ad_key' : scoped(`/rest/v1/${t}?select=*`, company))])));
-  const ids = (await readAll<{ id: string }>(cfg, '/rest/v1/companies?select=id', 1)).rows.map(x => x.id);
+  // ad_metrics has no company column, so its count and the orphan counts (across all companies) are the platform's: Well's owner only
+  const well = company === WELL_COMPANY;
+  const c = Object.fromEntries(await Promise.all(TABLES.map(async t => [t, t === 'ad_metrics' ? (well ? await count(cfg, '/rest/v1/ad_metrics?select=ad_key') : null) : await count(cfg, scoped(`/rest/v1/${t}?select=*`, company))])));
+  const ids = well ? (await readAll<{ id: string }>(cfg, '/rest/v1/companies?select=id', 1)).rows.map(x => x.id) : [];
   const orphans: Record<string, number | null> = {};
   if (ids.length) for (const t of NO_FK) orphans[t] = await count(cfg, `/rest/v1/${t}?select=*&company_id=not.in.(${ids.join(',')})`);
   return { counts: c, orphans };

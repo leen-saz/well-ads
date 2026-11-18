@@ -1,8 +1,14 @@
 // /api/auth/*: login, logout, refresh, forgot, reset. Port of web/lib/routes/auth/*.js.
 import {
   env, sb, loadProfile, sessionFor, sign, renew, verify, readCookie, setCookie, clearCookie, safePath, home, audit, html, json,
-  sameOrigin, readJson, handle, keyKind, auditEmail, SESSION, SESSION_HOURS, passwordError, type Profile,
+  sameOrigin, readJson, handle, keyKind, auditEmail, auditAnon, revokeSessions, companyOff, SESSION, SESSION_HOURS, passwordError, type Profile,
 } from '../../lib/auth';
+import { hit, over, clientIp } from '../../lib/ratelimit';
+
+const TOO_MANY = 'محاولات كثيرة. جرّب بعد شوي.';
+const TEN_MIN = 10 * 60_000;
+const LOGIN_IP_FAILS = 30;
+const LOGIN_EMAIL_FAILS = 8;
 
 export const login = { POST: handle(async (request, e) => {
   if (!sameOrigin(request)) return json(403, { error: 'طلب مرفوض' });
@@ -11,12 +17,16 @@ export const login = { POST: handle(async (request, e) => {
   const email = String(body.email || '').trim().toLowerCase();
   const password = String(body.password || '');
   if (!email || !password) return json(400, { error: 'اكتب الإيميل والباسوورد' });
+  // The door anyone can knock on. Only FAILED attempts count (per address and per email), so successful logins, however many, never trip it
+  const ipKey = `login:ip:${clientIp(request)}`, emailKey = `login:email:${email.slice(0, 254)}`;
+  if (over(ipKey, LOGIN_IP_FAILS, TEN_MIN) || over(emailKey, LOGIN_EMAIL_FAILS, TEN_MIN)) return json(429, { error: TOO_MANY });
   const r = await sb<{ user?: { id: string } }>(cfg, '/auth/v1/token?grant_type=password', { method: 'POST', body: { email, password } });
   if (!r.ok || !r.data || !r.data.user) {
     // Diagnostics only: Supabase status and error code, never the email, password or keys.
     const d = (r.data && typeof r.data === 'object' ? r.data : {}) as Record<string, unknown>;
+    hit(ipKey, LOGIN_IP_FAILS, TEN_MIN); hit(emailKey, LOGIN_EMAIL_FAILS, TEN_MIN);
     console.warn('login_failed', JSON.stringify({ status: r.status, code: d.error_code ?? d.code ?? null, msg: String(d.msg ?? d.message ?? d.error_description ?? d.error ?? '').slice(0, 120) }));
-    await audit(cfg, { email: auditEmail(email) ?? undefined }, 'login_failed');
+    await auditAnon(cfg, { email: auditEmail(email) ?? undefined }, 'login_failed');
     return json(401, { error: 'الإيميل أو الباسوورد غلط' });
   }
   const uid = r.data.user.id;
@@ -27,13 +37,13 @@ export const login = { POST: handle(async (request, e) => {
       body: { id: uid, email, name: 'Leen', role: 'owner', dashboards: ['ceo', 'creative', 'control'], active: true } });
     profile = made.ok ? made.data[0] || null : null;
   }
-  if (!profile || profile.active === false) {
+  if (!profile || profile.active === false || companyOff(profile)) {
     // Diagnostics only: HTTP status and row count of the profile read, and the key type. No values.
     const chk = await sb<unknown>(cfg, `/rest/v1/profiles?id=eq.${encodeURIComponent(uid)}&select=id,active`, { admin: true });
     const d = (chk.data && typeof chk.data === 'object' && !Array.isArray(chk.data) ? chk.data : {}) as Record<string, unknown>;
     console.warn('login_blocked', JSON.stringify({ key: keyKind(cfg.service), owner: email === cfg.owner, profileStatus: chk.status,
       rows: Array.isArray(chk.data) ? chk.data.length : null, active: profile ? profile.active : null, code: d.code ?? null, msg: String(d.message ?? '').slice(0, 120) }));
-    await audit(cfg, { uid, email }, 'login_blocked');
+    await auditAnon(cfg, { uid, email }, 'login_blocked');
     return json(403, { error: 'حسابك غير مفعّل. تواصل مع مسؤولة اللوحة.' });
   }
   const s = sessionFor(profile, cfg);
@@ -43,8 +53,14 @@ export const login = { POST: handle(async (request, e) => {
 
 // Logout is POST and same-origin only, so another site cannot log the user out with a link.
 export const logout = {
-  POST: handle(request => {
+  POST: handle(async (request, e) => {
     if (!sameOrigin(request)) return new Response(null, { status: 403 });
+    // Cookies are stateless, so signing out also voids this user's logins made so far: a copied cookie stops working too
+    try {
+      const cfg = env(e);
+      const s = await verify(readCookie(request, SESSION), cfg.secret);
+      if (s) await revokeSessions(cfg, s.uid);
+    } catch { /* signing out must always work */ }
     return new Response(null, { status: 303, headers: { location: '/login/', 'set-cookie': clearCookie(), 'cache-control': 'no-store' } });
   }),
   // Old saved link: goes home without logging anyone out
@@ -71,6 +87,8 @@ export const forgot = { POST: handle(async (request, e) => {
   const cfg = env(e);
   const email = String((await readJson(request)).email || '').trim().toLowerCase();
   if (email) {
+    // Same reply whether or not the email exists, so the brake must not depend on it either
+    if (!hit(`forgot:ip:${clientIp(request)}`, 6, TEN_MIN) || !hit(`forgot:email:${email.slice(0, 254)}`, 3, TEN_MIN)) return json(429, { error: TOO_MANY });
     const to = new URL('/reset/', request.url).toString();
     // Leen's first time: no account yet, so she gets an invite email to set her password
     let sent = email === cfg.owner
@@ -84,7 +102,7 @@ export const forgot = { POST: handle(async (request, e) => {
       console.warn('password_reset_email_failed', JSON.stringify({ status: sent.status, code }));
       await audit(cfg, null, 'password_reset_email_failed', { target: { status: sent.status, code } });
     }
-    await audit(cfg, { email: auditEmail(email) ?? undefined }, 'password_reset_requested');
+    await auditAnon(cfg, { email: auditEmail(email) ?? undefined }, 'password_reset_requested');
   }
   return json(200, { ok: true });
 }) };
@@ -106,8 +124,9 @@ export const reset = { POST: handle(async (request, e) => {
     if (tokenHash.length > 200) return json(400, { error: EXPIRED });
     const bad = passwordError(password);
     if (bad) return json(400, { error: bad });
+    if (over(`reset:ip:${clientIp(request)}`, 20, TEN_MIN)) return json(429, { error: TOO_MANY });
     const v = await sb<{ access_token?: string }>(cfg, '/auth/v1/verify', { method: 'POST', body: { type: body.type, token_hash: tokenHash } });
-    if (!v.ok || !v.data || !v.data.access_token) return json(400, { error: EXPIRED });
+    if (!v.ok || !v.data || !v.data.access_token) { hit(`reset:ip:${clientIp(request)}`, 20, TEN_MIN); return json(400, { error: EXPIRED }); }
     token = v.data.access_token;
   }
   if (!token) return json(400, { error: 'الرابط ناقص. اطلب رابط جديد.' });
@@ -115,6 +134,8 @@ export const reset = { POST: handle(async (request, e) => {
   if (bad) return json(400, { error: bad });
   const r = await sb<{ id?: string; email?: string }>(cfg, '/auth/v1/user', { method: 'PUT', token, body: { password } });
   if (!r.ok) return json(400, { error: EXPIRED });
+  // A new password voids every login made with the old one
+  if (r.data?.id) await revokeSessions(cfg, r.data.id);
   await audit(cfg, { id: r.data?.id, email: r.data?.email }, 'password_set');
   return json(200, { ok: true });
 }) };
