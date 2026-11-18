@@ -361,6 +361,26 @@ test.describe('أحلم', () => {
     });
   }
   for (const lang of ['ar', 'en'] as const) {
+    test(`${lang}: the pack plays the campaign video from the same origin, shows the cost before approval, and a locked module keeps the storyboard with what to do`, async ({ page, context, request }) => {
+      await addSession(context, await login(request, 'owner'));
+      const d = { ...PACK, campaign: { ...PACK.campaign, status: 'review', brief: { summary: 'B', messages: [], risks: [], questions: [] } }, assetPlan: { images: 3, audio: 2, usd: 0.27, video: { clips: 1, seconds: 10, usd: 2 } },
+        tasks: [{ id: 1, position: 0, agent: 'design', title: 'Video', status: 'review', depends_on: [], spec: { kind: 'video', missing: ['video:locked'] }, estimate_usd: 2 }],
+        outputs: [{ id: 51, task_id: 1, kind: 'video_clip', platform: 'story', body: { key: 'video/c/x.mp4', mime: 'video/mp4', ratio: '9:16', seconds: 10, text: 'clip' }, compliance: [] },
+          { id: 52, task_id: 1, kind: 'asset_missing', body: { what: 'video', text: 'Video module is locked: unlock it, then press the button', code: 'locked', retry: true }, compliance: [] }] };
+      await page.route('**/api/campaigns/get**', r => r.fulfill({ json: d }));
+      await page.route('**/api/campaigns/list', r => r.fulfill({ json: { campaigns: [{ id: 'c1', title: 'Spring', status: 'review', estimate_usd: 2.3, created_at: '2026-11-01T00:00:00Z' }], mayApprove: true } }));
+      await page.goto('/today/?tab=campaign' + (lang === 'en' ? '&lang=en' : ''));
+      await page.locator('.cm-list button').first().click();
+      await page.locator('#cmAll').click();
+      await expect(page.locator('video[controls][src="/api/campaigns/file?id=51"]')).toHaveCount(1);
+      await expect(page.locator('.cm-vid a[href*="id=51&dl=1"]')).toBeVisible();
+      await expect(page.locator('.cm-out .msg.err')).toContainText('locked');
+      await expect(page.locator('#cmAssets')).toContainText(lang === 'en' ? 'Plus a real video by Higgsfield (1 × 10s' : 'وفيديو حقيقي من Higgsfield');
+      if (lang === 'en') await expect(page.locator('#cmAssets')).not.toContainText(/[\u0600-\u06FF]/);
+      await expect(page.locator('[data-assets="1"]')).toBeVisible();
+    });
+  }
+  for (const lang of ['ar', 'en'] as const) {
     test(`${lang}: the motion task shows its storyboard (scenes with time and animation) and opens the project in Design for the video export`, async ({ page, context, request }) => {
       await addSession(context, await login(request, 'owner'));
       const d = { ...PACK, campaign: { ...PACK.campaign, status: 'review', brief: { summary: 'B', messages: [], risks: [], questions: [] } },

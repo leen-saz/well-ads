@@ -11,8 +11,9 @@ import { backgroundPrompt, imageMiss, SIZES, WELL_PALETTE } from '../modules/des
 import { TTS_MODEL } from '../modules/voice/voice';
 import { DEFAULTS, body as ttsBody, choice, guessUsage, usageIn, type Choice } from '../modules/voiceover/voiceover';
 import type { Brand } from '../modules/knowledge/brand';
+import { videoUsd } from './campaign-video';
 
-export type AssetEnv = LlmEnv & GeminiEnv & { FILES?: R2Bucket };
+export type AssetEnv = LlmEnv & GeminiEnv & { FILES?: R2Bucket; HIGGSFIELD_API_KEY?: string | undefined; HIGGSFIELD_API_SECRET?: string | undefined; HIGGSFIELD_SEEDANCE_MODEL?: string | undefined; CAMPAIGN_VIDEO_CLIPS?: string | undefined; CAMPAIGN_VIDEO_SECONDS?: string | undefined };
 export interface Miss { miss: string; message: string; retry: boolean }
 export const isMiss = (x: unknown): x is Miss => !!x && typeof x === 'object' && 'miss' in x;
 
@@ -27,7 +28,8 @@ const PX: Record<string, '1024x1536' | '1024x1024' | '1536x1024'> = { story: '10
 export const TTS_VERSIONS = 2;   // the 30-second and the 10-second reading
 // What the paid makers add to a campaign's estimate, before anything runs (the picture is billed per image, the speech by tokens)
 export const TTS_USD = 0.03;
-export function assetUsd(agent: string, platforms: string[]): number {
+export function assetUsd(agent: string, platforms: string[], kind?: string, e?: Parameters<typeof videoUsd>[0]): number {
+  if (kind === 'video') return videoUsd(e);
   if (agent === 'design') return Math.round(designSizes(platforms).length * IMAGE_USD * 1e6) / 1e6;
   if (agent === 'voice') return Math.round(TTS_VERSIONS * TTS_USD * 1e6) / 1e6;
   return 0;
@@ -109,6 +111,8 @@ const rnd = () => crypto.randomUUID().replace(/-/g, '');
 export const EXT: Record<string, string> = { 'image/jpeg': 'jpg', 'image/png': 'png', 'audio/wav': 'wav' };
 export const assetKey = (co: string, campaign: string, ext: string): string => `campaign/${co}/${campaign}/${rnd()}.${ext}`;
 export const ownAsset = (co: string, campaign: string, key: unknown): key is string => typeof key === 'string' && new RegExp(`^campaign/${co}/${campaign}/[0-9a-f]{32}\\.(jpg|png|wav)$`).test(key);
+// A finished clip stays where the Video module's job stored it (video/<company>/<uuid>.mp4): the output row of the campaign names it, and the file route re-checks the company
+export const ownVideo = (co: string, key: unknown): key is string => typeof key === 'string' && new RegExp(`^video/${co}/[0-9a-f-]{36}\\.(mp4|webm)$`).test(key);
 export async function keep(e: AssetEnv, co: string, campaign: string, bytes: Uint8Array<ArrayBuffer>, mime: string): Promise<string | Miss> {
   if (!e.FILES) return { miss: 'no_storage', message: 'تخزين الملفات مو مفعّل في هالبيئة، فما انحفظ الملف.', retry: false };
   const key = assetKey(co, campaign, EXT[mime] ?? 'bin');

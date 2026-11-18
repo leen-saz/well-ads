@@ -13,7 +13,9 @@ import { dayStart } from '../../lib/ahlam';
 
 
 
-import { TTS_VERSIONS, assetUsd, designSizes, dropAssets, ownAsset, type AssetEnv } from '../../lib/campaign-assets';
+import { TTS_VERSIONS, assetUsd, designSizes, dropAssets, ownAsset, ownVideo, type AssetEnv } from '../../lib/campaign-assets';
+import { clipCount, clipSeconds, videoUsd } from '../../lib/campaign-video';
+import { serveMedia } from '../../lib/site';
 
 import { MAX_REGEN, MAX_RETRIES, REASON_MIN, affectedTasks, cleanReason, readyTask, rollup, type TaskRow } from '../../lib/campaign-run';
 
@@ -43,7 +45,7 @@ export const get = { GET: handle(async (request, e: Env) => {
   const t = await sb(cfg, scoped(`/rest/v1/campaign_tasks?select=id,position,agent,title,spec,depends_on,status,blocked_reason,estimate_usd,updated_at&campaign_id=eq.${id}&order=position.asc`, user.co), { admin: true });
   const o = await sb(cfg, scoped(`/rest/v1/campaign_outputs?select=id,task_id,kind,platform,body,compliance&campaign_id=eq.${id}&order=id.asc&limit=200`, user.co), { admin: true });
   const plat = Array.isArray((campaign['wishes'] as Row | undefined)?.['platforms']) ? ((campaign['wishes'] as Row)['platforms'] as string[]) : [];
-  return json(200, { campaign, tasks: rows(t.data), outputs: rows(o.data), assetPlan: { images: designSizes(plat).length, audio: TTS_VERSIONS, usd: assetUsd('design', plat) + assetUsd('voice', plat) }, agents: AGENTS, mayApprove: mayApprove(user, cfg), capped: await overCap(usageCtx(cfg, user, TASK)!, TASK) });
+  return json(200, { campaign, tasks: rows(t.data), outputs: rows(o.data), assetPlan: { images: designSizes(plat).length, audio: TTS_VERSIONS, usd: assetUsd('design', plat) + assetUsd('voice', plat), video: { clips: clipCount(e), seconds: clipSeconds(e), usd: videoUsd(e) } }, agents: AGENTS, mayApprove: mayApprove(user, cfg), capped: await overCap(usageCtx(cfg, user, TASK)!, TASK) });
 }) };
 
 // The wishes -> a plan. One model call, saved as `planned`: the user reads the plan and its cost before anything runs.
@@ -64,7 +66,7 @@ export const create = { POST: handle(async (request, e: Env) => {
     plan = parsePlan(out.response); used_model = out.model; used_provider = out.engine;
   } catch (err) { return json(502, { error: llmMessage(err) }); }
   if (!plan) return json(502, { error: 'ما طلعت خطة أقدر أقراها، جرّب مرة ثانية أو وضّح الأمنيات أكثر' });
-  const est = estimate(plan.tasks.map(t => t.agent), used_model, used_provider, plan.tasks.map(t => assetUsd(t.agent, w.wishes!.platforms)));
+  const est = estimate(plan.tasks.map(t => t.agent), used_model, used_provider, plan.tasks.map(t => assetUsd(t.agent, w.wishes!.platforms, t.kind, e)));
   // The budget is only ever the user's: when it was not given, it is an open question (with «not set» as the assumption), never a made-up number
   if (!w.wishes.budget && !plan.brief.questions.some(q => /ميزاني|budget/i.test(q.q))) plan.brief.questions.push({ q: 'كم ميزانية الحملة؟', assumption: 'لم تُحدَّد: الخطة بنِسب مئوية بدون أرقام ريال', affects: ['optimize'] });
   const made = await sb<Row[]>(cfg, '/rest/v1/campaigns', { method: 'POST', admin: true, headers: { Prefer: 'return=representation' },
@@ -250,6 +252,13 @@ export const file = { GET: handle(async (request, e: Env) => {
   const cid = idOf(o?.['campaign_id']);
   const seen = cid ? rows((await sb(cfg, scoped(`/rest/v1/campaigns?select=id&id=eq.${cid}${visible(user, cfg)}`, user.co), { admin: true })).data)[0] : null;
   const b = (o?.['body'] ?? {}) as Row, key = b['key'], mime = String(b['mime'] ?? '');
+  // A finished video clip: streamed from R2 with Range (a browser plays and seeks without pulling the whole file), only for who may see the campaign
+  if (o && cid && seen && o['kind'] === 'video_clip' && ownVideo(user.co, key) && ['video/mp4', 'video/webm'].includes(mime) && e.FILES) {
+    const res = await serveMedia(request, e.FILES, key);
+    res.headers.set('cache-control', 'private, max-age=3600'); res.headers.set('x-content-type-options', 'nosniff'); res.headers.set('content-security-policy', "default-src 'none'; sandbox");
+    res.headers.set('content-disposition', `${q.get('dl') === '1' ? 'attachment' : 'inline'}; filename="campaign-video.${key.split('.').pop()}"`);
+    return res;
+  }
   if (!o || !cid || !seen || !ownAsset(user.co, cid, key) || !['image/jpeg', 'image/png', 'audio/wav'].includes(mime) || !e.FILES) return json(404, { error: 'الملف غير موجود' });
   const obj = await e.FILES.get(key);
   if (!obj) return json(404, { error: 'الملف غير موجود' });

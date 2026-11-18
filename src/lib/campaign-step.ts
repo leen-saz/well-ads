@@ -14,6 +14,7 @@ import { DEPTS, type requireUser } from './auth';
 import { SIZES } from '../modules/design/design';
 import { assetUsd, brandText, brandVoice, designSizes, drawPicture, dropAssets, isMiss, keep, speakText, srtOf, type AssetEnv } from './campaign-assets';
 import { buildMotion, isMotionTask } from './campaign-motion';
+import { isVideoTask, runVideo, PENDING_SAY, type VideoState } from './campaign-video';
 import { INTERNAL_KINDS, PUBLISHABLE, defaultTasks, MAX_AUTO, STALE_MS, budgetIssue, kpis, parsePosts, parseVoice, readyTask, rollup, slim, socialTargets, taskMessages, verdict, type OutputRow, type TaskRow } from './campaign-run';
 
 type Env = AuthEnv & LlmEnv & AssetEnv;
@@ -87,7 +88,7 @@ export async function advance(e: Env, cfg: SbCfg, user: Session, id: string, see
   let tasks = await tasksOf(cfg, user.co, id);
   if (!tasks.length) {
     // approved before the tasks existed, or saved without them: give it the standard plan now (no AI call, no new approval)
-    const m = pick(e, TASK), est = estimate(defaultTasks().map(x => x.agent), m?.model ?? 'openai/gpt-4.1', m?.provider ?? 'openrouter', defaultTasks().map(x => assetUsd(x.agent, Array.isArray((camp['wishes'] as Row | undefined)?.['platforms']) ? ((camp['wishes'] as Row)['platforms'] as string[]) : [])));
+    const m = pick(e, TASK), est = estimate(defaultTasks().map(x => x.agent), m?.model ?? 'openai/gpt-4.1', m?.provider ?? 'openrouter', defaultTasks().map(x => assetUsd(x.agent, Array.isArray((camp['wishes'] as Row | undefined)?.['platforms']) ? ((camp['wishes'] as Row)['platforms'] as string[]) : [], x.kind, e)));
     const made = await sb(cfg, '/rest/v1/campaign_tasks', { method: 'POST', admin: true, headers: { Prefer: 'return=minimal' },
       body: defaultTasks().map((x, i) => ({ campaign_id: id, company_id: user.co, position: i, agent: x.agent, title: x.title, spec: { detail: x.detail, backfilled: true, ...(x.kind ? { kind: x.kind } : {}) }, depends_on: x.after, estimate_usd: est.perTask[i] })) });
     if (!made.ok) return fail(user, made, 'ما قدرت أجهّز مهام الحملة');
@@ -115,7 +116,7 @@ export async function advance(e: Env, cfg: SbCfg, user: Session, id: string, see
   const entries = await loadKnowledge(cfg, user.co);
   const extra = forbiddenRules(entries);
   const out: OutputRow[] = [];
-  let status = 'review', reason: string | null = null, spec: Row = {}, fixing = 0, assets = 0, missing: string[] = [];
+  let status = 'review', reason: string | null = null, spec: Row = {}, fixing = 0, assets = 0, missing: string[] = [], pendingVideo: VideoState | null = null;
   const offenders = new Map<number, string>();   // the final scan: task id -> why its piece was refused (what the repair loop gives back to its agent)
 
   try {
@@ -143,6 +144,11 @@ export async function advance(e: Env, cfg: SbCfg, user: Session, id: string, see
       // a motion task is not written by the campaign model: the Design module's motion planner makes the scenes over the campaign's own picture and recording
       const m = await buildMotion(e, cfg, user, { id, title: String(camp['title'] ?? 'حملة') }, outputs, t.spec?.feedback, extra);
       out.push(...m.outs.map(o => ({ ...o, task_id: t.id }))); status = m.status; reason = m.reason; missing = m.missing; if (m.project) assets = 1;
+    } else if (isVideoTask(t)) {
+      // the real video (Higgsfield · Seedance), made by the Video module's own jobs: async, one poll per call; it never fails the campaign
+      const v = await runVideo(e, cfg, user, { id, title: String(camp['title'] ?? 'حملة') }, t, outputs, extra);
+      out.push(...v.outs.map(o => ({ ...o, task_id: t.id }))); missing = v.missing; assets = v.made; pendingVideo = v.pending ? v.state ?? null : null;
+      spec = { video: pendingVideo ?? undefined };
     } else {
       const run = { cfg, user, e: e as AhlamEnv };
       const tool = async (n: string, a: Record<string, unknown>): Promise<string> => { try { return (await toolsFor(run).find(x => x.name === n)?.run(run, a)) ?? ''; } catch { return ''; } };
@@ -239,6 +245,12 @@ export async function advance(e: Env, cfg: SbCfg, user: Session, id: string, see
   if (out.length) {
     const w = await sb(cfg, '/rest/v1/campaign_outputs', { method: 'POST', admin: true, headers: { Prefer: 'return=minimal' }, body: out.map(o => ({ ...o, campaign_id: id, company_id: user.co })) });
     if (!w.ok) { status = 'failed'; reason = 'ما انحفظت مخرجات المهمة'; }
+  }
+  // A clip still being made: the task waits (the job ids are in its spec) and this call ends; the next call, from the driver or a page, polls once more
+  if (pendingVideo && status === 'review') {
+    await patchTask(cfg, user.co, t.id, { status: 'waiting', blocked_reason: null, spec: { ...(t.spec ?? {}), stage: undefined, video: pendingVideo, missing: missing.length ? missing : undefined } });
+    if (out.length || !t.spec?.video) await audit(cfg, user, 'campaign_video_step', { target: { id, task: t.id, jobs: pendingVideo.jobs.length, files: assets } });
+    return json(200, { paused: 'video_pending', message: PENDING_SAY });
   }
   // Drafts into Social only from a task that passed the check; they are `draft` and manual: scheduling and approval stay with Social's approvers
   let drafts = 0;

@@ -32,7 +32,7 @@ beforeEach(() => {
   db = []; usage = []; caps = []; spent = []; submits = 0; submitStatus = 200; statusWord = 'queued'; videoType = 'video/mp4'; profile = null; files.stored = []; clearSnaps();
   vi.stubGlobal('fetch', vi.fn(async (url: string, init: RequestInit = {}) => {
     const m = init.method || 'GET', body = init.body && typeof init.body === 'string' ? JSON.parse(init.body) : undefined;
-    if (url.includes('platform.higgsfield.ai')) {
+    if (url.includes('api.higgsfield.ai')) {
       if (m === 'POST') { submits++; return submitStatus === 200 ? new Response(JSON.stringify({ request_id: 'req-' + submits + '-abcdef' })) : new Response('{}', { status: submitStatus }); }
       return new Response(JSON.stringify({ status: statusWord, ...(statusWord === 'completed' ? { video: { url: 'https://cdn.higgsfield.example/v.mp4' } } : {}) }));
     }

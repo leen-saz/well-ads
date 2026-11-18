@@ -41,7 +41,7 @@ export const per = (tokens: number, usdPerMillion: number): number => (tokens * 
 // Higgsfield's pricing page publishes credits per model, not dollars per second: check docs.higgsfield.ai / the cloud console.
 export interface VideoPrice { engine: string; usdPerSecond: Record<string, number>; source: string; date: string; verified: boolean }
 export const VIDEO_PRICES: VideoPrice[] = [
-  { engine: 'higgsfield-seedance', usdPerSecond: { '480p': 0.03, '720p': 0.06, '1080p': 0.12 }, source: 'higgsfield.ai/pricing (credits per clip; converted by the owner)', date: '2026-11-08', verified: false },
+  { engine: 'higgsfield-seedance', usdPerSecond: { '480p': 0.1, '720p': 0.2, '1080p': 0.45 }, source: 'estimate: Higgsfield web price ~$1.55 per 8 s 720p clip and third-party Seedance 2.0 APIs at $0.15-0.20/s; Higgsfield publishes no per-second API price (its estimate endpoint answers per account)', date: '2026-11-18', verified: false },
 ];
 export function videoCost(engine: string, resolution: string, seconds: number): { usd: number; priced: boolean } {
   const p = VIDEO_PRICES.find(x => x.engine === engine)?.usdPerSecond[resolution];

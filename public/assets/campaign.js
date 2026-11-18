@@ -62,7 +62,7 @@ export function mountCampaign(root, me, L, { embedded = false } = {}) {
 
   let view = 0;   // a new screen cancels a run loop that belongs to the old one
   const KIND = { insight: ['سياق ورصد', 'Context & listening'], copy: ['نصوص ومحتوى', 'Copy & content'], design_brief: ['بريف التصميم', 'Design brief'], 
-    post: ['مسودة منشور', 'Post draft'], design_image: ['صورة التصميم', 'Design image'], voice_script: ['نص الفويس أوفر', 'Voiceover script'], voice_audio: ['تسجيل صوتي', 'Voice recording'], voice_srt: ['ترجمة SRT', 'SRT subtitles'], asset_missing: ['ملف ما انولّد', 'File not made'], motion_storyboard: ['موشن جرافيك (ستوري بورد)', 'Motion graphic (storyboard)'], compliance_report: ['تقرير الامتثال', 'Compliance report'], optimization: ['الميزانية والتحسين', 'Budget & optimization'], measurement: ['خطة القياس', 'Measurement plan'] };
+    post: ['مسودة منشور', 'Post draft'], design_image: ['صورة التصميم', 'Design image'], voice_script: ['نص الفويس أوفر', 'Voiceover script'], voice_audio: ['تسجيل صوتي', 'Voice recording'], voice_srt: ['ترجمة SRT', 'SRT subtitles'], asset_missing: ['ملف ما انولّد', 'File not made'], motion_storyboard: ['موشن جرافيك (ستوري بورد)', 'Motion graphic (storyboard)'], video_clip: ['فيديو الحملة', 'Campaign video'], compliance_report: ['تقرير الامتثال', 'Compliance report'], optimization: ['الميزانية والتحسين', 'Budget & optimization'], measurement: ['خطة القياس', 'Measurement plan'] };
   const KPI_EN = { ctr: 'Click rate', clickToLead: 'Click to lead', leadToClose: 'Lead to close', cpl: 'Cost per lead (max)', costShare: 'Cost of a close, share of its value (max)', roas: 'Return on spend', maturityDays: 'Lead age before judging its close' };
   const UNIT = { '%': '%', SAR: ['ريال', 'SAR'], '×': '×', day: ['يوم', 'days'] };
   const PLAT = { facebook: 'Facebook', instagram: 'Instagram', tiktok: 'TikTok', x: 'X', linkedin: 'LinkedIn', snapchat: 'Snapchat' };
@@ -88,6 +88,8 @@ export function mountCampaign(root, me, L, { embedded = false } = {}) {
       <p class="muted">${esc(L('الفيديو النهائي يُرسم ويُصدَّر من المتصفح في صفحة التصميم (ما ينفع من السيرفر): هنا مشروع جاهز بصورته وصوته وخطة مشاهده، ويحتاج صلاحية تاب التصميم.', 'The final video is drawn and exported in the browser on the Design page (it cannot be done on the server): here is a ready project with its picture, recording and scene plan; it needs access to the Design tab.'))}</p>` : ''}</div></div>` : '';
     const body = o.kind === 'motion_storyboard' ? board : o.kind === 'design_image'
       ? `<figure class="cm-fig"><img src="${file}" alt="${esc(o.body.text || '')}" loading="lazy" width="${esc(o.body.w || '')}" height="${esc(o.body.h || '')}"><figcaption>${esc(o.body.text || '')} · ${dl(file + '&dl=1', `design-${o.platform || 'image'}.jpg`)}</figcaption></figure>`
+      : o.kind === 'video_clip'
+        ? `<figure class="cm-fig cm-vid"><video controls playsinline preload="metadata" src="${file}" width="270"></video><figcaption>${esc(L(`فيديو ${o.body.ratio} · ${o.body.seconds} ثواني · من Higgsfield (Seedance)`, `${o.body.ratio} video · ${o.body.seconds}s · by Higgsfield (Seedance)`))} · ${dl(file + '&dl=1', 'campaign-video.mp4')}</figcaption></figure>`
       : o.kind === 'voice_audio'
         ? `<div class="cm-aud"><audio controls preload="none" src="${file}"></audio><span class="muted">${esc(L(`نسخة ${o.body.label} ثانية · ${o.body.seconds} ث`, `${o.body.label}-second version · ${o.body.seconds}s`))}</span> ${dl(file + '&dl=1', `voiceover-${o.body.label}s.wav`)}</div><div class="cm-text">${render(o.body.text || '')}</div>`
         : o.kind === 'voice_srt'
@@ -265,7 +267,7 @@ export function mountCampaign(root, me, L, { embedded = false } = {}) {
     show('#cmPackNote', started); show('#cmCap', !!d.capped);
     const ap = d.assetPlan || {};
     show('#cmAssets', !!ap.images);
-    set('#cmAssets', esc(L(`يشمل توليد ${ap.images} صور وملفين صوتيين (نحو ${sar(ap.usd)}): كل واحد يتولّد بعد ما يمر نصه على الامتثال، ويمر على سقف تاب التصميم والفويس أوفر.`, `Includes making ${ap.images} pictures and ${ap.audio} audio files (about ${sar(ap.usd)}): each is made only after its text passes compliance, and counts against the Design and Voiceover caps.`)));
+    set('#cmAssets', esc(L(`يشمل توليد ${ap.images} صور وملفين صوتيين (نحو ${sar(ap.usd)}): كل واحد يتولّد بعد ما يمر نصه على الامتثال، ويمر على سقف تاب التصميم والفويس أوفر.`, `Includes making ${ap.images} pictures and ${ap.audio} audio files (about ${sar(ap.usd)}): each is made only after its text passes compliance, and counts against the Design and Voiceover caps.`)) + (ap.video ? ' ' + L(`وفيديو حقيقي من Higgsfield (${ap.video.clips} × ${ap.video.seconds} ثواني، نحو ${sar(ap.video.usd)} تقدير): يتولّد بعد فحص الامتثال وفي حدود سقف الفيديو، ويحتاج تفعيل وحدة الفيديو.`, `Plus a real video by Higgsfield (${ap.video.clips} × ${ap.video.seconds}s, about ${sar(ap.video.usd)} estimated): made after the compliance check, within the video cap, and it needs the Video module switched on.`) : ''));
     show('#cmOk', planned && d.mayApprove); show('#cmDl', started); show('#cmCp', started);
     show('#cmNo', ['planned', 'approved', 'running', 'review'].includes(c.status));
     const waitingN = d.tasks.filter(t => t.status === 'waiting').length;
@@ -334,6 +336,7 @@ export function mountCampaign(root, me, L, { embedded = false } = {}) {
         const r = await api('/api/campaigns/step', { method: 'POST', timeout: 180000, body: { id } });
         if (mine !== view) return;
         window.dispatchEvent(new Event('wl-campaign-change'));
+        if (r.paused === 'video_pending') { await refresh(); say(msg(), L('الفيديو قيد التوليد عند Higgsfield: نتابعه كل 20 ثانية، وبيكتمل حتى لو سكّرت الصفحة.', 'The video is being made by Higgsfield: checking every 20 seconds, and it completes even if you close the page.')); await new Promise(res => setTimeout(res, 20000)); continue; }
         if (r.paused) { await refresh(); say(msg(), r.message); return; }
         if (r.busy) { await new Promise(res => setTimeout(res, 3000)); continue; }
         await refresh();

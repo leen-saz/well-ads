@@ -32,6 +32,8 @@ export const SAY: Record<string, string> = {
   cap_reached: 'وصل الحد الشهري لصرف الفيديو، تواصل مع الإدارة',
   not_ready: 'ما اكتمل تجهيزه، بلّغ الإدارة',
   auth: 'ما اكتمل تجهيزه، بلّغ الإدارة',
+  balance: 'رصيد محرك الفيديو خلص، تواصل مع الإدارة',
+  no_access: 'موديل الفيديو غير متاح لحسابنا، تواصل مع الإدارة',
   rejected: 'المحرك رفض اللقطة، عدّل الوصف وجرّب',
   blocked: 'المحرك منع هالمحتوى، غيّر الوصف',
   timeout: 'الفيديو أخذ وقت أطول من المعتاد وتوقف، جرّب مرة ثانية',
@@ -111,7 +113,7 @@ export async function advance(c: Ctx, job: Job): Promise<Job> {
     const claimed = await move(c.cfg, job, 'queued', { status: 'running', attempts: job.attempts + 1, error_code: null });
     if (!claimed) return job;   // someone else took it
     try {
-      const { ref } = await engine.submit(c.env, claimed.params, f);
+      const { ref } = await engine.submit(c.env, claimed.params, f, `well-job-${claimed.id}-${claimed.attempts}`);
       return (await move(c.cfg, claimed, 'running', { upstream_ref: ref })) ?? claimed;
     } catch (err) {
       const ee = err instanceof EngineError ? err : new EngineError('network', true, '');

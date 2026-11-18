@@ -22,6 +22,7 @@ export interface Capability {
 export interface ClipInput {
   kind: Kind; prompt: string; ratio: Ratio; seconds: number; resolution: string;
   imageUrl?: string; voiceUrl?: string; avatarId?: string;
+  silent?: boolean;               // no sound track from the engine (a campaign has its own recording)
 }
 export interface Status { state: 'queued' | 'running' | 'done' | 'failed'; url?: string | undefined; code?: string | undefined }
 
@@ -38,7 +39,8 @@ export interface Engine {
   // the secret names the owner must set; shown as a hint to the owner only
   secrets: string[];
   configured(e: EngineEnv): boolean;
-  submit(e: EngineEnv, i: ClipInput, f?: typeof fetch): Promise<{ ref: string }>;
+  // `idem`: one key per intended generation; a repeat with the same key never makes (or bills) a second video
+  submit(e: EngineEnv, i: ClipInput, f?: typeof fetch, idem?: string): Promise<{ ref: string }>;
   status(e: EngineEnv, ref: string, f?: typeof fetch): Promise<Status>;
 }
 
@@ -68,7 +70,7 @@ export function validate(caps: Capability, raw: Record<string, unknown>): { inpu
   if (caps.needsVoice.includes(kind) && !voiceUrl) problems.push('الأفاتار يحتاج ملف صوت');
   if (problems.length) return { problems };
   const avatarId = raw.avatarId ? String(raw.avatarId).replace(/[^a-z0-9_-]/gi, '').slice(0, 40) : undefined;
-  return { problems, input: { kind, prompt, ratio, seconds, resolution, ...(imageUrl ? { imageUrl } : {}), ...(voiceUrl ? { voiceUrl } : {}), ...(avatarId ? { avatarId } : {}) } };
+  return { problems, input: { kind, prompt, ratio, seconds, resolution, ...(imageUrl ? { imageUrl } : {}), ...(voiceUrl ? { voiceUrl } : {}), ...(avatarId ? { avatarId } : {}), ...(raw.silent === true ? { silent: true } : {}) } };
 }
 
 // A 15, 30 or 60 second ad is a list of clips. Plans the clip lengths for an ad length with the engine's own clip sizes.

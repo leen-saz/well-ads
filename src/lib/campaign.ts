@@ -38,7 +38,7 @@ export function cleanWishes(raw: Record<string, unknown>): { wishes?: Wishes; er
   return { wishes: { goal, dept, offer: tidy(raw['offer'], 400), audience: tidy(raw['audience'], 400), platforms, dates: tidy(raw['dates'], 120), budget: tidy(raw['budget'], 120), tone: tidy(raw['tone'], 200), notes: tidy(raw['notes'], 1200) } };
 }
 
-export interface PlanTask { agent: Agent; title: string; detail: string; after: number[]; kind?: 'motion' }
+export interface PlanTask { agent: Agent; title: string; detail: string; after: number[]; kind?: 'motion' | 'video' }
 // An open question the plan could not settle: the agents do NOT wait for it, they take `assumption`; a person may answer later and only
 // the tasks it affects are written again.
 export interface Question { q: string; assumption: string; affects: Agent[]; answer?: string }
@@ -84,6 +84,15 @@ function ensureCompliance(tasks: PlanTask[]): void {
   tasks.push({ agent: 'compliance', title: AGENTS.compliance.ar, detail: 'فحص كل المسودات قبل الاعتماد', after: writers.filter(i => i < tasks.length) });
 }
 
+// The motion deliverable is a real video file: a plan with a motion task gets the video task at the very end, after the compliance gate has
+// passed the scene text (nothing is spent before that). It is added by us, not asked of the model, so it is always the same one task.
+function ensureVideo(tasks: PlanTask[]): void {
+  const motion = tasks.findIndex(t => t.kind === 'motion');
+  if (motion < 0 || tasks.some(t => t.kind === 'video')) return;
+  const gates = tasks.flatMap((t, i) => (t.agent === 'compliance' ? [i] : []));
+  tasks.push({ agent: 'design', title: 'فيديو الحملة (Higgsfield · Seedance)', detail: 'لقطة عمودية 9:16 من مشاهد الموشن بعد فحص الامتثال، تتولّد عند Higgsfield وتنحفظ ملف فيديو حقيقي.', after: [motion, ...gates], kind: 'video' });
+}
+
 const list = (v: unknown, n: number, max: number): string[] => (Array.isArray(v) ? v.map(x => tidy(x, max)).filter(Boolean).slice(0, n) : []);
 // What the model returned -> a plan we trust: known agents only, capped, dependencies pointing back at earlier tasks.
 // Anything that is not a plan (or has no usable task) is an error, never a half plan.
@@ -100,6 +109,7 @@ export function parsePlan(text: string): Plan | null {
   }
   if (!tasks.length) return null;
   ensureCompliance(tasks);
+  ensureVideo(tasks);
   const b = raw.brief ?? {};
   const questions: Question[] = (Array.isArray(b['questions']) ? (b['questions'] as Record<string, unknown>[]) : []).flatMap(x => {
     const q = tidy(x?.['q'], 240), assumption = tidy(x?.['assumption'], 300);

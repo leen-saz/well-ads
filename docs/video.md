@@ -23,10 +23,17 @@
 ## الأسرار (Worker secrets، تضيفها لين بنفسها)
 `HIGGSFIELD_API_KEY`, `HIGGSFIELD_API_SECRET`، واختياري `HIGGSFIELD_SEEDANCE_MODEL`. الأسماء في `docs/secrets/worker.env.example`.
 
-## تنبيه للتحقق قبل أول تشغيل مدفوع
-شكل الطلبات (`Authorization: Key <key>:<secret>`، المسار `/<model>/text-to-video` أو `/image-to-video`، حالة الطلب `/requests/<id>/status`)
-مأخوذ من توثيق Higgsfield Cloud كما تنقله مصادر ثالثة؛ يتحقق منه المالك على المرجع الرسمي (docs.higgsfield.ai). والأسعار في
-`src/lib/prices.ts` (`VIDEO_PRICES`) **تقديرية** وتبقى `verified: false` لين تتطابق مع فاتورة.
+## التحقق من المرجع الرسمي (2026-11-18)
+تحققنا من https://docs.higgsfield.ai وعدّلنا المحوّل (`higgsfield.ts`) على ما فيه اليوم:
+- القاعدة `https://api.higgsfield.ai` (كانت `platform.higgsfield.ai`)، والتوثيق `Authorization: Key <id>:<secret>`.
+- المسار `POST /bytedance/seedance-2.0/text-to-video` أو `/image-to-video` (الافتراضي الحين `bytedance/seedance-2.0`؛ كان `bytedance/seedance/v1/lite` وما عاد موجود بالتوثيق)، ويقدر `HIGGSFIELD_SEEDANCE_MODEL` يغيّره (مثلاً `bytedance/seedance-2.5`، لقطة لين 4 إلى 30 ثانية).
+- الحقول: `prompt` و`duration` (4–15 ثانية في 2.0) و`resolution` (`480p|720p|1080p|4k`) و`aspect_ratio` (`16:9 4:3 1:1 3:4 9:16 21:9`) و`generate_audio`. المخطط يرفض أي حقل زيادة. الحملات ترسل `generate_audio:false` (الصوت صوتنا المسجّل).
+- الحالات: `queued` ثم `in_progress` ثم `completed|failed|nsfw|canceled`، والنتيجة `video.url`. **الملفات تنحذف عند Higgsfield بعد 7 أيام** (`expires_at`)، ونحن ننسخ الملف لتخزيننا أول ما يخلص.
+- `Idempotency-Key` على كل إرسال (نرسل `well-job-<id>-<محاولة>`): إعادة الإرسال بعد انقطاع ما تولّد ولا تحاسب فيديو ثاني. `failed` و`nsfw` ما تنحاسب.
+- الأخطاء: 401 مفاتيح، 403 رصيد ناقص، 404/423/503 الموديل غير متاح لحسابك أو موقوف مؤقتاً، 429 طابور ممتلئ (`Retry-After`).
+- **السعر ما هو منشور لكل ثانية**: Higgsfield تعطي تقدير لحسابك من `POST /estimate/<model>` (يحتاج المفاتيح). جدول `VIDEO_PRICES` في `src/lib/prices.ts` تقديري (0.20$ للثانية 720p) ويبقى `verified: false` لين تتطابق مع فاتورة.
+- **ما قدرنا نتحقق منه بدون مفاتيح**: هل Seedance 2.0 مفتوح لحسابك. التوثيق يقول «توفر الموديل يعتمد على الحساب».
+- صوت الأفاتار (`audio_url`) ما هو في مخطط Seedance 2.0 المنشور: الأفاتار يحتاج مراجعة قبل الاستعمال.
 
 ## الجداول (034)
 `video_projects` (المشروع، الموجز، السكربت، حالة المراجعة والاعتماد)، `video_jobs` (اللقطات)، `video_settings` (المراجع والمعتمدون). كلها `company_id`، RLS مفعّل ومقفول عن anon و authenticated.
