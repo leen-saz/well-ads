@@ -28,6 +28,13 @@ describe('health', () => {
     expect(h.checks.supabase).toBe('down');
     expect(Date.now() - t).toBeLessThan(4500);
   }, 8000);
+  it('gives every Supabase probe an abort signal so a hanging request is cancelled, not just ignored', async () => {
+    const signals: (AbortSignal | null | undefined)[] = [];
+    const f = (async (_u: string, init?: RequestInit) => { signals.push(init?.signal); return new Response('[]', { status: 200 }); }) as unknown as typeof fetch;
+    await health(env, f);
+    expect(signals).toHaveLength(2);
+    expect(signals.every(s => s instanceof AbortSignal && !s.aborted)).toBe(true);
+  });
   it('never leaks the key or the URL', async () => {
     const text = JSON.stringify(await health(env, ok));
     expect(text).not.toContain(secret);
