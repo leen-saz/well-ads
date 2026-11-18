@@ -127,11 +127,15 @@ jobs:
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
           OWNER_MODE: ${{ steps.owner.outputs.mode }}
           OWNER_EMAIL: ${{ secrets.OWNER_EMAIL }}
+          READ_API_KEY: ${{ secrets.READ_API_KEY }}
         run: |
           # BUILD_VERSION = the commit; /api/health reports it so the check below knows this deploy is the one answering.
           # OWNER_EMAIL goes in as a variable only when no Worker secret of that name exists (a variable and a secret cannot share a name).
           extra=()
           [ "$OWNER_MODE" = var ] && extra=(--var "OWNER_EMAIL:$OWNER_EMAIL")
+          # The read-only API key (docs/api-v1.md): passed as a plain variable when the environment secret exists. Empty = the deploy goes on
+          # and /api/v1 stays off (404). The value is never printed; wrangler gets it as an argument and the log shows no variable values.
+          [ -n "$READ_API_KEY" ] && extra+=(--var "READ_API_KEY:$READ_API_KEY")
           npx wrangler deploy --var BUILD_VERSION:"$GITHUB_SHA" "${extra[@]}" --message "deploy ${GITHUB_SHA::7}"
           if [ "$TARGET" = staging ]; then
             url="https://well-ads-staging.${{ steps.sub.outputs.sub }}.workers.dev"
