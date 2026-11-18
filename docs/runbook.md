@@ -12,18 +12,24 @@ Production is deployed by hand (ADR-0005): Actions → **deploy** → Run workfl
    (SQL Editor) **before** deploying, and only if the *previous* version still works with the new schema (add columns and tables,
    never drop or rename in the same release). Migrations are not rolled back with the Worker.
 4. **Secrets and variables.** A new secret named in the release goes into Cloudflare → Workers → well-ads → Settings first
-   (`docs/secrets/worker.env.example` lists them). `/api/health` shows `supabase: down` if the Supabase ones are wrong.
-5. Write down the current version for a rollback: `npx wrangler deployments list --env production` (top line = live version id), or the
+   (`docs/secrets/worker.env.example` lists them). `/api/health` shows `ok: false` (and, as the owner, `/api/health/details` shows `supabase: down`) if the Supabase ones are wrong.
+5. **Owner email.** `OWNER_EMAIL` is not in the public `wrangler.jsonc`. If it is missing the Worker answers every request with an error, so `deploy`
+   stops before deploying. Easiest: set it once per GitHub environment, `gh secret set OWNER_EMAIL -R leen-saz/well-ads --env production` (and `--env staging`),
+   and type the owner's sign-in email; every deploy then passes it to the Worker as a variable. If a Worker secret of that name already exists
+   (`npx wrangler secret put OWNER_EMAIL --name well-ads`), the deploy leaves it alone. A variable and a secret cannot have the same name, so do not do both.
+6. **Scheduled jobs token.** `GH_DISPATCH_TOKEN` (fine-grained token, Actions read and write on this repo) must be a Worker secret too: without it the hourly refresh,
+   the weekly backup and the monthly restore test never start, and the only sign is a console error and a note in R2. Check it after every deploy.
+7. Write down the current version for a rollback: `npx wrangler deployments list --env production` (top line = live version id), or the
    last "deploy" run's summary.
 
 ## Deploy
 Actions → **deploy** → Run workflow → branch `main`, target `production` → approve the `production` environment.
 The run does, in order: `ci` (lint, typecheck, unit, integration, build, migrations, security) → `smoke` (end-to-end on this commit) → deploy →
 **health check**. The job is green only when `https://<production link>/api/health` answers 200 with `version` equal to the deployed commit
-and every dependency `up`. A red health step means the version is live but wrong: roll back now (below), then investigate.
+and `ok: true` (every dependency `up`; which one is down is in `/api/health/details`, owner login). A red health step means the version is live but wrong: roll back now (below), then investigate.
 
 ## After you deploy (3 minutes)
-- `/api/health`: `version` = the commit, `env` = `production`, `checks.supabase` / `checks.storage` = `up`.
+- `/api/health` (public): `version` = the commit and `ok` = `true`. Signed in as the owner, open `/api/health/details`: `env` = `production`, `checks.supabase` / `checks.storage` = `up`.
 - Sign in as the owner: start page loads, sidebar shows every tab, open two tabs you did not change.
 - Cloudflare → Workers → well-ads → Logs: no burst of errors after the deploy time.
 - Cron: the next `*/5` run is not erroring (`scheduled` events in the same logs).
@@ -69,12 +75,23 @@ Every Google Ads call needs these secrets in the `production` environment (Setti
 
 ## TikTok history (private bucket, not a git branch)
 - **Where:** `well-ads-files` at `private/tiktok/tiktok.json`. The Worker only serves the mapped `site/…` and `thumbs/…` keys, so this key is never public. The old public branch `tiktok-data` is no longer read by anything.
-- **How it works:** every hourly run restores the file, the TikTok MCP step merges the last ~90 days into it, and the run writes it back (never a version with fewer rows). Days older than the MCP window exist only in this file.
+- **How it works:** every hourly run restores the file, the TikTok MCP step merges the last ~90 days into it, and the run writes it back only if it passes `pipeline/tiktok/history_check.py` (valid rows, same first and last day, no more than 5% fewer rows). Days older than the MCP window exist only in this file.
 - **No file in the bucket:** the MCP step is skipped (warning `tiktok-history`) and the dashboard keeps the previous TikTok numbers. Nothing is lost, but TikTok stops updating until the file is seeded.
 - **One-time seed (Leen, from the last good snapshot):**
   `git clone --branch tiktok-data --single-branch https://github.com/leen-saz/well-ads.git /tmp/tt && npx wrangler r2 object put well-ads-files/private/tiktok/tiktok.json --file /tmp/tt/tiktok.json --content-type application/json --remote`
   then delete the clone. Do this before the PR that drops the checkout is merged, or right after: until then TikTok shows the previous numbers.
 - **Delete the old branch (after the seed and one green hourly run):** `gh api -X DELETE repos/leen-saz/well-ads/git/refs/heads/tiktok-data`
+
+## Data pull safety (what the hourly run does when something goes wrong)
+- **Windows are replaced after the write:** the last 3 days (90 at 05:00 Riyadh) of a platform are upserted first and only the rows the fresh fetch no longer returns are deleted, and only if the fetch returned rows. A failed or empty pull never leaves a hole.
+- **Nothing is saved to the database from a bad pull:** the pull is validated first (shape, and a platform that had spend and now has neither spend nor ads is refused).
+- **Currency is read per platform** (Meta account currency, Google `customer.currency_code`, Snap `adaccount.currency`). SAR and USD are converted, any other currency fails that platform. If the lookup itself fails the old assumption stays (Meta USD, Google and Snap SAR) with a note.
+- **Retries:** 429, 5xx, network errors and Meta throttle codes are retried with growing waits and jitter, within `RETRY_BUDGET_SECONDS` (default 1200) for the whole run.
+- **Errors are short codes** (`auth`, `rate_limit`, `http_5xx`, `network`, `http_4xx`, `error`) in `data.json` and the public log, never the upstream text.
+- **Steps report failure:** `data-status.json` marks the TikTok pull, observe, outcomes and execute steps as failed when they crash (they used to report ok).
+- **Upload order:** per-audience data, `data.json` and the pages go up first, `dash.json` and `data-status.json` last, each with up to 3 tries.
+- **Workflow tokens:** the Cloudflare token is on the steps that run wrangler only, `npm ci --ignore-scripts` everywhere, and the deploy checkout keeps no git credentials.
+- **`execute-smoke`** needs an `approval_id` (an approved decision from the last 48 hours) and writes its audit row before it pauses anything. Add required reviewers to the `production` environment for a second pair of eyes.
 
 ## Settings only the repository owner can change
 - **Branch protection / rulesets on `main`**: add the status check `smoke` (the job of `.github/workflows/smoke.yml`) next to `ci / gate`, so a PR cannot merge with a red smoke run.

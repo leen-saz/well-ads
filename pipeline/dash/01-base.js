@@ -33,6 +33,8 @@ const EN = {
   'كم واحد ترك بياناته أو راسلنا':'How many left details or messaged us',
   'كم واحد دفع':'How many paid',
   'غير مربوط':'Not linked',
+  'لا توجد إقفالات':'No closings',
+  'ما فيه إقفالات مدفوعة في هالفترة.':'No paid closings in this period.',
   'عنق الزجاجة':'Bottleneck',
   'نظام العملاء مو موصول بهالأرقام':'The CRM is not connected to these numbers',
   'مرحلة البيع فاضية لأن أرقام نظام العملاء ما وصلت لهالنسخة من اللوحة. أول ما توصل تطلع الإقفالات هنا.':'The sale stage is empty because the CRM numbers did not reach this copy of the dashboard. Closings show here as soon as they do.',
@@ -430,19 +432,10 @@ const D = await (async () => {
   if (d.rows_cols) { d.rows = decodeRows(d.rows_cols); delete d.rows_cols; }
   return d;
 })();
-// Spring Rose0406 (شركة زهرة الربيع) حساب تيك توك منفصل: لا يُحسب في الصرف ولا التاريخ.
-const TT_EXCLUDED_ID = '6948010864247046146';
-function ttExcludedAccount(id, name){
-  const n = String(name||'').replace(/\s+/g,' ').trim().toLowerCase();
-  if(String(id||'')===TT_EXCLUDED_ID) return true;
-  return n.includes('spring rose0406') || n.includes('زهرة الربيع');
-}
-function ttExcludedAd(a){
-  if(!a || (a.platform && a.platform!=='tiktok')) return false;
-  if(ttExcludedAccount(a.advertiser_id, a.advertiser_name||a.account)) return true;
-  const blob = `${a.name||''} ${a.campaign||''} ${a.group||''} ${a.text||''} ${a.ad_name||''} ${a.campaign_name||''} ${a.adgroup_name||''} ${a.ad_text||''}`;
-  return /spring\s*rose/i.test(blob) || blob.includes('زهرة الربيع') || /zr_nd96/i.test(blob) || /sr\s*\|\s*ios14/i.test(blob);
-}
+// The other company's TikTok account is excluded on the server only (tiktok/merge.py, with ids and markers kept in secrets).
+// No id, name or marker ships in the page: these stay as no-ops so the callers below need no change.
+function ttExcludedAccount(){ return false; }
+function ttExcludedAd(){ return false; }
 const ORG_FB_HIDDEN = new Set(['Well Home Care','Well Women Health']);
 function hideOrgFb(){
   if(D.organic && Array.isArray(D.organic.facebook)) D.organic.facebook = D.organic.facebook.filter(p=>p && !ORG_FB_HIDDEN.has(p.name));

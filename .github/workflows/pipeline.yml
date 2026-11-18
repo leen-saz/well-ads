@@ -34,7 +34,7 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
-      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+      - uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 # v7.1.0
         with:
           python-version: "3.12"
       - name: Export data.json from Supabase (read-only)
@@ -42,6 +42,8 @@ jobs:
         env:
           SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
           SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+          TIKTOK_EXCLUDED_ADVERTISER_IDS: ${{ secrets.TIKTOK_EXCLUDED_ADVERTISER_IDS }}
+          TIKTOK_EXCLUDED_MARKERS: ${{ secrets.TIKTOK_EXCLUDED_MARKERS }}
         run: python export_data.py
       # Phase 4.1: the same pages the live site serves (build.py), so staging shows identical numbers
       - name: Build the dashboards (build.py)
@@ -50,6 +52,8 @@ jobs:
         env:
           SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
           SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+          TIKTOK_EXCLUDED_ADVERTISER_IDS: ${{ secrets.TIKTOK_EXCLUDED_ADVERTISER_IDS }}
+          TIKTOK_EXCLUDED_MARKERS: ${{ secrets.TIKTOK_EXCLUDED_MARKERS }}
         run: |
           set -euo pipefail
           pip install --disable-pip-version-check -q "Pillow==11.3.0"
@@ -64,7 +68,7 @@ jobs:
         with:
           node-version: "24"
           cache: npm
-      - run: npm ci
+      - run: npm ci --ignore-scripts
       # Cover names are content hashes, so a name already listed in thumbs/index.txt never changes.
       # Only new covers are uploaded, before data.json, so every cover it references exists.
       - name: Upload new covers to R2

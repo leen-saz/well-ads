@@ -5,6 +5,7 @@
 import { describe, expect, it } from 'vitest';
 import wrangler from '../../wrangler.jsonc?raw';
 import app from '../../src/app.ts?raw';
+import restoreTest from '../../.github/workflows/db-restore-test.yml?raw';
 
 const strip = (s: string) => s.replace(/^\s*\/\/.*$/gm, '');
 const cfg = JSON.parse(strip(wrangler)) as { env?: Record<string, { triggers?: { crons?: string[] } }>; triggers?: { crons?: string[] } };
@@ -50,5 +51,15 @@ describe('wrangler.jsonc cron triggers use Cloudflare syntax', () => {
     const used = [...app.matchAll(/_CRON = '([^']+)'/g)].map(m => m[1] as string);
     expect(used.length).toBeGreaterThanOrEqual(2);
     for (const u of used) expect(crons, u).toContain(u);
+  });
+});
+
+describe('the monthly restore test keeps the order backup → restore', () => {
+  // The Worker starts it on the 1st at 03 UTC (hourlyTasks), an hour after a Sunday backup window could have run. The workflow's own `schedule` is the
+  // second path: it must not be earlier than that, or on a day when the 1st is a Sunday it tests the previous week's backup.
+  it('the schedule fallback is the 1st of the month at hour 03 UTC or later', () => {
+    const m = restoreTest.match(/-\s*cron:\s*"(\d+)\s+(\d+)\s+1\s+\*\s+\*"/);
+    expect(m, 'a monthly cron on the 1st in db-restore-test.yml').not.toBeNull();
+    expect(Number(m![2])).toBeGreaterThanOrEqual(3);
   });
 });
