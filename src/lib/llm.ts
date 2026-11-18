@@ -3,7 +3,7 @@
 // PAID: OpenAI and Grok (xAI) bill every call; so does the Debugger's Claude (Anthropic SDK, src/modules/debugger/explain.ts).
 // Workers AI is free within Cloudflare's daily limit and stays the fallback when a key is missing or the provider fails.
 // Keys are Worker secrets Leen adds herself: OPENAI_API_KEY, XAI_API_KEY, OPENROUTER_API_KEY (docs/secrets/worker.env.example).
-// OpenRouter (PAID per call, billed by OpenRouter) is a default only for the home assistant «احلم» (task `ahlam`); every other task uses it
+// OpenRouter (PAID per call, billed by OpenRouter) is a default only for the home assistant «أحلم» (task `ahlam`); every other task uses it
 // only when the owner picks it for that task (src/lib/ai-routes.ts, docs/ai-providers.md). Without its key a task keeps its current provider.
 // Model ids from the providers' model pages (2026-11-03); change them with OPENAI_MODEL / XAI_MODEL, no code change.
 import { AI_MODEL, type AiRun } from '../modules/content/content';

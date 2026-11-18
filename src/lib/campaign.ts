@@ -1,4 +1,4 @@
-// «حملة جديدة» in احلم (docs/ahlam.md): the user writes the wishes in free Arabic, احلم turns them into a brief and a plan of
+// «حملة جديدة» in أحلم (docs/ahlam.md): the user writes the wishes in free Arabic, أحلم turns them into a brief and a plan of
 // tasks, each given to the in-app agent that does it. This file is the planning half: the form, the prompt, the validation of
 // what the model returns, the cost estimate shown BEFORE anything runs, and who may approve. Nothing here writes to an ad
 // account; the agents' outputs are documents and drafts.
@@ -48,7 +48,7 @@ export const PLAN_SCHEMA = SCHEMA;
 
 export function planMessages(w: Wishes): { role: string; content: string }[] {
   const agents = (Object.keys(AGENTS) as Agent[]).map(k => `- ${k}: ${AGENTS[k].ar}`).join('\n');
-  const sys = `أنت «احلم»، مخطّط حملات في لوحة إعلانات Well. تحوّل أمنيات المستخدم لخطة حملة كاملة تتوزّع على إيجنتس التطبيق.
+  const sys = `أنت «أحلم»، مخطّط حملات في لوحة إعلانات Well. تحوّل أمنيات المستخدم لخطة حملة كاملة تتوزّع على إيجنتس التطبيق.
 رجّع JSON فقط بهذا الشكل: {"title":"اسم قصير للحملة","brief":{"summary":"ملخص الحملة في 3 جمل","audience":"الجمهور","messages":["رسالة رئيسية"],"risks":["خطر"],"questions":[{"q":"سؤال لا يمكن حسمه من الأمنيات","assumption":"افتراض معقول يكمل الإيجنت عليه","affects":["content","social"]}]},"tasks":[{"agent":"content","title":"عنوان المهمة","detail":"وش المطلوب بالضبط","after":[0]}]}
 مهمة الموشن جرافيك: مهمة واحدة agent=design مع "kind":"motion" (ستوري 9:16 من صورة التصميم وتسجيل الصوت)، وتجي بعد مهمتي التصميم والصوت (after فيها الاثنتين)، وقبل مهمة الامتثال.
 الإيجنتس المتاحة (agent):
@@ -111,7 +111,7 @@ export function estimate(agents: Agent[], model: string, provider: Provider = 'o
 }
 
 // Who may start a campaign run (the gate before anything is spent): the owner, or someone with approve on the manager tab.
-// Writing wishes and getting a plan needs only a signed-in user, like asking احلم a question.
+// Writing wishes and getting a plan needs only a signed-in user, like asking أحلم a question.
 export const mayApprove = (u: Session, cfg?: Cfg): boolean => isOwner(u, cfg) || atLeast(u, 'maestro', 'approve', cfg);
 
 export const STATUS_AR: Record<string, string> = { draft: 'قيد الكتابة', planned: 'الخطة تنتظر الاعتماد', approved: 'معتمدة', running: 'تشتغل', review: 'تنتظر المراجعة', done: 'مكتملة', cancelled: 'ملغاة' };

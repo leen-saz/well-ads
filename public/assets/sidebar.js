@@ -1,5 +1,5 @@
 // أقسام القائمة الجانبية، نفسها في common.js (صفحات Astro) و nav.js (لوحات التحليلات والمواد الإعلانية).
-// ستة أقسام على ترتيب العمل: الرئيسية ← الإنتاج ← النشر ← القياس ← القرارات ← النظام. القسم اللي فيه أدوات كثيرة يتمدد في القائمة وتحته أدواته (groupNav، navHtml)، والقسم اللي فيه أداة وحدة سطر عادي. الموديولات تجي من السيرفر (me.modules ← src/modules/registry.ts)
+// ستة أقسام على ترتيب العمل: أحلم ← الإنتاج ← النشر ← القياس ← القرارات ← النظام. القسم اللي فيه أدوات كثيرة يتمدد في القائمة وتحته أدواته (groupNav، navHtml)، والقسم اللي فيه أداة وحدة سطر عادي. الموديولات تجي من السيرفر (me.modules ← src/modules/registry.ts)
 // وكل موديول يحدد قسمه بـ group. HUBS (src/lib/gate.ts) تبقى للروابط القديمة /performance و/create و/review و/system.
 // state: ok = يفتح، noaccess = ما عندك صلاحية، locked = مقفل لشركتك، soon = قريباً.
 const SUN = '<circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/>';
@@ -7,7 +7,7 @@ const FOLDER = '<path d="M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v8a2 2 0 0 1-2 
 const SHIELD = '<path d="M20 13c0 5-3.5 7.5-7.7 9a1 1 0 0 1-.6 0C7.5 20.5 4 18 4 13V6a1 1 0 0 1 1-1c2 0 4.5-1.2 6.2-2.7a1.2 1.2 0 0 1 1.6 0C14.5 3.8 17 5 19 5a1 1 0 0 1 1 1Z"/><path d="m9 12 2 2 4-4"/>';
 
 export const GROUPS = [
-  ['home', 'الرئيسية', 'Home'],
+  ['home', 'أحلم', 'Ahlam'],
   ['produce', 'الإنتاج', 'Create'],
   ['distribute', 'النشر', 'Publish'],
   ['measure', 'القياس', 'Measure'],
@@ -131,13 +131,13 @@ export function sections(me, L) {
   const ov = (me.modules || []).find(m => m.key === 'overview' && m.status === 'live' && m.ok && !m.locked);
   const ovOk = !!ov && has('ceo') && !(me.role !== 'owner' && (me.departments || []).length);
   const items = {
-    home: [core('/today/', 'احلم', 'Ahlam', SUN, 'today', true), ...mods('home')],
+    home: [core('/today/', 'أحلم', 'Ahlam', SUN, 'today', true), ...mods('home')],
     // نص، تصميم، صوت وفيديو (كل واحد يحمل أقسامه)، ثم المكتبة: كل ما تحفظه من أي تاب
     produce: [...mods('produce'), core('/library/', 'المكتبة', 'Library', FOLDER, 'library', true)],
     distribute: mods('distribute'),
     // نظرة عامة، المنصات والحملات، الأقسام، المواد الإعلانية، الرصد
     measure: [
-      { ...(ovOk ? core('/overview/', 'نظرة عامة', 'Overview', 'chart', 'overview') : core('/', 'نظرة عامة', 'Overview', 'chart', 'ceo')), also: ['ceo'] },
+      { ...(ovOk ? core('/overview/', 'نظرة عامة', 'Overview', 'chart', 'overview', true) : core('/', 'نظرة عامة', 'Overview', 'chart', 'ceo')), also: ['ceo'] },
       core('/?p=channels', 'المنصات والحملات', 'Platforms and campaigns', 'chart', 'board:channels', has('ceo')),
       core('/?p=depts', 'الأقسام', 'Departments', 'users', 'board:depts', has('ceo')),
       { ...core('/?view=creative', 'المواد الإعلانية', 'Creatives', 'image', 'creative'), also: ['overview:creative'] },

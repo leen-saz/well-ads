@@ -8,7 +8,7 @@
 
 | الإيجنت | الملف | تابات الواجهة | الكود |
 |---|---|---|---|
-| احلم والحملات | [ahlam-campaigns.md](ahlam-campaigns.md) | الرئيسية (`today`)، «حملة جديدة» داخل احلم | `src/lib/ahlam.ts`، `src/lib/campaign.ts`، `src/api/routes/{today,campaigns}.ts` |
+| أحلم والحملات | [ahlam-campaigns.md](ahlam-campaigns.md) | الرئيسية (`today`)، «حملة جديدة» داخل أحلم | `src/lib/ahlam.ts`، `src/lib/campaign.ts`، `src/api/routes/{today,campaigns}.ts` |
 | الميديا باير | [media-buyer.md](media-buyer.md) | ملخص الأداء والمواد الإعلانية، لوحة القرارات (`control`) بتبويبيها «توصيات القواعد» و«قواعد الإدارة» | `src/modules/overview`، `src/api/routes/control.ts`، `pipeline/modules/{suggest,targets,outcomes,execute}` |
 | الذكاء الاصطناعي والتوجيه | [ai-routing.md](ai-routing.md) | المدير (`maestro`) وتكاليف الذكاء الاصطناعي | `src/lib/{llm,gemini,ai-routes,usage}.ts`، `src/modules/maestro` |
 | السوشال والنشر | [social-publishing.md](social-publishing.md) | السوشال، الرحلات والرسائل، المحتوى و SEO والكوبي رايتر، الرصد | `src/modules/{social,journeys,content,copy,listening}`، `deploy/postiz` |

@@ -54,7 +54,7 @@ export const state = {
   }),
 };
 
-// /api/today/ask: «احلم», the assistant on the home page (src/lib/ahlam.ts, docs/ahlam.md). Any signed-in user may ask; what it
+// /api/today/ask: «أحلم», the assistant on the home page (src/lib/ahlam.ts, docs/ahlam.md). Any signed-in user may ask; what it
 // reads is limited by that user's own permissions. It reads and proposes only. Streams the answer (SSE: delta, then one `result`
 // with the sources). Each question is one `ahlam_ask` audit row (which is also the daily limit) and each tool read one `ahlam_tool`.
 export const ask = {
@@ -64,7 +64,7 @@ export const ask = {
     const q = String(b['q'] ?? '').replace(/[\u0000-\u0008\u000B\u000C\u000E-\u001F\u007F]/g, '').trim();
     if (!q) return json(400, { error: 'اكتب سؤالك' });
     if (q.length > MAX_Q) return json(400, { error: `السؤال طويل، اختصره (الحد ${MAX_Q} حرف)` });
-    if (!pick(e, 'ahlam')) return json(503, { error: 'احلم يحتاج الذكاء الاصطناعي، وهو غير متصل الحين' });
+    if (!pick(e, 'ahlam')) return json(503, { error: 'أحلم يحتاج الذكاء الاصطناعي، وهو غير متصل الحين' });
     const limit = dailyLimit(e);
     if (await overDaily(cfg, user.uid, limit)) return json(429, { error: `وصلت حدّك اليوم (${limit} سؤال). جرّب بكرة.` });
     await audit(cfg, user, 'ahlam_ask');   // the question itself is never stored

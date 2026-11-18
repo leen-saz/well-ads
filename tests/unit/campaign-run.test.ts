@@ -1,4 +1,4 @@
-// «حملة جديدة» in احلم, the running half (src/lib/campaign-run.ts, /api/campaigns/step|review|retry): fake OpenRouter, fake Supabase, synthetic data.
+// «حملة جديدة» in أحلم, the running half (src/lib/campaign-run.ts, /api/campaigns/step|review|retry): fake OpenRouter, fake Supabase, synthetic data.
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import * as A from '../../src/lib/auth';
 import { api } from '../../src/api/index';

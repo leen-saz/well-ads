@@ -30,8 +30,8 @@ const LIST: [string, string, string][] = [
   ['listening', 'الرصد', 'Listening'],
   ['maestro', 'المدير', 'Manager'],
   ['journeys', 'الرحلات', 'Journeys'],
-  ['ahlam_campaign', 'احلم: حملة جديدة', 'Ahlam: new campaign'],
-  ['ahlam', 'احلم (الصفحة الرئيسية)', 'Ahlam (home page)'],
+  ['ahlam_campaign', 'أحلم: حملة جديدة', 'Ahlam: new campaign'],
+  ['ahlam', 'أحلم (الصفحة الرئيسية)', 'Ahlam (home page)'],
 ];
 export const TASKS: Task[] = LIST.map(([key, ar, en]) => ({ key, ar, en, def: defaultOf(key) }));
 export const TASK_KEYS = new Set(TASKS.map(t => t.key));
