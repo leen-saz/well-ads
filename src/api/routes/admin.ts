@@ -5,9 +5,6 @@ import { isDay, parseRangeParams } from '../../../public/assets/period.js';
 import { MODULES, isModule } from '../../modules/registry';
 import { scoped, WELL_COMPANY } from '../../lib/tenant';
 
-// Read-only API keys (the owner's key page): src/lib/apikeys-admin.ts
-export { keys, keyrevoke } from '../../lib/apikeys-admin';
-
 type Row = Record<string, unknown> & { email?: string };
 const cleanDash = (d: unknown) => [...new Set((Array.isArray(d) ? d : []).filter((x): x is string => typeof x === 'string' && x in DASHBOARDS))];
 // { dashboard: level } -> only known dashboards and levels. Falls back to the old dashboards list (all as approve).

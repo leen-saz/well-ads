@@ -1,10 +1,9 @@
-// /api/v1/*: the dashboard's numbers as JSON for tools and agents, read-only, behind API keys (src/lib/apikeys.ts, docs/api-v1.md).
+// /api/v1/*: the dashboard's numbers as JSON for tools and agents, read-only, behind one static key (src/lib/readkey.ts, docs/api-v1.md).
 // This router is the only code a key reaches. It calls read helpers and never a write path; it is separate from every other /api route,
 // which keep asking for the browser session. The gate lets /api/v1/* through without a session (src/lib/gate.ts), so everything under
 // that prefix, including unknown paths, is authenticated here first and fails closed.
 import { sb, json, missingSchema, type Cfg } from './auth';
-import { authenticate, SCOPES, SCOPE_NAMES, LIMIT_DAY, LIMIT_MINUTE, type ApiKey, type KeyEnv, type Scope } from './apikeys';
-import { dataKey } from './dash';
+import { authenticate, type KeyEnv } from './readkey';
 import { WELL_COMPANY, scoped } from './tenant';
 import { dataStatus, type StatusBucket } from './datastatus';
 import { J, judgeInput, resolveTargets } from '../modules/overview/judge';
@@ -21,13 +20,12 @@ const err = (status: number, code: string, message: string, extra: Record<string
 const rows = (d: unknown): Row[] => (Array.isArray(d) ? (d as Row[]) : []);
 const num = (v: unknown): number => (typeof v === 'number' && Number.isFinite(v) ? v : 0);
 const omit = <T extends object>(o: T, ...keys: string[]): Row => Object.fromEntries(Object.entries(o).filter(([k]) => !keys.includes(k)));
-const noWell = () => err(404, 'not_found', 'This data is not available for your company yet.');
 
 // ---- dash.json: Well's file is site/dash.json (what the overview serves); another company reads its own copy or nothing
 type Parsed = Dash & { rows_cols?: { k: string[]; d: string[]; c: unknown[][] }; crm?: { rows?: unknown[][]; paid_all?: unknown[][]; [k: string]: unknown }; aud?: unknown };
-async function loadDash(e: Env, key: ApiKey): Promise<Parsed | null> {
+async function loadDash(e: Env): Promise<Parsed | null> {
   if (!e.FILES) return null;
-  const obj = await e.FILES.get(key.company === WELL_COMPANY ? 'site/dash.json' : dataKey(key.company, 'all.json'));
+  const obj = await e.FILES.get('site/dash.json');
   if (!obj) return null;
   let d: Parsed;
   try { d = await obj.json() as Parsed; } catch { return null; }
@@ -74,15 +72,15 @@ function period(d: Dash, q: URLSearchParams): { from: string; to: string } | Res
 }
 
 // ---- endpoints
-const SCOPE_OF: Record<string, Scope> = { dash: 'dash', overview: 'dash', ads: 'ads', decisions: 'decisions', campaigns: 'campaigns', health: 'health' };
+const ENDPOINTS = new Set(['dash', 'overview', 'ads', 'decisions', 'campaigns', 'health']);
 
-async function dashEndpoint(e: Env, key: ApiKey): Promise<Response> {
-  const d = await loadDash(e, key);
+async function dashEndpoint(e: Env): Promise<Response> {
+  const d = await loadDash(e);
   return d ? reply(200, cleanDash(d)) : missingDash();
 }
 
-async function overviewEndpoint(e: Env, key: ApiKey, q: URLSearchParams): Promise<Response> {
-  const d = await loadDash(e, key);
+async function overviewEndpoint(e: Env, q: URLSearchParams): Promise<Response> {
+  const d = await loadDash(e);
   if (!d) return missingDash();
   const p = period(d, q);
   if (p instanceof Response) return p;
@@ -95,8 +93,8 @@ async function overviewEndpoint(e: Env, key: ApiKey, q: URLSearchParams): Promis
 }
 
 const AD_FIELDS = ['name', 'campaign', 'platform', 'dept', 'goal', 'dest', 'status', 'live', 'group'] as const;
-async function adsEndpoint(e: Env, key: ApiKey, q: URLSearchParams): Promise<Response> {
-  const d = await loadDash(e, key);
+async function adsEndpoint(e: Env, q: URLSearchParams): Promise<Response> {
+  const d = await loadDash(e);
   if (!d) return missingDash();
   const p = period(d, q);
   if (p instanceof Response) return p;
@@ -126,12 +124,11 @@ async function adsEndpoint(e: Env, key: ApiKey, q: URLSearchParams): Promise<Res
 
 // Only Well has a decision board for now (suggestions have no company column): other companies get 404
 const SUGGESTION_COLS = 'id,created_at,platform,level,target_id,target_name,campaign,kind,params,reason,evidence,priority,source,status,decided_at';
-async function decisionsEndpoint(cfg: Cfg, key: ApiKey): Promise<Response> {
-  if (key.company !== WELL_COMPANY) return noWell();
+async function decisionsEndpoint(cfg: Cfg): Promise<Response> {
   const [open, done, outs] = await Promise.all([
     sb(cfg, `/rest/v1/suggestions?select=${SUGGESTION_COLS}&status=eq.open&order=priority.desc,created_at.desc&limit=100`, { admin: true }),
     sb(cfg, `/rest/v1/suggestions?select=${SUGGESTION_COLS}&status=neq.open&order=decided_at.desc.nullslast&limit=50`, { admin: true }),
-    sb(cfg, scoped('/rest/v1/buyer_outcomes?select=day,measured_at,platform,rec_rule,kind,before,after,result&order=measured_at.desc&limit=50', key.company), { admin: true }),
+    sb(cfg, scoped('/rest/v1/buyer_outcomes?select=day,measured_at,platform,rec_rule,kind,before,after,result&order=measured_at.desc&limit=50', WELL_COMPANY), { admin: true }),
   ]);
   if (!open.ok || !done.ok) return err(502, 'upstream', 'The decisions could not be read. Try again shortly.');
   // The outcomes table comes from a later migration: without it that part is just empty
@@ -139,54 +136,47 @@ async function decisionsEndpoint(cfg: Cfg, key: ApiKey): Promise<Response> {
 }
 
 // Plans and task status only: no outputs (generated text, pictures, voice) and no author emails
-async function campaignsEndpoint(cfg: Cfg, key: ApiKey): Promise<Response> {
-  const c = await sb(cfg, scoped('/rest/v1/campaigns?select=id,title,status,estimate_usd,created_at,updated_at,approved_at&order=created_at.desc&limit=50', key.company), { admin: true });
+async function campaignsEndpoint(cfg: Cfg): Promise<Response> {
+  const c = await sb(cfg, scoped('/rest/v1/campaigns?select=id,title,status,estimate_usd,created_at,updated_at,approved_at&order=created_at.desc&limit=50', WELL_COMPANY), { admin: true });
   if (missingSchema(c)) return reply(200, { campaigns: [] });
   if (!c.ok) return err(502, 'upstream', 'The campaigns could not be read. Try again shortly.');
   const camps = rows(c.data);
   const ids = camps.map(x => String(x.id)).filter(x => /^[0-9a-f-]{36}$/i.test(x));
-  const t = ids.length ? await sb(cfg, scoped(`/rest/v1/campaign_tasks?select=campaign_id,position,agent,title,status,blocked_reason,updated_at&campaign_id=in.(${ids.join(',')})&order=position.asc&limit=1000`, key.company), { admin: true }) : null;
+  const t = ids.length ? await sb(cfg, scoped(`/rest/v1/campaign_tasks?select=campaign_id,position,agent,title,status,blocked_reason,updated_at&campaign_id=in.(${ids.join(',')})&order=position.asc&limit=1000`, WELL_COMPANY), { admin: true }) : null;
   if (t && !t.ok) return err(502, 'upstream', 'The campaigns could not be read. Try again shortly.');
   const tasks = t ? rows(t.data) : [];
   return reply(200, { campaigns: camps.map(x => ({ ...x, tasks: tasks.filter(k => k.campaign_id === x.id).map(k => omit(k, 'campaign_id')) })) });
 }
 
 // Freshness and step status, from the same read the owner's health page uses. No dependencies, versions, migrations or environment.
-async function healthEndpoint(e: Env, key: ApiKey): Promise<Response> {
-  if (key.company !== WELL_COMPANY) return noWell();
+async function healthEndpoint(e: Env): Promise<Response> {
   const s = await dataStatus(e.FILES as StatusBucket | undefined);
   return reply(200, s);
 }
 
 // ---- entry
-const DOC = new Set(['openapi.json']);
 export async function handleV1(request: Request, e: Env): Promise<Response> {
-  if (request.method !== 'GET' && request.method !== 'HEAD') return err(405, 'method_not_allowed', 'This API is read-only: GET and HEAD only.', { allow: 'GET, HEAD' });
+  // Key unset: 404 for everything. Then the method, then the key and the limits (src/lib/readkey.ts)
   const a = await authenticate(request, e);
-  if (!a.ok) return a.res;
+  if (!a.ok) return request.method === 'HEAD' ? new Response(null, { status: a.res.status, headers: a.res.headers }) : a.res;
   const url = new URL(request.url);
   const name = url.pathname.replace(/^\/api\/v1\/?/, '').replace(/\/$/, '');
   let res: Response;
-  if (DOC.has(name)) res = reply(200, openapi(url.origin));
+  if (name === 'openapi.json') res = reply(200, openapi(url.origin));
+  else if (!ENDPOINTS.has(name)) res = err(404, 'not_found', 'No such endpoint. See /api/v1/openapi.json.');
   else {
-    const scope = SCOPE_OF[name];
-    if (!scope) res = err(404, 'not_found', 'No such endpoint. See /api/v1/openapi.json.');
-    else if (!a.key.scopes.includes(scope)) res = err(403, 'forbidden', `This key does not have the "${scope}" scope.`);
-    else {
-      try {
-        res = name === 'dash' ? await dashEndpoint(e, a.key)
-          : name === 'overview' ? await overviewEndpoint(e, a.key, url.searchParams)
-          : name === 'ads' ? await adsEndpoint(e, a.key, url.searchParams)
-          : name === 'decisions' ? await decisionsEndpoint(a.cfg, a.key)
-          : name === 'campaigns' ? await campaignsEndpoint(a.cfg, a.key)
-          : await healthEndpoint(e, a.key);
-      } catch (x) {
-        // The error's name only: a message could carry request text, and nothing here may log the token
-        console.error('api_v1_error', name, x instanceof Error ? x.name : 'unknown');
-        res = err(500, 'server_error', 'Something went wrong. Try again shortly.');
-      }
+    try {
+      res = name === 'dash' ? await dashEndpoint(e)
+        : name === 'overview' ? await overviewEndpoint(e, url.searchParams)
+        : name === 'ads' ? await adsEndpoint(e, url.searchParams)
+        : name === 'decisions' ? await decisionsEndpoint(a.cfg)
+        : name === 'campaigns' ? await campaignsEndpoint(a.cfg)
+        : await healthEndpoint(e);
+    } catch (x) {
+      // The error's name only: a message could carry request text, and nothing here may log the token
+      console.error('api_v1_error', name, x instanceof Error ? x.name : 'unknown');
+      res = err(500, 'server_error', 'Something went wrong. Try again shortly.');
     }
   }
   return request.method === 'HEAD' ? new Response(null, { status: res.status, headers: res.headers }) : res;
 }
-export { SCOPES, SCOPE_NAMES, LIMIT_DAY, LIMIT_MINUTE };

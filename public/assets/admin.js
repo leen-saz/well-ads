@@ -12,7 +12,7 @@ export default async function mount() {
     modules_changed: 'غيّر الموديولات', content_plan: 'حلّل الموقع (المحتوى)', content_approve: 'وافق على بند محتوى', content_reject: 'رفض بند محتوى', content_done: 'نشر بند محتوى', content_draft: 'كتب مسودة محتوى',
     social_scheduled: 'جدول منشور', social_approved: 'وافق على منشور', social_cancelled: 'ألغى منشور', journey_saved: 'حفظ رحلة', journey_started: 'شغّل رحلة لعميل',
     maestro_connected: 'ربط المدير', maestro_task: 'كلّف المدير بمهمة', maestro_approve: 'وافق في المدير', maestro_reject: 'رفض في المدير',
-    connector_saved: 'ربط منصة', connector_removed: 'فك ربط منصة', suggestion_revert: 'تراجع عن تنفيذ', campaign_requested: 'طلب حملة جديدة', canary_changed: 'غيّر حملات التجربة', api_key_created: 'أنشأ مفتاح API', api_key_revoked: 'ألغى مفتاح API' };
+    connector_saved: 'ربط منصة', connector_removed: 'فك ربط منصة', suggestion_revert: 'تراجع عن تنفيذ', campaign_requested: 'طلب حملة جديدة', canary_changed: 'غيّر حملات التجربة' };
   let LEVELS = ['view', 'edit', 'approve'];
   const LV = { '': 'بدون', view: 'مشاهدة', edit: 'تعديل', approve: 'موافقة' };
   // Presets: one click fills every tab, then each tab can still be changed alone
@@ -143,41 +143,5 @@ export default async function mount() {
     try { await api('/api/admin/users', { method: 'PATCH', body }); say($('#usersMsg'), 'انحفظ.', true); await loadUsers(); await loadLog(); }
     catch (err) { say($('#usersMsg'), err.message); busy(b, false); }
   });
-
-  // ---- API keys (read only): made here, shown once, revoked here. Nothing but the key's prefix is shown afterwards.
-  let KEYSCOPES = {};
-  const keyState = k => k.revoked_at ? '<span class="chip line">ملغى</span>' : Date.parse(k.expires_at) <= Date.now() ? '<span class="chip line">منتهي</span>' : '<span class="chip">شغّال</span>';
-  async function loadKeys() {
-    let r;
-    try { r = await api('/api/admin/keys'); } catch (err) { say($('#keysMsg'), err.message); return; }
-    KEYSCOPES = r.scopes || {};
-    if (!$('#keyScopes').innerHTML) $('#keyScopes').innerHTML = Object.entries(KEYSCOPES).map(([k, t]) => `<label><input type="checkbox" name="ks" value="${esc(k)}"> ${esc(t.ar)}</label>`).join('');
-    $('#keyDays').max = r.max_days;
-    $('#keysList').innerHTML = r.keys.length ? `<table><thead><tr><th>الاسم</th><th>البداية</th><th>يقرأ</th><th>آخر استخدام</th><th>ينتهي</th><th>الحالة</th><th></th></tr></thead><tbody>${r.keys.map(k => `
-      <tr style="cursor:default"><td>${esc(k.name)}</td><td dir="ltr" class="num">${esc(k.prefix)}…</td><td><div class="acc-sum">${(k.scopes || []).map(s => `<span class="chip line">${esc(KEYSCOPES[s]?.ar || s)}</span>`).join('')}</div></td>
-      <td class="num">${k.last_used_at ? esc(when(k.last_used_at)) : 'ما انستخدم'}</td><td class="num">${esc(when(k.expires_at))}</td><td>${keyState(k)}</td>
-      <td>${k.revoked_at ? '' : `<button class="btn sm ghost" data-krevoke="${esc(k.id)}">ألغِ المفتاح</button>`}</td></tr>`).join('')}</tbody></table>` : '<div class="empty">ما فيه مفاتيح للحين</div>';
-  }
-  $('#keyForm').addEventListener('submit', async e => {
-    e.preventDefault();
-    const btn = e.submitter; busy(btn, true);
-    try {
-      const r = await api('/api/admin/keys', { method: 'POST', body: { name: $('#keyName').value, days: Number($('#keyDays').value), scopes: $$('input[name=ks]:checked', e.target).map(x => x.value) } });
-      $('#keyValue').value = r.key; $('#keyShown').hidden = false; $('#keyValue').focus(); $('#keyValue').select();
-      say($('#keyMsg'), 'انعمل المفتاح. انسخه قبل لا تسكّر الصفحة.', true); e.target.reset(); await loadKeys(); await loadLog();
-    } catch (err) { say($('#keyMsg'), err.message); }
-    busy(btn, false);
-  });
-  $('#keyCopy').addEventListener('click', async () => {
-    const v = $('#keyValue').value;
-    try { await navigator.clipboard.writeText(v); say($('#keyMsg'), 'اننسخ.', true); } catch { $('#keyValue').select(); say($('#keyMsg'), 'ظلّل المفتاح وانسخه بإيدك.'); }
-  });
-  $('#keysList').addEventListener('click', async e => {
-    const b = e.target.closest('button[data-krevoke]'); if (!b) return;
-    if (!confirm('تلغي هذا المفتاح؟ يوقف شغله فوراً، وما ينفع تعيده.')) return;
-    busy(b, true);
-    try { await api('/api/admin/keyrevoke', { method: 'POST', body: { id: b.dataset.krevoke } }); say($('#keysMsg'), 'انلغى المفتاح.', true); await loadKeys(); await loadLog(); }
-    catch (err) { say($('#keysMsg'), err.message); busy(b, false); }
-  });
-  shell({ active: 'settings', title: 'الإعدادات' }).then(me => settingsTabs('admin', me)).then(loadUsers).then(loadKeys).then(loadLog).then(() => { logReady = true; }).catch(err => say($('#usersMsg'), err.message));
+  shell({ active: 'settings', title: 'الإعدادات' }).then(me => settingsTabs('admin', me)).then(loadUsers).then(loadLog).then(() => { logReady = true; }).catch(err => say($('#usersMsg'), err.message));
 }
