@@ -123,8 +123,8 @@ export async function runVideo(e: VideoEnv, cfg: Cfg, user: Session, campaign: {
   const pid = rows<{ id: number }>(made.data)[0]?.id;
   if (!made.ok || !pid) return stop('save_failed');
   const clips = prompts.map(b => ({ kind: 'text-to-video', prompt: promptOf(b), seconds, ratio: CLIP_RATIO, resolution: CLIP_RESOLUTION, silent: true }));
-  const q = await createJobs(cfg, user, pid, engine, clips);
-  if (!q.jobs) return stop('save_failed');
+  const q = await createJobs(cfg, user, pid, engine, clips, ucx);   // the module's own reservation and queue limit apply
+  if (!q.jobs) return stop(q.status === 429 ? 'capped' : 'save_failed');
   // submit them now (one advance each: the request is sent, the status is read on the next call)
   const sent = await Promise.all(q.jobs.map(j => advance(ctx, j)));
   const failed = sent.filter(j => j.status === 'failed');

@@ -9,6 +9,7 @@ import { clearSnaps, overCap } from '../../lib/usage';
 import { WELL_COMPANY } from '../../lib/tenant';
 import { AVATARS, splitSeconds, validate } from './engine';
 import { higgsfield } from './higgsfield';
+import { videoCost } from '../../lib/prices';
 import { MAX_ACTIVE, advance, backoffMs, cancel, createJobs, sayOf, type Job } from './jobs';
 
 const CO = '11111111-1111-1111-1111-111111111111';
@@ -53,6 +54,8 @@ beforeEach(() => {
 });
 afterEach(() => { vi.unstubAllGlobals(); });
 
+// the cap maths below is written for a 5 s 720p clip = 0.30: u() converts those amounts to whatever the price table says today
+const u = (x: number) => Math.round(x * (videoCost(higgsfield.id, '720p', 5).usd / 0.3) * 1e6) / 1e6;
 const usageCtx = () => ({ cfg, co: CO, uid: 'u-1' });
 const ctx = (now?: number) => ({ cfg, env, usage: usageCtx(), ...(now != null ? { now } : {}) });
 async function queue(n = 1): Promise<Job[]> {
@@ -194,7 +197,7 @@ describe('cap and setup', () => {
     expect((await advance(ctx(), (await queue())[0]!)).status).toBe('running');
   });
   it('queueing reserves the cost of the clips already waiting: a script cannot queue batch after batch before the first clip is billed', async () => {
-    caps = [{ module: 'video', monthly_cap_usd: 1, alert_at_pct: 80 }]; spent = [{ module: 'video', cost_usd: 0.2 }];   // a 5 s clip at 720p is 0.30
+    caps = [{ module: 'video', monthly_cap_usd: u(1), alert_at_pct: 80 }]; spent = [{ module: 'video', cost_usd: u(0.2) }];   // a 5 s clip at 720p is 0.30 in these units (u() scales them to the price table, so a price update does not break the cap maths)
     const batch = (n: number) => createJobs(cfg, user, 7, higgsfield, Array.from({ length: n }, () => ({ ...CLIP })), usageCtx());
     const three = await batch(3);   // 0.2 + 0.9 > 1: refused before anything is queued
     expect(three.jobs).toBeUndefined(); expect(three.status).toBe(429); expect(three.problems![0]).toContain('الحد الشهري'); expect(db).toHaveLength(0);
@@ -204,12 +207,12 @@ describe('cap and setup', () => {
     expect(submits).toBe(0);
   });
   it('a job that is done is billed, so it no longer counts as reserved', async () => {
-    caps = [{ module: 'video', monthly_cap_usd: 1, alert_at_pct: 80 }]; spent = [{ module: 'video', cost_usd: 0.2 }];
+    caps = [{ module: 'video', monthly_cap_usd: u(1), alert_at_pct: 80 }]; spent = [{ module: 'video', cost_usd: u(0.2) }];
     const made = await createJobs(cfg, user, 7, higgsfield, [CLIP, CLIP], usageCtx());
     made.jobs!.forEach(j => { (db.find(r => r.id === j.id)!).cost_recorded = true; });
-    spent = [{ module: 'video', cost_usd: 0.8 }]; clearSnaps();
+    spent = [{ module: 'video', cost_usd: u(0.8) }]; clearSnaps();
     expect((await createJobs(cfg, user, 7, higgsfield, [{ ...CLIP, seconds: 5 }], usageCtx())).jobs).toBeUndefined();   // 0.8 + 0.3 > 1: the cap itself
-    spent = [{ module: 'video', cost_usd: 0.5 }]; clearSnaps();
+    spent = [{ module: 'video', cost_usd: u(0.5) }]; clearSnaps();
     expect((await createJobs(cfg, user, 7, higgsfield, [CLIP], usageCtx())).jobs).toHaveLength(1);   // 0.5 + 0.3 fits, the recorded jobs are not counted twice
   });
   it('no more than MAX_ACTIVE clips wait or run at a time', async () => {
