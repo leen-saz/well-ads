@@ -1,5 +1,5 @@
 // فورم إطلاق حملة جديدة: تختار المنصة وتطلع خيارات إعلاناتها هي. الخانة الاختيارية اللي تنترك فاضية تطلع «ناقص» في طلب القرار.
-// الإرسال يسوي طلب "حملة جديدة" في لوحة القرارات، يمر على المراجع، ويحتاج موافقة لين. ما يطلق شي على المنصة بنفسه.
+// الإرسال يسوي طلب "حملة جديدة" في لوحة القرارات، يمر على المراجع، ويحتاج موافقة المالك. ما يطلق شي على المنصة بنفسه.
 import { $, $$, esc, api, icon, shell, toast, busy, say, failure } from './common.js';
 import { block } from './compliance-ui.js';
 
@@ -23,7 +23,7 @@ export default async function mount() {
     C('age_max', 'إلى', 'select', { options: { '45': '45', '55': '55', '65': '65+' }, value: '65' }),
     C('gender', 'الجنس', 'seg', { options: { all: 'الكل', female: 'نساء', male: 'رجال' }, value: 'all' }),
     C('lang', 'لغة الإعلان', 'seg', { options: { ar: 'عربي', en: 'إنجليزي' }, value: 'ar' }),
-    C('influencer', 'المؤثرة (اختياري)', 'text'),
+    C('influencer', 'المؤثر (اختياري)', 'text'),
     C('wa_message', 'رسالة واتساب الخاصة', 'text', { hint: 'لكل مؤثرة رسالة مختلفة عشان نعرف مصدر المحادثة.', optional: true }),
     C('creative', 'رابط المادة الإعلانية (فيديو أو صورة)', 'url', { required: true }),
     C('primary', 'النص الأساسي', 'textarea', { optional: true }),
@@ -36,7 +36,7 @@ export default async function mount() {
       C('optimization', 'التحسين على', 'select', { options: { conversations: 'المحادثات', leads: 'الليدز', purchase: 'الشراء' }, value: 'conversations' }),
       C('placements', 'أماكن الظهور', 'checks', { options: { fb_feed: 'فيسبوك فيد', ig_feed: 'انستقرام فيد', ig_stories: 'ستوري', ig_reels: 'ريلز' }, value: ['ig_feed', 'ig_stories', 'ig_reels'], hint: 'يدوي. Advantage+ ممنوع.' }),
       C('budget_type', 'نوع الميزانية', 'seg', { options: { abo: 'على المجموعة (ABO)', cbo: 'على الحملة (CBO)' }, value: 'abo' }),
-      C('partnership', 'إعلان شراكة مع حساب المؤثرة', 'toggle'),
+      C('partnership', 'إعلان شراكة مع حساب المؤثر', 'toggle'),
       C('radius', 'نصف القطر', 'locked', { value: '10 ميل حول الرياض' }),
       C('pixel', 'البكسل', 'locked', { value: 'WELL PIXEL' }),
     ],
@@ -47,8 +47,8 @@ export default async function mount() {
       C('bid', 'المزايدة', 'seg', { options: { auto: 'تلقائي', target: 'تكلفة مستهدفة' }, value: 'auto' }),
     ],
     tiktok: [
-      C('spark', 'Spark Ad (من حساب المؤثرة)', 'toggle', { value: true }),
-      C('spark_code', 'كود تفويض Spark', 'text', { hint: 'من المؤثرة: 7 أو 30 أو 60 أو 365 يوم.' }),
+      C('spark', 'Spark Ad (من حساب المؤثر)', 'toggle', { value: true }),
+      C('spark_code', 'كود تفويض Spark', 'text', { hint: 'من المؤثر: 7 أو 30 أو 60 أو 365 يوم.' }),
       C('optimization', 'التحسين على', 'select', { options: { leads: 'Lead generation', complete_payment: 'Complete Payment' }, value: 'complete_payment' }),
       C('lead_form', 'نموذج فوري', 'toggle'),
       C('pixel', 'البكسل', 'locked', { value: 'WELL Pixel (7655684600528846866)' }),
@@ -89,7 +89,7 @@ export default async function mount() {
       <section class="card pad"><h2>الجمهور</h2><div class="grid2">${COMMON.slice(6, 11).map(field).join('')}</div></section>
       <section class="card pad"><h2>خيارات ${PNAME[platform]}</h2><div class="grid2">${PLAT[platform].map(field).join('')}</div></section>
       <section class="card pad"><h2>المادة الإعلانية والنص</h2><div class="grid2">${COMMON.slice(11).map(field).join('')}</div><div id="moh" class="msg"></div></section>
-      <section class="card pad bar launch-foot"><span class="muted">الطلب يروح للوحة القرارات، يمر على المراجع، ويحتاج موافقة لين قبل أي إطلاق.</span><span class="grow"></span>
+      <section class="card pad bar launch-foot"><span class="muted">الطلب يروح للوحة القرارات، يمر على المراجع، ويحتاج موافقة المالك قبل أي إطلاق.</span><span class="grow"></span>
         <button class="btn primary" type="submit">${icon('check')}أرسل للموافقة</button><div class="msg" id="msg" role="status" style="flex-basis:100%"></div></section>`;
     $('#start').value = new Date(Date.now() + 864e5).toISOString().slice(0, 10);
     autoName();
@@ -154,7 +154,7 @@ export default async function mount() {
     } catch (err) { say($('#msg'), err.message); busy(btn, false); }
   });
 
-  shell({ active: 'control', title: 'حملة جديدة', badge: '<span class="chip line">تحتاج موافقة لين</span>' })
+  shell({ active: 'control', title: 'حملة جديدة', badge: '<span class="chip line">تحتاج موافقة المالك</span>' })
     .then(draw)
     .catch(err => failure($('#content'), err, () => location.reload()));
 }

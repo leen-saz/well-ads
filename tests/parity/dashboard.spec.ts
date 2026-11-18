@@ -1,5 +1,7 @@
-// Phase 4.1 (docs/phase-4.md): the numbers every dashboard view shows, pinned in golden.json.
-// The pipeline page must match it today; the Astro pages must match the same file before the cutover (4.6).
+// Phase 4.1 (docs/phase-4.md): the numbers every view of the PIPELINE-built dashboard shows, pinned in golden.json.
+// Scope, on purpose: this renders pipeline/template.html with the pipeline's own script (the pages served from R2) and compares it with a golden file
+// made from that same page, so it catches an accidental change of those figures. It does not load the Astro pages in src/pages (those are
+// covered by the smoke suite), and regenerating the golden with UPDATE_GOLDEN accepts whatever the page shows now: review the diff.
 //   npm run test:parity                      check against golden.json
 //   UPDATE_GOLDEN=1 npm run test:parity      rewrite golden.json from the pipeline page (only on purpose)
 import { test, expect, type Page } from '@playwright/test';

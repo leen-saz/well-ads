@@ -1,5 +1,7 @@
 ---
-// The page lives in its module: src/modules/design/Page.astro
+// One tab, two sections: ?tab=vision shows the vision module's page (its own access and lock are checked in src/lib/gate.ts)
 import Page from '../../modules/design/Page.astro';
+import Section from '../../modules/vision/Page.astro';
+const section = Astro.url.searchParams.get('tab') === 'vision';
 ---
-<Page />
+{section ? <Section /> : <Page />}

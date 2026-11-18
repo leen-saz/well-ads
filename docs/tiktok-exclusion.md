@@ -8,8 +8,14 @@ secrets of the `production` environment (the same environment `refresh.yml` uses
 | `TIKTOK_EXCLUDED_ADVERTISER_IDS` | comma separated advertiser ids | accounts that are never pulled or merged |
 | `TIKTOK_EXCLUDED_MARKERS` | `;` separated, case-insensitive | names inside ad, campaign or account names that mark an ad as theirs |
 
-Without them the code falls back to made-up placeholders (so tests never need real values) and `refresh.yml` warns in its first step with a
-clear message instead of quietly letting that account in. Set both secrets **before** merging the PR that introduced this.
+## What happens without them (fails closed for TikTok)
+The code only knows made-up placeholders, so without the secrets the other company's account would NOT be excluded. So:
+- **Neither the two secrets nor the opt-out:** every TikTok step of `refresh.yml` is skipped (Restore / MCP / Save), `fetch_data.py` reads nothing new
+  for TikTok (the previous numbers stay and are marked stale, status `exclusion_not_configured`), and `python -m tiktok.mcp` exits 1. Meta, Google and
+  Snapchat carry on and the refresh does not fail. The first step of the run says why in a warning.
+- **Fix it one of two ways:** set both secrets above in the `production` environment, **or**, if the TikTok token cannot see that account at all, set the
+  variable `TIKTOK_EXCLUSION_DISABLED` to `true` (Settings → Environments → production → Variables, not a secret). The run then warns on every run
+  that nothing is excluded.
+- The staging export (`pipeline.yml`) applies the same filter and needs the same two secrets in the `staging` environment.
 
-Not covered: `pipeline/dash/01-base.js` still carries the same account's id and markers in the dashboard page itself (a second,
-client-side filter). Moving that one needs the page build to receive them too, so it is a separate change.
+There is no client-side copy of the id or the markers any more: the page JS no longer carries them, so the server-side filter is the only one.

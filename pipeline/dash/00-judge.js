@@ -220,13 +220,17 @@ const JUDGE = (function(){
       evidence:top1.evidence, sar:top1.sar, confidence:top1.confidence, rule:top1.rule, change:top1.change };
   }
 
-  // Cost per paying customer = spend ÷ paid closings. No CRM, or no paid closing yet: «غير مربوط», never 0 or a made-up number.
+  // Cost per paying customer = spend ÷ paid closings. Never 0 or a made-up number: no CRM is «غير مربوط»; a CRM with no paid
+  // closing in the period is «لا توجد إقفالات» (nothing to divide by, not a missing link).
   function payer(sale, target, l, f){
     const t = (ar, en) => (l === 'en' ? en : ar);
-    const NA = t('غير مربوط', 'Not linked');
-    if(!sale || !sale.crm || !(sale.closings > 0) || !(sale.spend > 0))
-      return { value:null, target: fin(target) ? target : null, level:'na', text:NA, closings: sale && sale.closings || 0,
-        note: !sale || !sale.crm ? t('نظام العملاء مو موصول بهالأرقام.', 'The CRM is not connected to these numbers.') : t('ما فيه إقفالات مدفوعة مربوطة في هالفترة.', 'No linked paid closings in this period.') };
+    const tgt = fin(target) ? target : null, n = sale && sale.closings || 0;
+    if(!sale || !sale.crm)
+      return { value:null, target:tgt, level:'na', text:t('غير مربوط', 'Not linked'), closings:n, note:t('نظام العملاء مو موصول بهالأرقام.', 'The CRM is not connected to these numbers.') };
+    if(!(n > 0))
+      return { value:null, target:tgt, level:'na', text:t('لا توجد إقفالات', 'No closings'), closings:0, note:t('ما فيه إقفالات مدفوعة في هالفترة.', 'No paid closings in this period.') };
+    if(!(sale.spend > 0))
+      return { value:null, target:tgt, level:'na', text:t('غير مربوط', 'Not linked'), closings:n, note:t('ما فيه صرف مربوط بهالإقفالات في هالفترة.', 'No spend is linked to these closings in this period.') };
     const v = sale.spend / sale.closings, ok = fin(target);
     const level = ok ? band(v > 0 ? target / v : Infinity) : 'na';
     return { value:v, target: ok ? target : null, level, text:f.sar(v), closings:sale.closings,
