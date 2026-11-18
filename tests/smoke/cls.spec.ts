@@ -30,7 +30,7 @@ for (const path of PAGES) {
     await page.setViewportSize({ width: 1440, height: 900 });
     await page.goto(path);
     await page.waitForLoadState('networkidle');
-    await page.waitForTimeout(1500);
+    await page.waitForTimeout(1500);   // on purpose: the shifts are measured over a fixed 1.5 s window after load, so a condition would change what is measured
     const cls = await page.evaluate(() => (window as unknown as { __cls: number }).__cls);
     const who = await page.evaluate(() => Object.entries((window as unknown as { __who: Record<string, number> }).__who).sort((a, b) => b[1] - a[1]).slice(0, 4).map(([k, v]) => `${k} ${v.toFixed(2)}`).join(', '));
     console.log(`CLS ${path} ${cls.toFixed(3)} · ${who}`);

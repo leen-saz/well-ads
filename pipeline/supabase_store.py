@@ -191,25 +191,52 @@ def _upsert(table, rows, on_conflict, transport=None):
         )
 
 
-def _delete_window(prefix, start, end, transport=None):
+def _delete_window_orphans(prefix, start, end, keep, transport=None):
+    """Deletes the rows of one platform inside [start, end] that the fresh fetch did not return.
+
+    It runs only after the fresh rows were written (upsert first), so a failed or empty fetch can never leave a hole.
+    keep is a set of (ad_key, day)."""
     path = (
-        "/rest/v1/ad_metrics"
-        f"?ad_key=like.{prefix}*&day=gte.{start}&day=lte.{end}"
+        "/rest/v1/ad_metrics?select=ad_key,day"
+        f"&ad_key=like.{prefix}*&day=gte.{start}&day=lte.{end}&order=ad_key.asc,day.asc"
     )
-    _request("DELETE", path, extra_headers={"Prefer": "return=minimal"}, transport=transport)
+    old, offset = [], 0
+    while True:
+        got = _request("GET", path, extra_headers={"Range-Unit": "items", "Range": f"{offset}-{offset + PAGE - 1}"},
+                       transport=transport) or []
+        old.extend(got)
+        if len(got) < PAGE:
+            break
+        offset += PAGE
+    gone = {}
+    for r in old:
+        if (r["ad_key"], str(r["day"])[:10]) not in keep:
+            gone.setdefault(r["ad_key"], []).append(str(r["day"])[:10])
+    for key, days in gone.items():
+        for i in range(0, len(days), 100):
+            part = ",".join(days[i:i + 100])
+            _request("DELETE", f"/rest/v1/ad_metrics?ad_key=eq.{urllib.parse.quote(key, safe='')}&day=in.({part})",
+                     extra_headers={"Prefer": "return=minimal"}, transport=transport)
 
 
-def _delete_orphan_metrics(rows, transport=None):
+def _delete_orphan_metrics(rows, range_start=None, ok_prefixes=None, transport=None):
     """بعد ما انكتبت الصفوف الجديدة كلها: يمسح من القاعدة الصفوف اللي مو فيها (استبدال كامل بدون نافذة ضياع).
 
     قبل كان يمسح كل شي أول ثم يكتب بدفعات، فلو فشلت دفعة تبقى القاعدة ناقصة والتشغيل الساعي ما يرجّع التاريخ.
+    It never deletes days older than range_start (history the pull cannot refetch, e.g. before the Meta window) and,
+    when ok_prefixes is given, never touches a platform whose pull failed.
     """
     keep = {(r["ad_key"], r["day"]) for r in rows}
     old = _paginate("ad_metrics", "ad_key.asc,day.asc", transport=transport)
     gone = {}
     for r in old:
-        if (r["ad_key"], r["day"]) not in keep:
-            gone.setdefault(r["ad_key"], []).append(r["day"])
+        day = str(r["day"])[:10]
+        if range_start and day < range_start:
+            continue
+        if ok_prefixes is not None and r["ad_key"][:1] not in ok_prefixes:
+            continue
+        if (r["ad_key"], day) not in keep:
+            gone.setdefault(r["ad_key"], []).append(day)
     for key, days in gone.items():
         for i in range(0, len(days), 100):
             part = ",".join(days[i:i + 100])
@@ -225,15 +252,21 @@ def save_bundle(data, recent_from=None, ok_prefixes=None, full=False, transport=
     ads = [ad_record(k, v) for k, v in (data.get("ads") or {}).items()]
     _upsert("ads", ads, "ad_key", transport=transport)
     rows = [metric_record(r) for r in (data.get("rows") or []) if r and r[0]]
+    range_start = (data.get("range") or {}).get("start")
     if full or not recent_from:
         _upsert("ad_metrics", rows, "ad_key,day", transport=transport)
         if full and rows:   # an empty fetch must never wipe the history
-            _delete_orphan_metrics(rows, transport=transport)
+            _delete_orphan_metrics(rows, range_start=range_start,
+                                   ok_prefixes=None if ok_prefixes is None else set(ok_prefixes), transport=transport)
     else:
         prefixes = list(ok_prefixes or [])
         end = (data.get("range") or {}).get("today") or recent_from
-        for prefix in prefixes:
-            _delete_window(prefix, recent_from, end, transport=transport)
         fresh = [r for r in rows if r["day"] >= recent_from and (not prefixes or r["ad_key"][:1] in prefixes)]
+        # write first, then remove only what the fresh fetch no longer returns. A platform that returned nothing
+        # keeps its window (an empty 200 or a failure after the write must never leave a hole).
         _upsert("ad_metrics", fresh, "ad_key,day", transport=transport)
+        for prefix in prefixes:
+            keep = {(r["ad_key"], r["day"]) for r in fresh if r["ad_key"][:1] == prefix}
+            if keep:
+                _delete_window_orphans(prefix, recent_from, end, keep, transport=transport)
     _upsert("dashboard_state", [state_record(data)], "id", transport=transport)
