@@ -54,7 +54,7 @@ test('the page itself cannot start (the sidebar call fails): a banner with reloa
   await expect(banner).toContainText('ما قدرت أوصل للخادم');
   failing = false;
   await banner.locator('[data-retry]').click();
-  await expect(page.locator('a.navi[data-k="knowledge"]')).toBeVisible();
+  await expect(page.locator('a.navi[data-grp="system"]')).toBeVisible();
 });
 
 test('a request that never answers ends with an error, not an endless spinner', async ({ page, context, request }) => {

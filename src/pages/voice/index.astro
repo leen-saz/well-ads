@@ -1,7 +1,9 @@
 ---
-// One tab, two sections: ?tab=voiceover shows the voiceover module's page (its own access and lock are checked in src/lib/gate.ts)
+// One tab, four sections: ?tab=voiceover, ?tab=transcribe or ?tab=video shows that module's page (its own access and lock are checked in src/lib/gate.ts)
 import Page from '../../modules/voice/Page.astro';
-import Section from '../../modules/voiceover/Page.astro';
-const section = Astro.url.searchParams.get('tab') === 'voiceover';
+import Voiceover from '../../modules/voiceover/Page.astro';
+import Transcribe from '../../modules/transcribe/Page.astro';
+import Video from '../../modules/video/Page.astro';
+const tab = Astro.url.searchParams.get('tab');
 ---
-{section ? <Section /> : <Page />}
+{tab === 'voiceover' ? <Voiceover /> : tab === 'transcribe' ? <Transcribe /> : tab === 'video' ? <Video /> : <Page />}

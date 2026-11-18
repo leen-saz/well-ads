@@ -5,13 +5,14 @@
   "compatibility_date": "2026-10-01",
   "compatibility_flags": ["nodejs_compat"],
   "observability": { "enabled": true },
-  // OWNER_EMAIL is config, not a credential, so it lives here instead of in secrets.
+  // OWNER_EMAIL is NOT in this public file: it is a Worker secret per environment (docs/secrets/worker.env.example).
+  // Local dev uses a placeholder below; deploy.yml refuses to deploy an environment that lacks the secret.
   // Top level = local dev only. Each env has its own bindings; nothing is inherited.
   "env": {
     "staging": {
       "name": "well-ads-staging",
       "workers_dev": true,
-      "vars": { "APP_ENV": "staging", "OWNER_EMAIL": "leen.sulaiman@wellunion.co" },
+      "vars": { "APP_ENV": "staging" },
       "r2_buckets": [{ "binding": "FILES", "bucket_name": "well-ads-files-staging" }],
       "ai": { "binding": "AI" },
       "workflows": [{ "name": "journey-run-staging", "binding": "JOURNEY", "class_name": "JourneyRun" }]
@@ -19,7 +20,7 @@
     "production": {
       "name": "well-ads",
       "workers_dev": false,
-      "vars": { "APP_ENV": "production", "OWNER_EMAIL": "leen.sulaiman@wellunion.co" },
+      "vars": { "APP_ENV": "production" },
       "r2_buckets": [{ "binding": "FILES", "bucket_name": "well-ads-files" }],
       "ai": { "binding": "AI" },
       "workflows": [{ "name": "journey-run", "binding": "JOURNEY", "class_name": "JourneyRun" }],
@@ -28,7 +29,7 @@
       "triggers": { "crons": ["7 * * * *", "*/5 * * * *"] }
     }
   },
-  "vars": { "APP_ENV": "local", "OWNER_EMAIL": "leen.sulaiman@wellunion.co" },
+  "vars": { "APP_ENV": "local", "OWNER_EMAIL": "owner@example.test" },
   "r2_buckets": [{ "binding": "FILES", "bucket_name": "well-ads-files-local" }],
   "ai": { "binding": "AI" },
   "workflows": [{ "name": "journey-run-local", "binding": "JOURNEY", "class_name": "JourneyRun" }]

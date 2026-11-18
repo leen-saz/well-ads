@@ -10,6 +10,7 @@ import { tune, type Outcome } from '../../modules/buyer/learn';
 import type { AdRow, MetricRow } from '../../modules/buyer/buyer';
 import { scoped } from '../../lib/tenant';
 import { readAll } from '../../lib/paging';
+import { patchGuardrails } from '../../lib/guardrails';
 
 export { actions, propose, decide, apply, rollback, execution } from '../../modules/buyer/exec-routes';
 
@@ -33,11 +34,10 @@ export const rules = {
     if ('error' in c) return json(400, { error: c.error });
     // A preview: the same validation, nothing saved
     if (b.dry === true) return json(200, { ok: true, dry: true, rules: c.rules });
-    const s = await settings(cfg);
+    // Only the `buyer.rules` key of each platform row changes, on top of what the row holds now (a stop or limits saved meanwhile stay)
     for (const p of PLATS) {
-      const existing = s.rows.find(r => r.platform === DB_KEY[p]);
-      const guard = { ...(existing?.guardrails ?? {}) }; const buyer = { ...(guard.buyer ?? {}), rules: c.rules.filter(r => r.platform === p) };
-      const w = await sb(cfg, '/rest/v1/control_settings', { method: 'POST', admin: true, headers: { Prefer: 'return=representation,resolution=merge-duplicates' }, body: { platform: DB_KEY[p], guardrails: { ...guard, buyer }, updated_by: user.email, updated_at: new Date().toISOString() } });
+      const rules = c.rules.filter(r => r.platform === p);
+      const w = await patchGuardrails(cfg, DB_KEY[p], g => ({ ...g, buyer: { ...((g.buyer ?? {}) as Record<string, unknown>), rules } }), user.email);
       if (!w.ok) return json(500, { error: 'ما انحفظت القواعد' });
     }
     // counts only: the rules themselves (names, limits) never go to the log

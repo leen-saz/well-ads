@@ -15,13 +15,15 @@ export function profileFor(email, n, all = []) {
   if (local === 'nobody') return { ...base, role: 'member', dashboards: [] };
   // A normal member who may open every tab (the technical-text test reads what such a user sees)
   if (local === 'member') return { ...base, role: 'member', dashboards: all };
+  // Overview on, analytics (ceo) off: the summary's numbers are refused, so the strip must not offer the summary or the ads board
+  if (local === 'ovnoceo') return { ...base, role: 'member', dashboards: ['overview', 'creative', 'listening'] };
   const m = local.match(/^u-([a-z]+)$/);
   // The overview numbers also need analytics (src/modules/overview/routes.ts)
   return { ...base, role: 'member', dashboards: m ? (m[1] === 'overview' ? ['overview', 'ceo'] : [m[1]]) : [] };
 }
 
 export function startFake(port, keys) {
-  const accounts = [OWNER, `nobody@${DOMAIN}`, `member@${DOMAIN}`, ...keys.map(k => `u-${k}@${DOMAIN}`)];
+  const accounts = [OWNER, `nobody@${DOMAIN}`, `member@${DOMAIN}`, `ovnoceo@${DOMAIN}`, ...keys.map(k => `u-${k}@${DOMAIN}`)];
   const profiles = accounts.map((e, i) => profileFor(e, i + 1, keys));
   // POST /__mode {"missing":true}: every table except profiles answers like a table that was never created (PGRST205)
   let missing = false;
