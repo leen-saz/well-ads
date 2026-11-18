@@ -6,6 +6,7 @@ import { clearRoutes } from '../../src/lib/ai-routes';
 import { clearSnaps, withWaiter, type UsageCtx } from '../../src/lib/usage';
 import { explainViaOpenRouter } from '../../src/modules/debugger/explain';
 import { ROUTES } from '../../src/modules/routes';
+import { WELL_COMPANY as WELL } from '../../src/lib/tenant';
 
 const CO = '11111111-1111-1111-1111-111111111111', OTHER = '22222222-2222-2222-2222-222222222222';
 const SB: A.AuthEnv = { SUPABASE_URL: 'https://sb.example', SUPABASE_SERVICE_ROLE_KEY: 's', SESSION_SECRET: 'x'.repeat(40), OWNER_EMAIL: 'boss@example.com' };
@@ -193,6 +194,7 @@ describe('Debugger on OpenRouter', () => {
 
 describe('/api/maestro/models (owner only)', () => {
   const owner = { id: '33333333-3333-3333-3333-333333333333', email: 'boss@example.com', role: 'owner', active: true, company_id: CO } as A.Profile;
+  const wellOwner = { ...owner, company_id: WELL } as A.Profile;
   const member = { id: '44444444-4444-4444-4444-444444444444', email: 'm@example.com', role: 'member', active: true, access: { maestro: 'approve' }, company_id: CO } as A.Profile;
   const call = async (h: (r: Request, e: A.AuthEnv) => Response | Promise<Response>, who: A.Profile, b?: unknown, env: Record<string, unknown> = {}) => {
     profile = who;
@@ -212,17 +214,25 @@ describe('/api/maestro/models (owner only)', () => {
     expect(j.providers.find(p => p.key === 'openrouter')!.on).toBe(false);
     expect(j.tasks.find(t => t.task === 'copy')).toMatchObject({ default: 'openai', route: null, using: 'openai' });
     expect(j.tasks.find(t => t.task === 'debugger')).toMatchObject({ default: 'anthropic', using: null });
-    expect((await call(M.POST!, owner, { task: 'copy', provider: 'openrouter', model: MODEL }, { OPENAI_API_KEY: 'o' })).status).toBe(409);
+    expect((await call(M.POST!, wellOwner, { task: 'copy', provider: 'openrouter', model: MODEL }, { OPENAI_API_KEY: 'o' })).status).toBe(409);
     expect(JSON.stringify(j)).not.toContain(KEY);
   });
   it('with the key it saves one task for the owner\'s company, audited, and rejects bad input', async () => {
     const env = { OPENROUTER_API_KEY: KEY };
-    expect((await call(M.POST!, owner, { task: 'copy', provider: 'openrouter', model: MODEL }, env)).status).toBe(200);
+    expect((await call(M.POST!, wellOwner, { task: 'copy', provider: 'openrouter', model: MODEL }, env)).status).toBe(200);
     const w = calls.find(c => c.url.includes('/ai_routes') && c.method === 'POST')!;
-    expect(w.body).toMatchObject({ company_id: CO, task: 'copy', provider: 'openrouter', model: MODEL, updated_by: 'boss@example.com' });
+    expect(w.body).toMatchObject({ company_id: WELL, task: 'copy', provider: 'openrouter', model: MODEL, updated_by: 'boss@example.com' });
     expect(calls.some(c => c.url.includes('/audit_log') && (c.body as { action: string }).action === 'ai_route_set')).toBe(true);
     for (const bad of [{ task: 'nope', provider: 'openrouter', model: MODEL }, { task: 'copy', provider: 'openrouter', model: '' }, { task: 'copy', provider: 'openrouter', model: 'gpt-5' },
-      { task: 'copy', provider: 'openrouter', model: 'a/b c' }, { task: 'copy', provider: 'anthropic', model: 'x' }]) expect((await call(M.POST!, owner, bad, env)).status).toBe(400);
+      { task: 'copy', provider: 'openrouter', model: 'a/b c' }, { task: 'copy', provider: 'anthropic', model: 'x' }]) expect((await call(M.POST!, wellOwner, bad, env)).status).toBe(400);
+  });
+  it('another company\'s owner may only pick the free engine: the paid providers run on Well\'s keys', async () => {
+    const env = { OPENROUTER_API_KEY: KEY, OPENAI_API_KEY: 'o', XAI_API_KEY: 'x', AI: workersAi() };
+    expect((await call(M.POST!, owner, { task: 'copy', provider: 'openrouter', model: MODEL }, env)).status).toBe(403);
+    expect((await call(M.POST!, owner, { task: 'copy', provider: 'openai', model: '' }, env)).status).toBe(403);
+    expect(calls.some(c => c.url.includes('/ai_routes') && c.method !== 'GET')).toBe(false);
+    expect((await call(M.POST!, owner, { task: 'copy', provider: 'workers' }, env)).status).toBe(200);
+    expect((await call(M.POST!, owner, { task: 'copy', provider: '' }, env)).status).toBe(200);   // clearing is always allowed
   });
   it('clearing a task deletes only that task of the owner\'s company', async () => {
     expect((await call(M.POST!, owner, { task: 'copy', provider: '' })).status).toBe(200);

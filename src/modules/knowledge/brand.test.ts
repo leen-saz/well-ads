@@ -45,11 +45,26 @@ describe('brand files', () => {
     expect(cleanColors('#1D1069، 7e57fd and #FFF, nope, #1d1069')).toEqual(['#1d1069', '#7e57fd', '#ffffff']);
   });
 
+  it('an upload must declare its length, and a body longer than declared is cut off before it is kept', async () => {
+    const ed = member({ knowledge: 'edit' });
+    stub(ed, () => [{ id: 5, kind: 'logo', active: false }]);
+    const FILES = bucket();
+    const up = async (headers: Record<string, string>, body: BodyInit) => brandfile.POST(req('/api/knowledge/brandfile?kind=logo', await cookieFor(ed), { method: 'POST', headers: { 'content-type': 'image/png', ...headers }, body }), { ...E, FILES } as A.AuthEnv);
+    // no length: asked for it (it used to count as 1 byte and be read whole)
+    const none = await up({}, new Uint8Array(10));
+    expect(none.status).toBe(411);
+    // declared 2 MB or less passes the pre-check, but a body that really is bigger than the declaration is refused
+    const lie = await up({ 'content-length': '4' }, new Uint8Array(50));
+    expect([411, 413]).toContain(lie.status);
+    expect(FILES.store.size).toBe(0);
+    // over the kind's limit as declared: refused before reading
+    expect((await up({ 'content-length': String(3 * 1024 * 1024) }, new Uint8Array(3))).status).toBe(413);
+  });
   it('an editor uploads switched off; only an approver switches it on', async () => {
     const ed = member({ knowledge: 'edit' });
     const calls = stub(ed, () => [{ id: 5, kind: 'logo', active: false }]);
     const FILES = bucket();
-    const r = await brandfile.POST(req('/api/knowledge/brandfile?kind=logo&title=الشعار', await cookieFor(ed), { method: 'POST', headers: { 'content-type': 'image/png' }, body: new Uint8Array([1, 2, 3]) }), { ...E, FILES } as A.AuthEnv);
+    const r = await brandfile.POST(req('/api/knowledge/brandfile?kind=logo&title=الشعار', await cookieFor(ed), { method: 'POST', headers: { 'content-type': 'image/png', 'content-length': '3' }, body: new Uint8Array([1, 2, 3]) }), { ...E, FILES } as A.AuthEnv);
     expect(r.status).toBe(200);
     expect(((await r.json()) as { pending: boolean }).pending).toBe(true);
     const [key] = [...FILES.store.keys()];
@@ -57,7 +72,7 @@ describe('brand files', () => {
     expect(calls.find(c => c.method === 'POST' && c.url.endsWith('/brand_assets'))?.body).toMatchObject({ kind: 'logo', r2_key: key, mime: 'image/png', size: 3, active: false, company_id: CO });
     expect((await brand.PATCH(req('/api/knowledge/brand', await cookieFor(ed), { method: 'PATCH', body: JSON.stringify({ id: 5, active: true }) }), E)).status).toBe(403);
     // wrong type for the kind
-    const bad = await brandfile.POST(req('/api/knowledge/brandfile?kind=guide', await cookieFor(ed), { method: 'POST', headers: { 'content-type': 'text/html' }, body: '<script>' }), { ...E, FILES } as A.AuthEnv);
+    const bad = await brandfile.POST(req('/api/knowledge/brandfile?kind=guide', await cookieFor(ed), { method: 'POST', headers: { 'content-type': 'text/html', 'content-length': '8' }, body: '<script>' }), { ...E, FILES } as A.AuthEnv);
     expect(bad.status).toBe(415);
 
     const ap = member({ knowledge: 'approve' });

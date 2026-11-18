@@ -9,7 +9,7 @@ import { clearSnaps, overCap } from '../../lib/usage';
 import { WELL_COMPANY } from '../../lib/tenant';
 import { AVATARS, splitSeconds, validate } from './engine';
 import { higgsfield } from './higgsfield';
-import { advance, backoffMs, cancel, createJobs, sayOf, type Job } from './jobs';
+import { MAX_ACTIVE, advance, backoffMs, cancel, createJobs, sayOf, type Job } from './jobs';
 
 const CO = '11111111-1111-1111-1111-111111111111';
 const E = { SUPABASE_URL: 'https://sb.example', SUPABASE_SERVICE_ROLE_KEY: 's', SESSION_SECRET: 'x'.repeat(40), OWNER_EMAIL: 'boss@example.com', HIGGSFIELD_API_KEY: 'k-test-1', HIGGSFIELD_API_SECRET: 's-test-1' };
@@ -192,6 +192,40 @@ describe('cap and setup', () => {
     expect((await advance(ctx(), (await queue())[0]!)).status).toBe('running');
     clearSnaps(); caps = [{ module: 'video', monthly_cap_usd: null, alert_at_pct: 80 }]; spent = [{ module: 'video', cost_usd: 9999 }];   // the owner saved an empty cap: no limit
     expect((await advance(ctx(), (await queue())[0]!)).status).toBe('running');
+  });
+  it('queueing reserves the cost of the clips already waiting: a script cannot queue batch after batch before the first clip is billed', async () => {
+    caps = [{ module: 'video', monthly_cap_usd: 1, alert_at_pct: 80 }]; spent = [{ module: 'video', cost_usd: 0.2 }];   // a 5 s clip at 720p is 0.30
+    const batch = (n: number) => createJobs(cfg, user, 7, higgsfield, Array.from({ length: n }, () => ({ ...CLIP })), usageCtx());
+    const three = await batch(3);   // 0.2 + 0.9 > 1: refused before anything is queued
+    expect(three.jobs).toBeUndefined(); expect(three.status).toBe(429); expect(three.problems![0]).toContain('الحد الشهري'); expect(db).toHaveLength(0);
+    expect((await batch(2)).jobs).toHaveLength(2);   // 0.2 + 0.6 fits
+    const more = await batch(2);   // the first two are reserved (0.6, not billed yet): 0.2 + 0.6 + 0.6 > 1
+    expect(more.jobs).toBeUndefined(); expect(more.status).toBe(429); expect(db).toHaveLength(2);
+    expect(submits).toBe(0);
+  });
+  it('a job that is done is billed, so it no longer counts as reserved', async () => {
+    caps = [{ module: 'video', monthly_cap_usd: 1, alert_at_pct: 80 }]; spent = [{ module: 'video', cost_usd: 0.2 }];
+    const made = await createJobs(cfg, user, 7, higgsfield, [CLIP, CLIP], usageCtx());
+    made.jobs!.forEach(j => { (db.find(r => r.id === j.id)!).cost_recorded = true; });
+    spent = [{ module: 'video', cost_usd: 0.8 }]; clearSnaps();
+    expect((await createJobs(cfg, user, 7, higgsfield, [{ ...CLIP, seconds: 5 }], usageCtx())).jobs).toBeUndefined();   // 0.8 + 0.3 > 1: the cap itself
+    spent = [{ module: 'video', cost_usd: 0.5 }]; clearSnaps();
+    expect((await createJobs(cfg, user, 7, higgsfield, [CLIP], usageCtx())).jobs).toHaveLength(1);   // 0.5 + 0.3 fits, the recorded jobs are not counted twice
+  });
+  it('no more than MAX_ACTIVE clips wait or run at a time', async () => {
+    caps = [{ module: 'video', monthly_cap_usd: null, alert_at_pct: 80 }];
+    const stub = (n: number) => { db = Array.from({ length: n }, (_, i) => ({ id: i + 1, company_id: CO, status: 'queued', est_cost_usd: 0.3, cost_recorded: false }) as unknown as Job); };
+    stub(MAX_ACTIVE);
+    const full = await createJobs(cfg, user, 7, higgsfield, [CLIP], usageCtx());
+    expect(full.jobs).toBeUndefined(); expect(full.status).toBe(429); expect(full.problems![0]).toContain(String(MAX_ACTIVE));
+    stub(MAX_ACTIVE - 2);
+    expect((await createJobs(cfg, user, 7, higgsfield, [CLIP, CLIP], usageCtx())).jobs).toHaveLength(2);   // exactly at the limit
+    expect((await createJobs(cfg, user, 7, higgsfield, [CLIP], usageCtx())).status).toBe(429);
+  });
+  it('when the waiting clips cannot be read, nothing is queued (fail closed)', async () => {
+    vi.stubGlobal('fetch', vi.fn(async () => new Response('{}', { status: 500 })));
+    const r = await createJobs(cfg, user, 7, higgsfield, [CLIP], usageCtx());
+    expect(r.jobs).toBeUndefined(); expect(r.status).toBe(503);
   });
   it('without the engine keys the job stops as not ready and nothing is sent', async () => {
     const [j] = await queue();

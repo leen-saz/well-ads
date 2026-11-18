@@ -1,7 +1,7 @@
 // /api/listening/demand: leads per source in the chosen period (?from=&to=, Riyadh days; default the last 14 days read as 7 against 7)
 // against the same length before it (CRM), a demand signal next to the organic analysis.
 // The organic analysis itself runs in the browser (public/modules/listening/analyze.js). Read-only.
-import { sb, json, handle, requireUser } from '../../lib/auth';
+import { sb, json, handle, requireUser, isOwner } from '../../lib/auth';
 import { scoped } from '../../lib/tenant';
 import { usageCtx } from '../../lib/usage';
 import { readAll } from '../../lib/paging';
@@ -75,13 +75,14 @@ export const mentions = { GET: handle(async (request, e: ListenEnv) => {
   return json(200, { missing: false, mentions: r.ok && Array.isArray(r.data) ? r.data : [] });
 }) };
 
-// "Refresh now": the due watches that fit the subrequest budget, at most 3 (or one named watch, even if not due)
+// "Refresh now": the due watches that fit the subrequest budget, at most 3 (or one named watch; only the owner may force a watch that is not due,
+// since every run is a paid search)
 export const refresh = { POST: handle(async (request, e: ListenEnv) => {
   const { cfg, user } = await requireUser(request, e, 'listening', { write: true });
   const id = Number((await readJson(request)).id) || 0;
   const r = await sb<(Watch & { id: number })[]>(cfg, scoped(`/rest/v1/listen_watch?select=*${id ? `&id=eq.${id}` : ''}&order=fetched_at.asc.nullsfirst&limit=10`, user.co), { admin: true });
   if (missingTable(r)) return json(409, { error: notReady(user) });
-  const all = (r.ok && Array.isArray(r.data) ? r.data : []).filter(w => id || due(w));
+  const all = (r.ok && Array.isArray(r.data) ? r.data : []).filter(w => (id && isOwner(user)) || due(w));
   const list = id ? all.slice(0, 1) : batch(all);
   if (!list.length) return json(200, { ok: true, ran: 0, added: 0, note: 'كل الكلمات انحدّثت آخر 24 ساعة' });
   let added = 0, scored = 0;

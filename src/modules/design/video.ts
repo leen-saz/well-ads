@@ -4,6 +4,7 @@ import { sb, json, readJson, handle, requireUser, audit, atLeast, notEnabled, mi
 import { scoped } from '../../lib/tenant';
 import { generate, pick, type LlmEnv, type Msg } from '../../lib/llm';
 import { usageCtx } from '../../lib/usage';
+import { declaredLength, readCapped } from '../../lib/upload';
 import { knowledgeFor, rulesFor, withKnowledge } from '../knowledge/knowledge';
 import { brandFor } from '../knowledge/brand';
 import { check } from '../compliance/compliance';
@@ -76,9 +77,12 @@ export const videofile = {
     if (!e.FILES) return json(503, { error: 'رفع الملفات مو مفعّل في هالبيئة' });
     const kind = new URL(request.url).searchParams.get('kind') || '';
     const type = (request.headers.get('content-type') || '').split(';')[0]!.trim().toLowerCase();
-    const pre = checkUpload(kind, type, Number(request.headers.get('content-length') || 1));
+    const len = declaredLength(request);
+    if (len === null) return json(411, { error: 'حجم الملف غير معروف. جرّب مرة ثانية.' });
+    const pre = checkUpload(kind, type, len);
     if (pre.error) return json(pre.error.includes('الحد') ? 413 : 415, { error: pre.error });
-    const body = await request.arrayBuffer();
+    const body = await readCapped(request, len);
+    if (!body) return json(413, { error: 'الملف أكبر من الحجم المعلن' });
     const c = checkUpload(kind, type, body.byteLength);
     if (!c.ext) return json(c.error?.includes('الحد') ? 413 : 400, { error: c.error });
     const key = fileKey(user.co, c.ext);

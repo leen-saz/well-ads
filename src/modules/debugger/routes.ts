@@ -1,7 +1,7 @@
 // /api/debugger/*: tracking health for the user's company, computed from stored data (read-only).
 // report = the findings; explain = Claude's plan for them (paid, needs ANTHROPIC_API_KEY).
 import { json, handle, requireUser, notEnabled, type AuthEnv, type Cfg, type Session } from '../../lib/auth';
-import { scoped } from '../../lib/tenant';
+import { scoped, WELL_COMPANY } from '../../lib/tenant';
 import { readAll as all } from '../../lib/paging';
 import { diagnose, type AdRow, type ConnRow, type LeadRow, type MetricRow } from './debugger';
 import { explain as claude, explainViaOpenRouter, type ClaudeEnv } from './explain';
@@ -34,7 +34,8 @@ async function linked(e: { FILES?: R2Bucket }) {
 
 export const report = { GET: handle(async (request, e: AuthEnv & { FILES?: R2Bucket }) => {
   const { cfg, user } = await requireUser(request, e, 'debugger');
-  return json(200, { ...(await build(cfg, user)), linked: await linked(e) });
+  // dash.json is Well's own pipeline output: another company's users get their own findings, not Well's linked-lead share
+  return json(200, { ...(await build(cfg, user)), linked: user.co === WELL_COMPANY ? await linked(e) : null });
 }) };
 
 // The findings are read again on the server: Claude gets this company's data, never what the page sends
