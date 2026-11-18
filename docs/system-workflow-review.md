@@ -176,7 +176,7 @@ flowchart TD
 
 ```mermaid
 flowchart TD
-  LG[تسجيل دخول] --> SS[كوكي HMAC 12 ساعة]
+  LG[تسجيل دخول] --> SS[كوكي HMAC 14 يوم (يتجدد مع الاستخدام)]
   SS --> GT[gate.ts: لوحة مطلوبة لكل مسار]
   GT --> LV{المستوى}
   LV -->|view| RD[قراءة]
