@@ -1,4 +1,4 @@
-// احلم ← «حملة جديدة»: تكتب أمنياتك للحملة بكلام عادي، واحلم يحوّلها لخطة ومهام لإيجنتس التطبيق.
+// أحلم ← «حملة جديدة»: تكتب أمنياتك للحملة بكلام عادي، وأحلم يحوّلها لخطة ومهام لإيجنتس التطبيق.
 // التكلفة المتوقعة تطلع قبل ما يشتغل أي شي، والاعتماد لمن عنده صلاحية الموافقة. ما فيه نشر ولا صرف ولا تعديل على حسابات الإعلانات.
 import { $, esc, api, say, pageSignal } from './common.js';
 import { render } from './ahlam.js';
@@ -24,7 +24,7 @@ export function mountCampaign(root, me, L, { embedded = false } = {}) {
   const frame = html => { root.innerHTML = `<div class="card ah-card">${html}<div class="msg" id="cmMsg" role="status"></div></div>`; };
 
   async function showList() {
-    frame(`<div class="cm-head"><p class="ah-note muted">${esc(L('اكتب أمنياتك للحملة، واحلم يطلع لك خطة ومهام لكل إيجنت، وتكلفتها المتوقعة قبل ما يشتغل أي شي. ما ينشر ولا يصرف ولا يغيّر حساب إعلاني.', 'Write your wishes for a campaign and Ahlam builds a plan with tasks for each agent, and its expected cost before anything runs. It never publishes, spends or changes an ad account.'))}</p>
+    frame(`<div class="cm-head"><p class="ah-note muted">${esc(L('اكتب أمنياتك للحملة، وأحلم يطلع لك خطة ومهام لكل إيجنت، وتكلفتها المتوقعة قبل ما يشتغل أي شي. ما ينشر ولا يصرف ولا يغيّر حساب إعلاني.', 'Write your wishes for a campaign and Ahlam builds a plan with tasks for each agent, and its expected cost before anything runs. It never publishes, spends or changes an ad account.'))}</p>
       <button class="btn primary" id="cmNew" type="button">${esc(L('حملة جديدة', 'New campaign'))}</button></div><div id="cmList" class="muted">${esc(L('يحمّل…', 'Loading…'))}</div>`);
     $('#cmNew', root).onclick = showForm;
     try {
@@ -174,7 +174,7 @@ export function mountCampaign(root, me, L, { embedded = false } = {}) {
       <section class="cm-cost"><b>${esc(L('التكلفة المتوقعة قبل التشغيل:', 'Expected cost before running:'))} ${esc(sar(c.estimate_usd))}</b>
         <p class="muted">${esc(L('تقدير تقريبي حسب الموديل المختار. الصرف الفعلي يظهر في «الصرف على الذكاء الاصطناعي» ويلتزم بالسقف الشهري.', 'A rough estimate for the chosen model. Actual spend shows in AI spend and follows the monthly cap.'))}</p>
         <p class="muted" id="cmAssets" hidden></p>
-        <p class="msg err" id="cmCap" hidden>${esc(L('وصل السقف الشهري لاحلم: التنفيذ بيكون على الموديل المجاني أو يتوقف.', "Ahlam's monthly cap is reached: the run will use the free model or stop."))}</p></section>
+        <p class="msg err" id="cmCap" hidden>${esc(L('وصل السقف الشهري لأحلم: التنفيذ بيكون على الموديل المجاني أو يتوقف.', "Ahlam's monthly cap is reached: the run will use the free model or stop."))}</p></section>
       <div class="cm-actions"><button class="btn primary" id="cmOk" type="button" hidden>${esc(L('اعتمد وشغّل الحملة', 'Approve and run the campaign'))}</button>
         <button class="btn" id="cmDl" type="button" hidden>${esc(L('نزّل الحزمة (Markdown)', 'Download the pack (Markdown)'))}</button><button class="btn" id="cmCp" type="button" hidden>${esc(L('انسخ الحزمة', 'Copy the pack'))}</button>
         <button class="btn" id="cmNo" type="button" hidden>${esc(L('إلغاء الحملة', 'Cancel the campaign'))}</button></div>

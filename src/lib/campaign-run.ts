@@ -1,4 +1,4 @@
-// «حملة جديدة» in احلم, the running half (docs/ahlam.md): the approved plan's tasks run ONE per call, each by the agent it was given to,
+// «حملة جديدة» in أحلم, the running half (docs/ahlam.md): the approved plan's tasks run ONE per call, each by the agent it was given to,
 // in the order of `depends_on`. What comes out are documents and drafts (campaign_outputs); the social agent's posts are saved as
 // `draft` posts in Social, which a Social approver still has to schedule. Nothing here writes to an ad account, publishes or spends
 // beyond the AI call itself (which goes through src/lib/llm.ts: cost record, monthly cap, the owner's model choice).

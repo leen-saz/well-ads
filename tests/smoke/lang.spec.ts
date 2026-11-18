@@ -7,7 +7,7 @@ import { settle } from './settle';
 
 const PAGES = [
   '/', '/today/', '/control/', '/control/new/', '/connectors/', '/account/', '/admin/', '/admin/modules/', '/library/', '/maestro/health/', '/maestro/audit/',
-  '/overview/', '/overview/creative/', '/listening/', '/design/', '/video/', '/content/?tab=copy', '/voice/', '/transcribe/', '/vision/', '/voice/?tab=voiceover', '/social/', '/content/', '/journeys/',
+  '/overview/', '/listening/', '/design/', '/video/', '/content/?tab=copy', '/voice/', '/transcribe/', '/vision/', '/voice/?tab=voiceover', '/social/', '/content/', '/journeys/',
   '/compliance/', '/maestro/', '/knowledge/', '/debugger/', '/soon/', '/welcome/',
 ];
 const PUBLIC_PAGES = ['/login/', '/reset/', '/welcome/'];

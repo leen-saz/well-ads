@@ -5,7 +5,7 @@ import { companyOf, WELL_COMPANY } from './tenant';
 import { MODULES, LIVE, isModule } from '../modules/registry';
 
 export const SESSION = '__Host-well_session';
-export const SESSION_HOURS = 12;
+export const SESSION_HOURS = 24 * 14; // 14 days, renewed on use (the page gate renews in place every RECHECK_MS), so only 14 idle days log a user out
 export const RECHECK_MS = 10 * 60 * 1000; // pages re-read the user's permissions every 10 minutes
 // Core dashboards, then one per live module (src/modules/registry.ts)
 const CORE = { ceo: 'الحملات والمنصات', creative: 'المواد الإعلانية', control: 'لوحة القرارات', connectors: 'الربط' };
@@ -13,6 +13,12 @@ export const DASHBOARDS: Record<string, string> = { ...CORE, ...Object.fromEntri
 // Department scope: empty = all departments. A department manager sees only their department.
 export const DEPTS = { iv: 'المحاليل الوريدية', midwife: 'القبالة / رعاية الحمل', foot: 'تقويم القدم', renan: 'رينان لصحة الطفل' } as const;
 export const PASSWORD_MIN = 10;
+// Supabase Auth hashes with bcrypt, which reads only the first 72 bytes (UTF-8): an Arabic letter takes two, so the cap is in bytes.
+export const PASSWORD_MAX_BYTES = 72;
+// One rule for every place a password is set (reset link, account page, owner's admin page). null = acceptable.
+export const passwordError = (pw: string): string | null =>
+  pw.length < PASSWORD_MIN ? `الباسوورد لازم ${PASSWORD_MIN} أحرف أو أكثر`
+    : new TextEncoder().encode(pw).length > PASSWORD_MAX_BYTES ? 'الباسوورد طويل زيادة، قصّره' : null;
 export const LOCKED = 'هالموديول مقفل لشركتك';
 export const VIEW_ONLY = 'صلاحيتك هنا مشاهدة بس';
 export const NO_APPROVE = 'الموافقة تحتاج صلاحية موافقة';

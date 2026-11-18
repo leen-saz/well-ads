@@ -1,6 +1,6 @@
 // أدوات مشتركة: الطلبات، والأيقونات، والتواريخ، وهيكل التطبيق (القائمة الجانبية والشريط العلوي)
 import { LANG, t, langSwitch, restoreDraft } from './i18n.js';
-import { sections, TIP, groupNav, stripHtml, wireStrip, stripLikely } from './sidebar.js';
+import { sections, TIP, groupNav, navHtml, syncNav, wireNav } from './sidebar.js';
 import { agentDots } from './agentdots.js';
 import { ME_KEY, FRESH, readMe, slim } from './me-cache.js';
 export { LANG, t, langSwitch };
@@ -186,8 +186,8 @@ function drawSide(side, me, active) {
   const L = (ar, en) => (LANG === 'en' ? en : ar);
   const sig = LANG + JSON.stringify(slim(me));
   if (side.dataset.sig === sig) {
-    const cur = groupNav(sections(me, L), active).cur?.key;
-    side.querySelectorAll('[data-k]').forEach(a => (a.dataset.k === active || a.dataset.grp === cur) ? a.setAttribute('aria-current', 'page') : a.removeAttribute('aria-current'));
+    syncNav(side.querySelector('.side-items'), active, groupNav(sections(me, L), active).cur?.key);
+    side.querySelectorAll('a[data-k="settings"]').forEach(a => (active === 'settings' ? a.setAttribute('aria-current', 'page') : a.removeAttribute('aria-current')));
     return;
   }
   side.dataset.sig = sig;
@@ -200,12 +200,13 @@ function drawSide(side, me, active) {
   side.innerHTML = `<div class="side-top"><a class="brand mark" href="/today/" aria-label="Well">Well<i>.</i></a><button type="button" class="btn icon ghost side-fold" id="sideFold" aria-label="${L('طي القائمة', 'Collapse menu')}" aria-pressed="false">${icon('panel')}</button><button class="btn icon ghost side-x" type="button" data-close-side aria-label="${L('إغلاق القائمة', 'Close menu')}">${icon('x')}</button></div>
     ${quick.length ? `<div class="qc"><button type="button" class="btn primary qc-btn" id="qcBtn" aria-haspopup="menu" aria-expanded="false">${icon('plus')}<span>${L('جديد', 'New')}</span></button>
       <div class="menu qc-menu" id="qcMenu" role="menu" hidden>${quick.map(([, href, t, ic]) => `<a href="${href}" role="menuitem">${icon(ic)}${t}</a>`).join('')}</div></div>` : ''}
-    <div class="side-items">${groupNav(sections(me, L), active).entries.map(g => `<a class="navi" href="${g.href}" data-k="${esc('g:' + g.key)}" data-grp="${g.key}" data-ks="${esc(g.ks.join(','))}"${FULL(g.href)}${g.on ? ' aria-current="page"' : ''}><svg class="i" viewBox="0 0 24 24" aria-hidden="true">${g.svg}</svg><span>${esc(g.label)}</span></a>`).join('')}</div>
+    <div class="side-items" data-nv>${navHtml(groupNav(sections(me, L), active).entries, { item: 'navi', icon: 'i', L, esc, extra: FULL })}</div>
     <div class="grow"></div>
     <a class="navi" href="/settings/" data-k="settings"${active === 'settings' ? ' aria-current="page"' : ''}>${icon('settings')}<span>الإعدادات</span></a>
     <button class="me" id="meBtn" aria-haspopup="menu" aria-expanded="false"><span class="avatar">${esc(initials)}</span>
       <span class="who"><b>${esc(me.name || me.email || '')}</b><span class="muted">${me.role === 'owner' ? 'المالك' : (me.departments || []).length ? 'مدير قسم' : 'عضو'}</span></span></button>
     <div class="menu" id="meMenu" role="menu" hidden><a href="/account/" role="menuitem">${icon('user')}حسابي</a><form method="post" action="/api/auth/logout" style="margin:0"><button type="submit" role="menuitem">${icon('out')}خروج</button></form></div>`;
+  const nv = side.querySelector('[data-nv]'); wireNav(nv); syncNav(nv, active, groupNav(sections(me, L), active).cur?.key);
   if (!side.dataset.dots) { side.dataset.dots = '1'; side._dots = agentDots(side, L); }
   side.querySelector('form')?.addEventListener('submit', () => { try { localStorage.removeItem(ME_KEY); } catch { /* storage blocked */ } });
   // Navigation labels as tooltips, used when the menu is folded to icons
@@ -213,18 +214,6 @@ function drawSide(side, me, active) {
   const qb = $('#qcBtn', side), qm = $('#qcMenu', side);
   if (qb) qb.onclick = e => { e.stopPropagation(); qm.hidden = !qm.hidden; qb.setAttribute('aria-expanded', String(!qm.hidden)); };
   $('#sideFold', side).onclick = () => fold(!document.getElementById('app')?.classList.contains('mini'));
-}
-
-// The group's tools as a strip of sub-tabs between the top bar and the page (every module page gets it from here, with no change
-// to the page itself). Drawn on every page, since the page body is replaced on each navigation; a group with one tool has none.
-function drawStrip(app, me, active, side) {
-  app.querySelectorAll('[data-gtabs],[data-gtabs-ph]').forEach(e => e.remove());
-  const L = (ar, en) => (LANG === 'en' ? en : ar), top = $('#top', app);
-  const sec = groupNav(sections(me, L), active).strip;
-  if (!sec || !top) return;
-  top.insertAdjacentHTML('afterend', stripHtml(sec, active, L, esc, FULL));
-  wireStrip(app.querySelector('[data-gtabs]'));
-  side?._dots?.paint();
 }
 
 // Folded menu (icons only), remembered on this device
@@ -247,15 +236,13 @@ export async function shell({ active, title, badge = '', tools = '', section = a
   const app = $('#app'), side = $('#side', app);
   // The title bar needs nothing from the server: it goes up before the user is known
   $('#top', app).innerHTML = `<div class="t"><button class="btn icon ghost burger" id="burger" aria-label="القائمة" aria-controls="side" aria-expanded="false">${icon('menu')}</button><h1>${esc(title)}</h1>${badge}</div><div class="tools"><span id="tools">${tools}</span>${langSwitch()}</div>`;
-  if (stripLikely(active)) $('#top', app).insertAdjacentHTML('afterend', '<div class="gtabs" data-gtabs-ph aria-hidden="true"></div>');
   let me;
   if (!ME?.v) { try { me = await fetchMe(); } catch (err) { if (err.status !== 401) pageFailure(err); throw err; } }
   else {
     me = ME.v;
-    if (Date.now() - ME.t > FRESH) fetchMe().then(v => { if (JSON.stringify(slim(v)) !== JSON.stringify(slim(me))) { drawSide(side, v, active); drawStrip(app, v, active, side); bindMe(); } }).catch(() => {});
+    if (Date.now() - ME.t > FRESH) fetchMe().then(v => { if (JSON.stringify(slim(v)) !== JSON.stringify(slim(me))) { drawSide(side, v, active); bindMe(); } }).catch(() => {});
   }
   drawSide(side, me, active);
-  drawStrip(app, me, active, side);
   let mini = false; try { mini = localStorage.getItem('wl-mini') === '1'; } catch { /* storage blocked */ }
   app.classList.toggle('mini', mini); $('#sideFold')?.setAttribute('aria-pressed', String(mini));
   document.addEventListener('click', e => { const m = $('#qcMenu'); if (m && !m.hidden && !e.target.closest('.qc')) { m.hidden = true; $('#qcBtn')?.setAttribute('aria-expanded', 'false'); } }, { signal: pageSignal() });

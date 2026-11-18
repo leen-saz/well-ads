@@ -1,4 +1,4 @@
-// /api/campaigns/*: «حملة جديدة» in احلم (src/lib/campaign.ts, docs/ahlam.md). The user's wishes become a brief and a plan of tasks for
+// /api/campaigns/*: «حملة جديدة» in أحلم (src/lib/campaign.ts, docs/ahlam.md). The user's wishes become a brief and a plan of tasks for
 // the in-app agents, saved in campaigns / campaign_tasks (migration 030). Any signed-in user may write wishes and get a plan; seeing a
 // campaign needs being its author or an approver; starting it needs an approver (owner, or approve on the manager tab). Nothing here
 // touches an ad account.
@@ -52,7 +52,7 @@ export const create = { POST: handle(async (request, e: Env) => {
   const w = cleanWishes(await readJson(request, 20_000));
   if (!w.wishes) return json(400, { error: w.error });
   const model = pick(e, TASK);
-  if (!model) return json(503, { error: 'احلم يحتاج الذكاء الاصطناعي، وهو غير متصل الحين' });
+  if (!model) return json(503, { error: 'أحلم يحتاج الذكاء الاصطناعي، وهو غير متصل الحين' });
   const today = await sb<unknown[]>(cfg, `/rest/v1/audit_log?select=id&action=eq.campaign_create&user_id=eq.${encodeURIComponent(user.uid)}&at=gte.${encodeURIComponent(dayStart(Date.now()))}&limit=${PLANS_PER_DAY}`, { admin: true });
   if (today.ok && Array.isArray(today.data) && today.data.length >= PLANS_PER_DAY) return json(429, { error: `وصلت حدّك اليوم (${PLANS_PER_DAY} خطط حملات). جرّب بكرة.` });
   let plan, used_model = model.model, used_provider: Provider = model.provider;

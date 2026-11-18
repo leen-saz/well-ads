@@ -1,4 +1,4 @@
-// «حملة جديدة» in احلم (docs/ahlam.md): the user writes the wishes in free Arabic, احلم turns them into a brief and a plan of
+// «حملة جديدة» in أحلم (docs/ahlam.md): the user writes the wishes in free Arabic, أحلم turns them into a brief and a plan of
 // tasks, each given to the in-app agent that does it. This file is the planning half: the form, the prompt, the validation of
 // what the model returns, the cost estimate shown BEFORE anything runs, and who may approve. Nothing here writes to an ad
 // account; the agents' outputs are documents and drafts.
@@ -48,7 +48,7 @@ export const PLAN_SCHEMA = SCHEMA;
 
 export function planMessages(w: Wishes): { role: string; content: string }[] {
   const agents = (Object.keys(AGENTS) as Agent[]).map(k => `- ${k}: ${AGENTS[k].ar}`).join('\n');
-  const sys = `أنت «احلم»، مخطّط حملات في لوحة إعلانات Well. تحوّل أمنيات المستخدم لخطة حملة كاملة تتوزّع على إيجنتس التطبيق.
+  const sys = `أنت «أحلم»، مخطّط حملات في لوحة إعلانات Well. تحوّل أمنيات المستخدم لخطة حملة كاملة تتوزّع على إيجنتس التطبيق.
 رجّع JSON فقط بهذا الشكل: {"title":"اسم قصير للحملة","brief":{"summary":"ملخص الحملة في 3 جمل","audience":"الجمهور","messages":["رسالة رئيسية"],"risks":["خطر"],"questions":[{"q":"سؤال لا يمكن حسمه من الأمنيات","assumption":"افتراض معقول يكمل الإيجنت عليه","affects":["content","social"]}]},"tasks":[{"agent":"content","title":"عنوان المهمة","detail":"وش المطلوب بالضبط","after":[0]}]}
 مهمة الموشن جرافيك: مهمة واحدة agent=design مع "kind":"motion" (ستوري 9:16 من صورة التصميم وتسجيل الصوت)، وتجي بعد مهمتي التصميم والصوت (after فيها الاثنتين)، وقبل مهمة الامتثال.
 الإيجنتس المتاحة (agent):
@@ -74,6 +74,16 @@ ${agents}
   return [{ role: 'system', content: sys }, { role: 'user', content: user }];
 }
 
+// The planner is told that every draft is checked by compliance before it is approved, but a model can forget the task. A plan that
+// writes something and has no compliance task gets one at the end, after every writing task (the per-task gate in the run is separate).
+const WRITERS: Agent[] = ['content', 'design', 'voice', 'social'];
+function ensureCompliance(tasks: PlanTask[]): void {
+  const writers = tasks.flatMap((t, i) => (WRITERS.includes(t.agent) ? [i] : []));
+  if (!writers.length || tasks.some(t => t.agent === 'compliance')) return;
+  if (tasks.length >= MAX_TASKS) { const last = tasks[tasks.length - 1]!; if (WRITERS.includes(last.agent)) return; tasks.pop(); }
+  tasks.push({ agent: 'compliance', title: AGENTS.compliance.ar, detail: 'فحص كل المسودات قبل الاعتماد', after: writers.filter(i => i < tasks.length) });
+}
+
 const list = (v: unknown, n: number, max: number): string[] => (Array.isArray(v) ? v.map(x => tidy(x, max)).filter(Boolean).slice(0, n) : []);
 // What the model returned -> a plan we trust: known agents only, capped, dependencies pointing back at earlier tasks.
 // Anything that is not a plan (or has no usable task) is an error, never a half plan.
@@ -89,6 +99,7 @@ export function parsePlan(text: string): Plan | null {
     tasks.push({ agent: t['agent'], title: tidy(t['title'], 120) || AGENTS[t['agent']].ar, detail: tidy(t['detail'], 600), after, ...(t['agent'] === 'design' && t['kind'] === 'motion' && !tasks.some(x => x.kind === 'motion') ? { kind: 'motion' as const } : {}) });
   }
   if (!tasks.length) return null;
+  ensureCompliance(tasks);
   const b = raw.brief ?? {};
   const questions: Question[] = (Array.isArray(b['questions']) ? (b['questions'] as Record<string, unknown>[]) : []).flatMap(x => {
     const q = tidy(x?.['q'], 240), assumption = tidy(x?.['assumption'], 300);
@@ -111,7 +122,7 @@ export function estimate(agents: Agent[], model: string, provider: Provider = 'o
 }
 
 // Who may start a campaign run (the gate before anything is spent): the owner, or someone with approve on the manager tab.
-// Writing wishes and getting a plan needs only a signed-in user, like asking احلم a question.
+// Writing wishes and getting a plan needs only a signed-in user, like asking أحلم a question.
 export const mayApprove = (u: Session, cfg?: Cfg): boolean => isOwner(u, cfg) || atLeast(u, 'maestro', 'approve', cfg);
 
 export const STATUS_AR: Record<string, string> = { draft: 'قيد الكتابة', planned: 'الخطة تنتظر الاعتماد', approved: 'معتمدة', running: 'تشتغل', review: 'تنتظر المراجعة', done: 'مكتملة', cancelled: 'ملغاة' };
