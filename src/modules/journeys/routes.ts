@@ -1,7 +1,8 @@
 // /api/journeys/*: the journeys of the user's company. Starting one creates a Cloudflare Workflow instance per customer.
 import { sb, json, readJson, handle, requireUser, audit, type AuthEnv } from '../../lib/auth';
 import { scoped } from '../../lib/tenant';
-import { CHANNELS, cleanContact, cleanSteps, cleanWritten, notices, writePrompt } from './journeys';
+import { killOn } from '../../lib/guardrails';
+import { CHANNELS, cleanContact, cleanSteps, cleanWritten, notices, writePrompt, DAILY_PER_USER, DAILY_PER_CONTACT } from './journeys';
 import { knowledgeFor, rulesFor, withKnowledge } from '../knowledge/knowledge';
 import { check } from '../compliance/compliance';
 import { generate, pick, type LlmEnv } from '../../lib/llm';
@@ -37,15 +38,29 @@ export const save = { POST: handle(async (request, e) => {
 }) };
 
 export const start = { POST: handle(async (request, e: WfEnv) => {
-  const { cfg, user } = await requireUser(request, e, 'journeys', { write: true });
+  // Starting a run sends real WhatsApp and Gmail messages to a customer: it is an approval, not an edit
+  const { cfg, user } = await requireUser(request, e, 'journeys', { write: true, approve: true });
   const body = await readJson(request);
   const id = parseInt(String(body.id || ''), 10);
   const contact = cleanContact(body.contact);
   if (!id || !contact) return json(400, { error: 'اكتب جوال أو إيميل صحيح' });
   if (!e.JOURNEY) return json(503, { error: 'تشغيل الرحلات غير مفعّل في هالبيئة' });
-  const j = await sb<Row[]>(cfg, scoped(`/rest/v1/journeys?id=eq.${id}&select=id,steps`, user.co), { admin: true });
+  // The emergency stop stops customer messages too (an unreadable state counts as stop)
+  if (await killOn(cfg)) return json(409, { error: 'زر الطوارئ شغّال، الإرسال موقوف' });
+  const j = await sb<Row[]>(cfg, scoped(`/rest/v1/journeys?id=eq.${id}&select=id,steps,active,mode`, user.co), { admin: true });
   const journey = j.ok ? rows(j.data)[0] : undefined;
   if (!journey) return json(404, { error: 'رحلة غير معروفة' });
+  // A journey saved as paused does not send, however it is called
+  if (journey.active !== true) return json(409, { error: 'الرحلة موقوفة. فعّلها أول' });
+  // Daily limits: per person starting runs, and per customer receiving them (a loop or a typo cannot spam anyone)
+  const since = new Date(Date.now() - 24 * 3600e3).toISOString();
+  const byUser = await sb<Row[]>(cfg, scoped(`/rest/v1/journey_runs?select=id&started_by=eq.${encodeURIComponent(user.email || '')}&started_at=gte.${since}&limit=${DAILY_PER_USER + 1}`, user.co), { admin: true });
+  if (!byUser.ok) return json(500, { error: 'ما قدرت أتأكد من حد اليوم' });
+  if (rows(byUser.data).length >= DAILY_PER_USER) return json(429, { error: `وصلت حد اليوم (${DAILY_PER_USER} تشغيل). جرّب بكرة` });
+  const ors = [contact.phone ? `contact->>phone.eq.${contact.phone}` : '', contact.email ? `contact->>email.eq.${encodeURIComponent(contact.email)}` : ''].filter(Boolean).join(',');
+  const toThem = await sb<Row[]>(cfg, scoped(`/rest/v1/journey_runs?select=id&started_at=gte.${since}&or=(${ors})&limit=${DAILY_PER_CONTACT + 1}`, user.co), { admin: true });
+  if (!toThem.ok) return json(500, { error: 'ما قدرت أتأكد من حد اليوم' });
+  if (rows(toThem.data).length >= DAILY_PER_CONTACT) return json(429, { error: 'هذا العميل وصله الحد اليوم. جرّب بكرة' });
   const run = await sb<Row[]>(cfg, '/rest/v1/journey_runs', { method: 'POST', admin: true, headers: { Prefer: 'return=representation' },
     body: { company_id: user.co, journey_id: id, contact, started_by: user.email } });
   const runId = Number(rows(run.data)[0]?.id);

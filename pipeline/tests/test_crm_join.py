@@ -176,3 +176,11 @@ class CrmNewFieldsTests(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class AmbiguousTikTokNames(unittest.TestCase):
+    def test_two_tiktok_ads_with_one_name_get_no_closing_by_name(self):
+        ads = {"t901": {"name": "Same name"}, "t902": {"name": "Same name"}, "t903": {"name": "Unique name"}}
+        _by_id, names = join.index(ads)
+        self.assertNotIn("Same name", names)
+        self.assertEqual(names["Unique name"], "t903")

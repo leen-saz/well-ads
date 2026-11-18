@@ -113,7 +113,12 @@ function dialog(a) {
 
 export async function mountExec({ afterChange } = {}) {
   onChange = afterChange || (() => {});
-  try { await reload(); } catch { return; }          // no access to the tab's actions: the section stays hidden
+  // Hidden only for someone with no access (403). Any other failure (a network blip, a server error) says so instead of looking like «no access».
+  try { await reload(); } catch (err) {
+    if (err?.status === 403) return;
+    say($('#by-msg'), err?.message || 'ما قدرت أقرأ إجراءات التنفيذ، جرّب بعد شوي');
+    return;
+  }
   const act = async (fn, btn, okMsg) => { busy(btn, true); try { await fn(); if (okMsg) say($('#by-msg'), okMsg, true); await reload(); } catch (err) { say($('#by-msg'), err.message); await reload().catch(() => {}); } busy(btn, false); };
   // One emergency stop for everything: the board's own button (public/assets/control.js). It tells this pane to reread the state.
   window.addEventListener('buyer-reload', () => { reload().catch(() => {}); }, { signal: pageSignal() });

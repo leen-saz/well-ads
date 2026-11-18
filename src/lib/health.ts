@@ -1,6 +1,6 @@
-// GET /api/health (public, no login): the build version and whether each dependency answers.
-// Never any secret, URL, row or figure: only 'up' | 'down' | 'unset' per dependency. The deploy workflow reads it
-// after every deploy (.github/workflows/deploy.yml) and uptime checks may poll it.
+// GET /api/health (public, no login) answers only { ok, version }: the deploy workflow (.github/workflows/deploy.yml) and uptime checks need nothing more.
+// The full Health below (dependencies, unapplied migration names, data age, env) is GET /api/health/details, owner only (src/api/index.ts).
+// Never any secret, URL, row or figure: only 'up' | 'down' | 'unset' per dependency.
 import { dataStatus, type DataStatus, type StatusBucket } from './datastatus';
 import { MIGRATIONS, TRACKED_AFTER } from './migrations-list';
 export type Dep = 'up' | 'down' | 'unset';
