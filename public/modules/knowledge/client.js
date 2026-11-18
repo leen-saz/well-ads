@@ -138,7 +138,12 @@ export default async function mount() {
   // Images are downscaled in the browser first (logos keep PNG transparency); fonts, PDFs and SVG go as they are
   async function prepared(file, kind) {
     if (!/^image\/(png|jpeg|webp)$/.test(file.type) || !['logo', 'reference'].includes(kind)) return file;
-    const img = await new Promise((ok, no) => { const i = new Image(); i.onload = () => ok(i); i.onerror = no; i.src = URL.createObjectURL(file); });
+    const img = await new Promise((ok, no) => {
+      const fr = new FileReader();
+      fr.onerror = () => no(new Error('ما قدرت أقرا الصورة. جرّب ملف ثاني (PNG أو JPG).'));
+      fr.onload = () => { const i = new Image(); i.onload = () => ok(i); i.onerror = () => no(new Error('ما قدرت أقرا الصورة. جرّب ملف ثاني (PNG أو JPG).')); i.src = fr.result; };
+      fr.readAsDataURL(file);
+    });
     const max = kind === 'logo' ? 512 : 1024, s = Math.min(1, max / Math.max(img.width, img.height));
     const c = document.createElement('canvas'); c.width = Math.max(1, Math.round(img.width * s)); c.height = Math.max(1, Math.round(img.height * s));
     c.getContext('2d').drawImage(img, 0, 0, c.width, c.height);

@@ -1,6 +1,6 @@
 // الرصد: (1) وش ينقال عننا وعن المنافسين بالكلمات من مصادر عامة، مع الشعور، وحصة الظهور في الإشارات والتنبيهات.
 // (2) تبويب ثاني: تفاعل منشوراتنا العضوية والطلب من الـ CRM (يتحمّل أول ما ينفتح).
-import { $, $$, api, say, esc, shell, fmt, busy, failure, LANG } from '/assets/common.js';
+import { $, $$, api, say, esc, shell, fmt, busy, failure, LANG, safeUrl, friendly } from '/assets/common.js';
 import { mountPeriod, rangeMs, diffDays, daysWord } from '/assets/period.js';
 import { analyze, postsOf, demandAlerts } from '/modules/listening/analyze.js';
 import { summarize, filterMentions, brandSuggestions, brandAdd, missingKeys } from '/modules/listening/social.js';
@@ -16,9 +16,11 @@ const lift = x => x == null ? '—' : `${x.toFixed(1)}×`;
 
 async function organicData() {
   // The dashboard page carries the data as JSON; read it the same way the dashboard does (same origin, same login)
-  const html = await (await fetch('/', { credentials: 'same-origin', cache: 'no-store' })).text();
-  const m = html.match(/<script type="application\/json" id="data">([\s\S]*?)<\/script>/);
-  return m ? (JSON.parse(m[1]).organic || {}) : {};
+  const res = await fetch('/', { credentials: 'same-origin', cache: 'no-store' });
+  if (!res.ok || res.redirected && /\/login\//.test(res.url)) throw new Error('ما قدرت أقرأ المنشورات العضوية. سجّل الدخول مرة ثانية وحدّث الصفحة.');
+  const m = (await res.text()).match(/<script type="application\/json" id="data">([\s\S]*?)<\/script>/);
+  if (!m) throw new Error('بيانات المنشورات العضوية مو جاهزة الحين. جرّب بعد شوي.');
+  try { return JSON.parse(m[1]).organic || {}; } catch { throw new Error('بيانات المنشورات العضوية مو جاهزة الحين. جرّب بعد شوي.'); }
 }
 
 async function organic() {
@@ -30,7 +32,7 @@ async function organic() {
     $('#kw').innerHTML = kw.map((k, i) => `<span class="so-chip">${esc(k)} <button type="button" class="ls-x" data-del="${i}" aria-label="احذف ${esc(k)}">×</button></span>`).join('');
   }
   const card = p => `<article class="card ls-post"><div class="cp-meta"><b>${esc(NET[p.network] || p.network)}</b><span class="muted">${esc(String(p.date || '').slice(0, 10))}</span>
-      <span class="so-chip">${fmt(p.eng)} تفاعل</span>${p.comments ? `<span class="so-chip">${fmt(p.comments)} تعليق</span>` : ''}${p.link ? `<a class="btn sm ghost" href="${esc(p.link)}" target="_blank" rel="noopener">افتح</a>` : ''}</div>
+      <span class="so-chip">${fmt(p.eng)} تفاعل</span>${p.comments ? `<span class="so-chip">${fmt(p.comments)} تعليق</span>` : ''}${safeUrl(p.link) ? `<a class="btn sm ghost" href="${esc(safeUrl(p.link))}" target="_blank" rel="noopener">افتح</a>` : ''}</div>
       <p class="cp-q" dir="auto">${esc(String(p.caption || p.text || '').slice(0, 280))}</p></article>`;
 
   function draw() {
@@ -68,7 +70,7 @@ async function organic() {
   $('#kw').addEventListener('click', e => { const b = e.target.closest('[data-del]'); if (!b) return; kw = kw.filter((_, i) => i !== +b.dataset.del); save(); draw(); });
   // The same period bar as every page; the posts, the words and the CRM demand all follow it. Saved in this browser (the tab has no address of its own)
   mountPeriod($('#orgPeriod'), { id: 'listening-organic', def: 'all', url: false, onChange: r => { range = r; if (ready) { draw(); demand(); } } });
-  try { posts = postsOf(await organicData()); } catch (err) { say($('#msg'), 'ما قدرت أقرأ المنشورات العضوية: ' + err.message); }
+  try { posts = postsOf(await organicData()); } catch (err) { say($('#msg'), friendly(err, 'ما قدرت أقرأ المنشورات العضوية. جرّب مرة ثانية.')); }
   ready = true;
   demand();
   draw();
@@ -129,7 +131,7 @@ async function listening() {
       const list = W.filter(w => w.kind === k);
       return `<div class="lx-grp" data-grp="${k}"><h3>${label}</h3>${list.length ? list.map(w => `<div class="lx-item"><div><b>${esc(w.name)}</b>
           ${w.keywords.length ? `<div class="kw">${w.keywords.map(esc).join('، ')}</div>` : ''}
-          ${w.kind === 'competitor' ? `<div class="lx-links">${w.adlibrary ? `<a class="btn sm ghost" href="${esc(w.adlibrary)}" target="_blank" rel="noopener">إعلاناته في مكتبة ميتا</a>` : ''}
+          ${w.kind === 'competitor' ? `<div class="lx-links">${safeUrl(w.adlibrary) ? `<a class="btn sm ghost" href="${esc(safeUrl(w.adlibrary))}" target="_blank" rel="noopener">إعلاناته في مكتبة ميتا</a>` : ''}
             ${Object.entries(w.links || {}).filter(([n]) => n !== 'adlibrary').map(([n, v]) => `<span class="so-chip">${esc(n)}: ${esc(v)}</span>`).join('')}</div>` : ''}</div>
           <div class="bar"><button type="button" class="btn sm secondary" data-run="${w.id}">حدّثه</button><button type="button" class="btn sm ghost" data-del="${w.id}" aria-label="احذف ${esc(w.name)}">احذف</button></div></div>`).join('')
         : `<p class="muted" style="margin:0">${k === 'brand' ? 'فاضية: أضف كلمات Well من التنبيه فوق، أو اكتبها بنفسك تحت.' : k === 'competitor' ? 'أضف منافس عشان تقارن صوتك بصوته.' : 'كلمات تبي تنبيه أول ما تنذكر، مثل شكوى أو اسم منتج.'}</p>`}</div>`;
@@ -219,11 +221,11 @@ async function listening() {
     }
     if (run) { busy(run, true); await refresh(+run.dataset.run); busy(run, false); }
   });
-  // Sources that refused, per watch: "ايفر كير: قوقل رفض (503)"
+  // Sources that did not answer, per watch: "ايفر كير: قوقل"
   const ASKED = { google: 'قوقل', bing: 'Bing', reddit: 'ريديت', youtube: 'يوتيوب', x: 'X', tiktok: 'تيك توك' };
   function failures(report = {}) {
     const bad = Object.entries(report).flatMap(([name, by]) => Object.entries(by || {}).filter(([, v]) => typeof v === 'string')
-      .map(([src, v]) => `${name}: ${ASKED[src] || src} رفض (${String(v).replace('error ', '')})`));
+      .map(([src]) => `${name}: ${ASKED[src] || src}`));
     return bad.length ? ` ما جاوب: ${bad.join('، ')}.` : '';
   }
   async function refresh(id) {

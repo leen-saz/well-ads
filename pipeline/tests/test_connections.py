@@ -58,3 +58,15 @@ class Lines(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class MaskLines(unittest.TestCase):
+    def test_single_line_is_masked_whole(self):
+        from modules.core.connections import mask_lines
+        self.assertEqual(mask_lines("abc"), ["abc"])
+        self.assertEqual(mask_lines("  "), [])
+
+    def test_multi_line_json_skips_structural_lines(self):
+        from modules.core.connections import mask_lines
+        value = '{\n  "private_key": "-----BEGIN KEY-----abcdef",\n  "a": 1\n}'
+        self.assertEqual(mask_lines(value), ['"private_key": "-----BEGIN KEY-----abcdef",'])

@@ -9,7 +9,7 @@
 import hashlib, json, sys, urllib.parse
 from datetime import datetime, timedelta, timezone
 
-from common import env, google_ads_headers, http
+from common import env, error_code, google_ads_headers, google_search_all, http
 from modules.core.supa import Supa
 
 KEEP_META = ("budget", "status", "create", "bid", "target", "schedule", "creative", "delete", "run_status")
@@ -50,11 +50,9 @@ def google_rows(E, since, now):
          "change_event.resource_change_operation, change_event.changed_fields, change_event.campaign "
          f"FROM change_event WHERE change_event.change_date_time >= '{since:%Y-%m-%d %H:%M:%S}' "
          f"AND change_event.change_date_time <= '{now:%Y-%m-%d %H:%M:%S}' LIMIT 1000")
-    r = http(f"https://googleads.googleapis.com/v24/customers/{E['GOOGLE_ADS_CUSTOMER_ID']}/googleAds:search",
-             data=json.dumps({"query": q}).encode(), method="POST",
-             headers=google_ads_headers(E, tok))
+    results = google_search_all(E["GOOGLE_ADS_CUSTOMER_ID"], google_ads_headers(E, tok), q)
     out = []
-    for x in r.get("results", []):
+    for x in results:
         c = x.get("changeEvent", {})
         ev = f"{c.get('resourceChangeOperation', '')}_{c.get('changeResourceType', '')}".lower()
         out.append({"platform": "google", "event_id": eid(c.get("changeDateTime"), ev, c.get("campaign"), c.get("changedFields")),
@@ -70,7 +68,7 @@ def main():
         return
     E, now = env(), datetime.now(timezone.utc)
     since = now - timedelta(days=3)
-    total = 0
+    total, failed = 0, []
     for name, fn in (("meta", lambda: meta_rows(E, since)), ("google", lambda: google_rows(E, since, now))):
         try:
             rows = fn()
@@ -79,8 +77,11 @@ def main():
             total += len(rows)
             print(f"observe {name}: {len(rows)} حركة")
         except Exception as ex:
-            print(f"observe {name}: ما انقرا — {str(ex)[:160]}", file=sys.stderr)
+            failed.append(name)
+            print(f"observe {name}: ما انقرا — {error_code(ex)}", file=sys.stderr)
     db.audit("observe_run", target={"events": total})
+    if failed:
+        sys.exit(1)
 
 
 if __name__ == "__main__":
