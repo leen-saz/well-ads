@@ -43,6 +43,9 @@ export function cleanSpec(raw: unknown, seconds: number, ratio: Ratio, brand: st
   }).filter((s): s is Scene => !!s).sort((a, b) => a.from - b.from);
   // Overlaps would stack two texts: an earlier scene ends where the next one starts
   scenes.forEach((s, k) => { const next = scenes[k + 1]; if (next && s.to > next.from) s.to = next.from; });
+  // A caption shorter than MIN_SCENE is held up to MIN_SCENE when the gap after it allows (a model plan often has 1s captions
+  // that flash past); only when there is no room (and it is under half a second) is it dropped
+  scenes.forEach((s, k) => { const room = Math.min(seconds, scenes[k + 1]?.from ?? seconds); if (s.to - s.from < MIN_SCENE) s.to = Math.max(s.to, Math.round(Math.min(room, s.from + MIN_SCENE) * 10) / 10); });
   scenes.splice(0, scenes.length, ...scenes.filter(s => s.to - s.from >= 0.5).slice(0, MAX_SCENES));
   const ctaRaw = (r.cta && typeof r.cta === 'object' ? r.cta : null) as Record<string, unknown> | null;
   const ctaText = line(ctaRaw?.text, 40);
