@@ -3,8 +3,9 @@
 // rows = [key, day, spend, impr, clicks, leads, conv]
 
 import { pageLang } from './lang';
+import { deliveryOf } from './delivery';
 
-export interface Ad { name: string; campaign: string; platform: string; dept?: string; goal?: string; dest?: string; status?: string; live?: boolean; group?: string }
+export interface Ad { name: string; campaign: string; platform: string; dept?: string; goal?: string; dest?: string; status?: string; live?: boolean; group?: string; delivery?: string; delivery_reason?: string; delivery_days?: number }
 // Cost per lead counts only lead-goal spend whose leads the platform can measure. A TikTok ad that opens WhatsApp reports
 // no leads there, so its spend stays out (same rule as pipeline/dash/03-agg.js). dest is 'whatsapp' | 'unknown' | absent.
 export const isWhatsappDest = (a: { dest?: string }): boolean => a.dest === 'whatsapp';
@@ -17,7 +18,7 @@ export interface Dash {
 }
 export interface Totals { spend: number; impr: number; clicks: number; results: number; cpr: number | null; ctr: number | null }
 export interface Day { day: string; spend: number; results: number }
-export interface AdRow extends Totals { key: string; name: string; campaign: string; platform: string; dept: string; goal: string; live: boolean }
+export interface AdRow extends Totals { key: string; name: string; campaign: string; platform: string; dept: string; goal: string; live: boolean; delivery: string; delivery_reason?: string | undefined; delivery_days?: number | undefined }
 
 // Counted in the totals like the main dashboard, but never shown on their own (PRD §3.1)
 export const HIDDEN = new Set(['audience_network', 'meta_whatsapp']);
@@ -155,7 +156,7 @@ export function byAd(d: Dash, from: string, to: string): AdRow[] {
     .filter(([, o]) => o.spend > 0 || o.res > 0)
     .map(([key, o]) => ({
       key, name: o.ad.name, campaign: o.ad.campaign, platform: o.ad.platform, dept: o.ad.dept ?? '', goal: o.ad.goal ?? '',
-      live: !!o.ad.live, ...totals(o.spend, o.impr, o.clicks, o.res),
+      live: !!o.ad.live, delivery: deliveryOf(o.ad), delivery_reason: o.ad.delivery_reason, delivery_days: o.ad.delivery_days, ...totals(o.spend, o.impr, o.clicks, o.res),
     }))
     .sort((a, b) => b.spend - a.spend);
 }

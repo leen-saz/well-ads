@@ -34,7 +34,7 @@ function renderPlat(now,prev){
 const TC = {k:'spend',dir:-1};
 function renderCamp(now){
   const m={};
-  for(const [k,o] of Object.entries(now.byAd)){ const a=ADS[k]; const key=a.platform+'|'+a.campaign; const c=m[key] ||= {p:a.platform,name:a.campaign,goal:a.goal,spend:0,impr:0,clicks:0,leads:0,conv:0,leadSpend:0,leadN:0,ads:0,live:0}; c.spend+=o.spend;c.impr+=o.impr;c.clicks+=o.clicks;c.leads+=o.leads;c.conv+=o.conv;c.leadSpend+=o.leadSpend;c.leadN+=o.leadN||0;c.ads++; if(a.live)c.live++;
+  for(const [k,o] of Object.entries(now.byAd)){ const a=ADS[k]; const key=a.platform+'|'+a.campaign; const c=m[key] ||= {p:a.platform,name:a.campaign,goal:a.goal,spend:0,impr:0,clicks:0,leads:0,conv:0,leadSpend:0,leadN:0,ads:0,live:0}; c.spend+=o.spend;c.impr+=o.impr;c.clicks+=o.clicks;c.leads+=o.leads;c.conv+=o.conv;c.leadSpend+=o.leadSpend;c.leadN+=o.leadN||0;c.ads++; if(deliveryOf(a)==='delivering')c.live++;
     c.crmLeads=(c.crmLeads||0)+(o.crmLeads||0); c.booked=(c.booked||0)+(o.booked||0); c.paid=(c.paid||0)+(o.paid||0); c.value=(c.value||0)+(o.value||0); }
   const rows = Object.values(m).map(derive);
   $('#campCount').textContent = ui(`${fmt(rows.length)} حملة صرفت في الفترة`, `${fmt(rows.length)} campaigns with spend in this range`);
