@@ -32,6 +32,9 @@
   --page-3:#EEF0FF;
   --page-4:#ECE6FB;
   --page-5:#F1EAFB;
+  --glow-1:rgba(126,87,253,.42);
+  --glow-2:rgba(120,150,255,.38);
+  --glow-3:rgba(172,166,225,.55);
   --chart-1:var(--brand-purple);
   --chart-2:var(--brand-deep);
   --chart-3:var(--brand-soft);
@@ -60,6 +63,9 @@
   --page-3:#15103A;
   --page-4:#110C2C;
   --page-5:#160F33;
+  --glow-1:rgba(126,87,253,.28);
+  --glow-2:rgba(80,100,220,.20);
+  --glow-3:rgba(91,82,143,.18);
   --chart-2:#B9A8FF;
   --chart-3:#6E64A8;
   color-scheme:dark;
@@ -86,6 +92,12 @@
     --page-3:#15103A;
     --page-4:#110C2C;
     --page-5:#160F33;
+    --glow-1:rgba(126,87,253,.28);
+    --glow-2:rgba(80,100,220,.20);
+    --glow-3:rgba(91,82,143,.18);
+  --glow-1:rgba(126,87,253,.28);
+  --glow-2:rgba(80,100,220,.20);
+  --glow-3:rgba(91,82,143,.18);
     --chart-2:#B9A8FF;
     --chart-3:#6E64A8;
     color-scheme:dark;

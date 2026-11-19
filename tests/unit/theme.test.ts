@@ -57,7 +57,7 @@ describe('tokens.css', () => {
 describe('one source', () => {
   it('app.css has no colour of its own (only black in masks)', () => {
     expect([...app.matchAll(/#[0-9A-Fa-f]{3,8}\b/g)].map(m => m[0]).filter(c => c !== '#000')).toEqual([]);
-    expect(app).not.toMatch(/rgba\(255,\s*255,\s*255/);
+    expect(app).not.toMatch(/rgba\((?!76,52,180|20,10,60)/);   // only the two indigo shadows, readable in both themes
   });
   it('ui.css reads its colours from the tokens', () => {
     const root = ui.slice(ui.indexOf(':root {'), ui.indexOf('}', ui.indexOf(':root {')));
