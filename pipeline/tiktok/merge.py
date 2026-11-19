@@ -291,6 +291,15 @@ def main():
             if dest:
                 ads["t" + x["ad_id"]]["dest"] = dest
 
+    # An ad that a complete pull no longer returns is gone from TikTok (the ad listing leaves deleted ads out). It used to keep the
+    # status of the last run for ever, so a deleted ad kept showing «نشط». Mark it deleted and off; never on an empty or excluded pull.
+    if items and not excluded_pull:
+        seen = {"t" + str(x.get("ad_id") or "") for x in items} | {"t" + i for i in skipped}
+        for key, ad in ads.items():
+            if key in seen or not key.startswith("t") or not isinstance(ad, dict) or ad.get("status") == "محذوف":
+                continue
+            ads[key] = {**ad, "live": False, "status": "محذوف"}
+
     new, days = [], set()
     if excluded_pull:
         a.days = []
