@@ -1,0 +1,93 @@
+/* The one token source (docs/PRD.md §4.2). Every page gets this file before its own styles: src/lib/theme.ts injects the
+   link into each HTML answer and sets <html data-theme> from the «well-theme» cookie, so the first paint is already in the
+   right theme. public/assets/app.css aliases its old names (--ink, --accent…) to these; src/styles/ui.css maps them into
+   Tailwind. Light values are the ones the site had before (no visual change); dark is opt-in from the account menu.
+   One colour for actions (--primary), pink only for danger (--destructive). */
+:root{
+  /* Brand (Well) */
+  --brand-ivory:#F6F0E3;
+  --brand-indigo:#1D1069;
+  --brand-deep:#221196;
+  --brand-purple:#7E57FD;
+  --brand-soft:#ACA6E1;
+  --brand-pink:#F86080;
+
+  /* Semantic, light */
+  --background:#F1EEFA;
+  --foreground:var(--brand-indigo);
+  --paper:#FFFFFF;
+  --primary:var(--brand-purple);
+  --on-primary:#FFFFFF;
+  --destructive:var(--brand-pink);
+  --inverse:var(--brand-indigo);
+  --on-inverse:#FFFFFF;
+  --idle:#6f7681;
+  --err:#d93025;
+  --warn-bg:#FFF4DB;
+  --warn-fg:#6B4A00;
+  --warn-line:#F0D9A0;
+  --topbar:#F3F0FB;
+  --page-1:#F5F3FC;
+  --page-2:#ECE8F8;
+  --page-3:#EEF0FF;
+  --page-4:#ECE6FB;
+  --page-5:#F1EAFB;
+  --chart-1:var(--brand-purple);
+  --chart-2:var(--brand-deep);
+  --chart-3:var(--brand-soft);
+  color-scheme:light;
+}
+
+/* Dark: chosen in the account menu («المظهر»), or «حسب الجهاز» follows the system */
+:root[data-theme="dark"]{
+  --background:#120D2B;
+  --foreground:#ECE9FB;
+  --paper:#1C1640;
+  --primary:#A68CFF;
+  --on-primary:#120D2B;
+  --brand-deep:#B9A8FF;
+  --brand-soft:#5B528F;
+  --inverse:#ECE9FB;
+  --on-inverse:#1D1069;
+  --idle:#9AA0AA;
+  --err:#FF7A6E;
+  --warn-bg:#3A2E0B;
+  --warn-fg:#F6D98A;
+  --warn-line:#6B5512;
+  --topbar:#17113A;
+  --page-1:#140F31;
+  --page-2:#0F0B25;
+  --page-3:#15103A;
+  --page-4:#110C2C;
+  --page-5:#160F33;
+  --chart-2:#B9A8FF;
+  --chart-3:#6E64A8;
+  color-scheme:dark;
+}
+@media (prefers-color-scheme:dark){
+  :root[data-theme="system"]{
+    --background:#120D2B;
+    --foreground:#ECE9FB;
+    --paper:#1C1640;
+    --primary:#A68CFF;
+    --on-primary:#120D2B;
+    --brand-deep:#B9A8FF;
+    --brand-soft:#5B528F;
+    --inverse:#ECE9FB;
+    --on-inverse:#1D1069;
+    --idle:#9AA0AA;
+    --err:#FF7A6E;
+    --warn-bg:#3A2E0B;
+    --warn-fg:#F6D98A;
+    --warn-line:#6B5512;
+    --topbar:#17113A;
+    --page-1:#140F31;
+    --page-2:#0F0B25;
+    --page-3:#15103A;
+    --page-4:#110C2C;
+    --page-5:#160F33;
+    --chart-2:#B9A8FF;
+    --chart-3:#6E64A8;
+    color-scheme:dark;
+  }
+}

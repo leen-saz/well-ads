@@ -7,6 +7,7 @@ import type { AuthEnv } from './lib/auth';
 import { withSecurityHeaders } from './lib/headers';
 import { serveSite } from './lib/site';
 import { versionAssets } from './lib/assets';
+import { withTheme } from './lib/theme';
 import { withWaiter } from './lib/usage';
 import { dispatchRefresh, dispatchWorkflow, hourlyTasks, type CronEnv, type HourlyTask } from './lib/cron';
 import { runWatchdog, type WatchdogEnv } from './lib/watchdog';
@@ -42,6 +43,11 @@ app.use(async (c, next) => {
 app.use(async (c, next) => {
   await next();
   c.res = versionAssets(c.res);
+});
+// The saved theme and the one token file, before the first paint (src/lib/theme.ts). Runs before versionAssets rewrites the link.
+app.use(async (c, next) => {
+  await next();
+  c.res = withTheme(c.res, c.req.header('cookie') ?? null);
 });
 app.use(async (c, next) => {
   if (REWRITTEN.has(c.req.raw)) return next();
