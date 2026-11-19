@@ -46,6 +46,7 @@ function renderChips(){
   if(S.goal) c.push(['goal',`${ui('الهدف','Objective')}: ${goalName(S.goal)}`]);
   if(S.fmt) c.push(['fmt',`${ui('الصيغة','Format')}: ${tr(S.fmt)}`]);
   if(S.stat==='live') c.push(['stat',ui('النشطة الآن','Active now')]);
+  if(S.stat==='idle') c.push(['stat',ui('مفعّل بس ما يصرف','On but not spending')]);
   if(S.stat==='off') c.push(['stat',ui('متوقف','Paused')]);
   if(!S.preset) c.push(['date',`${nice(S.from)} – ${nice(S.to)}`]);
   $('#chips').innerHTML = c.map(([k,l])=>`<span class="chip">${esc(l)}<button type="button" data-k="${k}" aria-label="${esc(ui('إزالة','Remove')+' '+l)}">×</button></span>`).join('')
@@ -157,14 +158,14 @@ function renderTree(now){
   const T={}; for(const [k,o] of Object.entries(now.byAd)){ const a=ADS[k]; const l1=a.platform, l2=l1+'|'+a.campaign, l3=l2+'|'+a.group;
     for(const [key,lab,lv,par] of [[l1,platName(l1)||l1,1,null],[l2,a.campaign,2,l1],[l3,a.group,3,l2],[k,a.name,4,l3]]){
       const n=T[key] ||= {key,lab,lv,par,kids:new Set(),spend:0,impr:0,clicks:0,leads:0,conv:0,leadSpend:0,leadN:0,live:0,ads:0};
-      n.spend+=o.spend;n.impr+=o.impr;n.clicks+=o.clicks;n.leads+=o.leads;n.conv+=o.conv;n.leadSpend+=o.leadSpend;n.leadN+=o.leadN||0; if(lv===4){n.live=a.live;} if(par) T[par]?.kids.add(key); } }
+      n.spend+=o.spend;n.impr+=o.impr;n.clicks+=o.clicks;n.leads+=o.leads;n.conv+=o.conv;n.leadSpend+=o.leadSpend;n.leadN+=o.leadN||0; if(lv===4){n.live=a.live;n.ad=a;} if(par) T[par]?.kids.add(key); } }
   // second pass for kids (parents created before children)
   for(const n of Object.values(T)) if(n.par&&T[n.par]) T[n.par].kids.add(n.key);
   const rows=[]; const walk=(keys)=>{ [...keys].map(k=>T[k]).sort((a,b)=>b.spend-a.spend).forEach(n=>{ rows.push(n); if(n.kids.size&&S.open.has(n.key)) walk(n.kids); }); };
   walk(Object.values(T).filter(n=>n.lv===1 && !HIDDEN_PLAT.has(n.key)).map(n=>n.key));
   const tot=derive(now.tot);
   $('#tTree').innerHTML = `<thead><tr><th>الاسم</th><th class="n">الصرف</th><th class="n">الحصة</th><th class="n">الليدز</th><th class="n">تكلفة الليد</th><th class="n">محادثات</th><th class="n">الظهور</th><th class="n">نسبة النقر</th></tr></thead><tbody>`
-    + rows.map(n=>{ const d=derive(n); return `<tr class="lv${n.lv}row"><td class="name lv${n.lv}">${n.kids.size?`<button type="button" class="tg" data-k="${esc(n.key)}" aria-expanded="${S.open.has(n.key)}">${S.open.has(n.key)?'▾':'▸'}</button>`:'<span class="tg"></span>'}${n.lv===1?platCell(n.key):esc(n.lab)}${n.lv===4&&n.live?' <span class="pill st-live"><span class="dot"></span>نشط</span>':''}</td>`
+    + rows.map(n=>{ const d=derive(n); return `<tr class="lv${n.lv}row"><td class="name lv${n.lv}">${n.kids.size?`<button type="button" class="tg" data-k="${esc(n.key)}" aria-expanded="${S.open.has(n.key)}">${S.open.has(n.key)?'▾':'▸'}</button>`:'<span class="tg"></span>'}${n.lv===1?platCell(n.key):esc(n.lab)}${n.lv===4&&n.ad&&n.live?' '+deliveryBadge(n.ad):''}</td>`
       + `<td class="n">${sar(d.spend)}</td><td class="n">${fmt(tot.spend?100*d.spend/tot.spend:0,0)}%</td><td class="n">${qty(d.leads)}</td><td class="n">${sar(d.cpl)}</td><td class="n">${fmt(d.conv)}</td><td class="n">${fmt(d.impr)}</td><td class="n">${pct(d.ctr)}</td></tr>`; }).join('')
     + `<tr class="lv1row"><td><b>المجموع</b></td><td class="n"><b>${sar(tot.spend)}</b></td><td class="n">100%</td><td class="n"><b>${qty(tot.leads)}</b></td><td class="n"><b>${sar(tot.cpl)}</b></td><td class="n">${fmt(tot.conv)}</td><td class="n">${fmt(tot.impr)}</td><td class="n">${pct(tot.ctr)}</td></tr></tbody>`;
   $('#tTree').querySelectorAll('.tg[data-k]').forEach(b=>b.onclick=()=>{ const k=b.dataset.k; S.open.has(k)?S.open.delete(k):S.open.add(k); renderTree(cur.now); });

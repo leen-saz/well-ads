@@ -25,6 +25,7 @@ from organic import collect_organic, clip as clip_err
 from tiktok.fetch import ingest_tiktok
 from tiktok.merge import exclusion_state
 import audience
+import delivery
 import validate_dash
 
 HERE = os.path.dirname(os.path.abspath(__file__))
@@ -130,9 +131,17 @@ class Plat:
 
 
 def google_delivery(ad_status, group_status, campaign_status):
-    """نشط فقط إذا الإعلان والمجموعة والحملة كلها ENABLED."""
+    """مفعّل (live) إذا الإعلان والمجموعة والحملة كلها ENABLED. هذا مفتاح التشغيل فقط، والتسليم الفعلي في delivery.py."""
     live = ad_status == "ENABLED" and group_status == "ENABLED" and campaign_status == "ENABLED"
     return ("نشط" if live else "متوقف"), live
+
+
+def google_stamp(ad, r, live):
+    """يضيف حالة التسليم من حقول جوجل (سياسة الإعلان، حالة الإعلان والحملة)."""
+    aga, camp = r.get("adGroupAd") or {}, r.get("campaign") or {}
+    delivery.stamp(ad, delivery.google_state(
+        (aga.get("policySummary") or {}).get("approvalStatus"), aga.get("primaryStatus"),
+        camp.get("primaryStatus"), camp.get("servingStatus"), live))
 
 
 def meta_preview(creative, video_url=None):
@@ -210,7 +219,9 @@ def meta(P):
             P.row(key, x["date_start"], float(x.get("spend", 0)) * fx,
                   x.get("impressions", 0), x.get("inline_link_clicks", 0), act(x.get("actions"), "lead"),
                   act(x.get("actions"), "onsite_conversion.messaging_conversation_started_7d"))
-    f = ("name,effective_status,adset{name,effective_status,optimization_goal},campaign{name,effective_status},"
+    f = ("name,effective_status,created_time,updated_time,"
+         "adset{name,effective_status,optimization_goal,start_time,end_time,lifetime_budget,budget_remaining},"
+         "campaign{name,effective_status,start_time,stop_time,lifetime_budget,budget_remaining},"
          "creative.thumbnail_width(320).thumbnail_height(320){thumbnail_url,image_url,title,body,object_type,video_id,"
          "instagram_permalink_url,effective_object_story_id,object_story_id}")
     def meta_live(a):
@@ -241,6 +252,8 @@ def meta(P):
                  status=meta_word(a, live), live=live, text=(c.get("body") or c.get("title") or "").strip(),
                  link=f"https://adsmanager.facebook.com/adsmanager/manage/ads?act={A[4:]}&selected_ad_ids={ad_id}")
         m["goal"] = goal.get(ad_id) or meta_goal(a["adset"].get("optimization_goal"))
+        now = datetime.now(RIYADH)
+        delivery.stamp(m, delivery.meta_state(a, live, now), delivery.fresh_from(a.get("created_time"), a.get("updated_time"), now=now))
         # الصورة المحفوظة قد تكون تحت المفتاح القديم m{id} أو تحت موضع واحد.
         old = CACHE.get("m" + ad_id) or next((CACHE[k] for k in CACHE if k.startswith("m" + ad_id + "|") and CACHE[k].get("thumb")), {})
         fresh = keep_thumb("m" + ad_id, m, c.get("image_url") or c.get("thumbnail_url"))
@@ -294,6 +307,10 @@ def meta(P):
                 P.ads[key] = {**old, "platform": plat, "family": "meta", "live": False,
                               "goal": goal.get(ad_id, old.get("goal", "other")),
                               "status": old["status"] if old.get("status") not in ("نشط", None) else "متوقف"}
+                word = P.ads[key]["status"]
+                delivery.stamp(P.ads[key], ({"مرفوض": "rejected", "قيد المراجعة": "in_review"}.get(word, "off"), "", True))
+                P.ads[key]["delivery_reason"] = delivery.REASON.get(P.ads[key]["delivery"], word)
+                P.ads[key].pop("fresh_at", None)
             continue
         try:
             a = g(ad_id, fields=f); time.sleep(0.3)
@@ -362,6 +379,8 @@ def google(P):
     fx = sar_factor(cur, "SAR")
     for r in q("SELECT ad_group_ad.ad.id, ad_group_ad.ad.name, ad_group_ad.ad.responsive_search_ad.headlines, "
                "ad_group_ad.ad.responsive_search_ad.descriptions, ad_group_ad.ad.final_urls, ad_group_ad.status, "
+               "ad_group_ad.primary_status, ad_group_ad.policy_summary.approval_status, "
+               "campaign.primary_status, campaign.serving_status, "
                "ad_group.status, campaign.status, campaign.advertising_channel_type, campaign.advertising_channel_sub_type, "
                "ad_group.name, campaign.name, segments.date, metrics.cost_micros, "
                "metrics.impressions, metrics.clicks, metrics.conversions FROM ad_group_ad "
@@ -380,16 +399,19 @@ def google(P):
                               campaign=camp["name"], group=r["adGroup"]["name"], format=GOOGLE_FORMAT.get(plat, "إعلان"),
                               status=word, live=live, text="\n".join(heads[:5] + desc[:2]),
                               thumb=None, link=(ad.get("finalUrls") or [None])[0], goal="lead")
+            google_stamp(P.ads[key], r, live)
         else:
             word, live = google_delivery(r["adGroupAd"]["status"], r["adGroup"]["status"], r["campaign"]["status"])
             P.ads[key]["status"] = word
             P.ads[key]["live"] = live
+            google_stamp(P.ads[key], r, live)
         P.row(key, r["segments"]["date"], int(m.get("costMicros", 0)) / 1e6 * fx, m.get("impressions", 0),
               m.get("clicks", 0), float(m.get("conversions", 0)))
     # حالة كل إعلان حتى الذي بلا صرف في النافذة. بدونها يُعلَّم النشط خطأً كمتوقف.
     try:
         for r in q("SELECT ad_group_ad.ad.id, ad_group_ad.ad.name, ad_group_ad.ad.final_urls, ad_group_ad.status, "
-                   "ad_group.status, campaign.status, campaign.advertising_channel_type, campaign.advertising_channel_sub_type, "
+                   "ad_group_ad.primary_status, ad_group_ad.policy_summary.approval_status, "
+                   "campaign.primary_status, campaign.serving_status, ad_group.status, campaign.status, campaign.advertising_channel_type, campaign.advertising_channel_sub_type, "
                    "ad_group.name, campaign.name FROM ad_group_ad WHERE ad_group_ad.status != 'REMOVED'"):
             ad, camp = r["adGroupAd"]["ad"], r["campaign"]
             key = "g" + ad["id"]
@@ -398,11 +420,13 @@ def google(P):
             if key in P.ads:
                 P.ads[key]["status"] = word
                 P.ads[key]["live"] = live
+                google_stamp(P.ads[key], r, live)
                 continue
             P.ads[key] = dict(platform=plat, family="google", channel=camp.get("advertisingChannelType") or "",
                               name=ad.get("name") or ad["id"], campaign=camp["name"], group=r["adGroup"]["name"],
                               format=GOOGLE_FORMAT.get(plat, "إعلان"), status=word, live=live, text="",
                               thumb=None, link=(ad.get("finalUrls") or [None])[0], goal="lead")
+            google_stamp(P.ads[key], r, live)
         P.status_catalog = True
     except Exception as ex:
         print("جوجل: تعذر تحديث حالة الإعلانات بلا صرف", error_code(ex), file=sys.stderr)
@@ -468,6 +492,9 @@ def snap(P):
         base = dict(platform="snap", family="snap", name=a["name"], campaign=camps[sq["campaign_id"]]["name"], group=sq["name"],
                     status=word, live=live,
                     goal="lead" if camps[sq["campaign_id"]].get("objective") in ("LEADS", "LEAD_GENERATION") else "other")
+        now = datetime.now(RIYADH)
+        delivery.stamp(base, delivery.snap_state(a, sq, camps.get(sq["campaign_id"]), live, now),
+                       delivery.fresh_from(a.get("created_at"), a.get("updated_at"), now=now))
         old = CACHE.get(key, {})
         if old.get("thumb") and old.get("media_type"):
             merged = {**old, **base}
@@ -734,6 +761,9 @@ def main():
         ADS[k] = dict(platform=plat, family=fam, name="إعلان محذوف", campaign="—", group="—",
                       format="", status="محذوف", live=False, text="", thumb=None, link=None, goal="other")
     keep_audience((PREV or {}).get("ads"), ADS)
+    ok_prefixes = tuple(n[0] for n in ("meta", "google", "snap", "tiktok") if status.get(n, {}).get("ok"))
+    dstate = delivery.finalize(ADS, ROWS, datetime.now(RIYADH), (PREV or {}).get("ads"), ok_prefixes)
+    print("delivery:", ", ".join(f"{k} {v}" for k, v in sorted(dstate.items())), file=sys.stderr)
     apply_all(ADS)
     channels = annotate(ADS)
     try:

@@ -86,6 +86,20 @@ by code that is live on main; open «المدير ← صحة الداتا ← ا
 | `voiceover_settings` | 026 | voiceover | yes (FK, one row per company) | company_id PK, voice, accent, tone, pace, updated_by | Forever (one row). The audio itself is never stored. |
 | `motion_versions` | 018 | design (video) | yes (FK) | id, project_id, version, parent_version, change_request, spec, engine, model | Never edited; goes with its project. |
 
+## Ad delivery fields (dash.json `ads`)
+
+`live` means **switched on** (ad, ad group/squad/ad set and campaign all on). It is what the decision board, the media buyer rules and the counts read, and its meaning does not change. The delivery layer (`pipeline/delivery.py`) adds whether an ad is **really delivering**. Computed in the pipeline on every refresh; not stored in Supabase (the `ads` table keeps `live`), so a database-only read falls back to `live`.
+
+| Field | Values | Meaning |
+|---|---|---|
+| `delivery` | `delivering`, `no_spend`, `rejected`, `in_review`, `scheduled`, `ended`, `budget`, `off` | `off` = not switched on. The others are switched on (except `rejected`/`in_review`, which can also be off) and say why the ad is not delivering. `delivering` = nothing blocks it and it spent or showed in the last 3 days. |
+| `delivery_reason` | short Arabic text, a fixed set (`REASON` in `delivery.py`) or the platform status word for `off` | Shown on hover or under the badge. For `delivering` it is empty unless the platform status could not be read (then it says the verdict is from actual spend only). |
+| `delivery_days` | integer, only with `no_spend` | Days since the last day with spend or impressions. Absent if none was ever recorded. |
+| `delivery_fb` | `1` | The platform review/schedule fields could not be fetched; the verdict is the data rule alone. |
+| `fresh_at` | ISO time | Created or switched on within 48 hours (or first seen by the pipeline). For 24 hours it exempts the ad from `no_spend`. Dropped after 48 hours. |
+
+Platform fields used: Meta `effective_status`, `created_time`, `updated_time`, ad set and campaign `start_time`/`end_time`(`stop_time`)/`lifetime_budget`/`budget_remaining`; Snapchat ad `review_status`, `created_at`/`updated_at`, ad squad and campaign `start_time`/`end_time`; Google `ad_group_ad.primary_status`, `ad_group_ad.policy_summary.approval_status`, `campaign.primary_status`, `campaign.serving_status`; TikTok ad `secondary_status`, `create_time`/`modify_time`, ad group `schedule_start_time`/`schedule_end_time` (optional: if the API refuses them the pull continues without). Data rule: switched on with no spend and no impressions from today-2 to today (72 hours of daily data) = `no_spend`. A platform that failed to refresh keeps its previous verdict. Meta placements of one ad are judged together.
+
 ## Indexes against the queries the code makes
 
 Covered: ads by company/platform; ad_metrics by day and by (ad_key, day) PK; audit_log by (company, at); crm_leads by
