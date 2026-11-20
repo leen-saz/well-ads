@@ -123,6 +123,16 @@ describe('company rules (names and limits come from the database)', () => {
     expect(c).toHaveLength(1); expect(c[0]!.rule).toBe('company'); expect(c[0]!.change).toContain('كل 2 أيام'); expect(c[0]!.open).toBe('الحد مو محسوم'); expect(c[0]!.owner).toBe('media_buyer');
     expect(ids(recommend(base({ ads: [ad('s1', 'snap', 'Beta')], metrics: good('s1'), rules: [rule] })))).not.toContain('company');
   });
+  it('warns on a company scale step over the default cap and on a young campaign, without changing the step', () => {
+    const rule = R({ id: 'a', kind: 'scale', platform: 'snapchat', match: ['alpha'], maxCpl: T.cpl, stepPct: 50, everyDays: 3 });
+    const old = recommend(base({ ads: [ad('s1', 'snap', 'Alpha')], metrics: good('s1'), rules: [rule] })).recs.find(x => x.kind === 'budget_up')!;
+    expect(old.evidence.some(e => e.includes('أكبر من سقف الخطوة'))).toBe(true);
+    expect(old.evidence.some(e => e.includes('مرحلة التعلّم'))).toBe(false);
+    expect(old.change).toContain('50%');
+    const young = recommend(base({ ads: [ad('s2', 'snap', 'Alpha')], metrics: good('s2', 4, 0), rules: [{ ...rule, stepPct: 20 }] })).recs.find(x => x.kind === 'budget_up')!;
+    expect(young.evidence.some(e => e.includes('مرحلة التعلّم'))).toBe(true);
+    expect(young.evidence.some(e => e.includes('أكبر من سقف الخطوة'))).toBe(false);
+  });
   it('alerts when a campaign that was spending did not spend yesterday', () => {
     const m = series('s1', 20, 1, () => [T.cpl, 4000, 80, 2]);
     const r = recommend(base({ ads: [ad('s1', 'snap', 'alpha')], metrics: m, rules: [R({ id: 'b', kind: 'alert_stalled', platform: 'snapchat', match: ['alpha'] })] }));
@@ -137,7 +147,7 @@ describe('company rules (names and limits come from the database)', () => {
   });
   it('still reads live (switched on), never the delivery layer', () => {
     // an ad that is on but rejected / not spending keeps counting as on: the decision board's meaning of live must not change
-    const on = { live: true, delivery: 'no_spend' } as Partial<AdRow>;
+    const on = { live: true, delivery: 'rejected', delivery_days_no_spend: 9 } as Partial<AdRow>;
     const idle = recommend(base({ ads: [ad('s2', 'snap', 'delta', on)], metrics: series('s2', 20, 0, () => [T.cpl * 0.2, 1000, 5, 0]), rules: [R({ id: 'd', kind: 'stop_idle', platform: 'snapchat', match: ['delta'], minIdleDays: 14 })] }));
     expect(idle.recs.find(x => x.rule === 'company')!.kind).toBe('pause');
     const off = recommend(base({ ads: [ad('t1', 'tiktok', 'gamma', { live: false, delivery: 'delivering' } as Partial<AdRow>)], metrics: series('t1', 6, 0, () => [T.cpl, 4000, 80, 0]), rules: [R({ id: 'c', kind: 'resume', platform: 'tiktok', match: ['gamma'], minCtr: 1 })] }));

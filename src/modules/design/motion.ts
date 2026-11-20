@@ -23,6 +23,12 @@ export const DEFAULT_COLORS = { text: '#FFFFFF', band: '#1D1069', accent: '#E9A2
 const num = (v: unknown, lo: number, hi: number, d: number) => { const n = Number(v); return Number.isFinite(n) ? Math.min(hi, Math.max(lo, Math.round(n * 10) / 10)) : d; };
 const one = <T extends string>(v: unknown, list: readonly T[], d: T): T => (list as readonly unknown[]).includes(v) ? v as T : d;
 const line = (v: unknown, max: number) => String(v ?? '').replace(/[\u0000-\u001f<>]/g, ' ').replace(/\s+/g, ' ').trim().slice(0, max);
+// Caption text over the limit is cut at the last whole word (never mid-word, which reads as a typo), unless that would drop over half of it
+export const cutWords = (t: string, max: number) => {
+  if (t.length <= max) return t;
+  const head = t.slice(0, max), at = t[max] === ' ' ? max : head.lastIndexOf(' ');
+  return (at >= max / 2 ? head.slice(0, at) : head).replace(/[\s،,.؛:]+$/, '');
+};
 
 // The voice length: under 3 seconds is no video (0), over 90 is cut to 90
 export const clampSeconds = (v: unknown): number => Number(v) >= 3 ? num(v, 3, 90, 0) : 0;
@@ -36,7 +42,7 @@ export function cleanSpec(raw: unknown, seconds: number, ratio: Ratio, brand: st
   const pal = brand.filter(x => HEX.test(x));
   const colour = (v: unknown, d: string) => HEX.test(String(v)) ? String(v).toUpperCase() : d;
   const scenes = (Array.isArray(r.scenes) ? r.scenes : []).map((s: Record<string, unknown>): Scene | null => {
-    const text = line(s?.text, 90);
+    const text = cutWords(line(s?.text, 10000), 90);
     const from = num(s?.from, 0, seconds, -1), to = num(s?.to, 0, seconds, -1);
     if (!text || from < 0 || to - from < 0.5) return null;
     return { from, to, text, anim: one(s.anim, Object.keys(ANIMS) as Anim[], 'fade'), pos: one(s.pos, POS, 'center'), size: one(s.size, SIZES, 'm') };
@@ -48,7 +54,7 @@ export function cleanSpec(raw: unknown, seconds: number, ratio: Ratio, brand: st
   scenes.forEach((s, k) => { const room = Math.min(seconds, scenes[k + 1]?.from ?? seconds); if (s.to - s.from < MIN_SCENE) s.to = Math.max(s.to, Math.round(Math.min(room, s.from + MIN_SCENE) * 10) / 10); });
   scenes.splice(0, scenes.length, ...scenes.filter(s => s.to - s.from >= 0.5).slice(0, MAX_SCENES));
   const ctaRaw = (r.cta && typeof r.cta === 'object' ? r.cta : null) as Record<string, unknown> | null;
-  const ctaText = line(ctaRaw?.text, 40);
+  const ctaText = cutWords(line(ctaRaw?.text, 10000), 40);
   const cta = ctaText ? { text: ctaText, from: num(ctaRaw?.from, 0, Math.max(0, seconds - 1), Math.max(0, seconds - 3)) } : null;
   if (!scenes.length && !cta) return null;
   return {
