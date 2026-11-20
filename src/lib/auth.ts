@@ -199,13 +199,15 @@ export const companyOff = (p: Profile): boolean => p.company?.active === false;
 // ---- Supabase REST. The service key stays on the server; every call is server-side.
 export interface SbResult<T = unknown> { ok: boolean; status: number; data: T }
 export async function sb<T = unknown>(cfg: Cfg, path: string,
-  { method = 'GET', body, token, headers = {} }: { method?: string; body?: unknown; token?: string; admin?: boolean; headers?: Record<string, string> } = {},
+  { method = 'GET', body, token, headers = {}, timeoutMs }: { method?: string; body?: unknown; token?: string; admin?: boolean; headers?: Record<string, string>; timeoutMs?: number } = {},
 ): Promise<SbResult<T>> {
   const k = cfg.service;
   const res = await fetch(cfg.url + path, {
     method,
     headers: { apikey: k, Authorization: `Bearer ${token || k}`, 'Content-Type': 'application/json', ...headers },
     ...(body === undefined ? {} : { body: JSON.stringify(body) }),
+    // Opt-in: a best-effort caller cancels a hanging request instead of holding a connection (6 per Worker invocation)
+    ...(timeoutMs ? { signal: AbortSignal.timeout(timeoutMs) } : {}),
   });
   const text = await res.text();
   let data: unknown = null;
