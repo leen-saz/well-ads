@@ -193,7 +193,22 @@ def pull(m, today=None):
     except Exception as ex:  # noqa: BLE001
         print("tiktok-mcp: destination fields skipped —", str(ex)[:120])
         ads = pages(m, "ad_get", {"advertiser_id": adv, "fields": AD_FIELDS, "filtering": {"primary_status": "STATUS_ALL"}})
-    camps = pages(m, "campaign_get", {"advertiser_id": adv, "fields": ["campaign_id", "objective_type"], "filtering": {"primary_status": "STATUS_ALL"}})
+    camps = pages(m, "campaign_get", {"advertiser_id": adv, "fields": ["campaign_id", "objective_type", "operation_status"], "filtering": {"primary_status": "STATUS_ALL"}})
+    # switched-on state of the campaign and ad group, so a spend cap (AD_STATUS_*_EXCEED) is not read as switched off.
+    # Optional: without it tiktok_live infers from secondary_status.
+    camp_on = {str(c.get("campaign_id")): c.get("operation_status") for c in camps if c.get("operation_status")}
+    group_on = {}
+    try:
+        for g in pages(m, "adgroup_get", {"advertiser_id": adv, "fields": ["adgroup_id", "operation_status"], "filtering": {"primary_status": "STATUS_ALL"}}):
+            if g.get("operation_status"):
+                group_on[str(g.get("adgroup_id"))] = g["operation_status"]
+    except Exception as ex:  # noqa: BLE001
+        print("tiktok-mcp: ad group status skipped —", str(ex)[:120])
+    for x in ads:
+        if camp_on.get(str(x.get("campaign_id"))):
+            x["campaign_operation_status"] = camp_on[str(x.get("campaign_id"))]
+        if group_on.get(str(x.get("adgroup_id"))):
+            x["adgroup_operation_status"] = group_on[str(x.get("adgroup_id"))]
     reports = []
     for a, b in windows(start, today):
         args = {"advertiser_id": adv, "report_type": "BASIC", "data_level": "AUCTION_AD",

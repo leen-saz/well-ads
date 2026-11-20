@@ -147,7 +147,7 @@ describe('company rules (names and limits come from the database)', () => {
   });
   it('still reads live (switched on), never the delivery layer', () => {
     // an ad that is on but rejected / not spending keeps counting as on: the decision board's meaning of live must not change
-    const on = { live: true, delivery: 'no_spend' } as Partial<AdRow>;
+    const on = { live: true, delivery: 'rejected', delivery_days_no_spend: 9 } as Partial<AdRow>;
     const idle = recommend(base({ ads: [ad('s2', 'snap', 'delta', on)], metrics: series('s2', 20, 0, () => [T.cpl * 0.2, 1000, 5, 0]), rules: [R({ id: 'd', kind: 'stop_idle', platform: 'snapchat', match: ['delta'], minIdleDays: 14 })] }));
     expect(idle.recs.find(x => x.rule === 'company')!.kind).toBe('pause');
     const off = recommend(base({ ads: [ad('t1', 'tiktok', 'gamma', { live: false, delivery: 'delivering' } as Partial<AdRow>)], metrics: series('t1', 6, 0, () => [T.cpl, 4000, 80, 0]), rules: [R({ id: 'c', kind: 'resume', platform: 'tiktok', match: ['gamma'], minCtr: 1 })] }));

@@ -11,24 +11,27 @@ function alignDelivery(a){
 Object.values(ADS).forEach(a=>{ stamp(a); alignDelivery(a); });
 // Delivery layer (pipeline/delivery.py): `live` = switched on, `delivery` = really delivering or why not.
 // An older dash.json without `delivery` falls back to the switch.
-const DELIVERY_STATES=['delivering','no_spend','rejected','in_review','scheduled','ended','budget','off'];
+const DELIVERY_STATES=['delivering','rejected','in_review','scheduled','ended','budget','off','unknown'];
 function deliveryOf(a){ const d=a&&a.delivery; return DELIVERY_STATES.includes(d) ? d : (a&&a.live ? 'delivering' : 'off'); }
-const DELIVERY_WORD={delivering:'يصرف',no_spend:'نشط بدون صرف',rejected:'مرفوض',in_review:'قيد المراجعة',scheduled:'مجدول',ended:'انتهى',budget:'الميزانية خلصت',off:'متوقف'};
-const DELIVERY_CLS={delivering:'st-live',no_spend:'st-nospend',rejected:'st-bad',in_review:'st-wait',scheduled:'st-wait',ended:'st-off',budget:'st-nospend',off:'st-off'};
+const DELIVERY_WORD={delivering:'يصرف',rejected:'مرفوض',in_review:'قيد المراجعة',scheduled:'مجدول',ended:'انتهى',budget:'الميزانية خلصت',off:'متوقف',unknown:'غير معروف'};
+const DELIVERY_CLS={delivering:'st-live',rejected:'st-bad',in_review:'st-wait',scheduled:'st-wait',ended:'st-off',budget:'st-nospend',off:'st-off',unknown:'st-wait'};
+// Secondary note, never the verdict: switched on and no spend or impressions for N days (pipeline/delivery.py delivery_days_no_spend).
+const noSpendDays = a => (a && a.live && a.delivery_days_no_spend>0) ? a.delivery_days_no_spend : 0;
 // A group of ads (one idea card): the best state wins; an all-off group is off.
 function bestDelivery(list){ let best='off'; for(const a of list){ const d=deliveryOf(a); if(DELIVERY_STATES.indexOf(d)<DELIVERY_STATES.indexOf(best)) best=d; } return best; }
 function deliveryBadge(a, d=deliveryOf(a)){
-  let word=ui(DELIVERY_WORD[d],{delivering:'Delivering',no_spend:'On, not spending',rejected:'Rejected',in_review:'In review',scheduled:'Scheduled',ended:'Ended',budget:'Budget used up',off:'Paused'}[d]);
-  const days=d==='no_spend' && a && a.delivery_days>0 ? ` · ${fmt(a.delivery_days)} ${ui(a.delivery_days===1?'يوم':'أيام',a.delivery_days===1?'day':'days')}` : '';
+  let word=ui(DELIVERY_WORD[d],{delivering:'Delivering',rejected:'Rejected',in_review:'In review',scheduled:'Scheduled',ended:'Ended',budget:'Budget used up',off:'Paused',unknown:'Unknown'}[d]);
+  const n=d==='off' ? 0 : noSpendDays(a);
+  const note=n ? `<span class="sub st-why st-note">${ui('بدون صرف من ','No spend for ')}${fmt(n)} ${ui(n===1?'يوم':'أيام',n===1?'day':'days')}</span>` : '';
   const why=a && a.delivery_reason && d!=='delivering' && d!=='off' ? tr(a.delivery_reason) : '';
-  return `<span class="pill ${DELIVERY_CLS[d]}"${why?` title="${esc(why)}"`:''}><span class="dot"></span>${word}${days}</span>${why&&d!=='no_spend'?`<span class="sub st-why">${esc(why)}</span>`:''}`;
+  return `<span class="pill ${DELIVERY_CLS[d]}"${why?` title="${esc(why)}"`:''}><span class="dot"></span>${word}</span>${why?`<span class="sub st-why">${esc(why)}</span>`:''}${note}`;
 }
 refreshOrder();
 function passesStatus(a){
   if(!a) return false;
   const d=deliveryOf(a);
   if(S.stat==='live') return d==='delivering';
-  if(S.stat==='idle') return d!=='delivering' && d!=='off';
+  if(S.stat==='idle') return d!=='off' && (d!=='delivering' || noSpendDays(a)>0);
   if(S.stat==='off') return d==='off';
   return true;
 }
