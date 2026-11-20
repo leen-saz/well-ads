@@ -367,3 +367,16 @@ describe('reset page', () => {
     expect(src).toMatch(/token_hash/);
   });
 });
+
+describe('readJson size limit', () => {
+  it('refuses a declared body far over the limit without reading it', async () => {
+    const r = new Request('https://well.example/x', { method: 'POST', body: '{}', headers: { 'content-length': '900000' } });
+    const spy = vi.spyOn(r, 'text');
+    await expect(A.readJson(r, 20000)).rejects.toThrow('too large');
+    expect(spy).not.toHaveBeenCalled();
+  });
+  it('still accepts a normal body and refuses an over-long one with no declared length', async () => {
+    await expect(A.readJson(new Request('https://well.example/x', { method: 'POST', body: '{"a":1}' }), 100)).resolves.toEqual({ a: 1 });
+    await expect(A.readJson(new Request('https://well.example/x', { method: 'POST', body: JSON.stringify({ a: 'x'.repeat(200) }) }), 100)).rejects.toThrow('too large');
+  });
+});

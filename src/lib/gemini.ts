@@ -9,6 +9,8 @@ export interface GeminiEnv { GEMINI_API_KEY?: string; GEMINI_MODEL?: string; GEM
 export const GEMINI_MODEL = 'gemini-3-flash';
 // Longer than the text providers: audio and video answers are slow. Past it the call stops and says «busy», not hangs.
 export const GEMINI_TIMEOUT_MS = 120_000;
+// Files API: the small calls (start an upload, read a file's state, delete) are quick; the byte upload carries a whole recording.
+export const GEMINI_FILE_MS = 30_000, GEMINI_UPLOAD_MS = 300_000;
 const BASE = 'https://generativelanguage.googleapis.com';
 const clean = (s: string | undefined) => (s || '').replace(/[^a-z0-9.\-_]/gi, '').slice(0, 80);
 export const geminiModel = (e: GeminiEnv): string => clean(e.GEMINI_MODEL) || GEMINI_MODEL;
@@ -108,21 +110,24 @@ const fixed = (body: ReadableStream<Uint8Array>, bytes: number): ReadableStream<
 export async function uploadFile(e: GeminiEnv, body: ReadableStream<Uint8Array>, mime: string, bytes: number, label: string, f: typeof fetch = fetch): Promise<GeminiFile> {
   if (!e.GEMINI_API_KEY) throw new GeminiError('no_key');
   const key = e.GEMINI_API_KEY;
+  const quick = AbortSignal.timeout(GEMINI_FILE_MS), slow = AbortSignal.timeout(GEMINI_UPLOAD_MS);
   try {
-    const start = await f(`${BASE}/upload/v1beta/files`, { method: 'POST', headers: {
+    const start = await f(`${BASE}/upload/v1beta/files`, { method: 'POST', signal: quick, headers: {
       'x-goog-api-key': key, 'x-goog-upload-protocol': 'resumable', 'x-goog-upload-command': 'start',
       'x-goog-upload-header-content-length': String(bytes), 'x-goog-upload-header-content-type': mime, 'content-type': 'application/json' },
     body: JSON.stringify({ file: { display_name: label.slice(0, 60) } }) });
     const url = start.headers.get('x-goog-upload-url');
-    if (start.status === 429) throw new GeminiError('rate_limited', 429);
+    if (start.status === 429 || start.status === 503) throw new GeminiError('rate_limited', 429);
     if (!start.ok || !url) throw new GeminiError('failed', start.status);
-    const up = await f(url, { method: 'POST', headers: { 'content-length': String(bytes), 'x-goog-upload-offset': '0', 'x-goog-upload-command': 'upload, finalize' }, body: fixed(body, bytes), duplex: 'half' } as RequestInit);
+    const up = await f(url, { method: 'POST', signal: slow, headers: { 'content-length': String(bytes), 'x-goog-upload-offset': '0', 'x-goog-upload-command': 'upload, finalize' }, body: fixed(body, bytes), duplex: 'half' } as RequestInit);
+    if (up.status === 429 || up.status === 503) throw new GeminiError('rate_limited', up.status);
     if (!up.ok) throw new GeminiError('failed', up.status);
     const file = fileOf(await up.json() as FileRaw, mime);
     if (!file.name || !file.uri) throw new GeminiError('failed');
     return file;
   } catch (err) {
     if (err instanceof GeminiError) throw err;
+    if (quick.aborted || slow.aborted) { console.warn('gemini_upload_failed', 'timeout'); throw new GeminiError('rate_limited'); }
     console.warn('gemini_upload_failed', (err as Error).message);
     throw new GeminiError('failed');
   }
@@ -131,12 +136,19 @@ export async function uploadFile(e: GeminiEnv, body: ReadableStream<Uint8Array>,
 // Video is processed after the upload: wait for ACTIVE before asking about it
 export async function fileState(e: GeminiEnv, name: string, mime: string, f: typeof fetch = fetch): Promise<GeminiFile> {
   if (!e.GEMINI_API_KEY || !/^files\/[a-z0-9-]{1,60}$/.test(name)) throw new GeminiError('no_key');
-  const r = await f(`${BASE}/v1beta/${name}`, { headers: { 'x-goog-api-key': e.GEMINI_API_KEY } }).catch(() => null);
-  if (!r?.ok) throw new GeminiError('failed', r?.status ?? 0);
-  return fileOf({ file: { ...((await r.json()) as FileRaw['file']) } }, mime);
+  const late = AbortSignal.timeout(GEMINI_FILE_MS);
+  try {
+    const r = await f(`${BASE}/v1beta/${name}`, { signal: late, headers: { 'x-goog-api-key': e.GEMINI_API_KEY } });
+    if (r.status === 429 || r.status === 503) throw new GeminiError('rate_limited', r.status);
+    if (!r.ok) throw new GeminiError('failed', r.status);
+    return fileOf({ file: { ...((await r.json()) as FileRaw['file']) } }, mime);
+  } catch (err) {
+    if (err instanceof GeminiError) throw err;
+    throw new GeminiError(late.aborted ? 'rate_limited' : 'failed');
+  }
 }
 
 export async function deleteFile(e: GeminiEnv, name: string, f: typeof fetch = fetch): Promise<boolean> {
   if (!e.GEMINI_API_KEY || !/^files\/[a-z0-9-]{1,60}$/.test(name)) return false;
-  try { return (await f(`${BASE}/v1beta/${name}`, { method: 'DELETE', headers: { 'x-goog-api-key': e.GEMINI_API_KEY } })).ok; } catch { return false; }
+  try { return (await f(`${BASE}/v1beta/${name}`, { method: 'DELETE', signal: AbortSignal.timeout(GEMINI_FILE_MS), headers: { 'x-goog-api-key': e.GEMINI_API_KEY } })).ok; } catch { return false; }
 }

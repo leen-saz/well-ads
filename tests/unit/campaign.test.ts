@@ -57,8 +57,13 @@ describe('parsePlan', () => {
   });
   it('a plan that writes drafts but forgot compliance gets one after every writing task; a plan that has one is left alone', () => {
     const p = parsePlan(JSON.stringify({ tasks: [{ agent: 'knowledge', title: 'k' }, { agent: 'content', title: 'c', after: [0] }, { agent: 'social', title: 's', after: [1] }, { agent: 'optimize', title: 'o' }] }))!;
-    expect(p.tasks.map(t => t.agent)).toEqual(['knowledge', 'content', 'social', 'optimize', 'compliance']);
-    expect(p.tasks[4]!.after).toEqual([1, 2]);
+    expect(p.tasks.map(t => t.agent)).toEqual(['knowledge', 'content', 'social', 'compliance', 'optimize']);
+    expect(p.tasks[3]!.after).toEqual([1, 2]); expect(p.tasks[4]!.after).toEqual([3]);
+    const r = parsePlan(JSON.stringify({ tasks: [{ agent: 'content', title: 'c' }, { agent: 'optimize', title: 'o', after: [0] }] }))!;
+    expect(r.tasks.map(t => t.agent)).toEqual(['content', 'compliance', 'optimize']); expect(r.tasks[2]!.after).toEqual([0, 1]);
+    for (const plan of [p, r]) plan.tasks.forEach((t, i) => expect(t.after.every(n => Number.isInteger(n) && n >= 0 && n < i)).toBe(true));
+    const s = parsePlan(JSON.stringify({ tasks: [{ agent: 'content', title: 'c' }, { agent: 'social', title: 's' }] }))!;
+    expect(s.tasks.map(t => t.agent)).toEqual(['content', 'social', 'compliance']);
     const q = parsePlan(JSON.stringify({ tasks: [{ agent: 'content', title: 'c' }, { agent: 'compliance', title: 'x', after: [0] }] }))!;
     expect(q.tasks).toHaveLength(2);
     expect(parsePlan(JSON.stringify({ tasks: [{ agent: 'knowledge', title: 'k' }, { agent: 'optimize', title: 'o' }] }))!.tasks).toHaveLength(2);

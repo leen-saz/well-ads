@@ -1,4 +1,4 @@
--- 038: صحة الحسابات المربوطة ومجموعاتها (docs/PRD.md §3.4، المرحلة M5).
+-- 039: صحة الحسابات المربوطة ومجموعاتها (docs/PRD.md §3.4، المرحلة M5).
 -- account_health: نتيجة آخر فحص لكل حساب مربوط، منفصلة عن الربط نفسه (connections). أول فشل = degraded مع مهلة ساعة
 -- (grace_until)، وفشل بعد المهلة = disconnected وتنبيه واحد. لا مفاتيح ولا نص رسائل المنصات: رمز قصير فقط (error_code).
 -- account_groups / account_group_members: تجميع حسابات (مثلاً قسم بصفحاته) لاختيارها مرة وحدة.
@@ -45,4 +45,4 @@ create index if not exists account_group_members_company_idx on public.account_g
 alter table public.account_group_members enable row level security;
 revoke all on public.account_group_members from anon, authenticated;
 
-insert into public.schema_migrations (name) values ('038_account_health.sql') on conflict do nothing;
+insert into public.schema_migrations (name) values ('039_account_health.sql') on conflict do nothing;

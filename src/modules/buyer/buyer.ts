@@ -110,7 +110,11 @@ function companyRules(x: Input, camps: Map<string, Camp>, end: string, verdict: 
         const step = rule.stepPct ?? 20, every = rule.everyDays ?? 3;
         push({ ...base, act: { op: 'budget_pct', pct: step }, rule: 'company', kind: 'budget_up', weight: 58, spend: c.cur.spend, judge: j ? { step: 'cpl', level: j.level, line: j.line } : null,
           title: `${label}: الليد رخيص، ارفع الميزانية`, change: `ارفع الميزانية اليومية حوالي ${step}% كل ${every} أيام، طالما تكلفة الليد تحت ${sar(rule.maxCpl)}. أول ما تتجاوزه ارجع للميزانية السابقة.`,
-          why: RULE.scale_up.why, risk: RULE.scale_up.risk, evidence: [`تكلفة الليد آخر ${T.windowDays} أيام ${sar(cc)} مقابل حد ${sar(rule.maxCpl)}`, `${r0(c.cur.leads)} نتيجة`],
+          why: RULE.scale_up.why, risk: RULE.scale_up.risk,
+          evidence: [`تكلفة الليد آخر ${T.windowDays} أيام ${sar(cc)} مقابل حد ${sar(rule.maxCpl)}`, `${r0(c.cur.leads)} نتيجة`,
+            // Warnings only (no behaviour change): the company's step can be bigger than the default cap, and this rule does not hold a young campaign
+            ...(step > T.scaleStepMax * 100 ? [`تنبيه: الخطوة ${step}% أكبر من سقف الخطوة الافتراضي ${Math.round(T.scaleStepMax * 100)}%، وقفزة الميزانية الكبيرة قد تعيد المنصة للتعلّم`] : []),
+            ...(age < (PLATFORM_FACTS[p].learningDays ?? T.windowDays) ? [`تنبيه: عمر الحملة ${age} يوم، قد تكون في مرحلة التعلّم`] : [])],
           success: { metric: 'تكلفة الليد بعد الزيادة', goal: `تحت ${sar(rule.maxCpl)} بعد ${every} أيام` } });
       }
       // TikTok is judged by click rate and engagement, never by leads (the owner's decision): no lead figure is read for it

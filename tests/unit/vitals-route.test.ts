@@ -39,6 +39,19 @@ describe('vitals card', () => {
     vi.spyOn(console, 'log').mockImplementation(() => {});
     expect((await call('/api/vitals/report', member, { method: 'POST', body: JSON.stringify({ path: '/x/', lcp: 1 }) })).status).toBe(200);
   });
+  it('the write carries an abort signal so a hanging store is cancelled, not waited on', async () => {
+    const signals: (AbortSignal | null | undefined)[] = [];
+    vi.stubGlobal('fetch', async (u: string, init?: RequestInit) => {
+      if (String(u).includes('/profiles')) return new Response(JSON.stringify([member]), { status: 200 });
+      if (init?.method === 'POST') signals.push(init.signal);
+      return new Response('[]', { status: 200 });
+    });
+    vi.spyOn(console, 'log').mockImplementation(() => {});
+    expect((await call('/api/vitals/report', member, { method: 'POST', body: JSON.stringify({ path: '/x/', lcp: 1 }) })).status).toBe(200);
+    expect(signals).toHaveLength(1);
+    expect(signals[0]).toBeInstanceOf(AbortSignal);
+    expect(signals[0]!.aborted).toBe(false);
+  });
   it('the owner gets the last 24 hours per page', async () => {
     const seen = world(owner, [
       { path: '/a/', lcp: 1000, inp: 50, cls: 0, ttfb: 200, mobile: false },

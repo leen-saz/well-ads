@@ -3,7 +3,7 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import * as A from '../../lib/auth';
 import { pick } from '../../lib/llm';
-import { MIN_SCENE, checkUpload, cleanSpec, editPrompt, fileKey, ownKey, parseSpec, specPrompt, templateSpec, type Spec } from './motion';
+import { MIN_SCENE, checkUpload, cleanSpec, cutWords, editPrompt, fileKey, ownKey, parseSpec, specPrompt, templateSpec, type Spec } from './motion';
 import { videoapprove, videoedit, video, videos } from './video';
 // The page's own frame logic (public/modules/design/frame.js), so the preview tested here is the one drawn
 import { anchors, frame } from '../../../public/modules/design/frame.js';
@@ -62,6 +62,21 @@ describe('the plan', () => {
     expect(s.scenes).toHaveLength(5);
     // without a headline the script still gets a caption on the shortest voice
     expect(templateSpec({ headline: '', script, seconds: 4, ratio: '1:1' })!.scenes).toHaveLength(1);
+  });
+
+  it('cuts an over-long caption at a whole word, not in the middle of one', () => {
+    const words = Array.from({ length: 30 }, (_, k) => `كلمة${k}`);
+    const long = words.join(' ');
+    const s = cleanSpec({ scenes: [{ from: 0, to: 4, text: long }], cta: { text: long, from: 5 } }, 8, '9:16')!;
+    for (const t of [s.scenes[0]!.text, s.cta!.text]) {
+      expect(long.startsWith(t)).toBe(true);
+      expect(long[t.length]).toBe(' ');
+    }
+    expect(s.scenes[0]!.text.length).toBeLessThanOrEqual(90);
+    expect(s.cta!.text.length).toBeLessThanOrEqual(40);
+    expect(cutWords('قصير', 90)).toBe('قصير');
+    // one huge word with no space: hard cut as before
+    expect(cutWords('ا'.repeat(100), 90)).toHaveLength(90);
   });
 
   it('reads JSON from a fenced answer and puts the current plan and the request in the edit prompt', () => {
