@@ -10,7 +10,7 @@
 - `src/api/routes/control.ts` و `src/pages/control/` (لوحة القرارات، وفيها تبويبا «توصيات القواعد» و«قواعد الإدارة»)
 - `src/modules/buyer/` و`src/api/routes/buyer.ts` و`public/modules/buyer/` (محرّك التوصيات، والتنفيذ بموافقة لين، وقواعد الشركة، وتتبع النتائج)، و`docs/media-buyer/`
 - `pipeline/modules/{suggest,targets,outcomes,execute}` و `pipeline/suggest.py`
-- `docs/prd.md` الأجزاء المتعلقة بالقرارات
+- `docs/prd-baseline-2026-10.md` الأجزاء المتعلقة بالقرارات
 
 **لا يملك:** سحب البيانات (البيانات وCRM)، والتدقيق على الأرقام (المدقق).
 
