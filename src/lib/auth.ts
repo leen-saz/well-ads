@@ -351,7 +351,10 @@ export function sameOrigin(request: Request): boolean {
   try { return new URL(origin).host === new URL(request.url).host; } catch { return false; }
 }
 
+// A declared Content-Length above the limit (in bytes: at most 4 per character) is refused before the body is read.
 export async function readJson(request: Request, limit = 20000): Promise<Record<string, unknown>> {
+  const declared = Number(request.headers.get('content-length'));
+  if (Number.isFinite(declared) && declared > limit * 4) throw new Error('too large');
   const text = await request.text();
   if (text.length > limit) throw new Error('too large');
   return text ? (JSON.parse(text) as Record<string, unknown>) : {};
