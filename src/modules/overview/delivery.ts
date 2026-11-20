@@ -1,10 +1,10 @@
 // Delivery layer (pipeline/delivery.py). `live` only means "switched on"; `delivery` says whether the ad is really
 // delivering, and if not, why. Pure helpers shared by the creatives views. An old dash.json without `delivery` falls back to the switch.
 
-export type Delivery = 'delivering' | 'no_spend' | 'rejected' | 'in_review' | 'scheduled' | 'ended' | 'budget' | 'off';
-export const DELIVERY_ORDER: Delivery[] = ['delivering', 'no_spend', 'rejected', 'in_review', 'scheduled', 'ended', 'budget', 'off'];
+export type Delivery = 'delivering' | 'rejected' | 'in_review' | 'scheduled' | 'ended' | 'budget' | 'off' | 'unknown';
+export const DELIVERY_ORDER: Delivery[] = ['delivering', 'rejected', 'in_review', 'scheduled', 'ended', 'budget', 'off', 'unknown'];
 
-export interface DeliveryFields { live?: boolean | undefined; delivery?: string | undefined; delivery_reason?: string | undefined; delivery_days?: number | undefined }
+export interface DeliveryFields { live?: boolean | undefined; delivery?: string | undefined; delivery_reason?: string | undefined; delivery_days_no_spend?: number | undefined }
 
 export function deliveryOf(a?: DeliveryFields | null): Delivery {
   const d = a?.delivery as Delivery | undefined;
@@ -19,10 +19,10 @@ export function bestDelivery(list: Array<DeliveryFields | null | undefined>): De
 }
 
 const AR: Record<Delivery, string> = {
-  delivering: 'يصرف', no_spend: 'نشط بدون صرف', rejected: 'مرفوض', in_review: 'قيد المراجعة', scheduled: 'مجدول', ended: 'انتهى', budget: 'الميزانية خلصت', off: 'متوقف',
+  delivering: 'يصرف', rejected: 'مرفوض', in_review: 'قيد المراجعة', scheduled: 'مجدول', ended: 'انتهى', budget: 'الميزانية خلصت', off: 'متوقف', unknown: 'غير معروف',
 };
 const EN: Record<Delivery, string> = {
-  delivering: 'Delivering', no_spend: 'On, not spending', rejected: 'Rejected', in_review: 'In review', scheduled: 'Scheduled', ended: 'Ended', budget: 'Budget used up', off: 'Paused',
+  delivering: 'Delivering', rejected: 'Rejected', in_review: 'In review', scheduled: 'Scheduled', ended: 'Ended', budget: 'Budget used up', off: 'Paused', unknown: 'Unknown',
 };
 export const deliveryWord = (d: Delivery, en: boolean): string => (en ? EN : AR)[d];
 
@@ -38,9 +38,10 @@ const REASON_EN: Record<string, string> = {
   'قيد المراجعة عند المنصة': 'In review at the platform',
   'مجدول ولم يبدأ بعد': 'Scheduled, not started yet',
   'انتهت مدة الجدولة': 'The schedule has ended',
-  'الميزانية خلصت': 'The budget is used up',
-  'مفعّل لكن بدون صرف أو ظهور آخر 3 أيام': 'On, but no spend or impressions in the last 3 days',
-  'مفعّل لكن بدون صرف أو ظهور آخر 3 أيام (حالة المراجعة والجدولة من المنصة غير متاحة الحين، والحكم من الصرف الفعلي فقط)': 'On, but no spend or impressions in the last 3 days (platform review and schedule status unavailable, judged by actual spend only)',
-  'حالة المراجعة والجدولة من المنصة غير متاحة الحين، والحكم من الصرف الفعلي فقط': 'The platform review and schedule status is unavailable right now, judged by actual spend only',
+  'مفعّل، وصل حد الصرف (الميزانية خلصت)': 'Switched on, the spend limit was reached (budget used up)',
+  'ما قدرنا نقرأ الحالة من المنصة': 'We could not read the status from the platform',
 };
 export const reasonText = (reason: string, en: boolean): string => (en ? REASON_EN[reason] ?? reason : reason);
+
+// Secondary note, never the verdict: switched on and no spend or impressions for N days (delivery_days_no_spend)
+export const noSpendDays = (a?: DeliveryFields | null): number => (a?.live && (a.delivery_days_no_spend ?? 0) > 0 ? (a.delivery_days_no_spend as number) : 0);
