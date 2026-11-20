@@ -53,7 +53,7 @@ by code that is live on main; open «المدير ← صحة الداتا ← ا
 | `lessons` | 004 (+014) | learning loop, every tab | yes (FK) | id, platform, kind, lesson, evidence, confidence, block, active, module, status, source, decided_by | Forever; set `active=false`/`ignored` instead of deleting. |
 | `connections` | 005 (+006) | connectors | yes, no FK | platform PK, method, names, shown, connected_by, connected_at, expires_at, checked. Secret values live in Supabase Vault, never here. | Forever; one row per platform. |
 | `companies` | 006 (+010, 011_modules, 013_social_approver) | tenant | n/a (is the company) | id, slug, name, plan, active, paperclip_company_id, disabled_modules, social_approvers | Forever. |
-| `social_posts` | 007 | social | yes (FK) | id, platforms, body, media, publish_at, mode, status, approved_by, results … | Keep published/failed 12 months; drafts never deleted automatically. Media in R2 `social/<company>/`: delete the file with the post. |
+| `social_posts` | 007 | social | yes (FK) | id, platforms, body, overrides (text per platform, 039), media, publish_at, mode, status, approved_by, results … | Keep published/failed 12 months; drafts never deleted automatically. Media in R2 `social/<company>/`: delete the file with the post. |
 | `journeys` | 008 | journeys | yes (FK) | id, name, trigger, steps, mode, active … | Forever. |
 | `journey_runs` | 008 | journeys | yes (FK) | id, journey_id, contact, status, log, started_at | `contact` is personal data: expire runs after 90 days. |
 | `content_plans` | 009 | content | yes (FK) | id, site, niche, competitors, analysis, items, engine … | Keep the last 20 per company; older ones can expire. |
@@ -76,6 +76,7 @@ by code that is live on main; open «المدير ← صحة الداتا ← ا
 | `account_health` | 038 | connectors (صحة الحسابات) | yes (FK) | company_id, platform, account_ref (PK); status (ok, degraded, expiring, disconnected), probed, last_check_at, first_failed_at, grace_until, error_code, expires_at, alerted_status | One row per connected account, overwritten every check. No keys, no account names, no platform message: a short code only. |
 | `account_groups` | 038 | connectors (مجموعات الحسابات) | yes (FK) | name (unique per company), created_by | Until deleted by a user. |
 | `account_group_members` | 038 | connectors | yes (FK) | group_id, platform, account_ref | Deleted with its group. |
+| `social_slots` | 039 | social (مواعيد الطابور) | yes (FK) | weekday (0 = Sunday), at_local ('HH:MM', Riyadh), created_by; unique per company, day and time | Until removed by a user. |
 | `library_items` | 020 | shared library (copywriter and the other tabs) | yes (FK) | id, module, kind, title, content, platform, service, compliance_result, review_status, reviewed_by, approved_by, created_by, created_by_id | Forever; the owner edits and approves. Deleting is not offered yet. |
 | `library_favorites` | 020 | shared library | yes (FK) | item_id + user_id PK, created_at | Goes with its item (cascade). |
 | `video_projects` | 034 | video | yes (FK) | id, title, source_url, brief, script, ratio, seconds, avatar_id, review_status, reviewed_by, approved_by, created_by … | Draft until the reviewer and then the approver pass it; nothing leaves the system before. Deleting is not offered yet. |
