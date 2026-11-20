@@ -2,6 +2,7 @@
 import { LANG, t, langSwitch, restoreDraft } from './i18n.js';
 import { sections, TIP, groupNav, navHtml, syncNav, wireNav } from './sidebar.js';
 import { agentDots } from './agentdots.js';
+import { installPalette, openPalette } from './palette.js';
 import { ME_KEY, FRESH, readMe, slim } from './me-cache.js';
 export { LANG, t, langSwitch };
 // Pages switch with Astro's ClientRouter: listeners on document/window of one page are removed when it leaves
@@ -236,7 +237,8 @@ function bindMe() {
 export async function shell({ active, title, badge = '', tools = '', section = active }) {
   const app = $('#app'), side = $('#side', app);
   // The title bar needs nothing from the server: it goes up before the user is known
-  $('#top', app).innerHTML = `<div class="t"><button class="btn icon ghost burger" id="burger" aria-label="القائمة" aria-controls="side" aria-expanded="false">${icon('menu')}</button><h1>${esc(title)}</h1>${badge}</div><div class="tools"><span id="tools">${tools}</span>${langSwitch()}</div>`;
+  $('#top', app).innerHTML = `<div class="t"><button class="btn icon ghost burger" id="burger" aria-label="القائمة" aria-controls="side" aria-expanded="false">${icon('menu')}</button><h1>${esc(title)}</h1>${badge}</div><div class="tools"><span id="tools">${tools}</span><button type="button" class="btn icon ghost cmdk-btn" id="cmdkBtn" aria-label="${LANG === 'en' ? 'Search and go' : 'ابحث وانتقل'}" aria-keyshortcuts="Control+K Meta+K" title="${LANG === 'en' ? 'Search and go' : 'ابحث وانتقل'}">${icon('search')}</button>${langSwitch()}</div>`;
+  $('#cmdkBtn', app)?.addEventListener('click', openPalette);   // usable at once: the palette fills in once the user is known
   let me;
   if (!ME?.v) { try { me = await fetchMe(); } catch (err) { if (err.status !== 401) pageFailure(err); throw err; } }
   else {
@@ -244,6 +246,9 @@ export async function shell({ active, title, badge = '', tools = '', section = a
     if (Date.now() - ME.t > FRESH) fetchMe().then(v => { if (JSON.stringify(slim(v)) !== JSON.stringify(slim(me))) { drawSide(side, v, active); bindMe(); } }).catch(() => {});
   }
   drawSide(side, me, active);
+  // ⌘K palette, shortcuts and the live approvals number (public/assets/palette.js, apcount.js), on every page
+  installPalette(me, (ar, en) => (LANG === 'en' ? en : ar), sections);
+  import('./apcount.js').then(m => m.startCounts()).catch(() => {});
   let mini = false; try { mini = localStorage.getItem('wl-mini') === '1'; } catch { /* storage blocked */ }
   app.classList.toggle('mini', mini); $('#sideFold')?.setAttribute('aria-pressed', String(mini));
   document.addEventListener('click', e => { const m = $('#qcMenu'); if (m && !m.hidden && !e.target.closest('.qc')) { m.hidden = true; $('#qcBtn')?.setAttribute('aria-expanded', 'false'); } }, { signal: pageSignal() });

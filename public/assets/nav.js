@@ -2,6 +2,7 @@
 // كل الأقسام تطلع للكل، واللي ما له صلاحية عليه يطلع مقفل. في الجوال: زر قائمة يفتح درج.
 import { sections, groupNav, navHtml, syncNav, wireNav, boardActive } from './sidebar.js';
 import { agentDots } from './agentdots.js';
+import { installPalette } from './palette.js';
 import { ME_KEY, FRESH, readMe, slim } from './me-cache.js';
 const EN = (() => { try { return new URLSearchParams(location.search).get('lang') === 'en' || localStorage.getItem('well-ads-lang') === 'en'; } catch { return false; } })();
 const L = (ar, en) => EN ? en : ar;
@@ -136,6 +137,9 @@ function draw(me) {
   // The board's bare address was the summary of the old board; the performance overview page replaces it when this user has it
   if (location.pathname === '/' && !location.search.replace(/[?&]lang=en/, '').replace(/^&/, '') && gn.cur?.items.some(it => it.key === 'overview')) location.replace('/overview/' + location.search);
   side.querySelector('.wl-out')?.addEventListener('submit', () => { try { localStorage.removeItem(ME_KEY); } catch { /* storage blocked */ } });
+  // ⌘K palette, shortcuts and the live approvals number, as on the app pages
+  installPalette(me, L, sections);
+  import('./apcount.js').then(m => m.startCounts()).catch(() => {});
 }
 
 if (cached?.v) {

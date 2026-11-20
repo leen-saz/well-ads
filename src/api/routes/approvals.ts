@@ -7,13 +7,13 @@ import { MODULES } from '../../modules/registry';
 const tabName = (k: string) => k === 'ads' ? 'لوحة القرارات' : MODULES.find(m => m.key === k)?.ar ?? k;
 const fail = () => json(500, { error: 'ما قدرنا نجيب القائمة. جرّب مرة ثانية' });
 
-// The sidebar's number: kept 30 seconds by the browser, never shared
+// The sidebar's number (public/assets/apcount.js asks every 60 s while the tab is visible), never cached
 export const counts = {
   GET: handle(async (request, e) => {
     const { cfg, user } = await requireUser(request, e, 'any');
     try {
       const r = await collect(cfg, user, tabName);
-      return json(200, { counts: r.counts }, { 'cache-control': 'private, max-age=30' });
+      return json(200, { counts: r.counts }, { 'cache-control': 'private, no-store' });
     } catch { return fail(); }
   }),
 };
