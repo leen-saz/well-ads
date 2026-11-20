@@ -14,24 +14,27 @@ describe('delivery layer', () => {
     expect(deliveryOf(undefined)).toBe('off');
   });
   it('a group takes its best state', () => {
-    expect(bestDelivery([{ live: true, delivery: 'no_spend' }, { live: true, delivery: 'delivering' }])).toBe('delivering');
+    expect(bestDelivery([{ live: true, delivery: 'unknown' }, { live: true, delivery: 'delivering' }])).toBe('delivering');
     expect(bestDelivery([{ live: false, delivery: 'off' }, { live: true, delivery: 'scheduled' }])).toBe('scheduled');
     expect(bestDelivery([])).toBe('off');
     expect(bestAd([{ live: true, delivery: 'ended', delivery_reason: 'x' }, { live: false, delivery: 'off' }])?.delivery_reason).toBe('x');
   });
   it('words in both languages, reasons translated', () => {
     expect(deliveryWord('delivering', false)).toBe('يصرف');
-    expect(deliveryWord('no_spend', true)).toBe('On, not spending');
+    expect(deliveryWord('unknown', true)).toBe('Unknown');
     expect(reasonText('مرفوض من المنصة', true)).toBe('Rejected by the platform');
     expect(reasonText('المجموعة متوقفة', true)).toBe('المجموعة متوقفة');
   });
   it('badge snapshot: delivering, on-but-not-spending with days and reason, rejected', () => {
     const html = (ad: object) => renderToStaticMarkup(createElement(DeliveryBadge, { ad }));
     expect(html({ live: true, delivery: 'delivering' })).toContain('يصرف');
-    const idle = html({ live: true, delivery: 'no_spend', delivery_days: 5, delivery_reason: 'مفعّل لكن بدون صرف أو ظهور آخر 3 أيام' });
-    expect(idle).toContain('نشط بدون صرف · 5 أيام');
-    expect(idle).toContain('data-delivery="no_spend"');
-    expect(idle).toContain('title="مفعّل لكن بدون صرف أو ظهور آخر 3 أيام"');
+    // the verdict stays the platform's; "no spend for N days" is a secondary note
+    const note = html({ live: true, delivery: 'delivering', delivery_days_no_spend: 5 });
+    expect(note).toContain('data-delivery="delivering"');
+    expect(note).toContain('بدون صرف من 5 أيام');
+    expect(html({ live: false, delivery: 'off', delivery_days_no_spend: 5 })).not.toContain('بدون صرف');
+    const unk = html({ live: true, delivery: 'unknown', delivery_reason: 'ما قدرنا نقرأ الحالة من المنصة' });
+    expect(unk).toContain('غير معروف'); expect(unk).toContain('title="ما قدرنا نقرأ الحالة من المنصة"');
     const bad = html({ live: true, delivery: 'rejected', delivery_reason: 'مرفوض من المنصة' });
     expect(bad).toContain('مرفوض'); expect(bad).not.toContain('يصرف');
     expect(html({ live: false, delivery: 'off', delivery_reason: 'متوقف' })).not.toContain('title=');
