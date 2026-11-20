@@ -73,6 +73,8 @@ export function need(rawPathname: string, search: string): Need | null {
   if (/^\/api\/campaigns\//.test(pathname)) return 'any';
   // Lessons of any tab: the route checks that tab's own level
   if (/^\/api\/lessons\//.test(pathname)) return 'any';
+  // The approvals center: every signed-in user; each one sees only what they may approve (src/lib/approvals.ts)
+  if (/^\/(api\/)?approvals(\/|$)/.test(pathname)) return 'any';
   // The shared library: the routes check each item's own tab
   if (/^\/(api\/)?library(\/|$)/.test(pathname)) return 'any';
   // Live modules: /<key>/ and /api/<key>/* need the module's own dashboard

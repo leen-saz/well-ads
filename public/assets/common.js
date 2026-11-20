@@ -200,6 +200,7 @@ function drawSide(side, me, active) {
   side.innerHTML = `<div class="side-top"><a class="brand mark" href="/today/" aria-label="Well">Well<i>.</i></a><button type="button" class="btn icon ghost side-fold" id="sideFold" aria-label="${L('طي القائمة', 'Collapse menu')}" aria-pressed="false">${icon('panel')}</button><button class="btn icon ghost side-x" type="button" data-close-side aria-label="${L('إغلاق القائمة', 'Close menu')}">${icon('x')}</button></div>
     ${quick.length ? `<div class="qc"><button type="button" class="btn primary qc-btn" id="qcBtn" aria-haspopup="menu" aria-expanded="false">${icon('plus')}<span>${L('جديد', 'New')}</span></button>
       <div class="menu qc-menu" id="qcMenu" role="menu" hidden>${quick.map(([, href, t, ic]) => `<a href="${href}" role="menuitem">${icon(ic)}${t}</a>`).join('')}</div></div>` : ''}
+    ${me.approver ? `<a class="navi ap-link" href="/approvals/" data-k="approvals"${active === 'approvals' ? ' aria-current="page"' : ''}>${icon('check')}<span>${L('الاعتمادات', 'Approvals')}</span><b class="ap-n" data-ap-n hidden></b></a>` : ''}
     <div class="side-items" data-nv>${navHtml(groupNav(sections(me, L), active).entries, { item: 'navi', icon: 'i', L, esc, extra: FULL })}</div>
     <div class="grow"></div>
     <a class="navi" href="/settings/" data-k="settings"${active === 'settings' ? ' aria-current="page"' : ''}>${icon('settings')}<span>الإعدادات</span></a>
