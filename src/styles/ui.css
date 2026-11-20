@@ -1,5 +1,5 @@
 /* shadcn/ui on Well's palette. Colours come from the one token source, public/assets/tokens.css (linked first in every page by
-   src/lib/theme.ts), so light and dark follow the same switch as the rest of the site. Loaded only by pages that use src/components/ui,
+   src/lib/theme.ts), the same colours as the rest of the site. Loaded only by pages that use src/components/ui,
    so the rest of the site keeps its own styles. No preflight: the page shell (app.css) already resets. */
 @layer theme, base, components, utilities;
 @import "tailwindcss/theme.css" layer(theme);
@@ -9,15 +9,35 @@
 @source "../components";
 @source "../modules/overview";
 
-/* dark: = the dark theme chosen in the account menu, or «حسب الجهاز» on a dark device (src/lib/theme.ts sets data-theme) */
-@custom-variant dark {
-  &:where([data-theme="dark"], [data-theme="dark"] *) { @slot; }
-  @media (prefers-color-scheme: dark) { &:where([data-theme="system"], [data-theme="system"] *) { @slot; } }
-}
+@custom-variant dark (&:is(.dark *));
 
 :root {
   /* Prefixed so they never clash with app.css (--accent, --muted…); portals (menus, sheet) see them too */
   --ui-radius: 14px;
+  --ui-background: var(--paper);
+  --ui-foreground: var(--foreground);
+  --ui-card: var(--paper);
+  --ui-card-foreground: var(--foreground);
+  --ui-popover: var(--paper);
+  --ui-popover-foreground: var(--foreground);
+  --ui-primary: var(--primary);
+  --ui-primary-foreground: var(--on-primary);
+  --ui-secondary: color-mix(in srgb, var(--primary) 7%, var(--paper));
+  --ui-secondary-foreground: var(--foreground);
+  --ui-muted: color-mix(in srgb, var(--primary) 7%, var(--paper));
+  --ui-muted-foreground: color-mix(in srgb, var(--foreground) 62%, var(--paper));
+  --ui-accent: color-mix(in srgb, var(--primary) 10%, var(--paper));
+  --ui-accent-foreground: var(--foreground);
+  --ui-destructive: var(--destructive);
+  --ui-border: color-mix(in srgb, var(--brand-soft) 35%, var(--paper));
+  --ui-input: color-mix(in srgb, var(--brand-soft) 45%, var(--paper));
+  --ui-ring: var(--primary);
+  --ui-chart-1: var(--chart-1);
+  --ui-chart-2: var(--chart-2);
+  --ui-chart-3: var(--chart-3);
+}
+/* Dropdown menus are ink surfaces (tokens.css): the same names computed again there, so they turn dark */
+[data-slot="dropdown-menu-content"], [data-slot="dropdown-menu-sub-content"] {
   --ui-background: var(--paper);
   --ui-foreground: var(--foreground);
   --ui-card: var(--paper);

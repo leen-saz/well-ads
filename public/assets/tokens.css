@@ -1,8 +1,7 @@
-/* The one token source (docs/PRD.md §4.2). Every page gets this file before its own styles: src/lib/theme.ts injects the
-   link into each HTML answer and sets <html data-theme> from the «well-theme» cookie, so the first paint is already in the
-   right theme. public/assets/app.css aliases its old names (--ink, --accent…) to these; src/styles/ui.css maps them into
-   Tailwind. Light values are the ones the site had before (no visual change); dark is opt-in from the account menu.
-   One colour for actions (--primary), pink only for danger (--destructive). */
+/* The one token source (docs/PRD.md §4.2). Every page gets this file before its own styles: src/lib/theme.ts links it
+   first in each HTML answer. public/assets/app.css aliases its old names (--ink, --accent…) to these, nav.js (the
+   pipeline pages' sidebar) and src/styles/ui.css read them too. One colour for actions (--primary), pink only for danger.
+   Content is always light (today's values, unchanged). Leen's choice (2026-11-19): the menus are always dark («ink»). */
 :root{
   /* Brand (Well) */
   --brand-ivory:#F6F0E3;
@@ -41,65 +40,20 @@
   color-scheme:light;
 }
 
-/* Dark: chosen in the account menu («المظهر»), or «حسب الجهاز» follows the system */
-:root[data-theme="dark"]{
-  --background:#120D2B;
-  --foreground:#ECE9FB;
-  --paper:#1C1640;
+/* Ink surfaces: the sidebar and every dropdown menu, always dark. Same names, so whatever reads a token inside them
+   turns dark; app.css and ui.css re-declare their own aliases on the same selectors (an alias set on :root keeps the
+   light value it was computed with). Text pairs here pass WCAG AA: tests/unit/theme.test.ts. */
+.side,.wl-side,.menu,[data-slot="dropdown-menu-content"],[data-slot="dropdown-menu-sub-content"]{
+  --background:#1D1069;
+  --foreground:#F3F0FF;
+  --paper:#1D1069;
   --primary:#A68CFF;
   --on-primary:#120D2B;
-  --brand-deep:#B9A8FF;
+  --brand-deep:#C9BCFF;
   --brand-soft:#5B528F;
   --inverse:#ECE9FB;
   --on-inverse:#1D1069;
   --idle:#9AA0AA;
   --err:#FF7A6E;
-  --warn-bg:#3A2E0B;
-  --warn-fg:#F6D98A;
-  --warn-line:#6B5512;
-  --topbar:#17113A;
-  --page-1:#140F31;
-  --page-2:#0F0B25;
-  --page-3:#15103A;
-  --page-4:#110C2C;
-  --page-5:#160F33;
-  --glow-1:rgba(126,87,253,.28);
-  --glow-2:rgba(80,100,220,.20);
-  --glow-3:rgba(91,82,143,.18);
-  --chart-2:#B9A8FF;
-  --chart-3:#6E64A8;
   color-scheme:dark;
-}
-@media (prefers-color-scheme:dark){
-  :root[data-theme="system"]{
-    --background:#120D2B;
-    --foreground:#ECE9FB;
-    --paper:#1C1640;
-    --primary:#A68CFF;
-    --on-primary:#120D2B;
-    --brand-deep:#B9A8FF;
-    --brand-soft:#5B528F;
-    --inverse:#ECE9FB;
-    --on-inverse:#1D1069;
-    --idle:#9AA0AA;
-    --err:#FF7A6E;
-    --warn-bg:#3A2E0B;
-    --warn-fg:#F6D98A;
-    --warn-line:#6B5512;
-    --topbar:#17113A;
-    --page-1:#140F31;
-    --page-2:#0F0B25;
-    --page-3:#15103A;
-    --page-4:#110C2C;
-    --page-5:#160F33;
-    --glow-1:rgba(126,87,253,.28);
-    --glow-2:rgba(80,100,220,.20);
-    --glow-3:rgba(91,82,143,.18);
-  --glow-1:rgba(126,87,253,.28);
-  --glow-2:rgba(80,100,220,.20);
-  --glow-3:rgba(91,82,143,.18);
-    --chart-2:#B9A8FF;
-    --chart-3:#6E64A8;
-    color-scheme:dark;
-  }
 }

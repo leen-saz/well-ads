@@ -1,13 +1,13 @@
-// The one token source and the theme switch (docs/PRD.md §4.2-4.3, milestone M1)
+// The one token source; content light, menus always dark (docs/PRD.md §4.2, milestone M1; Leen 2026-11-19)
 import { describe, expect, it } from 'vitest';
 // Vitest returns an empty string for a .css import (even with ?raw), so the stylesheets are read from disk.
 // @ts-expect-error node types are not installed in this project; vitest itself runs on node
 import { readFileSync } from 'node:fs';
-import { themeOf } from '../../src/lib/theme';
 
 const tokens: string = readFileSync('public/assets/tokens.css', 'utf8');
 const app: string = readFileSync('public/assets/app.css', 'utf8');
 const ui: string = readFileSync('src/styles/ui.css', 'utf8');
+const nav: string = readFileSync('public/assets/nav.js', 'utf8');
 
 const block = (sel: string) => {
   const i = tokens.indexOf(sel); expect(i, sel).toBeGreaterThan(-1);
@@ -20,37 +20,30 @@ const lum = (hex: string) => {
 };
 const ratio = (a: string, b: string) => { const [x, y] = [lum(a), lum(b)]; return (Math.max(x, y) + 0.05) / (Math.min(x, y) + 0.05); };
 
-describe('theme cookie', () => {
-  it('reads light, dark and system, and falls back to light for anything else', () => {
-    expect(themeOf(null)).toBe('light');
-    expect(themeOf('a=1; well-theme=dark')).toBe('dark');
-    expect(themeOf('well-theme=system')).toBe('system');
-    expect(themeOf('well-theme=<script>')).toBe('light');
-    expect(themeOf('xwell-theme=dark')).toBe('light');
-  });
-});
-
 describe('tokens.css', () => {
-  const light = block(':root{'), dark = block(':root[data-theme="dark"]'), system = block(':root[data-theme="system"]');
+  const light = block(':root{'), ink = block('.side,.wl-side,.menu');
 
-  it('keeps the light colours the site had (no visual change)', () => {
+  it('keeps the light colours the site had (no visual change to content)', () => {
     expect(light['--background']).toBe('#F1EEFA');
     expect(light['--paper']).toBe('#FFFFFF');
     expect(light['--brand-purple']).toBe('#7E57FD');
     expect(light['--brand-indigo']).toBe('#1D1069');
   });
 
-  it('«match device» dark is exactly the chosen dark', () => {
-    expect(system).toEqual(dark);
+  it('has no theme switch: no dark or system blocks', () => {
+    expect(tokens).not.toMatch(/data-theme|prefers-color-scheme/);
   });
 
-  it('dark text pairs pass WCAG AA (4.5:1)', () => {
-    expect(ratio(dark['--foreground']!, dark['--background']!)).toBeGreaterThanOrEqual(4.5);
-    expect(ratio(dark['--foreground']!, dark['--paper']!)).toBeGreaterThanOrEqual(4.5);
-    expect(ratio(dark['--on-primary']!, dark['--primary']!)).toBeGreaterThanOrEqual(4.5);
-    expect(ratio(dark['--primary']!, dark['--paper']!)).toBeGreaterThanOrEqual(4.5);
-    expect(ratio(dark['--on-inverse']!, dark['--inverse']!)).toBeGreaterThanOrEqual(4.5);
-    expect(ratio(dark['--warn-fg']!, dark['--warn-bg']!)).toBeGreaterThanOrEqual(4.5);
+  it('the sidebar, the pipeline sidebar and every menu are ink surfaces', () => {
+    for (const sel of ['.side', '.wl-side', '.menu', '[data-slot="dropdown-menu-content"]']) expect(tokens).toContain(sel);
+    expect(ink['--paper']).toBe('#1D1069');
+  });
+
+  it('ink text pairs pass WCAG AA (4.5:1)', () => {
+    expect(ratio(ink['--foreground']!, ink['--paper']!)).toBeGreaterThanOrEqual(4.5);
+    expect(ratio(ink['--on-primary']!, ink['--primary']!)).toBeGreaterThanOrEqual(4.5);
+    expect(ratio(ink['--primary']!, ink['--paper']!)).toBeGreaterThanOrEqual(4.5);
+    expect(ratio(ink['--on-inverse']!, ink['--inverse']!)).toBeGreaterThanOrEqual(4.5);
   });
 });
 
@@ -62,5 +55,10 @@ describe('one source', () => {
   it('ui.css reads its colours from the tokens', () => {
     const root = ui.slice(ui.indexOf(':root {'), ui.indexOf('}', ui.indexOf(':root {')));
     expect(root).not.toMatch(/#[0-9A-Fa-f]{3,8}\b/);
+  });
+  it('the pipeline sidebar (nav.js) reads the tokens', () => {
+    const css = nav.slice(nav.indexOf("const css = document.createElement('style');"));
+    expect(css).toContain('var(--paper');
+    expect(css).not.toMatch(/\.wl-side\{[^}]*rgba\(255,255,255/);
   });
 });

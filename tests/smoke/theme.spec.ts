@@ -1,37 +1,29 @@
-// Theme (docs/PRD.md §4.3, milestone M1): the Worker paints the saved theme before any script, from the cookie,
-// and links the one token file first; the account menu switches it on the open page.
+// Tokens and ink menus (docs/PRD.md §4.2, milestone M1; Leen 2026-11-19: «الداكن خله للقوائم بس»): every page links the one
+// token file first; content stays light, the sidebar and its menus are always dark; there is no theme switch.
 import { test, expect } from '@playwright/test';
 import { login, addSession } from './helpers';
 
-const bg = (page: import('@playwright/test').Page) => page.evaluate(() => getComputedStyle(document.documentElement).getPropertyValue('--background').trim());
+const v = (page: import('@playwright/test').Page, sel: string, name: string) =>
+  page.evaluate(([s, n]) => getComputedStyle(document.querySelector(s!)!).getPropertyValue(n!).trim(), [sel, name]);
 
-test('no cookie: light, with tokens.css linked first in <head>', async ({ page, context, request }) => {
+test('tokens.css is linked first; content light, sidebar ink', async ({ page, context, request }) => {
   await addSession(context, await login(request, 'owner'));
   await page.goto('/control/');
-  await expect(page.locator('html')).toHaveAttribute('data-theme', 'light');
   const first = await page.evaluate(() => document.head.querySelector('link[rel=stylesheet]')?.getAttribute('href') ?? '');
   expect(first).toMatch(/\/assets\/tokens\.css$/);
-  expect(await bg(page)).toBe('#F1EEFA');
+  expect(await v(page, 'html', '--paper')).toBe('#FFFFFF');
+  await expect(page.locator('#side .navi').first()).toBeVisible();
+  expect(await v(page, '#side', '--paper')).toBe('#1D1069');
+  // the old aliases follow inside the sidebar too
+  expect(await v(page, '#side', '--ink')).toBe('#F3F0FF');
+  expect(await page.evaluate(() => getComputedStyle(document.querySelector('#side')!).backgroundColor)).toBe('rgb(29, 16, 105)');
 });
 
-test('dark cookie: dark from the first paint', async ({ page, context, request, baseURL }) => {
-  await addSession(context, await login(request, 'owner'));
-  await context.addCookies([{ name: 'well-theme', value: 'dark', url: baseURL! }]);
-  await page.goto('/control/');
-  await expect(page.locator('html')).toHaveAttribute('data-theme', 'dark');
-  expect(await bg(page)).toBe('#120D2B');
-});
-
-test('the account menu cycles light → dark → match device and saves it', async ({ page, context, request }) => {
+test('the account menu is ink and has no theme switch', async ({ page, context, request }) => {
   await addSession(context, await login(request, 'owner'));
   await page.goto('/control/');
   await page.locator('#meBtn').click();
-  const btn = page.locator('#themeBtn');
-  await btn.click();
-  await expect(page.locator('html')).toHaveAttribute('data-theme', 'dark');
-  await btn.click();
-  await expect(page.locator('html')).toHaveAttribute('data-theme', 'system');
-  expect((await context.cookies()).find(c => c.name === 'well-theme')?.value).toBe('system');
-  await page.reload();
-  await expect(page.locator('html')).toHaveAttribute('data-theme', 'system');
+  await expect(page.locator('#meMenu')).toBeVisible();
+  expect(await v(page, '#meMenu', '--paper')).toBe('#1D1069');
+  await expect(page.locator('#themeBtn')).toHaveCount(0);
 });

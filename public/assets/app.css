@@ -476,3 +476,18 @@ html[lang=en] .nv-g:not([data-open]) .nv-c,[dir=ltr] .nv-g:not([data-open]) .nv-
 .app.mini .nv-g:hover .nv-s,.app.mini .nv-g:focus-within .nv-s{display:flex;position:absolute;inset-inline-start:calc(100% + 6px);inset-block-start:0;z-index:70;min-width:200px;padding:8px;gap:2px;background:var(--surface);border:1px solid var(--line);border-radius:16px;box-shadow:var(--shadow)}
 .app.mini .nv-s .navi{justify-content:flex-start;padding:0 14px}
 .app.mini .nv-s .navi>span{display:inline}
+
+/* ---- Ink surfaces (sidebar, menus): always dark (Leen, 2026-11-19). tokens.css switches the colours on these selectors;
+   the aliases below are computed again here, otherwise they would keep the light value inherited from :root. */
+.side,.menu{
+  --bg:var(--background);--surface:var(--paper);--ink:var(--foreground);--deep:var(--brand-deep);--accent:var(--primary);
+  --soft:var(--brand-soft);--pulse:var(--destructive);--text:var(--ink);
+  --muted:color-mix(in srgb,var(--ink) 62%,transparent);
+  --line:color-mix(in srgb,var(--soft) 60%,transparent);
+  --tint:color-mix(in srgb,var(--accent) 14%,transparent);
+  --tint-2:color-mix(in srgb,var(--accent) 22%,transparent);
+  --focus:color-mix(in srgb,var(--accent) 35%,transparent);
+  --glass:var(--paper);--glass-strong:color-mix(in srgb,var(--foreground) 10%,var(--paper));
+  --glass-edge:color-mix(in srgb,var(--foreground) 12%,transparent);
+  color:var(--text);
+}

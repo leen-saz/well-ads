@@ -2,7 +2,6 @@
 import { LANG, t, langSwitch, restoreDraft } from './i18n.js';
 import { sections, TIP, groupNav, navHtml, syncNav, wireNav } from './sidebar.js';
 import { agentDots } from './agentdots.js';
-import { THEME_NAMES, currentTheme, setTheme, nextTheme } from './theme.js';
 import { ME_KEY, FRESH, readMe, slim } from './me-cache.js';
 export { LANG, t, langSwitch };
 // Pages switch with Astro's ClientRouter: listeners on document/window of one page are removed when it leaves
@@ -117,7 +116,6 @@ const P = {
   star: '<path d="M12 3l1.9 5.8L20 11l-6.1 2.2L12 19l-1.9-5.8L4 11l6.1-2.2Z"/>',
   grid: '<rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/>',
   user: '<circle cx="12" cy="8" r="4"/><path d="M20 21a8 8 0 0 0-16 0"/>',
-  moon: '<path d="M20 14.5A8 8 0 0 1 9.5 4a8 8 0 1 0 10.5 10.5z"/>',
   out: '<path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><path d="m16 17 5-5-5-5"/><path d="M21 12H9"/>',
   menu: '<path d="M4 6h16M4 12h16M4 18h16"/>',
   plus: '<path d="M12 5v14M5 12h14"/>',
@@ -207,13 +205,10 @@ function drawSide(side, me, active) {
     <a class="navi" href="/settings/" data-k="settings"${active === 'settings' ? ' aria-current="page"' : ''}>${icon('settings')}<span>الإعدادات</span></a>
     <button class="me" id="meBtn" aria-haspopup="menu" aria-expanded="false"><span class="avatar">${esc(initials)}</span>
       <span class="who"><b>${esc(me.name || me.email || '')}</b><span class="muted">${me.role === 'owner' ? 'المالك' : (me.departments || []).length ? 'مدير قسم' : 'عضو'}</span></span></button>
-    <div class="menu" id="meMenu" role="menu" hidden><a href="/account/" role="menuitem">${icon('user')}حسابي</a><button type="button" role="menuitem" id="themeBtn">${icon('moon')}<span>المظهر: <b data-theme-name>${THEME_NAMES[currentTheme()]}</b></span></button><form method="post" action="/api/auth/logout" style="margin:0"><button type="submit" role="menuitem">${icon('out')}خروج</button></form></div>`;
+    <div class="menu" id="meMenu" role="menu" hidden><a href="/account/" role="menuitem">${icon('user')}حسابي</a><form method="post" action="/api/auth/logout" style="margin:0"><button type="submit" role="menuitem">${icon('out')}خروج</button></form></div>`;
   const nv = side.querySelector('[data-nv]'); wireNav(nv); syncNav(nv, active, groupNav(sections(me, L), active).cur?.key);
   if (!side.dataset.dots) { side.dataset.dots = '1'; side._dots = agentDots(side, L); }
   side.querySelector('form')?.addEventListener('submit', () => { try { localStorage.removeItem(ME_KEY); } catch { /* storage blocked */ } });
-  // Light → dark → follow the device; the menu stays open so the next press is one click away
-  const tb = $('#themeBtn', side);
-  if (tb) tb.onclick = e => { e.stopPropagation(); const t = nextTheme(currentTheme()); setTheme(t); tb.querySelector('[data-theme-name]').textContent = THEME_NAMES[t]; };
   // Navigation labels as tooltips, used when the menu is folded to icons
   side.querySelectorAll('.navi').forEach(a => { const t = a.querySelector('span')?.textContent; if (t && !a.title) a.title = t; });
   const qb = $('#qcBtn', side), qm = $('#qcMenu', side);
