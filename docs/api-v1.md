@@ -54,7 +54,7 @@ The key goes in the `Authorization: Bearer` header **only**. In the address (`?k
 |---|---|
 | `GET /api/v1/dash` | The overview data (`site/dash.json`): ads, daily rows as `[ad, day, spend, impressions, clicks, leads, conversations]`, platforms, departments, targets. The CRM block is **totals only** (`crm.by_ad`, totals, stats); no lead rows. |
 | `GET /api/v1/overview` | Totals for a period (`from`, `to`; default the last 30 days of data), the funnel targets and the marketing judge's verdict. |
-| `GET /api/v1/ads` | Every ad with status, `live` (switched on), `delivery` (really delivering, or why not: `delivering`, `no_spend`, `rejected`, `in_review`, `scheduled`, `ended`, `budget`, `off`), `delivery_reason`, `delivery_days` and the period's metrics (spend, impressions, clicks, leads, conversations, ctr, cost per result). Filters: `platform`, `status`, `from`, `to`, `limit` (default 500, at most 2,000). Sorted by spend. |
+| `GET /api/v1/ads` | Every ad with status, `live` and the period's metrics (spend, impressions, clicks, leads, conversations, ctr, cost per result). Filters: `platform`, `status`, `from`, `to`, `limit` (default 500, at most 2,000). Sorted by spend. |
 | `GET /api/v1/decisions` | Open suggestions of the decisions board, the latest decided ones and the measured outcomes of executed actions. No names or emails of who decided. |
 | `GET /api/v1/campaigns` | Ahlam campaigns (title, status, estimate, dates) with each task's agent, title and status. No generated text, pictures or voice, no author emails. |
 | `GET /api/v1/health` | Data freshness: age of the numbers and the CRM, the hourly refresh result, each pipeline step's status. No dependencies, versions, migrations or environment. |

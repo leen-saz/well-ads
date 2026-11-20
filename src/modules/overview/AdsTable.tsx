@@ -8,6 +8,7 @@ import {
   tableFeatures, useTable,
 } from '@tanstack/react-table';
 import { ArrowUpDown, ChevronLeft, ChevronRight, Columns3 } from 'lucide-react';
+import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { DropdownMenu, DropdownMenuCheckboxItem, DropdownMenuContent, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
@@ -17,7 +18,6 @@ import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle } from '
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { type AdRow, type Dash, adDaily, byAd, goalName, platformName } from './numbers';
 import { DayChart } from './TrendChart';
-import { DeliveryBadge } from './DeliveryBadge';
 import { pct, qty, sar } from './format';
 import { T, pageLang } from './lang';
 
@@ -55,7 +55,7 @@ const columns: ColumnDef<Feats, AdRow>[] = [
   { accessorKey: 'goal', header: () => T('الهدف', 'Goal'), cell: ({ row }) => goalName(row.original.goal) },
   {
     accessorKey: 'live', header: () => T('الحالة', 'Status'),
-    cell: ({ row }) => <DeliveryBadge ad={row.original} />,
+    cell: ({ row }) => <Badge variant={row.original.live ? 'default' : 'outline'}>{row.original.live ? T('شغّال', 'Running') : T('متوقف', 'Paused')}</Badge>,
   },
   { accessorKey: 'spend', header: sortable('الصرف', 'Spend'), cell: ({ row }) => <span className="tabular-nums">{sar(row.original.spend)}</span> },
   { accessorKey: 'results', header: sortable('النتائج', 'Results'), cell: ({ row }) => <span className="tabular-nums">{qty(row.original.results)}</span> },

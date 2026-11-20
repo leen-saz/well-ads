@@ -279,7 +279,6 @@ def main():
             word = "نشط" if live else STATUS.get(st, "متوقف")
             if not live and word == "نشط":
                 word = "متوقف"
-            now = datetime.now(timezone(timedelta(hours=3)))
             ads["t" + x["ad_id"]] = dict(
                 platform="tiktok", name=(x.get("ad_name") or x["ad_id"]).strip("‎ "), campaign=(x.get("campaign_name") or "").strip(),
                 group=(x.get("adgroup_name") or "").strip(), format="فيديو", status=word, live=live,
@@ -287,9 +286,6 @@ def main():
                 thumb=covers.get(str(x["ad_id"])) or (prev.get("ads", {}).get("t" + x["ad_id"]) or {}).get("thumb"),
                 link=f"https://www.tiktok.com/embed/v2/{x['tiktok_item_id']}" if x.get("tiktok_item_id") else None,
                 goal=GOAL.get(obj.get(x.get("campaign_id"), ""), "other"))
-            import delivery
-            delivery.stamp(ads["t" + x["ad_id"]], delivery.tiktok_state(x, None, live, now),
-                           delivery.fresh_from(x.get("create_time"), x.get("modify_time"), now=now))
             # Recomputed from this run's data every time: a changed link or ad group must be able to clear the tag
             dest = dest_for(x, goal=ads["t" + x["ad_id"]]["goal"])
             if dest:
