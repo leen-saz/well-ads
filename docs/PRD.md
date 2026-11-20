@@ -260,7 +260,7 @@
 
 **التنفيذ (تحديث 2026-11-20):** النشر ينادي أداة `social.post.publish` في Well MCP (3.0)، والمحركات (Graph، Postiz، Zernio إن اعتُمد) Adapters تحته.
 
-**البيانات (ميجريشن `039_social_v2.sql`، كان مقترح 041):**
+**البيانات (ميجريشن `040_social_v2.sql`):**
 ```sql
 alter table social_posts add column if not exists overrides jsonb not null default '{}'; -- { "<platform>": { "body": text, "media": [...] } }
 alter table social_posts add column if not exists slot_id bigint;
@@ -653,8 +653,8 @@ create table webhook_deliveries (id bigserial primary key, company_id uuid not n
 | M2 | حارس الميجريشن + أهداف اللمس 44px | PR #344 |
 | M3 | مركز الاعتماد (بدون SQL) | PR #345 |
 | M4 | ⌘K + الاختصارات + العدّاد الحي | PR #346 |
-| M5 | صحة الحسابات + المجموعات (SQL 038) | PR #360 |
-| M6 | نص لكل منصة + الطابور + التقويم (SQL 039) | PR #361 |
+| M5 | صحة الحسابات + المجموعات (SQL 039) | PR #360 |
+| M6 | نص لكل منصة + الطابور + التقويم (SQL 040) | PR #361 |
 | M8 | حلقة التعلّم تشتغل كل ساعة (بدون SQL) | PR #362 |
 
 **الجاي (معاد ترتيبه بعد قرار MCP الواحد):**
@@ -676,7 +676,7 @@ create table webhook_deliveries (id bigserial primary key, company_id uuid not n
 
 **مفاتيح عامة تدخلها لين بنفسها (لا أطبعها ولا أكتبها):** `META_APP_ID`، `META_APP_SECRET`، `GOOGLE_ADS_CLIENT_ID`، `GOOGLE_ADS_CLIENT_SECRET`، `YOUTUBE_API_KEY`، ومفتاح Zernio إن اعتُمد.
 
-**SQL معلّق على قاعدة Well:** `038_account_health.sql` و`039_social_v2.sql`. موصّل Supabase في هالجلسة يشوف مشاريع هوفن بس (`hoven-ads`، `hoven-dashboard`)، فما انطبقوا: يحتاج ربط مشروع وِل بالموصّل أو تشغيلهم يدوي.
+**SQL معلّق على قاعدة Well:** `039_account_health.sql` و`040_social_v2.sql` (أُعيد ترقيمهم لأن `038_cascade_fk_indexes.sql` دخل main). موصّل Supabase في هالجلسة يشوف مشاريع هوفن بس (`hoven-ads`، `hoven-dashboard`)، فما انطبقوا: يحتاج ربط مشروع وِل بالموصّل أو تشغيلهم يدوي.
 
 ---
 
