@@ -142,7 +142,7 @@ def google_stamp_all(P, q):
     seen = {}
     try:
         for r in q("SELECT ad_group_ad.ad.id, ad_group_ad.primary_status, ad_group_ad.policy_summary.approval_status, "
-                   "campaign.primary_status, campaign.serving_status FROM ad_group_ad WHERE ad_group_ad.status != 'REMOVED'"):
+                   "campaign.primary_status, campaign.primary_status_reasons FROM ad_group_ad WHERE ad_group_ad.status != 'REMOVED'"):
             seen["g" + r["adGroupAd"]["ad"]["id"]] = r
     except Exception as ex:
         print("جوجل: حالة المراجعة والجدولة ما انسحبت، التسليم من الصرف فقط —", error_code(ex), file=sys.stderr)
@@ -151,7 +151,7 @@ def google_stamp_all(P, q):
         aga, camp = r.get("adGroupAd") or {}, r.get("campaign") or {}
         dlv.guarded(ad, lambda: dlv.google_state(
             (aga.get("policySummary") or {}).get("approvalStatus"), aga.get("primaryStatus"),
-            camp.get("primaryStatus"), camp.get("servingStatus"), bool(ad.get("live"))))
+            camp.get("primaryStatus"), camp.get("primaryStatusReasons")))
 
 
 def meta_preview(creative, video_url=None):
@@ -261,7 +261,7 @@ def meta(P):
                  link=f"https://adsmanager.facebook.com/adsmanager/manage/ads?act={A[4:]}&selected_ad_ids={ad_id}")
         m["goal"] = goal.get(ad_id) or meta_goal(a["adset"].get("optimization_goal"))
         now = datetime.now(RIYADH)
-        dlv.guarded(m, lambda: dlv.meta_state(a, live, now), lambda: dlv.fresh_from(a.get("created_time"), a.get("updated_time"), now=now))
+        dlv.guarded(m, lambda: dlv.meta_state(a, now), lambda: dlv.fresh_from(a.get("created_time"), a.get("updated_time"), now=now))
         # الصورة المحفوظة قد تكون تحت المفتاح القديم m{id} أو تحت موضع واحد.
         old = CACHE.get("m" + ad_id) or next((CACHE[k] for k in CACHE if k.startswith("m" + ad_id + "|") and CACHE[k].get("thumb")), {})
         fresh = keep_thumb("m" + ad_id, m, c.get("image_url") or c.get("thumbnail_url"))
@@ -328,7 +328,7 @@ def meta(P):
                               "goal": goal.get(ad_id, old.get("goal", "other")),
                               "status": old["status"] if old.get("status") not in ("نشط", None) else "متوقف"}
                 word = P.ads[key]["status"]
-                dlv.guarded(P.ads[key], lambda: ({"مرفوض": "rejected", "قيد المراجعة": "in_review"}.get(word, "off"), "", True))
+                dlv.guarded(P.ads[key], lambda: ({"مرفوض": "rejected", "قيد المراجعة": "in_review"}.get(word, "off"), ""))
                 P.ads[key]["delivery_reason"] = dlv.REASON.get(P.ads[key].get("delivery"), word)
                 P.ads[key].pop("fresh_at", None)
             continue
@@ -507,7 +507,7 @@ def snap(P):
                     status=word, live=live,
                     goal="lead" if camps[sq["campaign_id"]].get("objective") in ("LEADS", "LEAD_GENERATION") else "other")
         now = datetime.now(RIYADH)
-        dlv.guarded(base, lambda: dlv.snap_state(a, sq, camps.get(sq["campaign_id"]), live, now),
+        dlv.guarded(base, lambda: dlv.snap_state(a, sq, camps.get(sq["campaign_id"]), now),
                     lambda: dlv.fresh_from(a.get("created_at"), a.get("updated_at"), now=now))
         old = CACHE.get(key, {})
         if old.get("thumb") and old.get("media_type"):

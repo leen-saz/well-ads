@@ -24,7 +24,7 @@ def snap_api(url, **kw):
         return {"adsquads": [{"adsquad": {"id": "q1", "name": "Squad", "status": "ACTIVE", "campaign_id": "c1"}}]}
     if u.endswith("/ads"):
         return {"ads": [{"ad": {"id": f"a{i}", "name": f"Ad {i}", "status": st, "ad_squad_id": "q1", "creative_id": "cr",
-                                "review_status": rv, "created_at": STAMP(-30), "updated_at": STAMP(-30)}}
+                                **({"review_status": rv} if rv else {}), "created_at": STAMP(-30), "updated_at": STAMP(-30)}}
                         for i, (st, rv) in enumerate([("ACTIVE", "APPROVED"), ("ACTIVE", "REJECTED"), ("PAUSED", "APPROVED"), ("ACTIVE", None)])]}
     if "/stats" in u:
         return {"timeseries_stats": [{"timeseries_stat": {"breakdown_stats": {"ad": [
@@ -53,6 +53,9 @@ class SnapLiveUnchanged(unittest.TestCase):
         P = self.run_snap()
         self.assertEqual({k: v["live"] for k, v in P.ads.items()}, {"sa0": True, "sa1": True, "sa2": False, "sa3": True})
         self.assertEqual(P.ads["sa1"]["delivery"], "rejected")        # rejected: still switched on, so live stays True
+        self.assertEqual(P.ads["sa0"]["delivery"], "delivering")
+        self.assertEqual(P.ads["sa2"]["delivery"], "off")
+        self.assertEqual(P.ads["sa3"]["delivery"], "unknown")           # no review_status came back: not a guess
         self.assertEqual(P.ads["sa0"]["status"], "نشط")
         self.assertTrue(P.status_catalog)
 
@@ -79,7 +82,7 @@ class SnapLiveUnchanged(unittest.TestCase):
         finally:
             delivery.snap_state = keep
         self.assertEqual({k: v["live"] for k, v in P.ads.items()}, {"sa0": True, "sa1": True, "sa2": False, "sa3": True})
-        self.assertEqual(P.ads["sa0"].get("delivery_fb"), 1)
+        self.assertEqual(P.ads["sa0"]["delivery"], "unknown")
 
 
 class OtherPlatforms(unittest.TestCase):
@@ -90,7 +93,7 @@ class OtherPlatforms(unittest.TestCase):
             item = {"ad_id": "1", "ad_name": "x", "campaign_id": "c", "adgroup_id": "g", "operation_status": "ENABLE", "secondary_status": st}
             out = _describe(item, {}, {"c": "ENABLE"}, {"g": "ENABLE"}, {"g": {"schedule_end_time": "2020-01-01 00:00:00"}})
             self.assertTrue(out["live"], st)
-            self.assertIn(out["delivery"], ("delivering", "rejected", "in_review", "scheduled", "ended", "budget"))
+            self.assertIn(out["delivery"], ("delivering", "rejected", "in_review", "scheduled", "ended", "budget", "unknown"))
         off = _describe({"ad_id": "2", "operation_status": "DISABLE", "campaign_id": "c", "adgroup_id": "g"}, {}, {"c": "ENABLE"}, {"g": "ENABLE"})
         self.assertFalse(off["live"])
 
@@ -99,7 +102,7 @@ class OtherPlatforms(unittest.TestCase):
                                                                     "start_time": "2030-01-01T00:00:00+0300"},
              "campaign": {"name": "c", "effective_status": "ACTIVE"}, "creative": {}}
         import delivery
-        self.assertEqual(delivery.meta_state(a, True, NOW)[0], "scheduled")   # scheduled, yet the switch says on
+        self.assertEqual(delivery.meta_state(a, NOW)[0], "scheduled")   # scheduled, yet the switch says on
         self.assertEqual(F.google_delivery("ENABLED", "ENABLED", "ENABLED"), ("نشط", True))
         self.assertEqual(F.google_delivery("ENABLED", "PAUSED", "ENABLED"), ("متوقف", False))
 

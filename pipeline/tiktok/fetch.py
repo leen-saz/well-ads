@@ -235,7 +235,7 @@ def _describe(item, objectives, camp_on, group_on, groups=None):
         goal=GOAL.get(objectives.get(cid, ""), "other"),
     )
     now = datetime.now(delivery.RIYADH)
-    delivery.guarded(out, lambda: delivery.tiktok_state(ad, (groups or {}).get(gid), live, now),
+    delivery.guarded(out, lambda: delivery.tiktok_state(ad, (groups or {}).get(gid), now),
                      lambda: delivery.fresh_from(ad.get("create_time"), ad.get("modify_time"), now=now))
     dest = dest_for(ad, (groups or {}).get(gid), out["goal"])
     if dest:
