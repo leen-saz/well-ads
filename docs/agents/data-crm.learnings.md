@@ -6,6 +6,12 @@
 
 ## الدروس
 
+### 2026-11-20 · مفاتيح أجنبية بـ on delete cascade بلا فهرس يبدأ بعمودها
+- **الدرس:** Postgres لا ينشئ فهرساً على عمود المفتاح الأجنبي، وحذف صف أب يمسح جدول الأبناء كاملاً ليجد صفوفه. فحص نصي على المهاجرات لقي ثلاثة أعمدة cascade بلا فهرس: `listen_mentions.watch_id` و`campaign_outputs.task_id` و`video_jobs.project_id` (فهرسه يبدأ بـ company_id). مفاتيح بلا cascade (`journey_runs.company_id` وأمثالها) تركناها عمداً: كلفتها فقط عند حذف شركة، والفهرس الإضافي يكلّف كل كتابة.
+- **المصدر:** https://www.postgresql.org/docs/current/ddl-constraints.html و https://supabase.com/docs/guides/database/database-advisors?lint=0001_unindexed_foreign_keys (اطُّلع عليهما 2026-11-20).
+- **الأثر:** PR هذه الجولة: مهاجرة `038_cascade_fk_indexes.sql` (ثلاثة فهارس، إضافية وقابلة للإعادة) واختبار في `migrations-rls.test.ts` يفشل لأي cascade جديد بلا فهرس. تشغيلها على لين.
+- **مؤجل:** فهارس المفاتيح بلا cascade إن ظهر استعلام ثقيل يستعملها؛ وإنشاء الفهارس `concurrently` لا يمكن داخل مهاجرة بمعاملة، والجداول صغيرة فلا حاجة.
+
 ### 2026-11-13 · إصدار واجهة ميتا في الكود تجاوز نهاية دعمه للإعلانات ولم ينبّه أحد
 - **الدرس:** الكود كله على Graph `v23.0` (أكثر من عشرة ملفات بين البايبلاين والـWorker). صفحة إصدارات ميتا تقول إن دعم Marketing API لهذا الإصدار انتهى في 2026-06-09 (ويبقى لنداءات Graph غير الإعلانية حتى 2027-10-08)، وإن النداء على إصدار منتهٍ «قد يفشل أو يُرقّى للإصدار التالي المتاح»، والترقية التلقائية لا تُطبّق على النقاط التي تغيّرت. يعني السحب يعمل اليوم على إصدار أحدث مما نكتبه، دون أن نراجع تغييراته. قوقل `v24` ينتهي في مايو 2027 ولا ترقية تلقائية عندهم. سناب أعلن في 2026-09-11 إيقاف فئة العمر `35+` في تقسيم الجمهور (كودنا يمرر الفئة كما هي، فلا ينكسر لكن الفئات قد تتغير). تيك توك `v1.3`: لم نستطع قراءة صفحة عامة تؤكد تاريخاً.
 - **المصدر:** https://developers.facebook.com/docs/graph-api/changelog/versions و https://developers.facebook.com/docs/marketing-api/versions و https://developers.google.com/google-ads/api/docs/sunset-dates و https://developers.snap.com/api/marketing-api/Ads-API/changelog (كلها اطُّلع عليها 2026-11-13).

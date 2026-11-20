@@ -81,7 +81,12 @@ function ensureCompliance(tasks: PlanTask[]): void {
   const writers = tasks.flatMap((t, i) => (WRITERS.includes(t.agent) ? [i] : []));
   if (!writers.length || tasks.some(t => t.agent === 'compliance')) return;
   if (tasks.length >= MAX_TASKS) { const last = tasks[tasks.length - 1]!; if (WRITERS.includes(last.agent)) return; tasks.pop(); }
-  tasks.push({ agent: 'compliance', title: AGENTS.compliance.ar, detail: 'فحص كل المسودات قبل الاعتماد', after: writers.filter(i => i < tasks.length) });
+  const gate = { agent: 'compliance' as const, title: AGENTS.compliance.ar, detail: 'فحص كل المسودات قبل الاعتماد' };
+  // The plan is told to END with the measurement plan: a trailing optimize task keeps the last place, and the gate goes just before it
+  // (nothing points at the last task, so no `after` shifts) and optimize waits for it.
+  const last = tasks[tasks.length - 1]!;
+  if (last.agent === 'optimize') { const at = tasks.length - 1; tasks.splice(at, 0, { ...gate, after: writers }); last.after = [...new Set([...last.after, at])]; return; }
+  tasks.push({ ...gate, after: writers.filter(i => i < tasks.length) });
 }
 
 // The motion deliverable is a real video file: a plan with a motion task gets the video task at the very end, after the compliance gate has

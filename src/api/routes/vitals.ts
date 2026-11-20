@@ -14,6 +14,6 @@ export const report = { POST: handle(async (request, e) => {
   if (!v) return json(400, { error: 'تقرير غير صالح' });
   console.log(JSON.stringify({ event: 'web_vital', ...v }));
   // A table that is not created yet (or a failed write) must never fail the page: the log line above is the fallback
-  await sb(cfg, '/rest/v1/web_vitals', { method: 'POST', admin: true, headers: { Prefer: 'return=minimal' }, body: v }).catch(() => {});
+  await sb(cfg, '/rest/v1/web_vitals', { method: 'POST', admin: true, timeoutMs: 3000, headers: { Prefer: 'return=minimal' }, body: v }).catch(() => {});
   return json(200, { ok: true });
 }) };
