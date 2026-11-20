@@ -13,6 +13,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { type Dash, DEP_AR, DEP_EN, goalName as goalOf, countsAsLead, isWhatsappDest, lastDay, platformName } from './numbers';
 import { ALL, type CreativeAd, type Dir, type Filters, type Idea, type Metrics, type Sort, best, cplDiffers, ideas, media, options, sortIdeas } from './creatives';
 import { useDash } from './useDash';
+import { DeliveryBadge } from './DeliveryBadge';
 import { PeriodFilter, type Period } from './PeriodFilter';
 import { CreativeSkeleton } from './Skeletons';
 import { longDay, pct, qty, sar } from './format';
@@ -140,7 +141,7 @@ function IdeaCard({ idea, onOpen }: { idea: Idea; onOpen: () => void }) {
         <div className="flex flex-wrap gap-1">
           {idea.platforms.map(p => <Badge key={p} variant="secondary">{platformName(p)}</Badge>)}
           <Badge variant="outline">{qty(idea.versions.length)} {idea.versions.length === 1 ? T('نسخة', 'version') : T('نسخ', 'versions')}</Badge>
-          <Badge variant={idea.live ? 'default' : 'outline'}>{idea.live ? T('شغّال', 'Running') : T('متوقف', 'Paused')}</Badge>
+          <DeliveryBadge ads={idea.ads.map(x => x.ad)} />
         </div>
         <div className="line-clamp-2 font-medium leading-snug" title={idea.name}>{idea.name}</div>
         {idea.ad.text && <p className="line-clamp-2 text-sm text-muted-foreground">{idea.ad.text}</p>}
@@ -250,7 +251,7 @@ function IdeaDetail({ data, idea }: { data: Dash; idea: Idea }) {
                       <div className="max-w-64 truncate text-xs text-muted-foreground" title={`${x.ad.campaign}${x.ad.group ? ' · ' + x.ad.group : ''}`}>{x.ad.campaign}{x.ad.group ? ` · ${x.ad.group}` : ''}</div>
                     </TableCell>
                     <TableCell>{platformName(x.ad.platform)}<div className="text-xs text-muted-foreground">{goalName(x.ad.goal || '')}</div></TableCell>
-                    <TableCell><Badge variant={x.ad.live ? 'default' : 'outline'}>{x.ad.live ? T('شغّال', 'Running') : T('متوقف', 'Paused')}</Badge></TableCell>
+                    <TableCell><DeliveryBadge ad={x.ad} /></TableCell>
                     <TableCell className="tabular-nums">{sar(x.spend)}</TableCell>
                     <TableCell className="tabular-nums">{qty(x.results)}</TableCell>
                     <TableCell className="tabular-nums">{countsAsLead(x.ad) ? (x.ad.dest === 'unknown' ? <>{sar(x.cpl)}<div className="text-xs text-muted-foreground">{T('وجهة غير معروفة', 'Destination unknown')}</div></> : sar(x.cpl)) : isWhatsappDest(x.ad) ? <span className="text-xs text-muted-foreground">{T('واتساب، الليدز ما تنقاس من المنصة', 'WhatsApp, leads are not measured by the platform')}</span> : '—'}</TableCell>

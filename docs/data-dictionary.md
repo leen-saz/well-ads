@@ -86,6 +86,32 @@ by code that is live on main; open «المدير ← صحة الداتا ← ا
 | `voiceover_settings` | 026 | voiceover | yes (FK, one row per company) | company_id PK, voice, accent, tone, pace, updated_by | Forever (one row). The audio itself is never stored. |
 | `motion_versions` | 018 | design (video) | yes (FK) | id, project_id, version, parent_version, change_request, spec, engine, model | Never edited; goes with its project. |
 
+## Ad delivery fields (dash.json `ads`)
+
+`live` means **switched on** (ad, ad group/squad/ad set and campaign all on), exactly as computed before the delivery layer. The decision board, the media buyer rules and the counts read it. The delivery layer (`pipeline/delivery.py`) only **adds** fields and never touches `live` or `status`. It is computed in the pipeline on every refresh and is not stored in Supabase (the `ads` table keeps `live`), so a database-only read falls back to `live`.
+
+The verdict comes **only from the platform's own API fields**. Spend never decides it.
+
+| Field | Values | Meaning |
+|---|---|---|
+| `delivery` | `delivering`, `rejected`, `in_review`, `scheduled`, `ended`, `budget`, `off`, `unknown` | `delivering` = the platform says nothing blocks it. `off` = switched off (or an ancestor is). `unknown` = the field needed for the verdict could not be read for this ad (reason «ما قدرنا نقرأ الحالة من المنصة»): not a guess, not `off`. `rejected`/`in_review` can also be on a switched-off ad. |
+| `delivery_reason` | fixed Arabic set (`REASON` in `delivery.py`), or the platform status word for `off` | Hover text and the line under the badge. Empty for `delivering`. |
+| `delivery_days_no_spend` | integer | **Secondary note only** («بدون صرف من N أيام»): switched on, and no spend or impressions from today-2 to today. Days since the last spend, or 3 when none is recorded. Never changes `delivery`. Not set for ads created or switched on in the last 24 hours, or for a platform whose refresh failed. |
+| `fresh_at` | ISO time | Created or switched on within 48 hours (or first seen by the pipeline); exempts the ad from the note for 24 hours. Dropped after 48 hours. |
+
+Exact field and value mapping per platform (same text as the docstring in `delivery.py`; tests in `pipeline/tests/test_delivery.py` use these value names):
+
+| Platform | Fields | Mapping |
+|---|---|---|
+| Meta (Graph v23) | ad `effective_status`; ad set and campaign `effective_status`, `start_time`, `end_time`/`stop_time`, `lifetime_budget`, `budget_remaining` (a separate optional call) | `DISAPPROVED`→rejected; `PENDING_REVIEW`, `IN_PROCESS`→in_review; `PREAPPROVED`→scheduled; `ACTIVE`→ requires ad set and campaign `ACTIVE` (else off), then `start_time` in the future→scheduled, `end_time`/`stop_time` passed→ended, `lifetime_budget`>0 with `budget_remaining`<=0→budget, else delivering; every other status (`PAUSED`, `ADSET_PAUSED`, `CAMPAIGN_PAUSED`, `WITH_ISSUES`, `ARCHIVED`, `DELETED`…)→off. Missing status, or no schedule fields on an `ACTIVE` ad→unknown. |
+| Snapchat (v1) | ad `review_status`, ad / ad squad / campaign `status`, ad squad and campaign `start_time`/`end_time` | `REJECTED`→rejected; `PENDING_REVIEW`→in_review; any of the three `status` not `ACTIVE`→off; squad then campaign `start_time` future→scheduled, `end_time` passed→ended; else delivering. No `review_status` or a missing `status`→unknown. |
+| TikTok (Business API v1.3) | ad `secondary_status`; ad group `schedule_start_time`/`schedule_end_time` (confirm only) | `AD_STATUS_DELIVERY_OK`→delivering; `AD_STATUS_AUDIT`, `AD_STATUS_REAUDIT`→in_review; `AD_STATUS_AUDIT_DENY`, `AD_STATUS_REAUDIT_DENY`, `AD_STATUS_PARTIAL_AUDIT_DENY`→rejected; `AD_STATUS_NOT_START`, `AD_STATUS_SCHEDULE_NOT_START`→scheduled; `AD_STATUS_DONE`, `AD_STATUS_SCHEDULE_DONE`, `AD_STATUS_TIME_DONE`→ended; `AD_STATUS_BUDGET_EXCEED`, `AD_STATUS_CAMPAIGN_EXCEED`→budget; `*_DISABLE`, `*_DELETE`, `AD_STATUS_BALANCE_EXCEED`→off. Any other or empty value→unknown. A delivering ad whose ad group schedule has ended or not started becomes ended/scheduled. |
+| Google (Ads API v24) | `ad_group_ad.policy_summary.approval_status`, `ad_group_ad.primary_status`, `campaign.primary_status`, `campaign.primary_status_reasons` (a separate optional query) | approval `DISAPPROVED`→rejected; campaign `ENDED`→ended; `PENDING`→scheduled; campaign or ad `PAUSED`/`REMOVED`→off; ad `PENDING`→in_review; campaign `ELIGIBLE`, `LIMITED`, `LEARNING`→delivering; `NOT_ELIGIBLE`→by reason (`ENDED`, `PENDING`, `DISAPPROVED`, `UNDER_REVIEW`, `BUDGET`), else unknown; `MISCONFIGURED`, missing→unknown. |
+
+Not given by the current API versions: Snapchat and TikTok expose no remaining-budget field (so `budget` is only seen through TikTok's `secondary_status`); Google has no per-ad budget; Meta `issues_info` and Google `ad_group_ad.primary_status_reasons` are not used (no verdict hangs on them). Meta ad sets and campaigns without a `start_time` in the response give `unknown` rather than a guess.
+
+**Guards (added after the 2026-11-20 incident).** The delivery layer only adds fields and can never change `live`, `status` or which ads exist: every platform call goes through `delivery.guarded` (an error becomes "status unknown, judge by spend"), the extra Meta and Google fields are fetched in separate optional calls so the core pulls are the same requests as before, and `fetch_data.py` refuses to write `dash.json` when switched-on ads fall by more than half versus the previous run (per platform with a successful pull, and in total) unless the run was started with `live_drop_reason` (refresh.yml input, env `LIVE_DROP_REASON`).
+
 ## Indexes against the queries the code makes
 
 Covered: ads by company/platform; ad_metrics by day and by (ad_key, day) PK; audit_log by (company, at); crm_leads by

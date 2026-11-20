@@ -14,6 +14,7 @@ from tiktok.merge import (
     GOAL, STATUS, is_excluded_account, is_excluded_ad,
     tiktok_live, dest_for, without_excluded,
 )
+import delivery
 
 BASE = "https://business-api.tiktok.com/open_api/v1.3/"
 # نفس معامل الدولار في fetch_data.py. حساب الريال يبقى كما هو.
@@ -35,8 +36,8 @@ AD_FIELDS = [
     "operation_status", "secondary_status", "tiktok_item_id", "ad_text", "advertiser_id",
 ]
 # Link / messaging fields that say where the ad opens. Optional: if the API rejects them the pull retries without.
-DEST_AD_FIELDS = ["landing_page_url", "deeplink"]
-DEST_GROUP_FIELDS = ["messaging_app_type"]
+DEST_AD_FIELDS = ["landing_page_url", "deeplink", "create_time", "modify_time"]   # create/modify time: young-ad exemption in delivery.py
+DEST_GROUP_FIELDS = ["messaging_app_type", "schedule_start_time", "schedule_end_time"]   # schedule: delivery layer (scheduled / ended)
 REPORT_FILTER = [{"field_name": "ad_status", "filter_type": "IN", "filter_value": '["STATUS_ALL"]'}]
 
 
@@ -233,6 +234,9 @@ def _describe(item, objectives, camp_on, group_on, groups=None):
         thumb=None, link=link,
         goal=GOAL.get(objectives.get(cid, ""), "other"),
     )
+    now = datetime.now(delivery.RIYADH)
+    delivery.guarded(out, lambda: delivery.tiktok_state(ad, (groups or {}).get(gid), now),
+                     lambda: delivery.fresh_from(ad.get("create_time"), ad.get("modify_time"), now=now))
     dest = dest_for(ad, (groups or {}).get(gid), out["goal"])
     if dest:
         out["dest"] = dest

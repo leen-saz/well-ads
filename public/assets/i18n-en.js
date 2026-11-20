@@ -215,6 +215,7 @@ export const EN = {
   'تشغيل الطوارئ؟': 'Turn on the kill switch?', 'إيقاف الطوارئ؟': 'Turn off the kill switch?', 'يوقف أي تنفيذ على حسابات الإعلانات فوراً. لين بس تقدر توقفه بعدين.': 'Stops any change to the ad accounts now. Only Leen can turn it off later.',
   'يرجع التنفيذ حسب الحدود والموافقات.': 'Execution resumes within limits and approvals.', 'شغّل الطوارئ': 'Turn on', 'أوقف الطوارئ': 'Turn off', 'الطوارئ موقوفة': 'Kill switch off', 'لين بس تقدر توقف الطوارئ': 'Only Leen can turn off the kill switch',
   'المراجع': 'Critic', 'المراجع رفضه': 'Critic blocked', 'عدّى قواعد لين': 'Passed Leen\'s rules', 'الخطة': 'Plan', 'التوقّع': 'Expected', 'القياس': 'Measure', 'التراجع': 'Rollback', 'الخطر': 'Risk',
+  'يصرف': 'Delivering', 'غير معروف': 'Unknown', 'مفعّل بس ما يصرف': 'On but not spending', 'قيد المراجعة': 'In review', 'مجدول': 'Scheduled', 'انتهى': 'Ended', 'الميزانية خلصت': 'Budget used up',
   'موقوف': 'Paused', 'شغّال': 'Running', 'الحملة الحالية': 'Current', 'الميزانية الحالية (تنقرا وقت التنفيذ)': 'Current budget (read at execution)', 'مرحلة تعلّم': 'Learning', 'ليدز قليلة': 'Few leads', 'صرف عالي': 'High spend',
   'شغّل الطوارئ': 'Kill switch on', 'أوقف الطوارئ': 'Kill switch off', 'المراجع راجع الاقتراحات': 'Critic reviewed suggestions',
   'التعلّم': 'Learning', 'الدروس': 'Lessons', 'موقوفة': 'Blocked', 'ملاحظات الفريق:': 'Team notes:', 'حركات الفريق داخل المنصات · آخر 7 أيام': 'Team moves inside the platforms · last 7 days',

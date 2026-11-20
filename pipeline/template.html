@@ -334,6 +334,9 @@ tbody tr:hover{background:var(--chip)}
 .badges .pill{background:var(--surface);box-shadow:0 1px 4px rgba(29,16,105,.12)}
 .st-live{color:var(--ink)} .st-live .dot{background:var(--accent)}
 .st-off .dot{background:var(--muted)}
+.st-live .dot{background:#2E9E5B} .st-nospend .dot{background:#E0A100} .st-bad .dot{background:var(--pulse)} .st-wait .dot{background:#8A8FA8}
+.st-nospend{border:1px solid #E0A100;background:transparent} .st-bad{border:1px solid var(--pulse);background:transparent}
+.st-why{display:block;font-size:11px;color:var(--muted)} .st-note{color:#B07F00}
 .card .body{padding:10px 12px;display:grid;gap:6px}
 .card .nm{font-weight:600;font-size:.9rem;line-height:1.4;overflow-wrap:anywhere}
 .card .cp{font-size:.75rem;color:var(--muted);overflow-wrap:anywhere}
@@ -596,6 +599,7 @@ body{background:
       <div class="seg" id="stat" role="group" aria-label="حالة الإعلان">
         <button type="button" data-v="all" aria-pressed="true">كل الإعلانات</button>
         <button type="button" data-v="live" aria-pressed="false">النشطة الآن</button>
+        <button type="button" data-v="idle" aria-pressed="false">مفعّل بس ما يصرف</button>
         <button type="button" data-v="off" aria-pressed="false">متوقف</button>
       </div>
       <label class="field" for="fCamp">الحملة <select id="fCamp"><option value="">كل الحملات</option></select></label>
@@ -692,7 +696,8 @@ body{background:
         <input type="search" id="q" placeholder="ابحث باسم الإعلان أو الحملة" aria-label="بحث">
         <div class="seg" id="wallStat" role="group" aria-label="حالة المواد الإعلانية">
           <button type="button" data-v="all" aria-pressed="true">الكل</button>
-          <button type="button" data-v="on" aria-pressed="false">فعّال</button>
+          <button type="button" data-v="on" aria-pressed="false">يصرف</button>
+          <button type="button" data-v="idle" aria-pressed="false">مفعّل بس ما يصرف</button>
           <button type="button" data-v="off" aria-pressed="false">متوقف</button>
         </div>
         <label class="field" for="sort">ترتيب

@@ -9,11 +9,30 @@ function alignDelivery(a){
   if(cleanStatus(a.status)==='نشط') a.status='متوقف';
 }
 Object.values(ADS).forEach(a=>{ stamp(a); alignDelivery(a); });
+// Delivery layer (pipeline/delivery.py): `live` = switched on, `delivery` = really delivering or why not.
+// An older dash.json without `delivery` falls back to the switch.
+const DELIVERY_STATES=['delivering','rejected','in_review','scheduled','ended','budget','off','unknown'];
+function deliveryOf(a){ const d=a&&a.delivery; return DELIVERY_STATES.includes(d) ? d : (a&&a.live ? 'delivering' : 'off'); }
+const DELIVERY_WORD={delivering:'يصرف',rejected:'مرفوض',in_review:'قيد المراجعة',scheduled:'مجدول',ended:'انتهى',budget:'الميزانية خلصت',off:'متوقف',unknown:'غير معروف'};
+const DELIVERY_CLS={delivering:'st-live',rejected:'st-bad',in_review:'st-wait',scheduled:'st-wait',ended:'st-off',budget:'st-nospend',off:'st-off',unknown:'st-wait'};
+// Secondary note, never the verdict: switched on and no spend or impressions for N days (pipeline/delivery.py delivery_days_no_spend).
+const noSpendDays = a => (a && a.live && a.delivery_days_no_spend>0) ? a.delivery_days_no_spend : 0;
+// A group of ads (one idea card): the best state wins; an all-off group is off.
+function bestDelivery(list){ let best='off'; for(const a of list){ const d=deliveryOf(a); if(DELIVERY_STATES.indexOf(d)<DELIVERY_STATES.indexOf(best)) best=d; } return best; }
+function deliveryBadge(a, d=deliveryOf(a)){
+  let word=ui(DELIVERY_WORD[d],{delivering:'Delivering',rejected:'Rejected',in_review:'In review',scheduled:'Scheduled',ended:'Ended',budget:'Budget used up',off:'Paused',unknown:'Unknown'}[d]);
+  const n=d==='off' ? 0 : noSpendDays(a);
+  const note=n ? `<span class="sub st-why st-note">${ui('بدون صرف من ','No spend for ')}${fmt(n)} ${ui(n===1?'يوم':'أيام',n===1?'day':'days')}</span>` : '';
+  const why=a && a.delivery_reason && d!=='delivering' && d!=='off' ? tr(a.delivery_reason) : '';
+  return `<span class="pill ${DELIVERY_CLS[d]}"${why?` title="${esc(why)}"`:''}><span class="dot"></span>${word}</span>${why?`<span class="sub st-why">${esc(why)}</span>`:''}${note}`;
+}
 refreshOrder();
 function passesStatus(a){
   if(!a) return false;
-  if(S.stat==='live') return !!a.live;
-  if(S.stat==='off') return !a.live;
+  const d=deliveryOf(a);
+  if(S.stat==='live') return d==='delivering';
+  if(S.stat==='idle') return d!=='off' && (d!=='delivering' || noSpendDays(a)>0);
+  if(S.stat==='off') return d==='off';
   return true;
 }
 function matchesSlice(a){
@@ -66,8 +85,8 @@ function dayOpen(fam, day){
   return !end || day>end;
 }
 function applyStat(v){
-  S.stat = v==='on'||v==='live' ? 'live' : v==='off' ? 'off' : 'all';
-  S.wall = S.stat==='live' ? 'on' : S.stat==='off' ? 'off' : 'all';
+  S.stat = v==='on'||v==='live' ? 'live' : v==='idle' ? 'idle' : v==='off' ? 'off' : 'all';
+  S.wall = S.stat==='live' ? 'on' : S.stat==='idle' ? 'idle' : S.stat==='off' ? 'off' : 'all';
   S.shown=24; save(); render();
 }
 function agg(from,to){

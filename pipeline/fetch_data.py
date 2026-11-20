@@ -25,6 +25,7 @@ from organic import collect_organic, clip as clip_err
 from tiktok.fetch import ingest_tiktok
 from tiktok.merge import exclusion_state
 import audience
+import delivery as dlv   # not `delivery`: snap() has a local function of that name
 import validate_dash
 
 HERE = os.path.dirname(os.path.abspath(__file__))
@@ -130,9 +131,27 @@ class Plat:
 
 
 def google_delivery(ad_status, group_status, campaign_status):
-    """نشط فقط إذا الإعلان والمجموعة والحملة كلها ENABLED."""
+    """مفعّل (live) إذا الإعلان والمجموعة والحملة كلها ENABLED. هذا مفتاح التشغيل فقط، والتسليم الفعلي في delivery.py."""
     live = ad_status == "ENABLED" and group_status == "ENABLED" and campaign_status == "ENABLED"
     return ("نشط" if live else "متوقف"), live
+
+
+def google_stamp_all(P, q):
+    """حالة التسليم لكل إعلان جوجل من استعلام منفصل واختياري (سياسة الإعلان، حالة الإعلان والحملة).
+    لا يلمس live ولا يغيّر الاستعلامين الأساسيين: لو رفضت جوجل حقلاً يبقى السحب كما هو والتسليم من الصرف فقط."""
+    seen = {}
+    try:
+        for r in q("SELECT ad_group_ad.ad.id, ad_group_ad.primary_status, ad_group_ad.policy_summary.approval_status, "
+                   "campaign.primary_status, campaign.primary_status_reasons FROM ad_group_ad WHERE ad_group_ad.status != 'REMOVED'"):
+            seen["g" + r["adGroupAd"]["ad"]["id"]] = r
+    except Exception as ex:
+        print("جوجل: حالة المراجعة والجدولة ما انسحبت، التسليم من الصرف فقط —", error_code(ex), file=sys.stderr)
+    for key, ad in P.ads.items():
+        r = seen.get(key) or {}
+        aga, camp = r.get("adGroupAd") or {}, r.get("campaign") or {}
+        dlv.guarded(ad, lambda: dlv.google_state(
+            (aga.get("policySummary") or {}).get("approvalStatus"), aga.get("primaryStatus"),
+            camp.get("primaryStatus"), camp.get("primaryStatusReasons")))
 
 
 def meta_preview(creative, video_url=None):
@@ -241,6 +260,8 @@ def meta(P):
                  status=meta_word(a, live), live=live, text=(c.get("body") or c.get("title") or "").strip(),
                  link=f"https://adsmanager.facebook.com/adsmanager/manage/ads?act={A[4:]}&selected_ad_ids={ad_id}")
         m["goal"] = goal.get(ad_id) or meta_goal(a["adset"].get("optimization_goal"))
+        now = datetime.now(RIYADH)
+        dlv.guarded(m, lambda: dlv.meta_state(a, now), lambda: dlv.fresh_from(a.get("created_time"), a.get("updated_time"), now=now))
         # الصورة المحفوظة قد تكون تحت المفتاح القديم m{id} أو تحت موضع واحد.
         old = CACHE.get("m" + ad_id) or next((CACHE[k] for k in CACHE if k.startswith("m" + ad_id + "|") and CACHE[k].get("thumb")), {})
         fresh = keep_thumb("m" + ad_id, m, c.get("image_url") or c.get("thumbnail_url"))
@@ -269,6 +290,18 @@ def meta(P):
         return fresh
     # الإعلانات النشطة: بيانات حديثة دايماً
     active = {a["id"]: a for a in pages(g(f"{A}/ads", fields=f, limit=100, effective_status=json.dumps(["ACTIVE"])))}
+    # حقول التسليم (جدولة وميزانية) في طلب منفصل واختياري: لو رفضته ميتا يبقى سحب الإعلانات وlive كما هما (dlv.meta_state يحكم بالصرف فقط)
+    try:
+        for x in pages(g(f"{A}/ads", fields="created_time,updated_time,adset{start_time,end_time,lifetime_budget,budget_remaining},"
+                         "campaign{start_time,stop_time,lifetime_budget,budget_remaining}", limit=200,
+                         effective_status=json.dumps(["ACTIVE"]))):
+            if x.get("id") in active:
+                a = active[x["id"]]
+                a["created_time"], a["updated_time"] = x.get("created_time"), x.get("updated_time")
+                a["adset"] = {**(a.get("adset") or {}), **(x.get("adset") or {})}
+                a["campaign"] = {**(a.get("campaign") or {}), **(x.get("campaign") or {})}
+    except Exception as ex:
+        print("meta: حقول الجدولة والميزانية ما انسحبت، التسليم من الصرف فقط —", error_code(ex), file=sys.stderr)
     def place(ad_id, a, live_override=None):
         """نسخة من الإعلان لكل موضع صرف. الإعلان النشط بلا صرف يبقى تحت ميتا غير المفصولة."""
         keys = [k for k in {r[0] for r in P.rows} if k.startswith("m" + ad_id + "|")]
@@ -294,6 +327,10 @@ def meta(P):
                 P.ads[key] = {**old, "platform": plat, "family": "meta", "live": False,
                               "goal": goal.get(ad_id, old.get("goal", "other")),
                               "status": old["status"] if old.get("status") not in ("نشط", None) else "متوقف"}
+                word = P.ads[key]["status"]
+                dlv.guarded(P.ads[key], lambda: ({"مرفوض": "rejected", "قيد المراجعة": "in_review"}.get(word, "off"), ""))
+                P.ads[key]["delivery_reason"] = dlv.REASON.get(P.ads[key].get("delivery"), word)
+                P.ads[key].pop("fresh_at", None)
             continue
         try:
             a = g(ad_id, fields=f); time.sleep(0.3)
@@ -406,6 +443,7 @@ def google(P):
         P.status_catalog = True
     except Exception as ex:
         print("جوجل: تعذر تحديث حالة الإعلانات بلا صرف", error_code(ex), file=sys.stderr)
+    google_stamp_all(P, q)
     if audience_due():
         try:
             n = audience.attach(P.ads, "g", audience.google(q, LAST_FULL))
@@ -468,6 +506,9 @@ def snap(P):
         base = dict(platform="snap", family="snap", name=a["name"], campaign=camps[sq["campaign_id"]]["name"], group=sq["name"],
                     status=word, live=live,
                     goal="lead" if camps[sq["campaign_id"]].get("objective") in ("LEADS", "LEAD_GENERATION") else "other")
+        now = datetime.now(RIYADH)
+        dlv.guarded(base, lambda: dlv.snap_state(a, sq, camps.get(sq["campaign_id"]), now),
+                    lambda: dlv.fresh_from(a.get("created_at"), a.get("updated_at"), now=now))
         old = CACHE.get(key, {})
         if old.get("thumb") and old.get("media_type"):
             merged = {**old, **base}
@@ -734,6 +775,12 @@ def main():
         ADS[k] = dict(platform=plat, family=fam, name="إعلان محذوف", campaign="—", group="—",
                       format="", status="محذوف", live=False, text="", thumb=None, link=None, goal="other")
     keep_audience((PREV or {}).get("ads"), ADS)
+    ok_prefixes = tuple(n[0] for n in ("meta", "google", "snap", "tiktok") if status.get(n, {}).get("ok"))
+    try:
+        dstate = dlv.finalize(ADS, ROWS, datetime.now(RIYADH), (PREV or {}).get("ads"), ok_prefixes)
+        print("delivery:", ", ".join(f"{k} {v}" for k, v in sorted(dstate.items())), file=sys.stderr)
+    except Exception as ex:  # noqa: BLE001 - the delivery layer is additive: it must never stop a pull
+        print("delivery: تعذر الحساب، تبقى الإعلانات بحالتها —", type(ex).__name__, file=sys.stderr)
     apply_all(ADS)
     channels = annotate(ADS)
     try:
@@ -752,6 +799,12 @@ def main():
             "aud_at": aud_at,
             "ads": ADS, "rows": sorted(ROWS, key=lambda r: (r[1], r[0])),
             "organic": organic, "pending": pending}
+    drops = validate_dash.live_drop(data, PREV)
+    if drops and not (os.environ.get("LIVE_DROP_REASON") or "").strip():
+        names = {"m": "meta", "g": "google", "s": "snap", "t": "tiktok", "*": "all platforms"}
+        print("الإعلانات المفعّلة نزلت أكثر من النصف عن السحب السابق (" + ", ".join(names.get(d, d) for d in drops) +
+              "). لن يُنشر هذا السحب. إذا النزول حقيقي أعد التشغيل مع LIVE_DROP_REASON (live_drop_reason في refresh.yml).", file=sys.stderr)
+        sys.exit(1)
     tmp = DATA_PATH + ".tmp"
     json.dump(data, open(tmp, "w", encoding="utf-8"), ensure_ascii=False, separators=(",", ":"))
     os.replace(tmp, DATA_PATH)
