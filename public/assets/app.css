@@ -13,13 +13,15 @@
 @font-face{font-family:"Playfair Display";src:url(/assets/fonts/playfair-display-900.woff2) format("woff2");font-weight:900;font-display:swap}
 /* المرجع: wellcare.sa — خطوط ثمانية، أزرار حبة بلون Pulse Purple، كروت 24px بظل بنفسجي ناعم، هيدر زجاجي. بدون وضع داكن مثل الموقع. */
 :root{
-  --bg:#F6F0E3;        /* Warm Ivory */
-  --surface:#FFFFFF;   /* Pure White */
-  --ink:#1D1069;       /* Well Indigo */
-  --deep:#221196;      /* Pulse Purple Deep */
-  --accent:#7E57FD;    /* Pulse Purple: الزر الأساسي والتفاصيل */
-  --soft:#ACA6E1;      /* Pulse Purple Soft */
-  --pulse:#F86080;     /* Pulse Pink: الطوارئ بس */
+  /* Colours come from /assets/tokens.css (the one token source, injected before this file by src/lib/theme.ts).
+     These names stay as aliases so the existing rules keep working in light and dark. */
+  --bg:var(--background);
+  --surface:var(--paper);
+  --ink:var(--foreground);
+  --deep:var(--brand-deep);
+  --accent:var(--primary);
+  --soft:var(--brand-soft);
+  --pulse:var(--destructive);
   --text:var(--ink);
   --muted:color-mix(in srgb,var(--ink) 62%,transparent);
   --line:color-mix(in srgb,var(--soft) 35%,transparent);
@@ -36,7 +38,6 @@
   --f-mark:"Playfair Display",Georgia,serif;
   --ease:200ms cubic-bezier(.2,.8,.2,1);
   --side:256px;
-  color-scheme:light;
 }
 *{box-sizing:border-box}
 html,body{margin:0}
@@ -49,7 +50,7 @@ h1{font:700 30px/1.25 var(--f-display);margin:0}:lang(en) h1{letter-spacing:-.00
 h2{font:700 20px/1.35 var(--f-display);margin:0 0 12px}
 h3{font:700 15px/1.4 var(--f-ar);margin:0}
 svg.i{width:18px;height:18px;stroke:currentColor;fill:none;stroke-width:1.75;stroke-linecap:round;stroke-linejoin:round;flex:none}
-.skip-link{position:fixed;inset-block-start:8px;inset-inline-start:8px;z-index:200;padding:10px 16px;border-radius:10px;background:var(--accent);color:#fff;font-weight:600;transform:translateY(-200%);text-decoration:none}.skip-link:focus{transform:none}
+.skip-link{position:fixed;inset-block-start:8px;inset-inline-start:8px;z-index:200;padding:10px 16px;border-radius:10px;background:var(--accent);color:var(--on-primary);font-weight:600;transform:translateY(-200%);text-decoration:none}.skip-link:focus{transform:none}
 :focus-visible{outline:2px solid var(--accent);outline-offset:2px;box-shadow:0 0 0 4px var(--focus)}   /* the outline reads on any surface (3:1) and in forced colours; the glow alone did not */
 
 /* ---- الأزرار */
@@ -57,24 +58,24 @@ svg.i{width:18px;height:18px;stroke:currentColor;fill:none;stroke-width:1.75;str
   font:500 15px/1 var(--f-ar);border:1px solid transparent;background:transparent;color:var(--text);cursor:pointer;text-decoration:none;white-space:nowrap;
   transition:background var(--ease),border-color var(--ease),color var(--ease),box-shadow var(--ease),opacity var(--ease)}
 .btn.sm{--h:36px;padding:0 16px;font-size:14px}
-.btn.primary{background:var(--accent);color:#FFFFFF;box-shadow:0 6px 18px color-mix(in srgb,var(--accent) 30%,transparent)}
+.btn.primary{background:var(--accent);color:var(--on-primary);box-shadow:0 6px 18px color-mix(in srgb,var(--accent) 30%,transparent)}
 .btn.primary:hover{background:var(--deep)}
-.btn.secondary{background:color-mix(in srgb,#FFFFFF 70%,transparent);border-color:color-mix(in srgb,var(--ink) 18%,transparent);color:var(--text)}
+.btn.secondary{background:color-mix(in srgb,var(--paper) 70%,transparent);border-color:color-mix(in srgb,var(--ink) 18%,transparent);color:var(--text)}
 .btn.secondary:hover,.btn.ghost:hover{background:var(--tint)}
-.btn.danger{background:var(--pulse);color:#FFFFFF}
+.btn.danger{background:var(--pulse);color:var(--on-primary)}
 .btn.danger:hover{background:color-mix(in srgb,var(--pulse) 88%,var(--ink))}
 .btn:active{transform:translateY(1px)}
 .btn:disabled,.btn[aria-disabled="true"]{opacity:.45;cursor:not-allowed;transform:none}
 .btn.icon{--h:36px;width:36px;padding:0}
 .btn.loading{pointer-events:none;color:transparent;position:relative}
-.btn.loading::after{content:"";position:absolute;width:16px;height:16px;border-radius:50%;border:2px solid currentColor;border-color:#FFFFFF #FFFFFF transparent transparent;animation:spin .7s linear infinite}
+.btn.loading::after{content:"";position:absolute;width:16px;height:16px;border-radius:50%;border:2px solid currentColor;border-color:var(--on-primary) var(--on-primary) transparent transparent;animation:spin .7s linear infinite}
 .btn.secondary.loading::after,.btn.ghost.loading::after{border-color:var(--ink) var(--ink) transparent transparent}
 @keyframes spin{to{transform:rotate(360deg)}}
 
 /* tooltip */
 [data-tip]{position:relative}
 [data-tip]:hover::before,[data-tip]:focus-visible::before{content:attr(data-tip);position:absolute;inset-block-end:calc(100% + 8px);inset-inline-start:50%;transform:translateX(50%);
-  background:var(--ink);color:#FFFFFF;font:400 12px/1.5 var(--f-ar);padding:6px 10px;border-radius:8px;white-space:nowrap;z-index:80;pointer-events:none;box-shadow:var(--shadow)}
+  background:var(--inverse);color:var(--on-inverse);font:400 12px/1.5 var(--f-ar);padding:6px 10px;border-radius:8px;white-space:nowrap;z-index:80;pointer-events:none;box-shadow:var(--shadow)}
 [dir=ltr] [data-tip]:hover::before{transform:translateX(-50%)}
 
 /* ---- الحقول: بيضاء دايم */
@@ -92,24 +93,24 @@ input[type=checkbox]{width:16px;height:16px;accent-color:var(--ink);margin:0;cur
 /* ---- الشارات */
 .chip{display:inline-flex;align-items:center;gap:6px;height:28px;padding:0 12px;border-radius:999px;font-size:12px;background:var(--tint);color:var(--text);white-space:nowrap;border:1px solid transparent}
 .chip.line{background:transparent;border-color:var(--soft)}
-.chip.solid{background:var(--ink);color:#FFFFFF}
-.chip.brand{background:var(--accent);color:#FFFFFF}
+.chip.solid{background:var(--inverse);color:var(--on-inverse)}
+.chip.brand{background:var(--accent);color:var(--on-primary)}
 .chip .dot{width:7px;height:7px;border-radius:50%;background:var(--accent)}
 .chip svg.i{width:14px;height:14px}
 
 /* ---- الهيكل */
 .app{display:grid;grid-template-columns:var(--side) 1fr;min-height:100vh;min-height:100dvh}
-.side{position:sticky;top:0;height:100vh;overflow-y:auto;display:flex;flex-direction:column;gap:4px;padding:24px 16px;background:color-mix(in srgb,#FFFFFF 55%,transparent);-webkit-backdrop-filter:blur(12px);backdrop-filter:blur(12px)}
+.side{position:sticky;top:0;height:100vh;overflow-y:auto;display:flex;flex-direction:column;gap:4px;padding:24px 16px;background:color-mix(in srgb,var(--paper) 55%,transparent);-webkit-backdrop-filter:blur(12px);backdrop-filter:blur(12px)}
 .side .brand{padding:4px 10px 18px}
 .side-top{display:flex;align-items:center;justify-content:space-between;gap:8px}.side-x{display:none}
 .navi{display:flex;align-items:center;gap:12px;height:44px;padding:0 16px;border-radius:999px;text-decoration:none;color:var(--muted);font-size:15px;position:relative;transition:background var(--ease),color var(--ease)}
 .navi:hover{background:var(--tint);color:var(--text)}
 .navi.locked{opacity:.45;cursor:not-allowed}.navi.locked:hover{background:transparent;color:var(--muted)}.navi.locked:focus-visible,.sec-tab.locked:focus-visible{outline:2px solid var(--accent);outline-offset:2px;opacity:.8}.navi .lk{width:14px;height:14px;margin-inline-start:auto}
-.navi[aria-current]{background:var(--accent);color:#FFFFFF;font-weight:500;box-shadow:0 6px 18px color-mix(in srgb,var(--accent) 28%,transparent)}
-.agent-dot{margin-inline-start:auto;flex:none;width:8px;height:8px;border-radius:50%;background:#6f7681}.agent-dot[data-s=running]{background:var(--accent);animation:agp 1s infinite ease-in-out}.agent-dot[data-s=failed]{background:var(--err,#d93025)}.navi[aria-current] .agent-dot[data-s=running],.navi[aria-current] .agent-dot[data-s=idle]{background:#FFFFFF}@keyframes agp{0%,80%,100%{opacity:.3;transform:scale(.8)}40%{opacity:1;transform:scale(1.15)}}@media (prefers-reduced-motion:reduce){.agent-dot[data-s=running]{animation:none}}
+.navi[aria-current]{background:var(--accent);color:var(--on-primary);font-weight:500;box-shadow:0 6px 18px color-mix(in srgb,var(--accent) 28%,transparent)}
+.agent-dot{margin-inline-start:auto;flex:none;width:8px;height:8px;border-radius:50%;background:var(--idle)}.agent-dot[data-s=running]{background:var(--accent);animation:agp 1s infinite ease-in-out}.agent-dot[data-s=failed]{background:var(--err)}.navi[aria-current] .agent-dot[data-s=running],.navi[aria-current] .agent-dot[data-s=idle]{background:var(--on-primary)}@keyframes agp{0%,80%,100%{opacity:.3;transform:scale(.8)}40%{opacity:1;transform:scale(1.15)}}@media (prefers-reduced-motion:reduce){.agent-dot[data-s=running]{animation:none}}
 .navi.soon{height:40px;font-size:14px}.navi.soon .i{flex:none}
 .navi .tag{margin-inline-start:auto;flex:none;font:500 11px/1 var(--f-ar);padding:4px 8px;border-radius:999px;background:var(--tint-2);color:var(--text)}
-.navi[aria-current] .tag{background:color-mix(in srgb,#FFFFFF 25%,transparent);color:#FFFFFF}
+.navi[aria-current] .tag{background:color-mix(in srgb,var(--on-primary) 25%,transparent);color:var(--on-primary)}
 .side .grow{flex:1}
 .side-sec{display:flex;flex-direction:column;gap:2px;margin:0 0 10px}
 .side-h{display:flex;align-items:center;justify-content:space-between;width:100%;border:0;background:transparent;cursor:pointer;font:500 11px/1 var(--f-ar);color:var(--muted);opacity:.75;padding:6px 16px;text-align:start}
@@ -118,7 +119,7 @@ input[type=checkbox]{width:16px;height:16px;accent-color:var(--ink);margin:0;cur
 .side-items{display:flex;flex-direction:column;gap:2px}.side-sec.shut .side-items{display:none}.app.mini .side-sec.shut .side-items{display:flex}
 .me{display:flex;align-items:center;gap:10px;padding:8px;border-radius:var(--r-sm);border:0;background:transparent;color:var(--text);cursor:pointer;width:100%;text-align:start;font:inherit}
 .me:hover{background:var(--tint)}
-.avatar{width:34px;height:34px;border-radius:50%;background:var(--ink);color:#FFFFFF;display:grid;place-items:center;font:600 13px var(--f-num);flex:none}
+.avatar{width:34px;height:34px;border-radius:50%;background:var(--inverse);color:var(--on-inverse);display:grid;place-items:center;font:600 13px var(--f-num);flex:none}
 .me .who{min-width:0;line-height:1.3}.me .who b{display:block;font-size:14px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .menu{position:absolute;inset-block-end:72px;inset-inline:14px;background:var(--surface);border:1px solid var(--line);border-radius:var(--r);box-shadow:var(--shadow-lg);padding:6px;z-index:40}
 .menu a,.menu button{width:100%;border:0;background:none;font:inherit;color:inherit;cursor:pointer;display:flex;align-items:center;gap:10px;height:38px;padding:0 10px;border-radius:8px;text-decoration:none}
@@ -216,12 +217,12 @@ tbody tr:last-child td{border-bottom:0}
 .veil.open{opacity:1;pointer-events:auto}
 .selbar[hidden],.panel[hidden]{display:none}
 .selbar{position:fixed;inset-block-end:20px;inset-inline-start:50%;transform:translateX(50%);z-index:55;display:flex;align-items:center;gap:10px;padding:8px 8px 8px 16px;
-  background:var(--ink);color:#FFFFFF;border-radius:14px;box-shadow:var(--shadow-lg)}
+  background:var(--inverse);color:var(--on-inverse);border-radius:14px;box-shadow:var(--shadow-lg)}
 [dir=ltr] .selbar{transform:translateX(-50%)}
-.selbar .btn.secondary{background:transparent;color:#FFFFFF;border-color:color-mix(in srgb,#FFFFFF 40%,transparent)}
-.selbar .btn.secondary:hover{background:color-mix(in srgb,#FFFFFF 12%,transparent)}
-.selbar .btn.light{background:#FFFFFF;color:var(--ink)}
-.toast{position:fixed;inset-block-end:20px;inset-inline-end:20px;z-index:90;background:var(--ink);color:#FFFFFF;padding:12px 16px;border-radius:12px;box-shadow:var(--shadow-lg);font-size:14px;display:flex;gap:8px;align-items:center;animation:up var(--ease)}
+.selbar .btn.secondary{background:transparent;color:var(--on-inverse);border-color:color-mix(in srgb,var(--on-inverse) 40%,transparent)}
+.selbar .btn.secondary:hover{background:color-mix(in srgb,var(--on-inverse) 12%,transparent)}
+.selbar .btn.light{background:var(--on-inverse);color:var(--inverse)}
+.toast{position:fixed;inset-block-end:20px;inset-inline-end:20px;z-index:90;background:var(--inverse);color:var(--on-inverse);padding:12px 16px;border-radius:12px;box-shadow:var(--shadow-lg);font-size:14px;display:flex;gap:8px;align-items:center;animation:up var(--ease)}
 @keyframes up{from{opacity:0;transform:translateY(8px)}}
 .spark{width:100%;height:96px}
 .kbd{font:600 11px var(--f-num);border:1px solid var(--soft);border-radius:6px;padding:1px 6px;color:var(--muted)}
@@ -286,7 +287,7 @@ tbody tr:last-child td{border-bottom:0}
 .btn,.navi,.chip,.seg button,.tabs button,th,label,input,select,textarea,.kpi .k,.me,.menu,.muted,.sub,.ev,.imp span,.sg-why,.selbar,.toast,[data-tip]::before{font-family:var(--f-ar)}
 
 /* زر الطوارئ والمراجع */
-.kill-banner{display:flex;align-items:center;gap:10px;flex-wrap:wrap;padding:14px 18px;margin-bottom:16px;border-radius:var(--r-sm);background:var(--pulse);color:#FFFFFF;box-shadow:0 10px 30px color-mix(in srgb,var(--pulse) 30%,transparent)}
+.kill-banner{display:flex;align-items:center;gap:10px;flex-wrap:wrap;padding:14px 18px;margin-bottom:16px;border-radius:var(--r-sm);background:var(--pulse);color:var(--on-primary);box-shadow:0 10px 30px color-mix(in srgb,var(--pulse) 30%,transparent)}
 .kill-banner[hidden]{display:none}
 .chip.crit{margin-top:6px;height:24px;font-size:12px}
 .chip.crit.bad{border-color:var(--deep);color:var(--deep);font-weight:500}
@@ -319,19 +320,18 @@ div.locked{display:flex;align-items:center;gap:8px;height:46px;padding:0 14px;bo
 /* ---- Liquid glass (Leen's references: Flowly, ShopWave). Palette stays Well's: indigo ink, Pulse Purple, Soft Purple, white.
    Blur only on the big containers (sidebar, top bar, cards) so phones stay smooth. */
 :root{
-  --bg:#F1EEFA;
-  --glass:color-mix(in srgb,#FFFFFF 58%,transparent);
-  --glass-strong:color-mix(in srgb,#FFFFFF 78%,transparent);
-  --glass-edge:color-mix(in srgb,#FFFFFF 85%,transparent);
+  --glass:color-mix(in srgb,var(--paper) 58%,transparent);
+  --glass-strong:color-mix(in srgb,var(--paper) 78%,transparent);
+  --glass-edge:color-mix(in srgb,var(--paper) 85%,transparent);
   --glass-blur:blur(20px) saturate(160%);
-  --shadow:inset 0 1px 0 color-mix(in srgb,#FFFFFF 90%,transparent),0 1px 2px color-mix(in srgb,var(--accent) 6%,transparent),0 12px 32px color-mix(in srgb,var(--accent) 12%,transparent);
+  --shadow:inset 0 1px 0 color-mix(in srgb,var(--paper) 90%,transparent),0 1px 2px color-mix(in srgb,var(--accent) 6%,transparent),0 12px 32px color-mix(in srgb,var(--accent) 12%,transparent);
   --r:22px;
 }
 body{background:
   radial-gradient(1100px 680px at 100% -10%,color-mix(in srgb,var(--accent) 22%,transparent),transparent 62%),
   radial-gradient(900px 640px at -10% 35%,color-mix(in srgb,var(--soft) 55%,transparent),transparent 62%),
   radial-gradient(760px 560px at 55% 115%,color-mix(in srgb,var(--deep) 12%,transparent),transparent 60%),
-  linear-gradient(180deg,#F5F3FC,#ECE8F8);background-attachment:fixed}
+  linear-gradient(180deg,var(--page-1),var(--page-2));background-attachment:fixed}
 .card{background:var(--glass);border:1px solid var(--glass-edge);-webkit-backdrop-filter:var(--glass-blur);backdrop-filter:var(--glass-blur);box-shadow:var(--shadow)}
 .side{margin:12px;height:calc(100vh - 24px);height:calc(100dvh - 24px);top:12px;border-radius:26px;background:var(--glass);border:1px solid var(--glass-edge);-webkit-backdrop-filter:var(--glass-blur);backdrop-filter:var(--glass-blur);box-shadow:var(--shadow)}
 .app{grid-template-columns:calc(var(--side) + 24px) 1fr}   /* the card floats with 12px on every side, so the top bar never touches it */
@@ -339,26 +339,26 @@ body{background:
 .side-h{text-transform:uppercase;padding:14px 16px 6px}
 .navi{border-radius:14px}
 .navi:hover{background:var(--glass-strong)}
-.navi[aria-current]{background:var(--glass-strong);color:var(--ink);font-weight:600;box-shadow:inset 0 1px 0 #FFFFFF,0 6px 18px color-mix(in srgb,var(--accent) 16%,transparent)}
+.navi[aria-current]{background:var(--glass-strong);color:var(--ink);font-weight:600;box-shadow:inset 0 1px 0 var(--paper),0 6px 18px color-mix(in srgb,var(--accent) 16%,transparent)}
 .navi[aria-current]::before{content:'';position:absolute;inset-block:10px;inset-inline-start:-16px;width:4px;border-radius:0 4px 4px 0;background:var(--accent)}
 [dir=rtl] .navi[aria-current]::before{border-radius:4px 0 0 4px}
 .navi[aria-current] .i,.navi[aria-current] svg{color:var(--accent)}
 .navi[aria-current] .tag{background:var(--tint-2);color:var(--ink)}
 /* The top bar stays on top while scrolling: frosted, so the page under it never shows through the title */
-.topbar{background:color-mix(in srgb,#F3F0FB 72%,transparent);-webkit-backdrop-filter:var(--glass-blur);backdrop-filter:var(--glass-blur)}
+.topbar{background:color-mix(in srgb,var(--topbar) 72%,transparent);-webkit-backdrop-filter:var(--glass-blur);backdrop-filter:var(--glass-blur)}
 .menu{background:var(--glass-strong);border:1px solid var(--glass-edge);-webkit-backdrop-filter:var(--glass-blur);backdrop-filter:var(--glass-blur)}
 @media (max-width:900px){.app{grid-template-columns:1fr}.side{margin:0;height:100vh;top:0;border-radius:0 26px 26px 0}[dir=rtl] .side{border-radius:26px 0 0 26px}}
-@media (prefers-reduced-transparency:reduce){.card,.side,.menu{background:#FFFFFF;-webkit-backdrop-filter:none;backdrop-filter:none}}
+@media (prefers-reduced-transparency:reduce){.card,.side,.menu{background:var(--paper);-webkit-backdrop-filter:none;backdrop-filter:none}}
 /* ---- Glass v2 (same as the dashboard): colour behind the glass, gradient glass with a bright edge. Fonts and logo stay Well's. */
-:root{--glass:linear-gradient(140deg,color-mix(in srgb,#FFFFFF 74%,transparent),color-mix(in srgb,#FFFFFF 34%,transparent));--glass-blur:blur(26px) saturate(185%);
-  --shadow:inset 0 1px 1px #FFFFFF,inset 0 -1px 1px color-mix(in srgb,var(--accent) 6%,transparent),0 2px 6px rgba(76,52,180,.05),0 18px 40px rgba(76,52,180,.13)}
+:root{--glass:linear-gradient(140deg,color-mix(in srgb,var(--paper) 74%,transparent),color-mix(in srgb,var(--paper) 34%,transparent));--glass-blur:blur(26px) saturate(185%);
+  --shadow:inset 0 1px 1px var(--paper),inset 0 -1px 1px color-mix(in srgb,var(--accent) 6%,transparent),0 2px 6px rgba(76,52,180,.05),0 18px 40px rgba(76,52,180,.13)}
 body{background:
-  radial-gradient(42vw 38vw at 92% 4%,rgba(126,87,253,.42),transparent 70%),
-  radial-gradient(38vw 34vw at 6% 28%,rgba(120,150,255,.38),transparent 70%),
-  radial-gradient(34vw 30vw at 48% 62%,rgba(172,166,225,.55),transparent 70%),
-  radial-gradient(40vw 36vw at 88% 96%,rgba(34,17,150,.20),transparent 70%),
-  linear-gradient(160deg,#EEF0FF,#ECE6FB 55%,#F1EAFB);background-attachment:fixed}
-.card,.side{background:var(--glass);border-color:color-mix(in srgb,#FFFFFF 78%,transparent)}
+  radial-gradient(42vw 38vw at 92% 4%,var(--glow-1),transparent 70%),
+  radial-gradient(38vw 34vw at 6% 28%,var(--glow-2),transparent 70%),
+  radial-gradient(34vw 30vw at 48% 62%,var(--glow-3),transparent 70%),
+  radial-gradient(40vw 36vw at 88% 96%,color-mix(in srgb,var(--deep) 20%,transparent),transparent 70%),
+  linear-gradient(160deg,var(--page-3),var(--page-4) 55%,var(--page-5));background-attachment:fixed}
+.card,.side{background:var(--glass);border-color:color-mix(in srgb,var(--paper) 78%,transparent)}
 
 /* Compliance notices, the same in every tab (assets/compliance-ui.js) */
 .cp-box{display:grid;gap:4px;padding:10px 12px;border-radius:12px;border-inline-start:4px solid var(--accent);background:var(--glass);margin:8px 0 0}
@@ -411,7 +411,7 @@ body{background:
 .pf-wrap .pf-grid button:hover:not(:disabled){background:color-mix(in srgb,var(--accent) 14%,transparent)}
 .pf-wrap .pf-grid button:disabled{color:var(--muted);opacity:.4;cursor:default}
 .pf-wrap .pf-grid button.in{background:color-mix(in srgb,var(--accent) 16%,transparent);border-radius:0}
-.pf-wrap .pf-grid button.s,.pf-grid button.e{background:var(--accent);color:#fff;border-radius:8px}
+.pf-wrap .pf-grid button.s,.pf-grid button.e{background:var(--accent);color:var(--on-primary);border-radius:8px}
 .pf-wrap .pf-grid button.today{box-shadow:inset 0 0 0 1px var(--accent)}
 .pf-wrap .pf-grid button:focus-visible,.pf-nav:focus-visible{outline:2px solid var(--accent);outline-offset:1px}
 .pf-wrap .pf-fields{display:flex;gap:8px;flex-wrap:wrap}
@@ -420,7 +420,7 @@ body{background:
 .pf-wrap .pf-foot{display:flex;align-items:center;gap:8px}
 .pf-wrap .pf-sel{flex:1;font-size:12px;color:var(--muted)}
 .pf-wrap .pf-apply,.pf-cancel{font:600 13px var(--f-ar);padding:6px 14px;border-radius:999px;cursor:pointer}
-.pf-wrap .pf-apply{background:var(--accent);color:#fff;border:1px solid var(--accent)}
+.pf-wrap .pf-apply{background:var(--accent);color:var(--on-primary);border:1px solid var(--accent)}
 .pf-wrap .pf-apply:disabled{opacity:.5;cursor:default}
 .pf-wrap .pf-cancel{background:transparent;border:1px solid var(--line);color:var(--text)}
 @media (max-width:640px){.pf-wrap .pf-pop{position:fixed;inset-inline:16px;top:auto;bottom:16px;width:auto;max-width:none;z-index:400}.pf-wrap .pf-fields label{min-width:100%}.pf-wrap .pf{display:flex}.pf-wrap .pf button{flex:1 1 auto;justify-content:center;padding:0 10px}}
@@ -432,7 +432,7 @@ body{background:
 .sec-tab[aria-current="page"]{background:var(--surface);color:var(--text);box-shadow:var(--shadow)}
 .sec-tab.locked{opacity:.45;cursor:not-allowed}
 
-.stale-note{margin:0 0 14px;padding:10px 14px;border-radius:var(--r-sm);background:#FFF4DB;color:#6B4A00;border:1px solid #F0D9A0;font-size:14px}
+.stale-note{margin:0 0 14px;padding:10px 14px;border-radius:var(--r-sm);background:var(--warn-bg);color:var(--warn-fg);border:1px solid var(--warn-line);font-size:14px}
 .stale-note p{margin:0}.stale-note p+p{margin-top:4px}
 
 /* Reserved space (UX audit 2026-11-12, finding 3). Areas that are filled from an API answer keep roughly their final height from the
@@ -452,7 +452,7 @@ body{background:
 [data-page="admin"] #content > section:nth-of-type(3){min-height:150px}
 
 /* Loading placeholder: a block of the size the content will have, so nothing jumps when it arrives */
-.sk{border-radius:16px;background:linear-gradient(90deg,var(--tint) 25%,rgba(255,255,255,.65) 50%,var(--tint) 75%);background-size:200% 100%;animation:sk 1.4s linear infinite}
+.sk{border-radius:16px;background:linear-gradient(90deg,var(--tint) 25%,color-mix(in srgb,var(--paper) 65%,transparent) 50%,var(--tint) 75%);background-size:200% 100%;animation:sk 1.4s linear infinite}
 @keyframes sk{to{background-position:-200% 0}}
 @media (prefers-reduced-motion:reduce){.sk{animation:none}}
 
@@ -476,3 +476,18 @@ html[lang=en] .nv-g:not([data-open]) .nv-c,[dir=ltr] .nv-g:not([data-open]) .nv-
 .app.mini .nv-g:hover .nv-s,.app.mini .nv-g:focus-within .nv-s{display:flex;position:absolute;inset-inline-start:calc(100% + 6px);inset-block-start:0;z-index:70;min-width:200px;padding:8px;gap:2px;background:var(--surface);border:1px solid var(--line);border-radius:16px;box-shadow:var(--shadow)}
 .app.mini .nv-s .navi{justify-content:flex-start;padding:0 14px}
 .app.mini .nv-s .navi>span{display:inline}
+
+/* ---- Ink surfaces (sidebar, menus): always dark (Leen, 2026-11-19). tokens.css switches the colours on these selectors;
+   the aliases below are computed again here, otherwise they would keep the light value inherited from :root. */
+.side,.menu{
+  --bg:var(--background);--surface:var(--paper);--ink:var(--foreground);--deep:var(--brand-deep);--accent:var(--primary);
+  --soft:var(--brand-soft);--pulse:var(--destructive);--text:var(--ink);
+  --muted:color-mix(in srgb,var(--ink) 62%,transparent);
+  --line:color-mix(in srgb,var(--soft) 60%,transparent);
+  --tint:color-mix(in srgb,var(--accent) 14%,transparent);
+  --tint-2:color-mix(in srgb,var(--accent) 22%,transparent);
+  --focus:color-mix(in srgb,var(--accent) 35%,transparent);
+  --glass:var(--paper);--glass-strong:color-mix(in srgb,var(--foreground) 10%,var(--paper));
+  --glass-edge:color-mix(in srgb,var(--foreground) 12%,transparent);
+  color:var(--text);
+}

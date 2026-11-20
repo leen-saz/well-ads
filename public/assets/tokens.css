@@ -1,0 +1,59 @@
+/* The one token source (docs/PRD.md §4.2). Every page gets this file before its own styles: src/lib/theme.ts links it
+   first in each HTML answer. public/assets/app.css aliases its old names (--ink, --accent…) to these, nav.js (the
+   pipeline pages' sidebar) and src/styles/ui.css read them too. One colour for actions (--primary), pink only for danger.
+   Content is always light (today's values, unchanged). Leen's choice (2026-11-19): the menus are always dark («ink»). */
+:root{
+  /* Brand (Well) */
+  --brand-ivory:#F6F0E3;
+  --brand-indigo:#1D1069;
+  --brand-deep:#221196;
+  --brand-purple:#7E57FD;
+  --brand-soft:#ACA6E1;
+  --brand-pink:#F86080;
+
+  /* Semantic, light */
+  --background:#F1EEFA;
+  --foreground:var(--brand-indigo);
+  --paper:#FFFFFF;
+  --primary:var(--brand-purple);
+  --on-primary:#FFFFFF;
+  --destructive:var(--brand-pink);
+  --inverse:var(--brand-indigo);
+  --on-inverse:#FFFFFF;
+  --idle:#6f7681;
+  --err:#d93025;
+  --warn-bg:#FFF4DB;
+  --warn-fg:#6B4A00;
+  --warn-line:#F0D9A0;
+  --topbar:#F3F0FB;
+  --page-1:#F5F3FC;
+  --page-2:#ECE8F8;
+  --page-3:#EEF0FF;
+  --page-4:#ECE6FB;
+  --page-5:#F1EAFB;
+  --glow-1:rgba(126,87,253,.42);
+  --glow-2:rgba(120,150,255,.38);
+  --glow-3:rgba(172,166,225,.55);
+  --chart-1:var(--brand-purple);
+  --chart-2:var(--brand-deep);
+  --chart-3:var(--brand-soft);
+  color-scheme:light;
+}
+
+/* Ink surfaces: the sidebar and every dropdown menu, always dark. Same names, so whatever reads a token inside them
+   turns dark; app.css and ui.css re-declare their own aliases on the same selectors (an alias set on :root keeps the
+   light value it was computed with). Text pairs here pass WCAG AA: tests/unit/theme.test.ts. */
+.side,.wl-side,.menu,[data-slot="dropdown-menu-content"],[data-slot="dropdown-menu-sub-content"]{
+  --background:#1D1069;
+  --foreground:#F3F0FF;
+  --paper:#1D1069;
+  --primary:#A68CFF;
+  --on-primary:#120D2B;
+  --brand-deep:#C9BCFF;
+  --brand-soft:#5B528F;
+  --inverse:#ECE9FB;
+  --on-inverse:#1D1069;
+  --idle:#9AA0AA;
+  --err:#FF7A6E;
+  color-scheme:dark;
+}
