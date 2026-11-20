@@ -129,8 +129,18 @@ def exclusions_configured():
     return bool(os.environ.get("TIKTOK_EXCLUDED_ADVERTISER_IDS") and os.environ.get("TIKTOK_EXCLUDED_MARKERS"))
 
 
+# secondary_status values that only exist for an ad that is switched ON (the platform is waiting, capped or reviewing it):
+# used when the campaign and ad group operation statuses were not fetched (the connector/ad_get path), so that a daily
+# or total spend cap (*_EXCEED), a review, or a schedule does not read as "switched off".
+SWITCHED_ON_STATUS = ("AD_STATUS_DELIVERY_OK", "AD_STATUS_CAMPAIGN_EXCEED", "AD_STATUS_BUDGET_EXCEED", "AD_STATUS_AUDIT",
+                      "AD_STATUS_REAUDIT", "AD_STATUS_AUDIT_DENY", "AD_STATUS_REAUDIT_DENY", "AD_STATUS_PARTIAL_AUDIT_DENY",
+                      "AD_STATUS_NOT_START", "AD_STATUS_SCHEDULE_NOT_START", "AD_STATUS_DONE", "AD_STATUS_SCHEDULE_DONE",
+                      "AD_STATUS_TIME_DONE")
+
+
 def tiktok_live(x):
-    """نشط فقط إذا الإعلان والمجموعة والحملة كلها ENABLE. حالة التسليم وحدها لا تكفي."""
+    """مفعّل إذا الإعلان والمجموعة والحملة كلها ENABLE. إذا حالة المجموعة والحملة ما انسحبت نستنتج من secondary_status:
+    الحالات اللي توجد فقط لإعلان مفعّل (حد الصرف، المراجعة، الجدولة) تعني مفعّل، و*_DISABLE/*_DELETE تعني متوقف."""
     if x.get("operation_status") != "ENABLE":
         return False
     camp = x.get("campaign_operation_status")
@@ -141,7 +151,7 @@ def tiktok_live(x):
     if st.endswith("_DISABLE") or "DELETE" in st or st in ("AD_STATUS_DISABLE",):
         return False
     if camp is None and group is None:
-        return st == "AD_STATUS_DELIVERY_OK"
+        return st in SWITCHED_ON_STATUS
     return True
 
 
