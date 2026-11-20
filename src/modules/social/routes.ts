@@ -92,7 +92,7 @@ export const posts = {
     for (const pl of v.draft.platforms) if (ready[pl] && SOCIAL[pl].live && !ready[pl].startsWith('غير متاح')) v.notices.push(`${SOCIAL[pl].name}: ${ready[pl]}`);
     const r = await sb<Row[]>(cfg, '/rest/v1/social_posts', { method: 'POST', admin: true, headers: { Prefer: 'return=representation' },
       body: { ...v.draft, company_id: user.co, status: 'scheduled', created_by: user.email } });
-    if (!r.ok) return missingSchema(r) && v.draft.overrides ? json(503, { error: notApplied(user, '039_social_v2.sql') }) : json(500, { error: 'ما انحفظ المنشور' });
+    if (!r.ok) return missingSchema(r) && v.draft.overrides ? json(503, { error: notApplied(user, '040_social_v2.sql') }) : json(500, { error: 'ما انحفظ المنشور' });
     const post = rows(r.data)[0];
     await audit(cfg, user, 'social_scheduled', { target: { id: post?.id, platforms: v.draft.platforms, mode: v.draft.mode, publish_at: v.draft.publish_at } });
     return json(200, { ok: true, post, notices: v.notices });
@@ -305,7 +305,7 @@ export const slots = {
     const s = cleanSlot(await readJson(request));
     if (!s) return json(400, { error: 'اختر يوم ووقت صحيح' });
     const r = await sb<Row[]>(cfg, '/rest/v1/social_slots', { method: 'POST', admin: true, headers: { Prefer: 'return=representation' }, body: { ...s, company_id: user.co, created_by: user.email } });
-    if (!r.ok) return json(r.status === 409 ? 409 : missingSchema(r) ? 503 : 500, { error: r.status === 409 ? 'هالموعد موجود' : missingSchema(r) ? notApplied(user, '039_social_v2.sql') : 'ما انحفظ الموعد' });
+    if (!r.ok) return json(r.status === 409 ? 409 : missingSchema(r) ? 503 : 500, { error: r.status === 409 ? 'هالموعد موجود' : missingSchema(r) ? notApplied(user, '040_social_v2.sql') : 'ما انحفظ الموعد' });
     await audit(cfg, user, 'social_slot_added', { target: s });
     return json(200, { ok: true, slot: rows(r.data)[0] });
   }),

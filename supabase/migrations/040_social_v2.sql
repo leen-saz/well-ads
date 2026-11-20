@@ -1,4 +1,4 @@
--- 039: النشر v2 (docs/PRD.md §3.2، المرحلة M6).
+-- 040: النشر v2 (docs/PRD.md §3.2، المرحلة M6).
 -- social_posts.overrides: نص خاص لكل منصة لما يختلف عن النص المشترك، مثل {"x": {"body": "..."}}. فاضي = النص المشترك للكل.
 -- social_slots: مواعيد الطابور الأسبوعية للشركة بتوقيت الرياض. «أضف للطابور» يختار أول موعد فاضي، والمنشور ينتظر الاعتماد مثل أي منشور.
 alter table public.social_posts add column if not exists overrides jsonb not null default '{}';
@@ -15,4 +15,4 @@ create table if not exists public.social_slots (
 alter table public.social_slots enable row level security;
 revoke all on public.social_slots from anon, authenticated;
 
-insert into public.schema_migrations (name) values ('039_social_v2.sql') on conflict do nothing;
+insert into public.schema_migrations (name) values ('040_social_v2.sql') on conflict do nothing;
