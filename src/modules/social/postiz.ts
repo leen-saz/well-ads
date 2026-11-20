@@ -112,9 +112,18 @@ function channelFor(p: SocialPlatform, list: Integration[]): { ok: true; ch: Int
   return { ok: false, code: 'none', names: [] };
 }
 
+// TikTok's title holds 90 UTF-16 units (https://developers.tiktok.com/doc/content-posting-api-reference-photo-post, read 2026-11-20).
+// A plain slice(0, 90) can cut an emoji (a surrogate pair) in half and send a broken character, so a cut that lands inside a
+// pair drops the whole pair, and a joiner left dangling at the end goes with it.
+export function tiktokTitle(body: string): string {
+  let t = body.split('\n')[0]!.trim().slice(0, 90);
+  if (/[\ud800-\udbff]$/.test(t)) t = t.slice(0, -1);
+  return t.replace(/\u200d+$/, '').trim();
+}
+
 // ---- What Postiz needs per platform (settings.__type must match the channel's identifier)
 function settingsFor(p: SocialPlatform, ch: Integration, body: string): Record<string, unknown> {
-  if (p === 'tiktok') return { __type: 'tiktok', title: body.split('\n')[0]!.trim().slice(0, 90), privacy_level: 'PUBLIC_TO_EVERYONE', duet: false, stitch: false, comment: true, autoAddMusic: 'no',
+  if (p === 'tiktok') return { __type: 'tiktok', title: tiktokTitle(body), privacy_level: 'PUBLIC_TO_EVERYONE', duet: false, stitch: false, comment: true, autoAddMusic: 'no',
     brand_content_toggle: false, brand_organic_toggle: false, video_made_with_ai: false, content_posting_method: 'DIRECT_POST' };
   if (p === 'x') return { __type: 'x', who_can_reply_post: 'everyone', community: '', made_with_ai: false, paid_partnership: false };
   return { __type: ch.identifier };   // linkedin and linkedin-page (post_as_images_carousel is optional)

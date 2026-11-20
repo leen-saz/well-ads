@@ -2,7 +2,7 @@
 // the rate limit, the readiness status, and the rule that an unapproved post makes ZERO calls to Postiz. Synthetic data only.
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { publishPost, publishOne, validate, retryPlan, readiness, type Draft, type Results } from './social';
-import { postizConf, postizStatus, cachedStatus, _clearStatusCache, platformLive, withEngineSecrets, POSTIZ_WAIT_MS } from './postiz';
+import { postizConf, postizStatus, cachedStatus, _clearStatusCache, platformLive, withEngineSecrets, POSTIZ_WAIT_MS, tiktokTitle } from './postiz';
 import { runSocial } from './cron';
 import { WELL_COMPANY } from '../../lib/tenant';
 import { postizMock } from './postiz-mock';
@@ -56,6 +56,19 @@ describe('publishing through Postiz', () => {
     expect(m.st.calls.find(c => c.path === '/upload-from-url')!.body).toEqual({ url: vid.url });
     expect(m.live()[0]!.image).toEqual([{ id: 'media-1', path: expect.stringContaining('uploads.pz.test') }]);
     expect(m.live()[0]!.settings).toMatchObject({ __type: 'tiktok', title: 'سطر أول', content_posting_method: 'DIRECT_POST' });
+  });
+  it('TikTok title: at most 90 UTF-16 units, and a cut never leaves half an emoji or a dangling joiner', async () => {
+    const lone = (t: string) => /[\ud800-\udbff](?![\udc00-\udfff])|(?<![\ud800-\udbff])[\udc00-\udfff]/.test(t);
+    const cut = 'ا'.repeat(89) + '😀 باقي';                      // the emoji straddles unit 90
+    expect(cut.slice(0, 90).length).toBe(90); expect(lone(cut.slice(0, 90))).toBe(true);   // what a plain slice sent before
+    expect(tiktokTitle(cut)).toBe('ا'.repeat(89));
+    expect(tiktokTitle('ا'.repeat(87) + '👨\u200d👩')).toBe('ا'.repeat(87) + '👨');          // joiner left at the end goes too
+    expect(tiktokTitle('ا'.repeat(88) + '😀')).toBe('ا'.repeat(88) + '😀');                  // fits exactly: kept whole
+    expect(tiktokTitle('  سطر أول\nباقي')).toBe('سطر أول');
+    const m = postizMock();
+    await publishPost(post(['tiktok'], [vid], cut), m.tokens, m.f, {}, run);
+    const title = (m.live()[0]!.settings as { title: string }).title;
+    expect(title.length).toBeLessThanOrEqual(90); expect(lone(title)).toBe(false);
   });
   it('LinkedIn uses the connected company page channel', async () => {
     const m = postizMock();
