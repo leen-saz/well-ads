@@ -58,9 +58,10 @@ export async function dispatchWorkflow(e: CronEnv, file: string, f: typeof fetch
 
 // Workers Free allows 5 cron triggers per account (error 10072 failed a deploy), so this Worker has TWO: the 5-minute social one and
 // ONE hourly trigger that decides here, from the scheduled time (UTC), which periodic jobs are due. Order matters only for reading.
-export type HourlyTask = 'refresh' | 'watchdog' | 'backup' | 'restore';
+export type HourlyTask = 'refresh' | 'watchdog' | 'accounts' | 'backup' | 'restore';
 export function hourlyTasks(scheduled: Date): HourlyTask[] {
-  const tasks: HourlyTask[] = ['refresh', 'watchdog'];
+  // accounts: the read-only health check of every connected account (src/lib/account-health.ts)
+  const tasks: HourlyTask[] = ['refresh', 'watchdog', 'accounts'];
   // Weekly encrypted backup: Sunday 02:00-02:59 UTC (05:xx Riyadh)
   if (scheduled.getUTCDay() === 0 && scheduled.getUTCHours() === 2) tasks.push('backup');
   // Monthly restore test: the 1st at 03:xx UTC, an hour after a backup could have run that day

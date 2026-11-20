@@ -135,6 +135,14 @@ export const EN = {
   'آخر تحديث للأرقام قبل أكثر من ٣ أيام. الأرقام اللي تشوفها قد تكون قديمة، فلا تبني عليها قرار قبل ما تتحدّث.': 'The numbers were last updated more than 3 days ago. What you see may be out of date, so do not base a decision on it until it updates.',
   // التنقل والهيكل
   'التحليلات': 'Analytics', 'ملخص الأداء': 'Performance summary', 'المواد الإعلانية بالتفصيل': 'Creatives in detail', 'الحملات والمنصات': 'Campaigns & platforms', 'ملخص اليوم': 'Today summary', 'أحلم': 'Ahlam', 'الأداء': 'Performance', 'إنشاء المحتوى': 'Content creation', 'المراجعة والتنفيذ': 'Review & execution', 'إدارة النظام': 'System', 'السجل': 'History', 'الصلاحيات': 'Permissions', 'اليوم': 'Today', 'إغلاق القائمة': 'Close menu', 'المواد الإعلانية': 'Creatives', 'المادة الإعلانية': 'Creative', 'بموافقتي': 'With my approval', 'تنفيذ تلقائي': 'Auto-run', 'التنفيذ التلقائي': 'auto-run', 'لوحة القرارات': 'Decision board', 'الصلاحيات والدخول': 'Access & sign-in', 'السوشال': 'Social', 'صورة أو فيديو': 'Photo or video', 'أو حط رابط': 'Or paste a link', 'يرفع…': 'Uploading…', 'انرفع ✓': 'Uploaded ✓', 'الرحلات والرسائل': 'Journeys', 'المحتوى و SEO': 'Content & SEO', 'المدير': 'Manager', 'الموديولات': 'Modules', 'موديولات الشركة': 'Company modules', 'الإعدادات': 'Settings', 'أساسي': 'Core', 'أساسية لتشغيل النظام': 'Needed to run the system',
+  'صحة الحسابات': 'Account health', 'ما انفحص شي للحين: الفحص كل ساعة': 'Nothing checked yet: the check runs every hour', 'افحص الحين': 'Check now',
+  'كل الحسابات المربوطة تستجيب': 'Every connected account answers', 'مجموعات الحسابات': 'Account groups', 'مجموعة جديدة': 'New group',
+  'ما عندك مجموعات. جمّع حساباتك عشان تختارها مرة وحدة في النشر والتقارير.': 'No groups yet. Group your accounts to pick them in one go when publishing and in reports.',
+  'اسم المجموعة': 'Group name', 'الحسابات': 'Accounts', 'احفظ المجموعة': 'Save group', 'عدّل': 'Edit', 'احذف': 'Delete', 'اربط حساب أول.': 'Connect an account first.',
+  'انحفظت المجموعة': 'Group saved', 'انحذفت المجموعة': 'Group deleted', 'يستجيب': 'Answering', 'ينتهي قريب: أعد الربط قبل ما ينتهي': 'Expires soon: reconnect before it does',
+  'ما استجاب في آخر فحص. نعيد الفحص بعد ساعة قبل ما نعتبره مفصول': 'Did not answer the last check. Checking again in an hour before calling it disconnected',
+  'وقف الربط: أعد الربط': 'Stopped working: reconnect', ' (من تاريخ الانتهاء بس)': ' (from the expiry date only)',
+  'فحص صحة الحسابات يشتغل بعد ما تكتمل تجهيزات القاعدة.': 'The account check starts once the database setup is complete.',
   'حسابي': 'My account', 'الاعتمادات': 'Approvals', 'خروج': 'Sign out', 'المالكة': 'Owner', 'عضو': 'Member', 'القائمة': 'Menu', 'التنقل': 'Navigation',
   'عربي': 'عربي', 'English': 'English', 'اللغة': 'Language',
   // الدخول
@@ -1727,6 +1735,8 @@ export const pat = t => [
   // صفحة الربط: نصوص فيها اسم منصة أو تاريخ أو عدد
   [/^(\d+) (?:مربوطة|مربوط) من (\d+)$/, '$1 of $2 connected'], [/^آخر ربط (.+)$/, 'Last connected $1'], [/^ينتهي (.+)$/, 'Expires $1'],
   [/^مربوطة من (.+)$/, 'Connected from $1'],
+  [/^(\d+) يحتاج انتباه$/, '$1 need attention'], [/^ · آخر فحص (.+)$/, ' · last checked $1'], [/^انفحص (\d+) حساب$/, 'Checked $1 accounts'],
+  [/^تحذف مجموعة (.+)؟ الحسابات نفسها تبقى مربوطة\.$/, 'Delete the group $1? The accounts stay connected.'],
   [/^يعمل عبر GitHub$/, 'Active via GitHub'], [/^آخر سحب ناجح (.+)$/, 'Last successful pull $1'], [/^المفاتيح في أسرار GitHub، مو مربوطة من هذي الصفحة$/, 'The keys are in GitHub secrets, not connected from this page'], [/^انفك ربط (.+)$/, 'Disconnected $1'],
   [/^فك ربط (.+)؟ المفاتيح المحفوظة تنمسح من الخزنة\.$/, 'Disconnect $1? The saved keys are wiped from the vault.'],
   [/^(\d+) حرف$/, '$1 characters'], [/^(\d+) خطوات$/, '$1 steps'], [/^الخطة ·(.*)$/, (m, a) => 'Plan ·' + t(a)],

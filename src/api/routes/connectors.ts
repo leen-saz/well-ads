@@ -211,3 +211,80 @@ export const callback = {
     return back(`/connectors/?ok=${encodeURIComponent(p.id)}`, true);
   },
 };
+
+// ---- Account health and groups (docs/PRD.md §3.4, milestone M5; src/lib/account-health.ts). Well only, like the rest of this
+// group (connections has no company column). Reading needs the tab; «افحص الحين» and the groups need an approver.
+const HEALTH_NAMES: Record<string, string> = Object.fromEntries(PLATFORMS.map(p => [p.id, p.name]));
+const RECHECK_MS = 60_000;
+
+export const health = {
+  GET: handle(async (request, e) => {
+    const { cfg, user } = await requireUser(request, e, 'connectors', { well: true });
+    const [h, g, m] = await Promise.all([
+      sb(cfg, `/rest/v1/account_health?company_id=eq.${user.co}&select=platform,status,probed,last_check_at,first_failed_at,grace_until,error_code,expires_at&order=platform.asc`, { admin: true }),
+      sb(cfg, `/rest/v1/account_groups?company_id=eq.${user.co}&select=id,name,created_at&order=name.asc`, { admin: true }),
+      sb(cfg, `/rest/v1/account_group_members?company_id=eq.${user.co}&select=group_id,platform,account_ref`, { admin: true }),
+    ]);
+    if (!h.ok) return json(200, { missing: true, accounts: [], groups: [], can: { approve: atLeast(user, 'connectors', 'approve', cfg) } });
+    const members = rows(m.data);
+    return json(200, {
+      accounts: rows(h.data),
+      groups: rows(g.data).map(x => ({ ...x, members: members.filter(y => y.group_id === x.id).map(y => y.platform) })),
+      can: { approve: atLeast(user, 'connectors', 'approve', cfg) },
+    });
+  }),
+};
+
+// «افحص الحين»: the hourly check, run now. Once a minute at most (the newest check time decides), read-only on the platforms.
+export const recheck = {
+  POST: handle(async (request, e) => {
+    const { cfg, user } = await requireUser(request, e, 'connectors', { write: true, approve: true, well: true });
+    const last = await sb(cfg, `/rest/v1/account_health?company_id=eq.${user.co}&select=last_check_at&order=last_check_at.desc.nullslast&limit=1`, { admin: true });
+    if (!last.ok) return json(503, { error: 'جزء من النظام ما اكتمل تجهيزه. بلّغ الإدارة.' });
+    const at = Date.parse(String(rows(last.data)[0]?.last_check_at || ''));
+    if (Number.isFinite(at) && Date.now() - at < RECHECK_MS) return json(429, { error: 'انفحصت الحسابات قبل أقل من دقيقة. جرّب بعد شوي' });
+    const { runAccountHealth } = await import('../../lib/account-health');
+    const r = await runAccountHealth(cfg, vars(e) as never, { all: true, names: HEALTH_NAMES });
+    await audit(cfg, user, 'accounts_checked', { target: { checked: r.checked } });
+    return json(200, { ok: true, checked: r.checked });
+  }),
+};
+
+// Groups: a name and the platforms in it. POST creates or replaces one (by id), DELETE removes it.
+const GROUP_NAME = /^[\p{L}\p{N} _\-.]{1,60}$/u;
+export const groups = {
+  POST: handle(async (request, e) => {
+    const { cfg, user } = await requireUser(request, e, 'connectors', { write: true, approve: true, well: true });
+    const body = await readJson(request);
+    const name = String(body.name ?? '').trim();
+    if (!GROUP_NAME.test(name)) return json(400, { error: 'اسم المجموعة من حرف إلى 60، بدون رموز' });
+    const plats = [...new Set(Array.isArray(body.members) ? (body.members as unknown[]).map(String) : [])];
+    if (!plats.length || plats.length > 40 || plats.some(p => !byId(p))) return json(400, { error: 'اختر حساب واحد على الأقل من الحسابات المعروفة' });
+    const id = body.id == null ? null : parseInt(String(body.id), 10);
+    let gid: number;
+    if (id) {
+      const u = await sb(cfg, `/rest/v1/account_groups?id=eq.${id}&company_id=eq.${user.co}`, { method: 'PATCH', admin: true, headers: { Prefer: 'return=representation' }, body: { name } });
+      if (!u.ok) return json(u.status === 409 ? 409 : 500, { error: u.status === 409 ? 'فيه مجموعة بنفس الاسم' : 'ما انحفظت المجموعة' });
+      if (!rows(u.data).length) return json(404, { error: 'المجموعة مو موجودة' });
+      gid = id;
+      await sb(cfg, `/rest/v1/account_group_members?group_id=eq.${gid}&company_id=eq.${user.co}`, { method: 'DELETE', admin: true });
+    } else {
+      const c = await sb(cfg, '/rest/v1/account_groups', { method: 'POST', admin: true, headers: { Prefer: 'return=representation' }, body: { company_id: user.co, name, created_by: user.email } });
+      if (!c.ok) return json(c.status === 409 ? 409 : 500, { error: c.status === 409 ? 'فيه مجموعة بنفس الاسم' : 'ما انحفظت المجموعة' });
+      gid = Number(rows(c.data)[0]?.id);
+    }
+    const m = await sb(cfg, '/rest/v1/account_group_members', { method: 'POST', admin: true, body: plats.map(p => ({ group_id: gid, company_id: user.co, platform: p, account_ref: '' })) });
+    if (!m.ok) return json(500, { error: 'ما انحفظت حسابات المجموعة' });
+    await audit(cfg, user, id ? 'account_group_updated' : 'account_group_created', { target: { id: gid, members: plats } });
+    return json(200, { ok: true, id: gid });
+  }),
+  DELETE: handle(async (request, e) => {
+    const { cfg, user } = await requireUser(request, e, 'connectors', { write: true, approve: true, well: true });
+    const id = parseInt(String((await readJson(request)).id), 10);
+    if (!id) return json(400, { error: 'طلب غير صحيح' });
+    const r = await sb(cfg, `/rest/v1/account_groups?id=eq.${id}&company_id=eq.${user.co}`, { method: 'DELETE', admin: true, headers: { Prefer: 'return=representation' } });
+    if (!r.ok || !rows(r.data).length) return json(404, { error: 'المجموعة مو موجودة' });
+    await audit(cfg, user, 'account_group_deleted', { target: { id } });
+    return json(200, { ok: true });
+  }),
+};
