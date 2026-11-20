@@ -25,7 +25,7 @@ def row(key, n, spend=5, impr=100):
 
 class PlatformStates(unittest.TestCase):
     def test_meta_variants(self):
-        base = {"effective_status": "ACTIVE", "adset": {"effective_status": "ACTIVE"}, "campaign": {}}
+        base = {"effective_status": "ACTIVE", "adset": {"effective_status": "ACTIVE", "start_time": "2026-11-01T00:00:00+0300"}, "campaign": {}}
         self.assertEqual(delivery.meta_state({**base, "effective_status": "DISAPPROVED"}, False, NOW)[0], "rejected")
         self.assertEqual(delivery.meta_state({**base, "effective_status": "PENDING_REVIEW"}, False, NOW)[0], "in_review")
         self.assertEqual(delivery.meta_state(base, True, NOW), (None, "", True))
@@ -33,9 +33,9 @@ class PlatformStates(unittest.TestCase):
         self.assertEqual(delivery.meta_state(fut, True, NOW)[0], "scheduled")
         past = {**base, "campaign": {"stop_time": "2026-11-10T00:00:00+0300"}}
         self.assertEqual(delivery.meta_state(past, True, NOW)[0], "ended")
-        life = {**base, "adset": {"effective_status": "ACTIVE", "lifetime_budget": "50000", "budget_remaining": "0"}}
+        life = {**base, "adset": {**base["adset"], "lifetime_budget": "50000", "budget_remaining": "0"}}
         self.assertEqual(delivery.meta_state(life, True, NOW)[0], "budget")
-        daily = {**base, "adset": {"effective_status": "ACTIVE", "daily_budget": "5000", "budget_remaining": "0"}}
+        daily = {**base, "adset": {**base["adset"], "daily_budget": "5000", "budget_remaining": "0"}}
         self.assertIsNone(delivery.meta_state(daily, True, NOW)[0])
 
     def test_snap_rejected_review_and_schedule(self):

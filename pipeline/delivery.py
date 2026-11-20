@@ -78,7 +78,7 @@ def meta_state(a, live, now):
     يرجع (حالة أو None، سبب، معروف). None = المنصة ما ترى مانع (الحكم لقاعدة الصرف)."""
     st = a.get("effective_status") or ""
     adset, camp = a.get("adset") or {}, a.get("campaign") or {}
-    known = bool(st) and bool(adset)
+    known = bool(st) and ("start_time" in adset or "start_time" in camp)   # schedule fields come from a separate optional call
     if st == "DISAPPROVED":
         return _out("rejected", True)
     if st == "PENDING_REVIEW":
@@ -173,6 +173,22 @@ def stamp(ad, state, now_fresh=None):
     if now_fresh:
         ad["fresh_at"] = now_fresh
     return ad
+
+
+def guarded(ad, state_fn, fresh_fn=None):
+    """يكتب حقول التسليم على الإعلان ولا يرمي أبداً: أي خطأ هنا يعني «الحالة غير معروفة» (يحكم الصرف الفعلي)،
+    ولا يلمس live ولا status ولا وجود الإعلان. طبقة التسليم إضافة، ما تكسر السحب."""
+    import sys
+    try:
+        state = state_fn()
+        fresh = fresh_fn() if fresh_fn else None
+    except Exception as ex:  # noqa: BLE001
+        print("delivery: تعذر حساب حالة التسليم، نكمل بدونها —", type(ex).__name__, str(ex)[:80], file=sys.stderr)
+        state, fresh = (None, "", False), None
+    try:
+        return stamp(ad, state, fresh)
+    except Exception:  # noqa: BLE001
+        return ad
 
 
 def _base(key):

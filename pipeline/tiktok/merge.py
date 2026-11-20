@@ -288,8 +288,8 @@ def main():
                 link=f"https://www.tiktok.com/embed/v2/{x['tiktok_item_id']}" if x.get("tiktok_item_id") else None,
                 goal=GOAL.get(obj.get(x.get("campaign_id"), ""), "other"))
             import delivery
-            delivery.stamp(ads["t" + x["ad_id"]], delivery.tiktok_state(x, None, live, now),
-                           delivery.fresh_from(x.get("create_time"), x.get("modify_time"), now=now))
+            delivery.guarded(ads["t" + x["ad_id"]], lambda: delivery.tiktok_state(x, None, live, now),
+                             lambda: delivery.fresh_from(x.get("create_time"), x.get("modify_time"), now=now))
             # Recomputed from this run's data every time: a changed link or ad group must be able to clear the tag
             dest = dest_for(x, goal=ads["t" + x["ad_id"]]["goal"])
             if dest:

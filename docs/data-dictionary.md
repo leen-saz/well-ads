@@ -100,6 +100,8 @@ by code that is live on main; open «المدير ← صحة الداتا ← ا
 
 Platform fields used: Meta `effective_status`, `created_time`, `updated_time`, ad set and campaign `start_time`/`end_time`(`stop_time`)/`lifetime_budget`/`budget_remaining`; Snapchat ad `review_status`, `created_at`/`updated_at`, ad squad and campaign `start_time`/`end_time`; Google `ad_group_ad.primary_status`, `ad_group_ad.policy_summary.approval_status`, `campaign.primary_status`, `campaign.serving_status`; TikTok ad `secondary_status`, `create_time`/`modify_time`, ad group `schedule_start_time`/`schedule_end_time` (optional: if the API refuses them the pull continues without). Data rule: switched on with no spend and no impressions from today-2 to today (72 hours of daily data) = `no_spend`. A platform that failed to refresh keeps its previous verdict. Meta placements of one ad are judged together.
 
+**Guards (added after the 2026-11-20 incident).** The delivery layer only adds fields and can never change `live`, `status` or which ads exist: every platform call goes through `delivery.guarded` (an error becomes "status unknown, judge by spend"), the extra Meta and Google fields are fetched in separate optional calls so the core pulls are the same requests as before, and `fetch_data.py` refuses to write `dash.json` when switched-on ads fall by more than half versus the previous run (per platform with a successful pull, and in total) unless the run was started with `live_drop_reason` (refresh.yml input, env `LIVE_DROP_REASON`).
+
 ## Indexes against the queries the code makes
 
 Covered: ads by company/platform; ad_metrics by day and by (ad_key, day) PK; audit_log by (company, at); crm_leads by
