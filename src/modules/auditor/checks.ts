@@ -77,7 +77,9 @@ export function integrity(c: Claim, f: Facts, cfg: AuditConfig): Run {
       const sum = sars.reduce((x, s) => x + s.sarAtStake!, 0);
       // A verdict names one step: its amount is that step's. A sum of all steps is also fine.
       const named = c.verdict.step ? q[c.verdict.step]?.sarAtStake : null;
-      if (Math.abs(total - sum) > 0.5 && (named == null || Math.abs(total - named) > 0.5))
+      // Whole-riyal amounts: each part and the total may be 0.5 off, so the sum may differ from the total by 0.5 × (parts + 1)
+      const slack = 0.5 * (sars.length + 1);
+      if (Math.abs(total - sum) > slack && (named == null || Math.abs(total - named) > 1))
         bad(r, { id: 'sar_sum', kind: 'consistency', effect: 'contradicts', step: 'verdict', text: { ar: 'المبلغ المعرّض للخسارة في الحكم ما يساوي مجموع الخطوات ولا مبلغ الخطوة المذكورة.', en: 'The verdict SAR at stake equals neither the sum of the steps nor the named step.' } });
     }
     if ((total ?? 0) > f.scope.spend + 0.5 || sars.some(s => s.sarAtStake! > f.scope.spend + 0.5))
