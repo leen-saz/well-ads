@@ -92,7 +92,7 @@ async function overviewEndpoint(e: Env, q: URLSearchParams): Promise<Response> {
   return reply(200, { period: p, generated_at: d.generated_at ?? null, totals: o, targets, judge: verdict });
 }
 
-const AD_FIELDS = ['name', 'campaign', 'platform', 'dept', 'goal', 'dest', 'status', 'live', 'delivery', 'delivery_reason', 'delivery_days', 'group'] as const;
+const AD_FIELDS = ['name', 'campaign', 'platform', 'dept', 'goal', 'dest', 'status', 'live', 'delivery', 'delivery_reason', 'delivery_days_no_spend', 'group'] as const;
 async function adsEndpoint(e: Env, q: URLSearchParams): Promise<Response> {
   const d = await loadDash(e);
   if (!d) return missingDash();
