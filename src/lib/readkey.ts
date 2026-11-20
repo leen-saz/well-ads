@@ -56,6 +56,18 @@ export async function authenticate(request: Request, e: KeyEnv, now = Date.now()
   const key = configuredKey(e);
   if (!key) return fail(404, 'not_found', 'Not found.');
   if (request.method !== 'GET' && request.method !== 'HEAD') return fail(405, 'method_not_allowed', 'This API is read-only: GET and HEAD only.', { allow: 'GET, HEAD' });
+  return checkBearer(request, e, key, now);
+}
+
+// The key, the wrong-key counter and the per-minute limit, without the method rule: shared with the Well MCP endpoint (/mcp, src/mcp/http.ts),
+// whose JSON-RPC calls are POSTs. The key there gives the `read` scope only.
+export async function authenticateKey(request: Request, e: KeyEnv, now = Date.now()): Promise<{ ok: true; cfg: Cfg } | Fail> {
+  const key = configuredKey(e);
+  if (!key) return fail(404, 'not_found', 'Not found.');
+  return checkBearer(request, e, key, now);
+}
+
+async function checkBearer(request: Request, e: KeyEnv, key: string, now: number): Promise<{ ok: true; cfg: Cfg } | Fail> {
   const ip = ipOf(request);
   const minute = Math.floor(now / 60000);
   try {

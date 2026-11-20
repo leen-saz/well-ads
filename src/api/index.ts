@@ -1,3 +1,4 @@
+import { handleMcp } from '../mcp/http';
 import { Hono } from 'hono';
 import { json, requireUser, type AuthEnv, type Handler } from '../lib/auth';
 import * as auth from './routes/auth';
@@ -44,6 +45,8 @@ api.get('/data-status', async c => c.json(await dataStatus((c.env as unknown as 
 // so every path under it, known or not, goes through the key check first.
 api.all('/v1', c => handleV1(c.req.raw, c.env as never));
 api.all('/v1/*', c => handleV1(c.req.raw, c.env as never));
+// The Well MCP (docs/PRD.md §3.0): JSON-RPC over POST, the same key check inside (src/mcp/http.ts)
+api.all('/mcp', c => handleMcp(c.req.raw, c.env as never));
 // Every route group: the core ones, then one per live module (src/modules/routes.ts). Exported for the error-behaviour test.
 export const GROUPS: Record<string, Group> = { auth, admin, account, connectors, control, buyer, dash, lessons, approvals, today, campaigns, vitals, library: { list: libraryRoot, item: libraryItem, star: libraryStar, approve: libraryApprove }, ...ROUTES };
 for (const [key, routes] of Object.entries(GROUPS)) api.all(`/${key}/:action`, group(routes));

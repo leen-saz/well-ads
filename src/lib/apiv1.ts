@@ -154,6 +154,15 @@ async function healthEndpoint(e: Env): Promise<Response> {
   return reply(200, s);
 }
 
+// The same reads for the Well MCP tools (src/mcp/tools/read.ts): the status and the JSON body, no HTTP around them
+export const V1_READS = ['dash', 'overview', 'ads', 'decisions', 'campaigns', 'health'] as const;
+export async function readV1(name: (typeof V1_READS)[number], e: Env, cfg: Cfg, params: Record<string, string> = {}): Promise<{ status: number; body: unknown }> {
+  const q = new URLSearchParams(params);
+  const res = name === 'dash' ? await dashEndpoint(e) : name === 'overview' ? await overviewEndpoint(e, q) : name === 'ads' ? await adsEndpoint(e, q)
+    : name === 'decisions' ? await decisionsEndpoint(cfg) : name === 'campaigns' ? await campaignsEndpoint(cfg) : await healthEndpoint(e);
+  return { status: res.status, body: await res.json() };
+}
+
 // ---- entry
 export async function handleV1(request: Request, e: Env): Promise<Response> {
   // Key unset: 404 for everything. Then the method, then the key and the limits (src/lib/readkey.ts)

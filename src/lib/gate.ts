@@ -12,6 +12,10 @@ const PUBLIC = [/^\/login\/?$/, /^\/reset\/?$/, /^\/welcome\/?$/, /^\/api\/auth\
   /^\/api\/listening\/probe\/?$/,
   // Read-only API: no cookie, its own Authorization: Bearer key check on every path (src/lib/apiv1.ts). Nothing else under /api gets this.
   /^\/api\/v1(\/|$)/,
+  // The Well MCP endpoint: the same bearer-key check inside (src/mcp/http.ts)
+  /^\/api\/mcp\/?$/,
+  // The Well MCP endpoint: the same bearer-key check inside (src/mcp/http.ts)
+  /^\/api\/mcp\/?$/,
   /^\/assets\//, /^\/_astro\//, /^\/m\/[0-9a-f-]{36}\/[0-9a-f]{32}\.(jpg|png|webp|mp4|mov)$/i, /^\/robots\.txt$/, /^\/favicon/];
 
 // The five sidebar destinations (public/assets/sidebar.js GROUPS). /today/ is the start page; the others open

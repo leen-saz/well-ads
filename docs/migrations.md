@@ -22,6 +22,7 @@ reads or alters what the other creates, so either order gives the same schema. K
 | 12 | `037_session_revocation` | `profiles`; adds `valid_after` (signing out or changing a password ends older logins). Safe to apply before or after the deploy |
 | 13 | `039_account_health` | `companies`; account health, account groups (M5). Safe to apply before or after the deploy: the check does nothing until the table exists |
 | 14 | `040_social_v2` | `companies`, `social_posts`; text per platform (`overrides`) and queue slots (M6). Apply before using either; posts without them keep working |
+| 15 | `041_mcp` | `companies`; idempotency for Well MCP writes (M9). Apply before any MCP write tool is used; reads work without it |
 
 Rules going forward:
 
