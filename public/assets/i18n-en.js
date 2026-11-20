@@ -151,6 +151,7 @@ export const EN = {
   'أسبوعين': 'Two weeks', 'قائمة': 'List', 'طريقة العرض': 'View', 'انقل': 'Move', 'انقل هنا': 'Move here', 'الوقت الجديد': 'New time',
   'معتمد': 'Approved', 'انتقل.': 'Moved.', 'انتقل، وينتظر الاعتماد من جديد.': 'Moved; it waits for approval again.', 'نص خاص لـ': 'Own text for',
   'المنشور معتمد. نقله يرجّعه ينتظر الاعتماد من جديد. تنقله؟': 'The post is approved. Moving it sends it back for approval. Move it?',
+  'سجل القاعدة: ما فيه نتائج مقاسة للحين.': 'Rule record: no measured results yet.', 'نتائج 7 أيام بعد كل قرار نفّذته من هالقاعدة. العينة الصغيرة ما تنحسب.': '7-day results of each decision you took from this rule. Small samples are not counted.',
   'حسابي': 'My account', 'الاعتمادات': 'Approvals', 'خروج': 'Sign out', 'المالكة': 'Owner', 'عضو': 'Member', 'القائمة': 'Menu', 'التنقل': 'Navigation',
   'عربي': 'عربي', 'English': 'English', 'اللغة': 'Language',
   // الدخول
@@ -1746,6 +1747,7 @@ export const pat = t => [
   [/^(\d+) يحتاج انتباه$/, '$1 need attention'], [/^ · آخر فحص (.+)$/, ' · last checked $1'], [/^انفحص (\d+) حساب$/, 'Checked $1 accounts'],
   [/^تحذف مجموعة (.+)؟ الحسابات نفسها تبقى مربوطة\.$/, 'Delete the group $1? The accounts stay connected.'],
   [/^انضاف للطابور: (.+)$/, 'Added to the queue: $1'],
+  [/^سجل القاعدة: نجحت (\d+) من (\d+) · أسوأ (\d+)$/, 'Rule record: worked $1 of $2 · worse $3'], [/^سجل القاعدة: نجحت (\d+) من (\d+)$/, 'Rule record: worked $1 of $2'],
   [/^يعمل عبر GitHub$/, 'Active via GitHub'], [/^آخر سحب ناجح (.+)$/, 'Last successful pull $1'], [/^المفاتيح في أسرار GitHub، مو مربوطة من هذي الصفحة$/, 'The keys are in GitHub secrets, not connected from this page'], [/^انفك ربط (.+)$/, 'Disconnected $1'],
   [/^فك ربط (.+)؟ المفاتيح المحفوظة تنمسح من الخزنة\.$/, 'Disconnect $1? The saved keys are wiped from the vault.'],
   [/^(\d+) حرف$/, '$1 characters'], [/^(\d+) خطوات$/, '$1 steps'], [/^الخطة ·(.*)$/, (m, a) => 'Plan ·' + t(a)],

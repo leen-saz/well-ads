@@ -12,6 +12,8 @@ import { withWaiter } from './lib/usage';
 import { dispatchRefresh, dispatchWorkflow, hourlyTasks, type CronEnv, type HourlyTask } from './lib/cron';
 import { runWatchdog, type WatchdogEnv } from './lib/watchdog';
 import { runAccountHealth } from './lib/account-health';
+import { runLearning } from './modules/buyer/measure';
+import { WELL_COMPANY } from './lib/tenant';
 import { env as authEnv } from './lib/auth';
 import { PLATFORMS } from './lib/connectors';
 import { runListening, type ListenEnv } from './modules/listening/fetcher';
@@ -104,6 +106,7 @@ export default {
       refresh: () => dispatchRefresh(env),
       watchdog: () => runWatchdog(env),
       accounts: () => accountsJob(env, true),
+      learn: async () => runLearning(authEnv(env), WELL_COMPANY),
       backup: () => dispatchWorkflow(env, 'db-backup.yml'),
       restore: () => dispatchWorkflow(env, 'db-restore-test.yml'),
     };

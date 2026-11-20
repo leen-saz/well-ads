@@ -9,6 +9,13 @@ const OWNER = { media_buyer: 'المشتري الإعلامي', video_agent: 'إ
 
 // The recommendations and the approved-execution layer, in whatever page holds the pane (the decisions board). Runs once per
 // page visit; the button inside the pane reloads the analysis.
+// A rule's 7-day track record (learning loop, M8): how often acting on it worked, from Leen's own past decisions
+function hist(h, rule) {
+  const x = h?.[rule];
+  if (!x || !x.n) return `<p class="muted by-hist" data-hist="none">سجل القاعدة: ما فيه نتائج مقاسة للحين.</p>`;
+  return `<p class="muted by-hist" data-hist="${esc(rule)}" title="${esc('نتائج 7 أيام بعد كل قرار نفّذته من هالقاعدة. العينة الصغيرة ما تنحسب.')}">سجل القاعدة: نجحت ${fmt(x.worked)} من ${fmt(x.n)}${x.worse ? ` · أسوأ ${fmt(x.worse)}` : ''}</p>`;
+}
+
 export async function mountPane() {
   const root = $('#buyerPane'); if (root) root.hidden = false;
   async function load(btn) {
@@ -28,6 +35,7 @@ export async function mountPane() {
           ${x.followUp ? `<div><dt>مهمة متابعة:</dt> <dd>${esc(x.followUp)}</dd></div>` : ''}
           ${x.open ? `<div><dt>قرار مفتوح عند المالك:</dt> <dd>${esc(x.open)}</dd></div>` : ''}</dl>
           <ul>${(x.evidence || []).map(e => `<li>${esc(e)}</li>`).join('')}</ul>
+          ${hist(r.history, x.rule)}
           ${x.act || x.kind === 'shift_budget' ? `<div class="bar by-btns"><button class="btn sm secondary" type="button" data-propose="${esc(x.id)}">جهّز إجراء مقترح</button></div>` : ''}</article>`).join('')
         : `<div class="card pad" style="text-align:center"><b>${esc(r.note || 'ما فيه توصية الحين.')}</b><p class="muted" style="margin:6px 0 0">الأرقام ضمن القاعدة، وما فيه تغيير مطلوب.</p></div>`;
       const G = r.gated || [];
