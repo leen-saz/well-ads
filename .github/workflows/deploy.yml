@@ -115,6 +115,14 @@ jobs:
             echo "::error title=OWNER_EMAIL::the $TARGET environment has no OWNER_EMAIL. Run: gh secret set OWNER_EMAIL --env $TARGET"
             exit 1
           fi
+      - name: Every tracked migration is applied (production only)
+        if: env.TARGET == 'production'
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+        # Stops the deploy before the build when a file in supabase/migrations is not applied yet (docs/migrations.md).
+        # Prints file names only. Staging shares no guarantee with the production database, so it is not checked here.
+        run: node scripts/check-migrations.mjs
       - name: Build for ${{ env.TARGET }}
         env:
           CLOUDFLARE_ENV: ${{ env.TARGET }}
