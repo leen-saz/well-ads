@@ -38,7 +38,7 @@ const REASON_EN: Record<string, string> = {
   'قيد المراجعة عند المنصة': 'In review at the platform',
   'مجدول ولم يبدأ بعد': 'Scheduled, not started yet',
   'انتهت مدة الجدولة': 'The schedule has ended',
-  'الميزانية خلصت': 'The budget is used up',
+  'مفعّل، وصل حد الصرف (الميزانية خلصت)': 'Switched on, the spend limit was reached (budget used up)',
   'ما قدرنا نقرأ الحالة من المنصة': 'We could not read the status from the platform',
 };
 export const reasonText = (reason: string, en: boolean): string => (en ? REASON_EN[reason] ?? reason : reason);

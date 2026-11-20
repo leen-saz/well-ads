@@ -74,6 +74,7 @@ const EN = {
   'انتهى':'Ended',
   'الميزانية خلصت':'Budget used up',
   'غير معروف':'Unknown',
+  'مفعّل، وصل حد الصرف (الميزانية خلصت)':'Switched on, the spend limit was reached (budget used up)',
   'ما قدرنا نقرأ الحالة من المنصة':'We could not read the status from the platform',
   'بدون صرف من ':'No spend for ',
   'مرفوض من المنصة':'Rejected by the platform',
