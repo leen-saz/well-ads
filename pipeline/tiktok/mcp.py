@@ -189,7 +189,7 @@ def pull(m, today=None):
     start = (datetime.fromisoformat(last).date() - timedelta(days=3)) if last else today - timedelta(days=90)
     start = max(start, today - timedelta(days=120))
     try:  # where the ad opens (link fields) is optional: without it the destination comes from config/destinations.json
-        ads = pages(m, "ad_get", {"advertiser_id": adv, "fields": AD_FIELDS + ["landing_page_url", "deeplink", "create_time", "modify_time"], "filtering": {"primary_status": "STATUS_ALL"}})
+        ads = pages(m, "ad_get", {"advertiser_id": adv, "fields": AD_FIELDS + ["landing_page_url", "deeplink"], "filtering": {"primary_status": "STATUS_ALL"}})
     except Exception as ex:  # noqa: BLE001
         print("tiktok-mcp: destination fields skipped —", str(ex)[:120])
         ads = pages(m, "ad_get", {"advertiser_id": adv, "fields": AD_FIELDS, "filtering": {"primary_status": "STATUS_ALL"}})

@@ -9,27 +9,11 @@ function alignDelivery(a){
   if(cleanStatus(a.status)==='نشط') a.status='متوقف';
 }
 Object.values(ADS).forEach(a=>{ stamp(a); alignDelivery(a); });
-// Delivery layer (pipeline/delivery.py): `live` = switched on, `delivery` = really delivering or why not.
-// An older dash.json without `delivery` falls back to the switch.
-const DELIVERY_STATES=['delivering','no_spend','rejected','in_review','scheduled','ended','budget','off'];
-function deliveryOf(a){ const d=a&&a.delivery; return DELIVERY_STATES.includes(d) ? d : (a&&a.live ? 'delivering' : 'off'); }
-const DELIVERY_WORD={delivering:'يصرف',no_spend:'نشط بدون صرف',rejected:'مرفوض',in_review:'قيد المراجعة',scheduled:'مجدول',ended:'انتهى',budget:'الميزانية خلصت',off:'متوقف'};
-const DELIVERY_CLS={delivering:'st-live',no_spend:'st-nospend',rejected:'st-bad',in_review:'st-wait',scheduled:'st-wait',ended:'st-off',budget:'st-nospend',off:'st-off'};
-// A group of ads (one idea card): the best state wins; an all-off group is off.
-function bestDelivery(list){ let best='off'; for(const a of list){ const d=deliveryOf(a); if(DELIVERY_STATES.indexOf(d)<DELIVERY_STATES.indexOf(best)) best=d; } return best; }
-function deliveryBadge(a, d=deliveryOf(a)){
-  let word=ui(DELIVERY_WORD[d],{delivering:'Delivering',no_spend:'On, not spending',rejected:'Rejected',in_review:'In review',scheduled:'Scheduled',ended:'Ended',budget:'Budget used up',off:'Paused'}[d]);
-  const days=d==='no_spend' && a && a.delivery_days>0 ? ` · ${fmt(a.delivery_days)} ${ui(a.delivery_days===1?'يوم':'أيام',a.delivery_days===1?'day':'days')}` : '';
-  const why=a && a.delivery_reason && d!=='delivering' && d!=='off' ? tr(a.delivery_reason) : '';
-  return `<span class="pill ${DELIVERY_CLS[d]}"${why?` title="${esc(why)}"`:''}><span class="dot"></span>${word}${days}</span>${why&&d!=='no_spend'?`<span class="sub st-why">${esc(why)}</span>`:''}`;
-}
 refreshOrder();
 function passesStatus(a){
   if(!a) return false;
-  const d=deliveryOf(a);
-  if(S.stat==='live') return d==='delivering';
-  if(S.stat==='idle') return d!=='delivering' && d!=='off';
-  if(S.stat==='off') return d==='off';
+  if(S.stat==='live') return !!a.live;
+  if(S.stat==='off') return !a.live;
   return true;
 }
 function matchesSlice(a){
@@ -82,8 +66,8 @@ function dayOpen(fam, day){
   return !end || day>end;
 }
 function applyStat(v){
-  S.stat = v==='on'||v==='live' ? 'live' : v==='idle' ? 'idle' : v==='off' ? 'off' : 'all';
-  S.wall = S.stat==='live' ? 'on' : S.stat==='idle' ? 'idle' : S.stat==='off' ? 'off' : 'all';
+  S.stat = v==='on'||v==='live' ? 'live' : v==='off' ? 'off' : 'all';
+  S.wall = S.stat==='live' ? 'on' : S.stat==='off' ? 'off' : 'all';
   S.shown=24; save(); render();
 }
 function agg(from,to){

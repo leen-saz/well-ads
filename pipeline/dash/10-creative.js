@@ -12,7 +12,7 @@ function campTag(a){ const c=CAMP[campKey(a)]; if(!c) return '';
   return `<span class="pill camp-off" title="${ui('آخر يوم صرفت فيه الحملة','The campaign\'s last day with spend')}">${ui('الحملة توقفت ','Campaign stopped ')}${nice(c.last)}</span>`; }
 function cardsList(c){
   let list = Object.entries(c.now.byAd).map(([k,o])=>({k,...derive(o),a:ADS[k]})).filter(x=>x.a);
-  if(S.stat==='live' || S.stat==='idle' || S.stat==='off'){
+  if(S.stat==='live' || S.stat==='off'){
     const have=new Set(list.map(x=>x.k));
     for(const [k,a] of Object.entries(ADS)) if(!have.has(k) && matchesSlice(a)) list.push({k,...derive({spend:0,impr:0,clicks:0,leads:0,conv:0,leadSpend:0}),a});
   }
@@ -111,8 +111,10 @@ function resultCells(x){
   return statCell('نقرات',fmt(x.clicks))+statCell('تكلفة النقرة',sar(x.cpc));
 }
 function statCell(k,v,how=''){ return `<div${how?` title="${esc(how)}"`:''}><span class="k">${k}</span><span class="mini">${v}</span>${how?`<span class="sub" style="display:block;font-size:11px">= ${esc(how)}</span>`:''}</div>`; }
-// The badge reads `delivery` (really delivering, or why not). `live` only means switched on and is not shown on its own.
-function liveBadge(a){ return deliveryBadge(a); }
+function liveBadge(a){
+  const on=!!a.live;
+  return `<span class="pill ${on?'st-live':'st-off'}"><span class="dot"></span>${on?ui('فعّال','Active'):ui('متوقف','Paused')}</span>`;
+}
 function usableLink(url){
   const href=String(url||'');
   if(!/^https?:/i.test(href)) return '';
@@ -198,7 +200,7 @@ function renderCards(c){
   const show = list.slice(0,S.shown);
   $('#cards').innerHTML = show.length ? show.map(x=>wallCard({
     key:x.k, wall:'ad', label:ui('تفاصيل ','Details: ')+x.a.name, thumb:thumbHTML(x.a),
-    badges:`${x.idea?`<span class="pill">${fmt(x.members.length)} ${ui('إعلان',x.members.length===1?'ad':'ads')}</span>`:platCell(x.a.platform)}${x.idea?deliveryBadge(x.members.find(m=>deliveryOf(m.a)===bestDelivery(x.members.map(y=>y.a)))?.a, bestDelivery(x.members.map(y=>y.a))):liveBadge(x.a)}${x.idea?(x.members.some(m=>WIN.has(m.k))?winBadge(x.members.find(m=>WIN.has(m.k)).k):''):winBadge(x.k)}`,
+    badges:`${x.idea?`<span class="pill">${fmt(x.members.length)} ${ui('إعلان',x.members.length===1?'ad':'ads')}</span>`:platCell(x.a.platform)}${liveBadge(x.idea?{live:x.members.some(m=>m.a.live)}:x.a)}${x.idea?(x.members.some(m=>WIN.has(m.k))?winBadge(x.members.find(m=>WIN.has(m.k)).k):''):winBadge(x.k)}`,
     title:esc(x.a.name),
     sub:`${x.idea?'':campTag(x.a)+' '+tiredTag(x.k)} ${depCell(x.a.dept)} ${goalPill(x.a.goal)} ${esc(x.a.campaign)} · ${esc(x.a.group)}${x.a.format?` · <span>${esc(tr(x.a.format))}</span>`:''}`,
     stats:statCell('الصرف',sar(x.spend))+resultCells(x)+statCell('الظهور',fmt(x.impr))+statCell(family(x.a.platform)==='meta'&&x.a.goal==='lead'?'محادثات':'النقرات', family(x.a.platform)==='meta'&&x.a.goal==='lead'?fmt(x.conv):fmt(x.clicks))+statCell('نسبة النقر',pct(x.ctr)),

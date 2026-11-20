@@ -43,7 +43,7 @@ function render(){
   cur = {now,prev,n,pFrom,pTo,compareOk,holes};
   const partial = S.to===TODAY && TODAY!==MAX ? ` · <b style="color:var(--bad)">${tr('اليوم الحالي جزئي')}</b>` : '';
   const holeNote = holes.length ? ` · <b style="color:var(--bad)">${ui('بيانات ناقصة','Missing data')}: ${holes.map(fam=>{ const end=coverEnd(fam); const name=platName(fam)||fam; return end?`${name} ${ui('حتى','through')} ${nice(end)}`:name; }).join(ui('، ', ', '))}</b>` : '';
-  const liveNote = S.mode!=='ads' ? '' : S.stat==='live' ? ` · ${tr('الأرقام للإعلانات النشطة الآن فقط')}` : S.stat==='idle' ? ` · ${tr('الأرقام للإعلانات المفعّلة اللي ما تصرف فقط')}` : S.stat==='off' ? ` · ${tr('الأرقام للإعلانات المتوقفة فقط')}` : '';
+  const liveNote = S.mode!=='ads' ? '' : S.stat==='live' ? ` · ${tr('الأرقام للإعلانات النشطة الآن فقط')}` : S.stat==='off' ? ` · ${tr('الأرقام للإعلانات المتوقفة فقط')}` : '';
   const dayWord = n===1 ? tr('يوم') : (LANG==='en'?'days':tr('يوم'));
   const prevBit = prev ? ` · ${tr('مقارنة بـ')} <b>${nice(pFrom)} – ${nice(pTo)}</b>` : ` · ${tr('لا توجد فترة سابقة كاملة للمقارنة')}`;
   $('#rangeLabel').innerHTML = `${tr('الفترة:')} <b>${nice(S.from)} – ${nice(S.to)}</b> (${n} ${dayWord})` + (S.mode==='organic' ? '' : prevBit) + partial + holeNote + liveNote;
