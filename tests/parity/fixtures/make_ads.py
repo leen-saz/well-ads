@@ -31,9 +31,11 @@ for plat, pre, platform in PLATS:
         }
         # delivery layer examples (no random calls, so the rows stay the same): a few switched-on ads that do not deliver
         if live and i == 3:
-            ads[key].update(delivery="no_spend", delivery_days=4, delivery_reason="مفعّل لكن بدون صرف أو ظهور آخر 3 أيام")
+            ads[key].update(delivery="delivering", delivery_days_no_spend=4)   # the platform says delivering, no spend for 4 days (a note only)
         elif live and i == 4 and plat == "snap":
             ads[key].update(delivery="rejected", delivery_reason="مرفوض من المنصة")
+        elif live and i == 4 and plat == "google":
+            ads[key].update(delivery="unknown", delivery_reason="ما قدرنا نقرأ الحالة من المنصة")
         elif live and i == 7 and plat == "tiktok":
             ads[key].update(delivery="scheduled", delivery_reason="مجدول ولم يبدأ بعد")
         elif live:
