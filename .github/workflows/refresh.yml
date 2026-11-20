@@ -17,6 +17,10 @@ on:
         description: "Full pull from the start of the accounts"
         type: boolean
         default: false
+      live_drop_reason:
+        description: "Only when a big drop in switched-on ads is real (a sale ended, ads paused on purpose): say why. Empty = the run refuses to publish if live ads fell by more than half"
+        type: string
+        default: ""
 
 permissions:
   contents: read
@@ -163,6 +167,7 @@ jobs:
           SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
           SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
           FULL: ${{ inputs.full && '1' || '0' }}
+          LIVE_DROP_REASON: ${{ inputs.live_drop_reason }}
         working-directory: pipeline
         run: |
           # سحب يدوي كامل، أو أول تشغيل بلا ملف وبلا Supabase: التاريخ كامل.

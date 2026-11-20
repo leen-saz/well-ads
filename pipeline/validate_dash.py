@@ -134,6 +134,34 @@ def vanished_platforms(data, prev, days=7):
     return [p for p in before if p not in now and p not in listed and (plats.get(names.get(p, ""), {}) or {}).get("ok") is True]
 
 
+def live_counts(data):
+    """Switched-on ads (`live`) per platform prefix and in total."""
+    out = {}
+    for k, v in ((data or {}).get("ads") or {}).items() if isinstance(data, dict) else []:
+        if isinstance(v, dict) and v.get("live"):
+            out[k[:1]] = out.get(k[:1], 0) + 1
+    out["*"] = sum(out.values())
+    return out
+
+
+def live_drop(data, prev, ratio=0.5, min_prev=5):
+    """Prefixes (and '*' for all platforms) whose switched-on ads fell by more than `ratio` against the previous build.
+    Only for a platform whose pull reported ok (a failed pull keeps its previous ads) and that had at least `min_prev`
+    live ads before. A real drop needs an explicit reason (LIVE_DROP_REASON); this is how a bug that flips `live`
+    for a whole platform is stopped before it is published."""
+    before, now = live_counts(prev), live_counts(data)
+    plats = (data.get("platforms") or {}) if isinstance(data, dict) else {}
+    names = {"m": "meta", "g": "google", "s": "snap", "t": "tiktok"}
+    bad = []
+    for p, n in before.items():
+        if n < min_prev or now.get(p, 0) >= n * (1 - ratio):
+            continue
+        if p != "*" and (plats.get(names.get(p, ""), {}) or {}).get("ok") is False:
+            continue
+        bad.append(p)
+    return bad
+
+
 def warnings(data):
     """Things that do not stop the upload but must not pass silently: a dash.json built without the CRM block (the join
     failed or CRM is not connected) would otherwise look fine while closings quietly vanish from every page."""
