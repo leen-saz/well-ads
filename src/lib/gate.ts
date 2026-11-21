@@ -63,6 +63,8 @@ export function need(rawPathname: string, search: string): Need | null {
   if (PUBLIC.some(r => r.test(pathname))) return null;
   if (HUB.test(pathname) || ALIAS[pathname.replace(/\/$/, '')] || /^\/(api\/)?today(\/|$)/.test(pathname)) return 'any';
   if (/^\/(api\/)?admin(\/|$)/.test(pathname)) return 'owner';
+  // «تلقائي» settings: the control board's people; changes are the owner's (src/api/routes/automation.ts)
+  if (/^\/(api\/)?automation(\/|$)/.test(pathname)) return 'control';
   // Outbound webhooks of the company: the owner only (src/api/routes/webhooks.ts)
   if (/^\/api\/webhooks(\/|$)/.test(pathname)) return 'owner';
   // Full health (dependencies, migrations, data age, env): the owner only. /api/health itself is public and says only ok + version

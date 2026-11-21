@@ -152,7 +152,7 @@ export const EN = {
   'معتمد': 'Approved', 'انتقل.': 'Moved.', 'انتقل، وينتظر الاعتماد من جديد.': 'Moved; it waits for approval again.', 'نص خاص لـ': 'Own text for',
   'المنشور معتمد. نقله يرجّعه ينتظر الاعتماد من جديد. تنقله؟': 'The post is approved. Moving it sends it back for approval. Move it?',
   'سجل القاعدة: ما فيه نتائج مقاسة للحين.': 'Rule record: no measured results yet.', 'نتائج 7 أيام بعد كل قرار نفّذته من هالقاعدة. العينة الصغيرة ما تنحسب.': '7-day results of each decision you took from this rule. Small samples are not counted.',
-  'حسابي': 'My account', 'الاعتمادات': 'Approvals', 'خروج': 'Sign out', 'المالكة': 'Owner', 'عضو': 'Member', 'القائمة': 'Menu', 'التنقل': 'Navigation',
+  'حسابي': 'My account', 'الاعتمادات': 'Approvals', 'الأتمتة': 'Automation', 'خروج': 'Sign out', 'المالكة': 'Owner', 'عضو': 'Member', 'القائمة': 'Menu', 'التنقل': 'Navigation',
   'عربي': 'عربي', 'English': 'English', 'اللغة': 'Language',
   // الدخول
   'أهلاً فيك': 'Welcome', 'ادخل بإيميل الشركة.': 'Sign in with your company email.', 'الإيميل': 'Email', 'الباسوورد': 'Password',

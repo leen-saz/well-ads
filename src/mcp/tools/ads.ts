@@ -2,7 +2,8 @@
 // buyer_actions, through the same propose() as the media buyer's recommendations (src/modules/buyer/exec/service.ts). The owner
 // approves it in the approvals center, and only then does the existing execution path (guards, two-step confirm, read-back,
 // rollback) touch the platform. «تلقائي» comes in M13; until then `mode` is always approve, whatever the caller.
-import { propose } from '../../modules/buyer/exec/service';
+import { propose, one } from '../../modules/buyer/exec/service';
+import { autoApply } from '../../lib/automation';
 import type { Rec } from '../../modules/buyer/buyer';
 import type { ExecEnv } from '../adapters/ads';
 import type { Session } from '../../lib/auth';
@@ -39,6 +40,14 @@ async function file(ctx: Ctx, r: Rec): Promise<unknown> {
   if (ctx.company !== WELL_COMPANY) throw new ToolFail('forbidden', 'Ad changes are for Well’s own accounts for now.');
   const o = await propose({ cfg: ctx.cfg, user: who(ctx), env: ctx.env as ExecEnv }, r);
   if (o.status !== 200) throw new ToolFail(o.status === 422 ? 'invalid' : 'failed', String(o.body.error || 'Not filed'));
+  // «تلقائي» (M13): one of Well's agents the owner switched to auto may apply its own fresh proposal within the caps
+  // (src/lib/automation.ts). Anything that does not pass stays the approval request just filed.
+  if (ctx.actor.startsWith('agent:') && typeof o.body.id === 'string' && o.body.mode === 'auto') {
+    const a = await one(ctx.cfg, ctx.company, o.body.id);
+    const auto = a ? await autoApply(ctx.cfg, ctx.env as ExecEnv, ctx.actor.slice(6), a).catch(() => ({ applied: false, why: 'guard' as const })) : { applied: false, why: 'not_auto' as const };
+    if (auto.applied) return { ...o.body, applied: true, awaiting_approval: false, mode: 'auto' };
+    return { ...o.body, awaiting_approval: true, approvals: '/approvals/', auto: auto.why };
+  }
   return { ...o.body, awaiting_approval: true, approvals: '/approvals/' };
 }
 

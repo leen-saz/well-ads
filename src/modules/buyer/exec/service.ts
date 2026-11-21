@@ -76,7 +76,7 @@ export async function loadRecent(cfg: Cfg, co: string, now: number): Promise<Rec
   }
   return recent;
 }
-const one = async (cfg: Cfg, co: string, id: string): Promise<Action | null> => {
+export const one = async (cfg: Cfg, co: string, id: string): Promise<Action | null> => {
   if (!/^[0-9a-f-]{36}$/i.test(id)) return null;
   const r = await sb<Action[]>(cfg, scoped(`/rest/v1/buyer_actions?id=eq.${id}&select=*`, co), { admin: true });
   return r.ok && Array.isArray(r.data) ? r.data[0] ?? null : null;
