@@ -64,3 +64,18 @@ the Worker variable `MIGRATIONS_STRICT` to `1` (Cloudflare ← Workers ← well-
 return `ok: false` while any tracked migration is missing or `033` is not applied, and the deploy check in
 `deploy.yml` already fails on `ok: false`. Turn it on only after 033 and everything after it are applied, otherwise the
 next deploy fails.
+
+## The production deploy stops on a missing migration (M2)
+
+`deploy.yml` runs `node scripts/check-migrations.mjs` **before the build** of every production deploy. It reads the list
+in `src/lib/migrations-list.ts` and the `schema_migrations` table with the production environment's `SUPABASE_URL` and
+`SUPABASE_SERVICE_ROLE_KEY` secrets (the same ones `refresh.yml` uses), and fails the run when:
+
+| case | message |
+|---|---|
+| a tracked file (after `032`) has no row | `not applied yet: <files>`: run them in order in the SQL editor, then deploy again |
+| `033_schema_migrations.sql` is not applied | run it first, then every later file |
+| the table cannot be read, or the two secrets are missing | the deploy does not go ahead blind |
+
+It prints file names only. Staging deploys are not checked (staging is not guaranteed to share the production database).
+`MIGRATIONS_STRICT` (below) still controls the health check after the deploy; the two are independent.
