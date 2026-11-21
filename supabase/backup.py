@@ -19,7 +19,8 @@ TABLES = ("profiles", "audit_log", "dashboard_state", "ads", "ad_metrics", "plat
           "schema_migrations", "video_projects", "video_jobs", "video_settings", "account_groups", "account_group_members", "social_slots")
 # Not backed up on purpose (tests/unit/backup-coverage.test.ts reads this): web_vitals is 7-day telemetry with no personal data;
 # account_health is recomputed by the hourly check from the live accounts (src/lib/account-health.ts)
-SKIPPED = ("web_vitals", "account_health")
+# mcp_idempotency holds 24-hour replay answers only (src/mcp/call.ts)
+SKIPPED = ("web_vitals", "account_health", "mcp_idempotency")
 PAGE = 1000
 
 

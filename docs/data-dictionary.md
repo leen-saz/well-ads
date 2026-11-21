@@ -76,6 +76,7 @@ by code that is live on main; open «المدير ← صحة الداتا ← ا
 | `account_health` | 039 | connectors (صحة الحسابات) | yes (FK) | company_id, platform, account_ref (PK); status (ok, degraded, expiring, disconnected), probed, last_check_at, first_failed_at, grace_until, error_code, expires_at, alerted_status | One row per connected account, overwritten every check. No keys, no account names, no platform message: a short code only. |
 | `account_groups` | 039 | connectors (مجموعات الحسابات) | yes (FK) | name (unique per company), created_by | Until deleted by a user. |
 | `account_group_members` | 039 | connectors | yes (FK) | group_id, platform, account_ref | Deleted with its group. |
+| `mcp_idempotency` | 041 | Well MCP (src/mcp/call.ts) | yes (FK) | company_id, key (PK); tool, request_hash (sha256 of tool + arguments), response, created_at, expires_at | 24 hours: an expired row is ignored and can be deleted. Holds the tool's answer, never a token. |
 | `social_slots` | 040 | social (مواعيد الطابور) | yes (FK) | weekday (0 = Sunday), at_local ('HH:MM', Riyadh), created_by; unique per company, day and time | Until removed by a user. |
 | `library_items` | 020 | shared library (copywriter and the other tabs) | yes (FK) | id, module, kind, title, content, platform, service, compliance_result, review_status, reviewed_by, approved_by, created_by, created_by_id | Forever; the owner edits and approves. Deleting is not offered yet. |
 | `library_favorites` | 020 | shared library | yes (FK) | item_id + user_id PK, created_at | Goes with its item (cascade). |

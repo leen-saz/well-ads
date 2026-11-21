@@ -45,6 +45,7 @@ export const MIGRATIONS: readonly string[] = [
   '038_cascade_fk_indexes.sql',
   '039_account_health.sql',
   '040_social_v2.sql',
+  '041_mcp.sql',
 ];
 
 // Files up to this one were applied by hand before the schema_migrations table existed: they are not checked here

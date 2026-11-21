@@ -1,9 +1,9 @@
 // /api/social/*: the post calendar of the user's company. Reads need the `social` dashboard, writes are same-origin.
 // Publishing itself runs from the Worker cron (src/modules/social/cron.ts), never from the browser.
 import { sb, json, readJson, handle, requireUser, audit, isOwner, levelsOf, atLeast, missingSchema, notApplied, NO_APPROVE, type Cfg, type Profile } from '../../lib/auth';
-import { cleanSlot, nextSlot, HORIZON_DAYS, type Slot } from './slots';
+import { cleanSlot } from './slots';
 import { scoped, WELL_COMPANY } from '../../lib/tenant';
-import { SOCIAL, readiness, validate, canApprove, cleanApprovers, suggestPrompt, cleanSuggestion, retryPlan, checkConnection, type SocialPlatform, type Results } from './social';
+import { SOCIAL, canApprove, cleanApprovers, suggestPrompt, cleanSuggestion, retryPlan, checkConnection, type SocialPlatform, type Results } from './social';
 import { saveValues } from '../../lib/vault';
 import { META_PENDING, pageValues, type PageCand } from '../../lib/connectors';
 import { check } from '../compliance/compliance';
@@ -11,7 +11,8 @@ import { knowledgeFor, rulesFor, withKnowledge } from '../knowledge/knowledge';
 import { generate, pick, type LlmEnv } from '../../lib/llm';
 import { usageCtx } from '../../lib/usage';
 import { MEDIA_TYPES, limitOf, tooBig, sniff, mediaKey } from './media';
-import { cachedStatus, postizPlatforms, withEngineSecrets, type EngineStatus } from './postiz';
+import { cachedStatus, postizPlatforms } from './postiz';
+import { tokensFor, engineState, readyOf, schedulePost } from './schedule';
 
 type Row = Record<string, unknown>;
 const rows = (d: unknown): Row[] => (Array.isArray(d) ? (d as Row[]) : []);
@@ -23,17 +24,6 @@ async function approversOf(cfg: Cfg, company: string): Promise<string[]> {
 const ONLY = (names: string[]) => names.length ? `الاعتماد لـ ${names.join('، ')} بس` : 'الاعتماد للمالك بس، أو للمعتمد اللي يحدده';
 const day = (s: string | null, fallback: number) => { const t = Date.parse(s || ''); return new Date(Number.isFinite(t) ? t : fallback).toISOString(); };
 
-// The connected accounts, as the publisher sees them (src/modules/social/cron.ts): Well's vault today
-async function tokensFor(cfg: Cfg, co: string, e?: unknown): Promise<Record<string, string>> {
-  if (co !== WELL_COMPANY) return {};
-  const v = await sb<{ name: string; value: string }[]>(cfg, '/rest/v1/rpc/connector_env', { method: 'POST', admin: true, body: {} });
-  return withEngineSecrets(Object.fromEntries((v.ok && Array.isArray(v.data) ? v.data : []).map(x => [x.name, x.value])), e);
-}
-// What the extra publishing engine reports (asked at most once a minute per Worker). A platform it carries is "ready" only when
-// the engine is set up AND that account is connected there. Not asked at all when no Postiz platform is involved or none is set up.
-const engineState = (t: Record<string, string>): Promise<EngineStatus> => cachedStatus(t);
-// Per platform: '' when it can go out, else why not (no token values leave the server)
-const readyOf = (t: Record<string, string>, s: EngineStatus | null) => Object.fromEntries((Object.keys(SOCIAL) as SocialPlatform[]).map(p => [p, readiness(p, t, s)]));
 // The platform list the page gets: `live` = can go out by itself right now (nothing says which engine does it)
 const platformsView = (ready: Record<string, string>) => Object.fromEntries((Object.entries(SOCIAL) as [SocialPlatform, (typeof SOCIAL)[SocialPlatform]][]).map(([k, s]) =>
   [k, { name: s.name, max: s.max, ...('needsMedia' in s && s.needsMedia ? { needsMedia: true } : {}), live: s.live && !ready[k]!.startsWith('غير متاح') }]));
@@ -78,24 +68,8 @@ export const posts = {
   }),
   POST: handle(async (request, e) => {
     const { cfg, user } = await requireUser(request, e, 'social', { write: true });
-    const tk = await tokensFor(cfg, user.co, e), ready = readyOf(tk, await engineState(tk));
-    const input = await readJson(request);
-    // «أضف للطابور»: the server picks the first free slot (the browser sends no time)
-    if (input.queue === true) {
-      const at = await queueTime(cfg, user.co);
-      if (!at.ok) return json(at.status, { error: at.error, notices: [] });
-      input.publish_at = at.iso;
-    }
-    const v = validate(input, Date.now(), await rulesFor(cfg, user.co), p => SOCIAL[p].live && !ready[p]!.startsWith('غير متاح'));
-    if (!v.draft) return json(400, { error: v.error, notices: v.notices });
-    // A platform whose account is not connected would fail at its time: said now, while it can still be fixed
-    for (const pl of v.draft.platforms) if (ready[pl] && SOCIAL[pl].live && !ready[pl].startsWith('غير متاح')) v.notices.push(`${SOCIAL[pl].name}: ${ready[pl]}`);
-    const r = await sb<Row[]>(cfg, '/rest/v1/social_posts', { method: 'POST', admin: true, headers: { Prefer: 'return=representation' },
-      body: { ...v.draft, company_id: user.co, status: 'scheduled', created_by: user.email } });
-    if (!r.ok) return missingSchema(r) && v.draft.overrides ? json(503, { error: notApplied(user, '040_social_v2.sql') }) : json(500, { error: 'ما انحفظ المنشور' });
-    const post = rows(r.data)[0];
-    await audit(cfg, user, 'social_scheduled', { target: { id: post?.id, platforms: v.draft.platforms, mode: v.draft.mode, publish_at: v.draft.publish_at } });
-    return json(200, { ok: true, post, notices: v.notices });
+    const r = await schedulePost(cfg, user, e, await readJson(request));
+    return json(r.status, r.body);
   }),
   // approve (manual mode) or cancel. Only posts that have not gone out yet.
   PATCH: handle(async (request, e) => {
@@ -265,17 +239,6 @@ export const engine = { GET: handle(async (request, e) => {
 }) };
 
 // ---- Queue slots and moving a post (docs/PRD.md §3.2, milestone M6)
-async function queueTime(cfg: Cfg, co: string): Promise<{ ok: true; iso: string } | { ok: false; status: number; error: string }> {
-  const sl = await sb<Slot[]>(cfg, scoped('/rest/v1/social_slots?select=weekday,at_local', co), { admin: true });
-  if (!sl.ok) return { ok: false, status: missingSchema(sl) ? 503 : 500, error: missingSchema(sl) ? 'مواعيد الطابور تحتاج تجهيز القاعدة. بلّغ الإدارة.' : 'ما قدرت أقرأ مواعيد الطابور' };
-  const slots = rows(sl.data) as unknown as Slot[];
-  if (!slots.length) return { ok: false, status: 400, error: 'ما فيه مواعيد طابور. أضفها من «مواعيد الطابور» أو حدّد وقت بنفسك' };
-  const now = Date.now(), to = new Date(now + (HORIZON_DAYS + 1) * 864e5).toISOString();
-  const tk = await sb<Row[]>(cfg, scoped(`/rest/v1/social_posts?select=publish_at&status=in.(scheduled,publishing,published,partial)&publish_at=gte.${new Date(now).toISOString()}&publish_at=lte.${to}&limit=1000`, co), { admin: true });
-  const iso = nextSlot(slots, rows(tk.data).map(x => String(x.publish_at)), now);
-  return iso ? { ok: true, iso } : { ok: false, status: 409, error: `كل مواعيد الطابور في الـ ${HORIZON_DAYS} يوم الجاية محجوزة. أضف مواعيد أو حدّد وقت بنفسك` };
-}
-
 // A new time for a post that has not gone out. An approved post loses its approval: the approver approved a time too.
 async function movePost(cfg: Cfg, user: Parameters<typeof audit>[1], id: number, when: unknown): Promise<Response> {
   const at = Date.parse(String(when || ''));
