@@ -6,6 +6,12 @@
 
 ## الدروس
 
+### 2026-11-21 · أربع دوال بلا search_path ثابت
+- **الدرس:** فحص نصي على المهاجرات لقي أربع دوال بلا `set search_path`: `audit_log_append_only` و`ai_spend` و`ai_spend_provider` و`ai_models_spend` (دوال `connector_*` ثبّتته من البداية). بدونه تحل الدالة الأسماء عبر مسار جلسة المستدعي. أجسام الدوال الأربع كلها تؤهّل الجداول بـ `public.` ودوال النظام (count, sum, to_char) تبقى متاحة مع مسار فارغ، فتثبيته آمن. الدوال ليست security definer وصلاحياتها مقفلة على service_role، فالخطر منخفض والإصلاح وقائي.
+- **المصدر:** https://supabase.com/docs/guides/database/database-advisors?lint=0011_function_search_path_mutable و https://www.postgresql.org/docs/current/sql-createfunction.html#SQL-CREATEFUNCTION-SECURITY (اطُّلع عليهما 2026-11-21).
+- **الأثر:** PR هذه الجولة: مهاجرة `039_function_search_path.sql` (`alter function ... set search_path = ''`) واختبار `migrations-function-search-path.test.ts` يفشل لأي دالة جديدة بلا search_path. تشغيلها على لين.
+- **مؤجل:** ملاحظة: ثبات `stable` في دوال SQL مع search_path مثبت يمنع الـ inlining، والكلفة هنا ضئيلة.
+
 ### 2026-11-20 · مفاتيح أجنبية بـ on delete cascade بلا فهرس يبدأ بعمودها
 - **الدرس:** Postgres لا ينشئ فهرساً على عمود المفتاح الأجنبي، وحذف صف أب يمسح جدول الأبناء كاملاً ليجد صفوفه. فحص نصي على المهاجرات لقي ثلاثة أعمدة cascade بلا فهرس: `listen_mentions.watch_id` و`campaign_outputs.task_id` و`video_jobs.project_id` (فهرسه يبدأ بـ company_id). مفاتيح بلا cascade (`journey_runs.company_id` وأمثالها) تركناها عمداً: كلفتها فقط عند حذف شركة، والفهرس الإضافي يكلّف كل كتابة.
 - **المصدر:** https://www.postgresql.org/docs/current/ddl-constraints.html و https://supabase.com/docs/guides/database/database-advisors?lint=0001_unindexed_foreign_keys (اطُّلع عليهما 2026-11-20).
