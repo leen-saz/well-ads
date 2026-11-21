@@ -18,6 +18,8 @@ const HEX = /^#[0-9a-f]{6}$/i;
 export const MAX_SCENES = 12;
 // The shortest time a caption stays up (the same floor the model is given in RULES)
 export const MIN_SCENE = 1.5;
+// The longest the opening may stay without a caption: the hook is on screen from the first second (most viewers watch muted)
+export const MAX_OPENING_GAP = 1;
 export const DEFAULT_COLORS = { text: '#FFFFFF', band: '#1D1069', accent: '#E9A23B' };
 
 const num = (v: unknown, lo: number, hi: number, d: number) => { const n = Number(v); return Number.isFinite(n) ? Math.min(hi, Math.max(lo, Math.round(n * 10) / 10)) : d; };
@@ -49,6 +51,8 @@ export function cleanSpec(raw: unknown, seconds: number, ratio: Ratio, brand: st
   }).filter((s): s is Scene => !!s).sort((a, b) => a.from - b.from);
   // Overlaps would stack two texts: an earlier scene ends where the next one starts
   scenes.forEach((s, k) => { const next = scenes[k + 1]; if (next && s.to > next.from) s.to = next.from; });
+  // A plan whose first caption starts late leaves a bare opening: that caption starts at 0 instead (a short gap is a deliberate beat)
+  if (scenes[0] && scenes[0].from > MAX_OPENING_GAP) scenes[0].from = 0;
   // A caption shorter than MIN_SCENE is held up to MIN_SCENE when the gap after it allows (a model plan often has 1s captions
   // that flash past); only when there is no room (and it is under half a second) is it dropped
   scenes.forEach((s, k) => { const room = Math.min(seconds, scenes[k + 1]?.from ?? seconds); if (s.to - s.from < MIN_SCENE) s.to = Math.max(s.to, Math.round(Math.min(room, s.from + MIN_SCENE) * 10) / 10); });
@@ -93,7 +97,7 @@ export function parseSpec(text: string): unknown {
 
 const SHAPE = `{"move":"in|out|left|right|none","colors":{"text":"#RRGGBB","band":"#RRGGBB","accent":"#RRGGBB"},"scenes":[{"from":0,"to":2.5,"text":"...","anim":"${Object.keys(ANIMS).join('|')}","pos":"top|center|bottom","size":"s|m|l"}],"cta":{"text":"...","from":0}}`;
 const RULES = `قواعد:
-- الأوقات بالثواني من 0 إلى المدة، والمشاهد ما تتداخل، وكل مشهد ${MIN_SCENE} ثانية على الأقل.
+- الأوقات بالثواني من 0 إلى المدة، أول مشهد يبدأ من الثانية 0 (الخطّاف)، والمشاهد ما تتداخل، وكل مشهد ${MIN_SCENE} ثانية على الأقل.
 - النص قصير (أقل من 90 حرف)، بلهجة سعودية، يخاطب المتلقي بالمذكر، ويمشي مع الكلام المسموع في وقته.
 - ممنوع وعود الشفاء أو المبالغة الطبية (أنظمة وزارة الصحة).
 - رد بـ JSON فقط بهالشكل: ${SHAPE}`;
