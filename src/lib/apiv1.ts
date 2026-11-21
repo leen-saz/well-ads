@@ -23,7 +23,7 @@ const omit = <T extends object>(o: T, ...keys: string[]): Row => Object.fromEntr
 
 // ---- dash.json: Well's file is site/dash.json (what the overview serves); another company reads its own copy or nothing
 type Parsed = Dash & { rows_cols?: { k: string[]; d: string[]; c: unknown[][] }; crm?: { rows?: unknown[][]; paid_all?: unknown[][]; [k: string]: unknown }; aud?: unknown };
-async function loadDash(e: Env): Promise<Parsed | null> {
+export async function loadDash(e: Env): Promise<Parsed | null> {
   if (!e.FILES) return null;
   const obj = await e.FILES.get('site/dash.json');
   if (!obj) return null;

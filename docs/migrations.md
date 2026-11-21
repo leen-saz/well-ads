@@ -27,6 +27,7 @@ reads or alters what the other creates, so either order gives the same schema. K
 | 17 | `043_events` | `companies`, `042_vault_company` (webhook secrets live in the vault); outbound events and webhooks (M11). Safe to apply before or after the deploy: until then events are simply not stored |
 | 18 | `044_account_permissions` | `companies`; the daily write-access check (M12a). Safe to apply before or after the deploy: until then the check runs but stores nothing |
 | 19 | `045_automation` | `companies`; the managed list for «تلقائي» (M13). Auto stays off until the owner switches it on; safe before or after the deploy |
+| 20 | `046_jobs` | `companies`; background jobs of the Well MCP (M17). Safe before or after the deploy: until then report tools answer «not set up yet» |
 
 Rules going forward:
 
