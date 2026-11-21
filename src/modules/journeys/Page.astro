@@ -48,7 +48,7 @@ import { ClientRouter } from 'astro:transitions';
             <label for="trigger">تبدأ</label>
             <select id="trigger"><option value="manual">يدوي (أنت تضيف العميل)</option><option value="lead_created">لما يجي ليد جديد</option></select>
             <label>الخطوات</label><div id="steps" class="jr-steps"></div>
-            <div class="bar"><select id="addType" style="max-width:180px"></select><button class="btn sm secondary" type="button" id="add">أضف خطوة</button></div>
+            <div class="bar"><select id="addType" aria-label="نوع الخطوة" style="max-width:180px"></select><button class="btn sm secondary" type="button" id="add">أضف خطوة</button></div>
             <label>طريقة التشغيل</label>
             <div class="seg" role="group" aria-label="طريقة التشغيل"><button type="button" data-mode="manual" aria-pressed="true">يدوي</button><button type="button" data-mode="auto" aria-pressed="false">تلقائي</button></div>
             <p class="so-note" id="modeNote">ما تبدأ لأي عميل إلا لما تضغط تشغيل.</p>
