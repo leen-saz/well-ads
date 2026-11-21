@@ -34,3 +34,10 @@ describe('platform calls live in src/mcp/adapters', () => {
     for (const f of ['ads', 'meta-ads', 'snap-ads', 'meta-graph', 'postiz']) expect(files).toContain(`src/mcp/adapters/${f}.ts`);
   });
 });
+
+describe('platform secrets go through the Token Vault', () => {
+  it('only src/mcp/vault.ts calls the vault functions (connector_env, connector_put, connector_drop and their per-company forms)', () => {
+    const bad = files.filter(f => f !== 'src/mcp/vault.ts' && /rpc\/connector_(env|put|drop)/.test(readFileSync(f, 'utf8')));
+    expect(bad).toEqual([]);
+  });
+});

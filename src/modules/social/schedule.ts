@@ -5,6 +5,7 @@ import { nextSlot, HORIZON_DAYS, type Slot } from './slots';
 import { scoped, WELL_COMPANY } from '../../lib/tenant';
 import { SOCIAL, readiness, validate, type SocialPlatform } from './social';
 import { rulesFor } from '../knowledge/knowledge';
+import { tokensOf } from '../../mcp/vault';
 import { cachedStatus, withEngineSecrets, type EngineStatus } from '../../mcp/adapters/postiz';
 
 type Row = Record<string, unknown>;
@@ -12,9 +13,9 @@ const rows = (d: unknown): Row[] => (Array.isArray(d) ? (d as Row[]) : []);
 
 // The connected accounts, as the publisher sees them (src/modules/social/cron.ts): Well's vault today
 export async function tokensFor(cfg: Cfg, co: string, e?: unknown): Promise<Record<string, string>> {
-  if (co !== WELL_COMPANY) return {};
-  const v = await sb<{ name: string; value: string }[]>(cfg, '/rest/v1/rpc/connector_env', { method: 'POST', admin: true, body: {} });
-  return withEngineSecrets(Object.fromEntries((v.ok && Array.isArray(v.data) ? v.data : []).map(x => [x.name, x.value])), e);
+  // The Postiz engine set in the Worker's own variables is Well's: another company never gets it
+  const t = await tokensOf(cfg, co);
+  return co === WELL_COMPANY ? withEngineSecrets(t, e) : t;
 }
 // What the extra publishing engine reports (asked at most once a minute per Worker). A platform it carries is "ready" only when
 // the engine is set up AND that account is connected there. Not asked at all when no Postiz platform is involved or none is set up.

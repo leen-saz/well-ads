@@ -1,5 +1,6 @@
 // /api/social/*: the post calendar of the user's company. Reads need the `social` dashboard, writes are same-origin.
 // Publishing itself runs from the Worker cron (src/modules/social/cron.ts), never from the browser.
+import { tokensOf } from '../../mcp/vault';
 import { sb, json, readJson, handle, requireUser, audit, isOwner, levelsOf, atLeast, missingSchema, notApplied, NO_APPROVE, type Cfg, type Profile } from '../../lib/auth';
 import { cleanSlot } from './slots';
 import { scoped, WELL_COMPANY } from '../../lib/tenant';
@@ -150,8 +151,7 @@ export const approvers = {
 // Which Facebook page (and its Instagram account) the Social tab publishes to. Connecting with several pages binds none
 // of them (src/lib/connectors.ts): the owner chooses here. Names only come back; the page tokens stay in the vault.
 async function pendingPages(cfg: Cfg): Promise<PageCand[]> {
-  const v = await sb<{ name: string; value: string }[]>(cfg, '/rest/v1/rpc/connector_env', { method: 'POST', admin: true, body: {} });
-  const raw = (v.ok && Array.isArray(v.data) ? v.data : []).find(x => x.name === META_PENDING)?.value;
+  const raw = (await tokensOf(cfg, WELL_COMPANY))[META_PENDING];
   try {
     const j = JSON.parse(raw || '') as { at?: number; pages?: PageCand[] };
     return j.at && Date.now() - j.at < 3600e3 && Array.isArray(j.pages) ? j.pages : []; // a choice left for over an hour is asked again
