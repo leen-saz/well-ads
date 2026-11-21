@@ -156,3 +156,13 @@ export async function graphProbe(token: string | undefined, f: typeof fetch = fe
     return ['fail', `meta_${r.status}_${Number(j.error?.code) || 0}`];
   } catch { return ['error', null]; }
 }
+
+// Write access check (M12a): the scopes Meta granted this token, from its own debug record; null when they cannot be read.
+export async function grantedScopes(token: string | undefined, f: typeof fetch = fetch): Promise<string[] | null> {
+  if (!token) return null;
+  try {
+    const d = (await call(f, 'GET', 'debug_token', { input_token: token, access_token: token })).data.data as { is_valid?: boolean; scopes?: string[]; granular_scopes?: { scope: string }[] } | undefined;
+    if (!d || d.is_valid === false) return null;
+    return [...new Set([...(d.scopes || []), ...(d.granular_scopes || []).map(g => g.scope)])];
+  } catch { return null; }
+}

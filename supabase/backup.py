@@ -21,7 +21,8 @@ TABLES = ("profiles", "audit_log", "dashboard_state", "ads", "ad_metrics", "plat
 # account_health is recomputed by the hourly check from the live accounts (src/lib/account-health.ts)
 # mcp_idempotency holds 24-hour replay answers only (src/mcp/call.ts)
 # webhook_deliveries: send attempts only, rebuilt from mcp_events when needed
-SKIPPED = ("web_vitals", "account_health", "mcp_idempotency", "webhook_deliveries")
+# account_permissions is recomputed daily from the live accounts (src/lib/write-access.ts)
+SKIPPED = ("web_vitals", "account_health", "mcp_idempotency", "webhook_deliveries", "account_permissions")
 PAGE = 1000
 
 

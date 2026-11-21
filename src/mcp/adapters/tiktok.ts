@@ -94,6 +94,19 @@ export class TikTokMcp {
     await this.rpc('notifications/initialized', undefined, true);
   }
 
+  /** The names of the tools TikTok's server offers this sign-in (at most 10 pages). */
+  async toolNames(): Promise<string[]> {
+    const out: string[] = [];
+    let cursor: string | undefined;
+    for (let i = 0; i < 10; i++) {
+      const r = await this.rpc('tools/list', cursor ? { cursor } : {});
+      out.push(...((r.tools as { name?: string }[] | undefined) || []).map(t => String(t.name || '')).filter(Boolean));
+      cursor = typeof r.nextCursor === 'string' && r.nextCursor ? r.nextCursor : undefined;
+      if (!cursor) break;
+    }
+    return out;
+  }
+
   /** One read tool. Returns TikTok's data block (list, page_info …). */
   async read(name: string, args: Record<string, unknown>): Promise<Record<string, unknown>> {
     if (!READ_ONLY.test(name)) throw new TikTokError('refused', name);

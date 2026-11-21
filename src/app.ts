@@ -14,6 +14,7 @@ import { runWatchdog, type WatchdogEnv } from './lib/watchdog';
 import { runAccountHealth } from './lib/account-health';
 import { runLearning } from './modules/buyer/measure';
 import { deliverDue } from './mcp/events';
+import { runWriteAccess } from './lib/write-access';
 import { WELL_COMPANY } from './lib/tenant';
 import { env as authEnv } from './lib/auth';
 import { PLATFORMS } from './lib/connectors';
@@ -111,6 +112,7 @@ export default {
       watchdog: () => runWatchdog(env),
       accounts: () => accountsJob(env, true),
       learn: async () => runLearning(authEnv(env), WELL_COMPANY),
+      perms: async () => runWriteAccess(authEnv(env), env as never),
       backup: () => dispatchWorkflow(env, 'db-backup.yml'),
       restore: () => dispatchWorkflow(env, 'db-restore-test.yml'),
     };

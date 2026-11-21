@@ -45,3 +45,20 @@ test('the real API answers for the owner (fake database): no accounts yet, no er
   expect(j.accounts).toEqual([]);
   expect(j.can.approve).toBe(true);
 });
+
+// M12a: the write-access line, read from what each account is already allowed to do
+test('write access on the card: «يكتب», or «ناقصه» with the missing permission by name, in Arabic and English', async ({ page, context, request }) => {
+  await addSession(context, await login(request, 'owner'));
+  await page.route('**/api/connectors/health', r => r.fulfill({ json: { ...H, accounts: [], access: [
+    { platform: 'meta', state: 'read_only', missing: ['ads_management'], code: null, checked_at: '2026-11-21T01:07:00Z' },
+    { platform: 'meta_pages', state: 'write', missing: [], code: null, checked_at: '2026-11-21T01:07:00Z' },
+  ] } }));
+  await page.goto('/connectors/');
+  await expect(page.locator('#cx_meta [data-access=read_only]')).toContainText('ناقصه:');
+  await expect(page.locator('#cx_meta [data-access=read_only]')).toContainText('إدارة الإعلانات');
+  await expect(page.locator('#cx_meta_pages [data-access=write]')).toContainText('يكتب');
+  await page.goto('/connectors/?lang=en');
+  await expect(page.locator('#cx_meta [data-access=read_only]')).toContainText('Missing:');
+  await expect(page.locator('#cx_meta [data-access=read_only]')).toContainText('Ad management');
+  await expect(page.locator('#cx_meta_pages [data-access=write]')).toContainText('Can write');
+});

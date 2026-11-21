@@ -141,7 +141,7 @@ export const EN = {
   'اسم المجموعة': 'Group name', 'الحسابات': 'Accounts', 'احفظ المجموعة': 'Save group', 'عدّل': 'Edit', 'احذف': 'Delete', 'اربط حساب أول.': 'Connect an account first.',
   'انحفظت المجموعة': 'Group saved', 'انحذفت المجموعة': 'Group deleted', 'يستجيب': 'Answering', 'ينتهي قريب: أعد الربط قبل ما ينتهي': 'Expires soon: reconnect before it does',
   'ما استجاب في آخر فحص. نعيد الفحص بعد ساعة قبل ما نعتبره مفصول': 'Did not answer the last check. Checking again in an hour before calling it disconnected',
-  'وقف الربط: أعد الربط': 'Stopped working: reconnect', ' (من تاريخ الانتهاء بس)': ' (from the expiry date only)',
+  'وقف الربط: أعد الربط': 'Stopped working: reconnect', 'يكتب': 'Can write', 'ناقصه:': 'Missing:', 'أعد الربط بهالصلاحية بس': 'Reconnect with this permission only', 'فيه أكثر من حساب في محرك النشر:': 'More than one account in the publishing engine:', 'إدارة الإعلانات': 'Ad management', 'النشر على الصفحة': 'Posting to the page', 'النشر على انستقرام': 'Posting to Instagram', 'مفاتيح الكتابة': 'Write keys', 'أدوات الكتابة في تيك توك': 'Write tools on TikTok', 'لينكدإن': 'LinkedIn', 'ما قدرنا نقرأ صلاحيات الكتابة في آخر فحص': 'Could not read the write permissions in the last check', ' (من تاريخ الانتهاء بس)': ' (from the expiry date only)',
   'فحص صحة الحسابات يشتغل بعد ما تكتمل تجهيزات القاعدة.': 'The account check starts once the database setup is complete.',
   'نص خاص لكل منصة': 'Text per platform', 'فاضي = نفس النص فوق. كل منصة تنفحص على نصها.': 'Empty = the text above. Each platform is checked on its own text.',
   'اختر المنصات أول.': 'Choose the platforms first.', 'نفس النص فوق': 'Same text as above', 'أضف للطابور': 'Add to queue', 'انضاف للطابور': 'Added to the queue',
@@ -1744,7 +1744,7 @@ export const pat = t => [
   // صفحة الربط: نصوص فيها اسم منصة أو تاريخ أو عدد
   [/^(\d+) (?:مربوطة|مربوط) من (\d+)$/, '$1 of $2 connected'], [/^آخر ربط (.+)$/, 'Last connected $1'], [/^ينتهي (.+)$/, 'Expires $1'],
   [/^مربوطة من (.+)$/, 'Connected from $1'],
-  [/^(\d+) يحتاج انتباه$/, '$1 need attention'], [/^ · آخر فحص (.+)$/, ' · last checked $1'], [/^انفحص (\d+) حساب$/, 'Checked $1 accounts'],
+  [/^(\d+) يحتاج انتباه$/, '$1 need attention'],  [/^ · آخر فحص (.+)$/, ' · last checked $1'], [/^انفحص (\d+) حساب$/, 'Checked $1 accounts'],
   [/^تحذف مجموعة (.+)؟ الحسابات نفسها تبقى مربوطة\.$/, 'Delete the group $1? The accounts stay connected.'],
   [/^انضاف للطابور: (.+)$/, 'Added to the queue: $1'],
   [/^سجل القاعدة: نجحت (\d+) من (\d+) · أسوأ (\d+)$/, 'Rule record: worked $1 of $2 · worse $3'], [/^سجل القاعدة: نجحت (\d+) من (\d+)$/, 'Rule record: worked $1 of $2'],
