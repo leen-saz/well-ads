@@ -93,7 +93,7 @@ export default function Approvals() {
     setBusy(true);
     const r = await decide(ask.it, ask.yes);
     setBusy(false); setAsk(null);
-    if (r.ok) { toast.success(ask.yes ? T('تم الاعتماد', 'Approved') : T('تم الرفض', 'Rejected')); void load(); }
+    if (r.ok) { toast.success(ask.yes ? T('تم الاعتماد', 'Approved') : T('تم الرفض', 'Rejected')); void load(); window.dispatchEvent(new Event('well:approvals')); }
     else toast.error(r.error);
   }
 
