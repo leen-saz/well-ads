@@ -5,7 +5,7 @@
 import { sb, type Cfg } from '../lib/auth';
 import { tokensOf, putToken, dropTokens } from './vault';
 
-export const EVENT_TYPES = ['post.published', 'post.failed', 'ad_action.applied', 'ad_action.failed', 'account.disconnected', 'account.expiring', 'account.recovered'] as const;
+export const EVENT_TYPES = ['post.published', 'post.failed', 'ad_action.applied', 'ad_action.failed', 'account.disconnected', 'account.expiring', 'account.recovered', 'insights.alert'] as const;
 export type EventType = (typeof EVENT_TYPES)[number];
 export const BACKOFF_MIN = [1, 5, 30, 120, 360, 720];   // minutes after attempt 1..6; then the delivery is 'failed'
 export const BATCH = 3;                                  // deliveries per cron run: at most 1 + 1 per company + 2 each (the 5-minute run shares 50 subrequests)
