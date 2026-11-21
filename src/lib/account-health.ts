@@ -8,7 +8,8 @@
 // Connections are Well's only today (connections has no company column: docs/migrations.md), so this runs for Well.
 import { sb, type Cfg } from './auth';
 import { WELL_COMPANY } from './tenant';
-import { postizStatus } from '../modules/social/postiz';
+import { postizStatus } from '../mcp/adapters/postiz';
+import { graphProbe } from '../mcp/adapters/meta-graph';
 import { sendAlert, type WatchdogEnv } from './watchdog';
 
 export type Status = 'ok' | 'degraded' | 'expiring' | 'disconnected';
@@ -52,20 +53,10 @@ export function step(prev: Row | null, probe: Probe, code: string | null, expire
 
 type Values = Record<string, string>;
 // One read per platform, the token in the Authorization header (never in the address). Answers: ok / fail (the account) / error (the platform).
-async function graph(token: string | undefined, f: typeof fetch): Promise<[Probe, string | null]> {
-  if (!token) return ['none', null];
-  try {
-    const r = await f('https://graph.facebook.com/v23.0/me?fields=id', { headers: { authorization: `Bearer ${token}` }, signal: AbortSignal.timeout(8000) });
-    if (r.ok) return ['ok', null];
-    if (r.status >= 500) return ['error', null];
-    const j = (await r.json().catch(() => ({}))) as { error?: { code?: number } };
-    return ['fail', `meta_${r.status}_${Number(j.error?.code) || 0}`];
-  } catch { return ['error', null]; }
-}
 export async function probe(platform: string, v: Values, f: typeof fetch = fetch): Promise<[Probe, string | null]> {
-  if (platform === 'meta') return graph(v.META_ACCESS_TOKEN, f);
-  if (platform === 'meta_pages') return graph(v.META_PAGE_ACCESS_TOKEN, f);
-  if (platform === 'meta_capi') return graph(v.META_CAPI_TOKEN, f);
+  if (platform === 'meta') return graphProbe(v.META_ACCESS_TOKEN, f);
+  if (platform === 'meta_pages') return graphProbe(v.META_PAGE_ACCESS_TOKEN, f);
+  if (platform === 'meta_capi') return graphProbe(v.META_CAPI_TOKEN, f);
   if (platform === 'postiz') {
     const s = await postizStatus(v, f).catch(() => ({ code: 'down' as const, channels: [] }));
     if (s.code === 'off') return ['none', null];

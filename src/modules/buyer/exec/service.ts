@@ -6,10 +6,10 @@ import { audit, missingSchema, sb, type Cfg, type Session } from '../../../lib/a
 import { scoped } from '../../../lib/tenant';
 import { patchGuardrails } from '../../../lib/guardrails';
 import type { Rec } from '../buyer';
-import { configured, PlatformError, type Adapter, type Entity, type ExecEnv } from './adapters';
+import { configured, PlatformError, type Adapter, type Entity, type ExecEnv } from '../../../mcp/adapters/ads';
 import { cleanSettings, evaluate, idemKey, newBudget, pctOf, reachedTarget, round2, sameAsShown, type Block, type Change, type Level, type Plat, type Recent, type Settings } from './guards';
-import { metaAdapter } from './meta';
-import { snapAdapter } from './snap';
+import { metaAdapter } from '../../../mcp/adapters/meta-ads';
+import { snapAdapter } from '../../../mcp/adapters/snap-ads';
 
 export const DB_KEY: Record<Plat, string> = { meta: 'meta', snapchat: 'snap', tiktok: 'tiktok', google: 'google' };
 type Row = Record<string, unknown>;

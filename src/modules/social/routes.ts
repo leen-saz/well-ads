@@ -11,7 +11,7 @@ import { knowledgeFor, rulesFor, withKnowledge } from '../knowledge/knowledge';
 import { generate, pick, type LlmEnv } from '../../lib/llm';
 import { usageCtx } from '../../lib/usage';
 import { MEDIA_TYPES, limitOf, tooBig, sniff, mediaKey } from './media';
-import { cachedStatus, postizPlatforms } from './postiz';
+import { cachedStatus, postizPlatforms } from '../../mcp/adapters/postiz';
 import { tokensFor, engineState, readyOf, schedulePost } from './schedule';
 
 type Row = Record<string, unknown>;

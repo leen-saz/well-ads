@@ -4,7 +4,7 @@
 // secret: false = رقم حساب أو معرّف، ينعرض في الصفحة. fetch: true = عندنا سحب بيانات لها اليوم.
 // إضافة منصة جديدة = عنصر جديد هنا بس.
 
-import { postizStatus } from '../modules/social/postiz';
+import { postizStatus } from '../mcp/adapters/postiz';
 import { SOCIAL } from '../modules/social/engine';
 
 export interface Field { env: string; label: string; secret: boolean; type: string; optional?: boolean; manual?: boolean; placeholder?: string }

@@ -3,12 +3,12 @@
 //
 // Two engines publish for us, and only after the named approver approved the post (cron.ts is the only caller):
 //   native: our own Graph API code (social.ts) for Facebook and Instagram.
-//   postiz: an open-source publisher we call over HTTPS (postiz.ts) for TikTok, X and LinkedIn. Postiz is only an engine:
+//   postiz: an open-source publisher we call over HTTPS (src/mcp/adapters/postiz.ts) for TikTok, X and LinkedIn. Postiz is only an engine:
 //           its own approval or draft features are never used as the gate (see docs/social-engine.md).
 // A platform with no engine (Snapchat) is saved as a reminder.
 //
 // Adding a platform Postiz supports: one SOCIAL entry here (engine: 'postiz', limits), its Postiz identifier and settings in
-// postiz.ts (IDENT, settingsFor), and its name in i18n-en.js. Nothing else.
+// src/mcp/adapters/postiz.ts (IDENT, settingsFor), and its name in i18n-en.js. Nothing else.
 export type EngineId = 'native' | 'postiz';
 
 export const SOCIAL = {

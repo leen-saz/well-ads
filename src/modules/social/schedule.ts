@@ -5,7 +5,7 @@ import { nextSlot, HORIZON_DAYS, type Slot } from './slots';
 import { scoped, WELL_COMPANY } from '../../lib/tenant';
 import { SOCIAL, readiness, validate, type SocialPlatform } from './social';
 import { rulesFor } from '../knowledge/knowledge';
-import { cachedStatus, withEngineSecrets, type EngineStatus } from './postiz';
+import { cachedStatus, withEngineSecrets, type EngineStatus } from '../../mcp/adapters/postiz';
 
 type Row = Record<string, unknown>;
 const rows = (d: unknown): Row[] => (Array.isArray(d) ? (d as Row[]) : []);

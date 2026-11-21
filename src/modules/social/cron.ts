@@ -8,7 +8,7 @@
 import { env, sb, type AuthEnv, type Cfg } from '../../lib/auth';
 import { WELL_COMPANY } from '../../lib/tenant';
 import { due, pending, publishPost, stale, type Draft, type Results } from './social';
-import { withEngineSecrets } from './postiz';
+import { withEngineSecrets } from '../../mcp/adapters/postiz';
 
 type Row = Draft & { id: number; company_id: string; status: string; claimed_at?: string | null; results?: Results | null; approved_at?: string | null; approved_by?: string | null; company?: { social_approvers?: string[] | null } | null };
 
