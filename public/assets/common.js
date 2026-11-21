@@ -2,6 +2,7 @@
 import { LANG, t, langSwitch, restoreDraft } from './i18n.js';
 import { sections, TIP, groupNav, navHtml, syncNav, wireNav } from './sidebar.js';
 import { agentDots } from './agentdots.js';
+import { installPalette, openPalette } from './palette.js';
 import { ME_KEY, FRESH, readMe, slim } from './me-cache.js';
 export { LANG, t, langSwitch };
 // Pages switch with Astro's ClientRouter: listeners on document/window of one page are removed when it leaves
@@ -200,6 +201,7 @@ function drawSide(side, me, active) {
   side.innerHTML = `<div class="side-top"><a class="brand mark" href="/today/" aria-label="Well">Well<i>.</i></a><button type="button" class="btn icon ghost side-fold" id="sideFold" aria-label="${L('طي القائمة', 'Collapse menu')}" aria-pressed="false">${icon('panel')}</button><button class="btn icon ghost side-x" type="button" data-close-side aria-label="${L('إغلاق القائمة', 'Close menu')}">${icon('x')}</button></div>
     ${quick.length ? `<div class="qc"><button type="button" class="btn primary qc-btn" id="qcBtn" aria-haspopup="menu" aria-expanded="false">${icon('plus')}<span>${L('جديد', 'New')}</span></button>
       <div class="menu qc-menu" id="qcMenu" role="menu" hidden>${quick.map(([, href, t, ic]) => `<a href="${href}" role="menuitem">${icon(ic)}${t}</a>`).join('')}</div></div>` : ''}
+    ${me.approver ? `<a class="navi ap-link" href="/approvals/" data-k="approvals"${active === 'approvals' ? ' aria-current="page"' : ''}>${icon('check')}<span>${L('الاعتمادات', 'Approvals')}</span><b class="ap-n" data-ap-n hidden></b></a>` : ''}
     <div class="side-items" data-nv>${navHtml(groupNav(sections(me, L), active).entries, { item: 'navi', icon: 'i', L, esc, extra: FULL })}</div>
     <div class="grow"></div>
     <a class="navi" href="/settings/" data-k="settings"${active === 'settings' ? ' aria-current="page"' : ''}>${icon('settings')}<span>الإعدادات</span></a>
@@ -235,7 +237,8 @@ function bindMe() {
 export async function shell({ active, title, badge = '', tools = '', section = active }) {
   const app = $('#app'), side = $('#side', app);
   // The title bar needs nothing from the server: it goes up before the user is known
-  $('#top', app).innerHTML = `<div class="t"><button class="btn icon ghost burger" id="burger" aria-label="القائمة" aria-controls="side" aria-expanded="false">${icon('menu')}</button><h1>${esc(title)}</h1>${badge}</div><div class="tools"><span id="tools">${tools}</span>${langSwitch()}</div>`;
+  $('#top', app).innerHTML = `<div class="t"><button class="btn icon ghost burger" id="burger" aria-label="القائمة" aria-controls="side" aria-expanded="false">${icon('menu')}</button><h1>${esc(title)}</h1>${badge}</div><div class="tools"><span id="tools">${tools}</span><button type="button" class="btn icon ghost cmdk-btn" id="cmdkBtn" aria-label="${LANG === 'en' ? 'Search and go' : 'ابحث وانتقل'}" aria-keyshortcuts="Control+K Meta+K" title="${LANG === 'en' ? 'Search and go' : 'ابحث وانتقل'}">${icon('search')}</button>${langSwitch()}</div>`;
+  $('#cmdkBtn', app)?.addEventListener('click', openPalette);   // usable at once: the palette fills in once the user is known
   let me;
   if (!ME?.v) { try { me = await fetchMe(); } catch (err) { if (err.status !== 401) pageFailure(err); throw err; } }
   else {
@@ -243,6 +246,9 @@ export async function shell({ active, title, badge = '', tools = '', section = a
     if (Date.now() - ME.t > FRESH) fetchMe().then(v => { if (JSON.stringify(slim(v)) !== JSON.stringify(slim(me))) { drawSide(side, v, active); bindMe(); } }).catch(() => {});
   }
   drawSide(side, me, active);
+  // ⌘K palette, shortcuts and the live approvals number (public/assets/palette.js, apcount.js), on every page
+  installPalette(me, (ar, en) => (LANG === 'en' ? en : ar), sections);
+  import('./apcount.js').then(m => m.startCounts()).catch(() => {});
   let mini = false; try { mini = localStorage.getItem('wl-mini') === '1'; } catch { /* storage blocked */ }
   app.classList.toggle('mini', mini); $('#sideFold')?.setAttribute('aria-pressed', String(mini));
   document.addEventListener('click', e => { const m = $('#qcMenu'); if (m && !m.hidden && !e.target.closest('.qc')) { m.hidden = true; $('#qcBtn')?.setAttribute('aria-expanded', 'false'); } }, { signal: pageSignal() });

@@ -11,6 +11,11 @@ import { withTokens } from './lib/theme';
 import { withWaiter } from './lib/usage';
 import { dispatchRefresh, dispatchWorkflow, hourlyTasks, type CronEnv, type HourlyTask } from './lib/cron';
 import { runWatchdog, type WatchdogEnv } from './lib/watchdog';
+import { runAccountHealth } from './lib/account-health';
+import { runLearning } from './modules/buyer/measure';
+import { WELL_COMPANY } from './lib/tenant';
+import { env as authEnv } from './lib/auth';
+import { PLATFORMS } from './lib/connectors';
 import { runListening, type ListenEnv } from './modules/listening/fetcher';
 import { runSocial } from './modules/social/cron';
 import { runTranscribe } from './modules/transcribe/service';
@@ -22,6 +27,10 @@ type Bindings = Env & AuthEnv;
 const SOCIAL_CRON = '*/5 * * * *';
 // Two triggers only (Workers Free: 5 per account). The hourly one runs every periodic job that is due: src/lib/cron.ts hourlyTasks
 const HOURLY_CRON = '7 * * * *';
+// Platform names for the account-health alerts (plain words, no ids)
+const NAMES: Record<string, string> = Object.fromEntries(PLATFORMS.map(p => [p.id, p.name]));
+// async: a missing setting (authEnv throws) becomes this job's own failure, never the other jobs'
+const accountsJob = async (e: AuthEnv & WatchdogEnv, all: boolean) => runAccountHealth(authEnv(e), e, { all, names: NAMES });
 
 // Requests produced by a gateway rewrite (department or creative copy) skip the gateway the second time.
 const REWRITTEN = new WeakSet<Request>();
@@ -89,13 +98,15 @@ export default {
   scheduled(event: ScheduledController, env: CronEnv & AuthEnv & WatchdogEnv, ctx: ExecutionContext) {
     if (event.cron === SOCIAL_CRON) {
       // Due social posts, one social-listening keyword that has not been fetched in a day, and the approved campaigns that are running (no page needed)
-      withWaiter(p => ctx.waitUntil(p), () => ctx.waitUntil(Promise.allSettled([runSocial(env), runListening(env as ListenEnv), runTranscribe(env as Parameters<typeof runTranscribe>[0]), driveCampaigns(env as Parameters<typeof driveCampaigns>[0])]).then(rs => rs.forEach((r, i) => { if (r.status === 'rejected') console.error('cron: job failed', ['social', 'listening', 'transcribe', 'campaigns'][i], String(r.reason).slice(0, 200)); }))));
+      withWaiter(p => ctx.waitUntil(p), () => ctx.waitUntil(Promise.allSettled([runSocial(env), runListening(env as ListenEnv), runTranscribe(env as Parameters<typeof runTranscribe>[0]), driveCampaigns(env as Parameters<typeof driveCampaigns>[0]), accountsJob(env, false)]).then(rs => rs.forEach((r, i) => { if (r.status === 'rejected') console.error('cron: job failed', ['social', 'listening', 'transcribe', 'campaigns', 'accounts'][i], String(r.reason).slice(0, 200)); }))));
       return;
     }
     if (event.cron !== HOURLY_CRON) { console.error('cron: unknown trigger', event.cron); return; }
     const jobs: Record<HourlyTask, () => Promise<unknown>> = {
       refresh: () => dispatchRefresh(env),
       watchdog: () => runWatchdog(env),
+      accounts: () => accountsJob(env, true),
+      learn: async () => runLearning(authEnv(env), WELL_COMPANY),
       backup: () => dispatchWorkflow(env, 'db-backup.yml'),
       restore: () => dispatchWorkflow(env, 'db-restore-test.yml'),
     };

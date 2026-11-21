@@ -33,7 +33,8 @@ export function message(st: DataStatus, recovered: boolean): { subject: string; 
   return { subject: 'Well ads: البيانات قديمة', text: `عمر آخر تحديث للبيانات: ${age} (الحد ${WARN_HOURS} ساعات). ${why}` };
 }
 
-async function send(e: WatchdogEnv, m: { subject: string; text: string }, f: typeof fetch): Promise<number> {
+// Also used by the account-health check (src/lib/account-health.ts): the same channels, the same rules (no figures, no keys)
+export async function sendAlert(e: WatchdogEnv, m: { subject: string; text: string }, f: typeof fetch = fetch): Promise<number> {
   let sent = 0;
   const hook = (e.ALERT_WEBHOOK_URL || '').trim();
   if (hook) {
@@ -63,14 +64,14 @@ export async function runWatchdog(e: WatchdogEnv, f: typeof fetch = fetch, now =
   const prev = await readState(e.FILES);
   if (!stale) {
     if (!prev.stale) return 'ok';
-    await send(e, message(st, true), f);
+    await sendAlert(e, message(st, true), f);
     await writeState(e.FILES, { stale: false, alerted_at: null });
     return 'recovered';
   }
   const since = prev.alerted_at ? (now - Date.parse(prev.alerted_at)) / 36e5 : Infinity;
   if (prev.stale && since < REPEAT_HOURS) return 'quiet';
   console.error('watchdog: dash.json is stale', st.dash_age_hours);
-  const sent = await send(e, message(st, false), f);
+  const sent = await sendAlert(e, message(st, false), f);
   // Without a working channel the alert is retried on the next run instead of being marked as done
   await writeState(e.FILES, { stale: true, alerted_at: sent ? new Date(now).toISOString() : prev.alerted_at });
   return sent ? 'alerted' : 'no_channel';

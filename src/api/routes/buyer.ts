@@ -5,20 +5,20 @@ import { json, readJson, handle, requireUser, audit, sb } from '../../lib/auth';
 import { cleanRules } from '../../modules/buyer/rules';
 import { PLATS } from '../../modules/buyer/playbook';
 import { buildReport, DB_KEY, settings } from '../../modules/buyer/report';
-import { measureDue, type ActionRow } from '../../modules/buyer/outcomes';
 import { tune, type Outcome } from '../../modules/buyer/learn';
-import type { AdRow, MetricRow } from '../../modules/buyer/buyer';
 import { scoped } from '../../lib/tenant';
-import { readAll } from '../../lib/paging';
 import { patchGuardrails } from '../../lib/guardrails';
+import { measureNow, ruleHistory } from '../../modules/buyer/measure';
 
 export { actions, propose, decide, apply, rollback, execution } from '../../modules/buyer/exec-routes';
 
 export const report = { GET: handle(async (request, e) => {
   const { cfg, user } = await requireUser(request, e, 'control');
-  const b = await buildReport(cfg, user);
+  const [b, hist] = await Promise.all([buildReport(cfg, user), ruleHistory(cfg, user.co).catch(() => [])]);
   if (!b.ok) return json(500, { error: 'ما قدرت أقرأ أرقام الإعلانات' });
-  return json(200, { ...b.report, readOnly: true });
+  // Each rule's 7-day track record (learning loop, M8): shown on its recommendations. Counts only.
+  const history = Object.fromEntries(hist.map(h => [h.rule, { n: h.n, worked: h.worked, worse: h.worse }]));
+  return json(200, { ...b.report, history, readOnly: true });
 }) };
 
 // Only the owner (Leen) reads and saves the company's rules («قواعد الإدارة» in the decisions board). Only the rule list changes; the stop line and ladder stay as they were.
@@ -60,26 +60,13 @@ export const outcomes = {
     const mapped: Outcome[] = rows.filter(x => x.day === 7).map(x => ({ rule: (x.rec_rule ?? 'company') as Outcome['rule'], platform: x.platform, kind: x.kind as Outcome['kind'], days: x.day, before: x.before, after: x.after, acted: true }));
     return json(200, { rows: rows.slice(0, 60).map(x => ({ ...x, entity: by.get(x.action_id) ?? null })), tuning: tune(mapped), missing: false });
   }),
+  // Measures what is due now (the hourly trigger does the same: src/modules/buyer/measure.ts); kept for the tab's own refresh
   POST: handle(async (request, e) => {
     const { cfg, user } = await requireUser(request, e, 'control', { write: true, well: true });
-    const today = new Date(Date.now() + 3 * 3600e3).toISOString().slice(0, 10);
-    const since = new Date(Date.now() - 45 * 864e5).toISOString().slice(0, 10);
-    const acts = await sb<ActionRow[]>(cfg, scoped(`/rest/v1/buyer_actions?select=id,platform,entity_name,rec_rule,kind,status,applied_at,decided_at&status=in.(applied,manual_done)&created_at=gte.${since}&order=created_at.desc&limit=200`, user.co), { admin: true });
-    if (!acts.ok || !Array.isArray(acts.data)) return json(200, { ok: true, measured: 0, missing: true });
-    if (!acts.data.length) return json(200, { ok: true, measured: 0 });
-    const [have, ads, metrics] = await Promise.all([
-      sb<{ action_id: string; day: number }[]>(cfg, scoped('/rest/v1/buyer_outcomes?select=action_id,day&limit=1000', user.co), { admin: true }),
-      readAll<AdRow>(cfg, scoped('/rest/v1/ads?select=ad_key,platform,campaign,name,goal,live', user.co), 'ad_key.asc'),
-      readAll<MetricRow>(cfg, `/rest/v1/ad_metrics?select=ad_key,day,spend,impressions,clicks,leads,conversations&day=gte.${since}`, 'ad_key.asc,day.asc', 40),
-    ]);
-    if (!ads.ok || !metrics.ok) return json(500, { error: 'ما قدرت أقرأ أرقام الإعلانات' });
-    const done = new Set((have.ok && Array.isArray(have.data) ? have.data : []).map(x => `${x.action_id}:${x.day}`));
-    const due = measureDue(acts.data, ads.rows, metrics.rows, today, done);
-    if (due.length) {
-      const w = await sb(cfg, '/rest/v1/buyer_outcomes?on_conflict=action_id,day', { method: 'POST', admin: true, headers: { Prefer: 'resolution=ignore-duplicates,return=minimal' }, body: due.map(d => ({ ...d, company_id: user.co })) });
-      if (!w.ok) return json(500, { error: 'ما انحفظت النتائج' });
-      await audit(cfg, user, 'buyer_outcomes_measured', { target: { count: due.length } });   // a count only
-    }
-    return json(200, { ok: true, measured: due.length });
+    let n: number | null;
+    try { n = await measureNow(cfg, user.co); } catch { return json(500, { error: 'ما قدرت أقرأ أرقام الإعلانات' }); }
+    if (n === null) return json(200, { ok: true, measured: 0, missing: true });
+    if (n) await audit(cfg, user, 'buyer_outcomes_measured', { target: { count: n } });   // a count only
+    return json(200, { ok: true, measured: n });
   }),
 };

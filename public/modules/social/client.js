@@ -47,6 +47,23 @@ export default async function mount() {
   const fmtDay = d => new Intl.DateTimeFormat((LANG === 'en' ? 'en-GB' : 'ar-SA-u-nu-latn'), { weekday: 'long', day: 'numeric', month: 'long', timeZone: 'Asia/Riyadh' }).format(d);
   const fmtTime = d => new Intl.DateTimeFormat((LANG === 'en' ? 'en-GB' : 'ar-SA-u-nu-latn'), { hour: 'numeric', minute: '2-digit', timeZone: 'Asia/Riyadh' }).format(d);
 
+  // Text per platform (M6): one box per chosen platform; empty = the shared text
+  const OVR = {};
+  function drawOverrides() {
+    const picked = $$('input[name="pl"]:checked').map(x => x.value);
+    for (const box of $$('#ovrList textarea')) OVR[box.dataset.pl] = box.value;
+    $('#ovrList').innerHTML = picked.length ? picked.map(k => `<label for="ovr_${k}"><bdi>${esc(PLATS[k]?.name || k)}</bdi> <span class="muted" data-ovr-cnt="${k}"></span></label><textarea id="ovr_${k}" data-pl="${k}" rows="3" placeholder="${esc(t('نفس النص فوق'))}">${esc(OVR[k] || '')}</textarea>`).join('')
+      : `<p class="muted">${esc(t('اختر المنصات أول.'))}</p>`;
+    ovrCount();
+  }
+  function ovrCount() {
+    for (const box of $$('#ovrList textarea')) {
+      const k = box.dataset.pl, max = PLATS[k]?.max, n = (box.value.trim() || $('#body').value).length;
+      const el = $(`[data-ovr-cnt="${k}"]`); if (el) { el.textContent = max ? `${n} / ${max}` : String(n); el.classList.toggle('over', !!max && n > max); }
+    }
+  }
+  const overrides = () => Object.fromEntries($$('#ovrList textarea').filter(b => b.value.trim()).map(b => [b.dataset.pl, { body: b.value }]));
+
   function counter() {
     const n = $('#body').value.length;
     const picked = $$('input[name="pl"]:checked').map(x => x.value);
@@ -103,11 +120,92 @@ export default async function mount() {
         <span class="muted">${fmtTime(at)}</span></div>
       <p class="so-state ${st.cls}" role="status">${st.html}</p>
       ${p.body ? (p.compliance?.length ? block(p.body, p.compliance) : `<p class="so-body" data-user-text>${esc(p.body)}</p>`) : ''}
+      ${Object.keys(p.overrides || {}).length ? `<details class="so-more"><summary>${esc(t('نص خاص لـ'))} ${Object.keys(p.overrides).map(k => `<bdi>${esc(PLATS[k]?.name || k)}</bdi>`).join('، ')}</summary>${Object.entries(p.overrides).map(([k, o]) => `<p class="so-body" data-user-text><b>${esc(PLATS[k]?.name || k)}:</b> ${esc(o.body)}</p>`).join('')}</details>` : ''}
       ${resultLines(p)}
       ${failBox}
-      ${p.status === 'scheduled' ? `<div class="bar">${waiting && APPR.canApprove ? '<button class="btn sm primary" data-act="approve">اعتمد</button>' : ''}<button class="btn sm ghost" data-act="cancel">ألغِ</button></div>` : ''}
+      ${p.status === 'scheduled' ? `<div class="bar">${waiting && APPR.canApprove ? '<button class="btn sm primary" data-act="approve">اعتمد</button>' : ''}<button class="btn sm ghost" data-move="${p.id}">انقل</button><button class="btn sm ghost" data-act="cancel">ألغِ</button></div>` : ''}
     </article>`;
   }
+
+  // ---- The calendar (M6): the list (as before) or a two-week grid. Drag a scheduled post to another day (same time of day),
+  // or press «انقل» and pick a new time. An approved post that moves goes back to waiting for approval: the server clears it.
+  let POSTS = [], FROM = new Date(), VIEW = 'list';
+  try { VIEW = localStorage.getItem('so-view') === 'grid' ? 'grid' : 'list'; } catch { /* storage blocked */ }
+  const dayKey = d => new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Riyadh', year: 'numeric', month: '2-digit', day: '2-digit' }).format(d);
+  function drawCalendar() {
+    $$('.so-view button').forEach(b => b.setAttribute('aria-pressed', String(b.dataset.view === VIEW)));
+    if (VIEW === 'grid') {
+      const days = Array.from({ length: 14 }, (_, i) => new Date(FROM.getTime() + i * 864e5));
+      $('#list').innerHTML = `<div class="so-grid2">${days.map(d => {
+        const k = dayKey(d), ps = POSTS.filter(p => dayKey(new Date(p.publish_at)) === k);
+        return `<section class="so-cell" data-day="${k}" aria-label="${esc(fmtDay(d))}"><h4>${esc(fmtDay(d))}</h4>${ps.map(p => {
+          const movable = p.status === 'scheduled', waiting = movable && !p.approved_at;
+          return `<article class="so-mini" data-id="${p.id}"${movable ? ' draggable="true"' : ''}><b>${fmtTime(new Date(p.publish_at))}</b><span>${p.platforms.map(x => esc(PLATS[x]?.name || x)).join('، ')}</span>
+            <span class="muted"><span>${esc(t(ST[p.status] || p.status))}</span>${waiting ? ` · <span>${esc(t('ينتظر الاعتماد'))}</span>` : movable ? ` · <span class="so-lock">${esc(t('معتمد'))}</span>` : ''}</span>
+            ${movable ? `<button class="btn sm ghost" type="button" data-move="${p.id}">${esc(t('انقل'))}</button>` : ''}</article>`;
+        }).join('')}</section>`;
+      }).join('')}</div>`;
+      return;
+    }
+    const byDay = new Map();
+    for (const p of POSTS) { const k = fmtDay(new Date(p.publish_at)); byDay.set(k, [...(byDay.get(k) || []), p]); }
+    $('#list').innerHTML = byDay.size ? [...byDay].map(([d, ps]) => `<h3 class="so-day">${esc(d)}</h3><div class="cx-list" style="display:grid;gap:10px">${ps.map(postCard).join('')}</div>`).join('')
+      : '<p class="muted">ما فيه منشورات مجدولة. ابدأ من النموذج.</p>';
+  }
+  const riyadhLocal = iso => new Intl.DateTimeFormat('sv-SE', { timeZone: 'Asia/Riyadh', year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit' }).format(new Date(iso)).replace(' ', 'T');
+  async function move(id, iso) {
+    const p = POSTS.find(x => String(x.id) === String(id)); if (!p) return;
+    if (p.approved_at && !confirm(t('المنشور معتمد. نقله يرجّعه ينتظر الاعتماد من جديد. تنقله؟'))) return;
+    try {
+      const r = await api('/api/social/posts', { method: 'PATCH', body: { id: p.id, action: 'move', publish_at: iso } });
+      say($('#msg'), r.approvalCleared ? 'انتقل، وينتظر الاعتماد من جديد.' : 'انتقل.', true);
+      await load();
+    } catch (err) { say($('#msg'), err.message); }
+  }
+  $$('.so-view button').forEach(b => b.addEventListener('click', () => { VIEW = b.dataset.view; try { localStorage.setItem('so-view', VIEW); } catch { /* storage blocked */ } drawCalendar(); }));
+  // «انقل»: an inline time picker under the post (keyboard friendly), then the same move
+  $('#list').addEventListener('click', e => {
+    const b = e.target.closest('[data-move]'); if (!b) return;
+    const host = b.closest('[data-id]'), p = POSTS.find(x => String(x.id) === b.dataset.move); if (!p || !host) return;
+    host.querySelector('.so-mv')?.remove();
+    host.insertAdjacentHTML('beforeend', `<form class="so-mv"><label class="sr-only" for="mv_${p.id}">${esc(t('الوقت الجديد'))}</label><input type="datetime-local" id="mv_${p.id}" value="${riyadhLocal(p.publish_at)}" required><button class="btn sm primary" type="submit">${esc(t('انقل هنا'))}</button></form>`);
+    const f = host.querySelector('.so-mv');
+    f.querySelector('input').focus();
+    f.addEventListener('submit', ev => { ev.preventDefault(); const v = f.querySelector('input').value; if (v) move(p.id, new Date(v + ':00+03:00').toISOString()); });
+  });
+  // Drag and drop between days in the grid: keeps the time of day, changes the day (Riyadh)
+  $('#list').addEventListener('dragstart', e => { const c = e.target.closest('.so-mini[draggable=true]'); if (c) e.dataTransfer.setData('text/plain', c.dataset.id); });
+  $('#list').addEventListener('dragover', e => { const c = e.target.closest('.so-cell'); if (c) { e.preventDefault(); c.classList.add('over'); } });
+  $('#list').addEventListener('dragleave', e => { e.target.closest('.so-cell')?.classList.remove('over'); });
+  $('#list').addEventListener('drop', e => {
+    const c = e.target.closest('.so-cell'); if (!c) return;
+    e.preventDefault(); c.classList.remove('over');
+    const p = POSTS.find(x => String(x.id) === e.dataTransfer.getData('text/plain')); if (!p) return;
+    const time = riyadhLocal(p.publish_at).slice(11);
+    if (dayKey(new Date(p.publish_at)) === c.dataset.day) return;
+    move(p.id, new Date(`${c.dataset.day}T${time}:00+03:00`).toISOString());
+  });
+
+  // ---- Queue slots (M6)
+  const WEEK = ['الأحد', 'الاثنين', 'الثلاثاء', 'الأربعاء', 'الخميس', 'الجمعة', 'السبت'];
+  async function loadSlots() {
+    const r = await api('/api/social/slots').catch(() => ({ slots: [] }));
+    $('#slotList').innerHTML = (r.slots || []).map(s => `<li><span>${esc(t(WEEK[s.weekday]))} <bdi>${esc(s.at_local)}</bdi></span><button class="btn sm ghost icon" type="button" data-slot-drop="${s.id}" aria-label="${esc(t('احذف الموعد'))}">✕</button></li>`).join('')
+      || `<li class="muted" style="background:none">${esc(t('ما فيه مواعيد. أضف أول موعد.'))}</li>`;
+  }
+  $('#slotAdd').addEventListener('submit', async e => {
+    e.preventDefault();
+    const btn = e.submitter; busy(btn, true);
+    try { await api('/api/social/slots', { method: 'POST', body: { weekday: Number($('#slotDay').value), at_local: $('#slotTime').value } }); say($('#slotMsg'), 'انضاف الموعد.', true); await loadSlots(); }
+    catch (err) { say($('#slotMsg'), err.message); }
+    busy(btn, false);
+  });
+  $('#slotList').addEventListener('click', async e => {
+    const b = e.target.closest('[data-slot-drop]'); if (!b) return;
+    busy(b, true);
+    try { await api('/api/social/slots', { method: 'DELETE', body: { id: Number(b.dataset.slotDrop) } }); await loadSlots(); }
+    catch (err) { say($('#slotMsg'), err.message); busy(b, false); }
+  });
 
   async function load() {
     const from = new Date(Date.now() - 864e5), to = new Date(Date.now() + 14 * 864e5);
@@ -122,17 +220,16 @@ export default async function mount() {
       const REASON = { ok: 'ينشر تلقائياً بعد الاعتماد', warn: 'يحتاج ربط الحساب من صفحة الربط قبل موعد النشر', off: 'النشر التلقائي غير متاح الحين: ينحفظ المنشور كتذكير', soon: 'النشر التلقائي لهالمنصة قريباً: ينحفظ المنشور كتذكير' };
       $('#plats').innerHTML = Object.entries(PLATS).map(([k, p]) => `<label class="so-pl ${kind(k)}"><input type="checkbox" name="pl" value="${k}"><span class="so-pn">${esc(p.name)}</span><span class="so-bd ${kind(k)}">${BADGE[kind(k)]}</span></label>`).join('');
       const why = k => { const w = $('#platWhy'); const kd = kind(k); w.innerHTML = `<span class="so-bd ${kd}">${BADGE[kd]}</span><span><bdi>${esc(PLATS[k].name)}</bdi>: <span>${REASON[kd]}</span></span>`; w.hidden = false; };
-      $$('input[name="pl"]').forEach(x => { x.addEventListener('change', () => { why(x.value); counter(); }); x.addEventListener('focus', () => why(x.value)); });
+      $$('input[name="pl"]').forEach(x => { x.addEventListener('change', () => { why(x.value); counter(); drawOverrides(); }); x.addEventListener('focus', () => why(x.value)); });
+      drawOverrides();
     }
     $('#range').textContent = `${fmtDay(from)} ← ${fmtDay(to)}`;
     // When the next publishing check runs (the server looks for approved posts that are due every 5 minutes); kept fresh while the page is open
     const chk = () => { const el = $('#chk'); if (el) el.innerHTML = `<span>النشر يتفحص كل 5 دقايق: المنشور المعتمد ينزل خلال 5 دقايق من موعده.</span> <span>الفحص الجاي</span> <bdi>${fmtTime(nextCheck())}</bdi>`; };
     chk(); clearInterval(window.__soChk); window.__soChk = setInterval(chk, 30000);
     pageSignal().addEventListener('abort', () => clearInterval(window.__soChk), { once: true });   // stops when the user leaves this page
-    const byDay = new Map();
-    for (const p of r.posts) { const k = fmtDay(new Date(p.publish_at)); byDay.set(k, [...(byDay.get(k) || []), p]); }
-    $('#list').innerHTML = byDay.size ? [...byDay].map(([d, ps]) => `<h3 class="so-day">${esc(d)}</h3><div class="cx-list" style="display:grid;gap:10px">${ps.map(postCard).join('')}</div>`).join('')
-      : '<p class="muted">ما فيه منشورات مجدولة. ابدأ من النموذج.</p>';
+    POSTS = r.posts; FROM = from;
+    drawCalendar();
     counter();
   }
 
@@ -206,7 +303,8 @@ export default async function mount() {
     catch (err) { say($('#apprMsg'), err.message); }
     busy(btn, false);
   };
-  $('#body').addEventListener('input', counter);
+  $('#body').addEventListener('input', () => { counter(); ovrCount(); });
+  $('#ovrList').addEventListener('input', ovrCount);
   // Upload the chosen photo/video right away; its public link goes into the post (Meta reads it from there)
   let uploaded = null;
   const showPrev = m => { const el = $('#prev'); el.hidden = !m; el.innerHTML = !m ? '' : m.type === 'video' ? `<video src="${esc(m.url)}" controls muted></video>` : `<img src="${esc(m.url)}" alt="">`; };
@@ -237,14 +335,16 @@ export default async function mount() {
     e.preventDefault();
     const btn = e.submitter; busy(btn, true); $('#notices').innerHTML = '';
     const local = $('#at').value; // Riyadh time (UTC+3, no DST)
-    const body = { platforms: $$('input[name="pl"]:checked').map(x => x.value), body: $('#body').value,
+    const queue = btn?.value === 'queue';
+    const body = { platforms: $$('input[name="pl"]:checked').map(x => x.value), body: $('#body').value, overrides: overrides(), ...(queue ? { queue: true } : {}),
       media: uploaded ? [uploaded] : $('#media').value ? [{ url: $('#media').value, type: /\.(mp4|mov|webm)(\?|$)/i.test($('#media').value) ? 'video' : 'image' }] : [],
       publish_at: local ? new Date(local + ':00+03:00').toISOString() : '' };
     try {
       const r = await api('/api/social/posts', { method: 'POST', body });
-      say($('#msg'), 'انجدول.', true);
+      say($('#msg'), queue && r.post?.publish_at ? `${t('انضاف للطابور')}: ${fmtDay(new Date(r.post.publish_at))} ${fmtTime(new Date(r.post.publish_at))}` : 'انجدول.', true);
       $('#notices').innerHTML = (r.notices || []).map(n => `<p class="so-note">${esc(n)}</p>`).join('');
-      $('#body').value = ''; $('#media').value = ''; $('#file').value = ''; uploaded = null; showPrev(null); $('#upMsg').textContent = ''; await load();
+      $('#body').value = ''; $('#media').value = ''; $('#file').value = ''; uploaded = null; showPrev(null); $('#upMsg').textContent = '';
+      for (const k of Object.keys(OVR)) delete OVR[k]; drawOverrides(); await load();
     } catch (err) { say($('#msg'), err.message); }
     busy(btn, false);
   });
@@ -258,5 +358,5 @@ export default async function mount() {
     catch (err) { say($('#msg'), err.message); busy(b, false); }
   });
 
-  shell({ active: 'social', title: 'السوشال' }).then(loadApprovers).then(load).catch(pageFailure);
+  shell({ active: 'social', title: 'السوشال' }).then(loadApprovers).then(() => Promise.all([load(), loadSlots()])).catch(pageFailure);
 }

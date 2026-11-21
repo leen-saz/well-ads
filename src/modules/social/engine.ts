@@ -25,7 +25,9 @@ export type SocialPlatform = keyof typeof SOCIAL;
 export const engineOf = (p: SocialPlatform): EngineId | null => SOCIAL[p].engine;
 
 export interface Media { url: string; type: 'image' | 'video' }
-export interface Draft { platforms: SocialPlatform[]; body: string; media: Media[]; publish_at: string; mode: 'auto' | 'manual' }
+// overrides: the text of one platform when it differs from the shared text (docs/PRD.md §3.2, M6). Absent = the shared text.
+export type Overrides = Partial<Record<SocialPlatform, { body: string }>>;
+export interface Draft { platforms: SocialPlatform[]; body: string; media: Media[]; publish_at: string; mode: 'auto' | 'manual'; overrides?: Overrides | null }
 export type Tokens = Record<string, string | undefined>;
 
 // ---- Results. One per platform, kept on the post (social_posts.results) so a crash or a retry knows what already went out.

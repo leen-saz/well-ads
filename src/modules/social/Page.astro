@@ -55,6 +55,22 @@ import { ClientRouter } from 'astro:transitions';
 .so-res{list-style:none;margin:0;padding:0;display:grid;gap:4px;font-size:13px}.so-res li{display:flex;gap:8px;align-items:baseline}
 .so-res .ok{color:#17603f}.so-res .bad{color:#C0392B}.so-res .go,.so-res .wait{color:var(--muted)}.so-res .so-rn{font-weight:600}
 .so-res a{color:var(--accent);text-decoration:underline}
+/* M6: text per platform, queue slots, the two-week calendar */
+.so-ovr{margin:10px 0 0}.so-ovr summary{cursor:pointer;font-size:14px;min-height:44px;display:flex;align-items:center}.so-ovr-note{font-size:12px;margin:0 0 6px}
+.so-ovr label{margin-top:8px}.so-ovr textarea{min-height:80px}
+.so-slots{margin-bottom:20px}.so-slots h2{margin:0 0 6px}
+.so-slist{list-style:none;margin:0 0 10px;padding:0;display:flex;flex-wrap:wrap;gap:8px}.so-slist li{display:inline-flex;align-items:center;gap:4px;padding:2px 4px 2px 12px;border-radius:999px;background:var(--tint)}
+.so-sadd{display:flex;gap:8px;flex-wrap:wrap;align-items:center}.so-sadd select,.so-sadd input{width:auto;margin:0}
+.sr-only{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap}
+.so-view{margin-inline-start:auto}
+.so-grid2{display:grid;grid-template-columns:repeat(7,minmax(0,1fr));gap:8px}
+@media (max-width:900px){.so-grid2{grid-template-columns:1fr}}
+.so-cell{min-height:120px;padding:8px;border-radius:14px;border:1px dashed var(--line);display:grid;align-content:start;gap:6px}
+.so-cell.over{border-color:var(--accent);background:var(--tint-2)}
+.so-cell h4{margin:0;font-size:12px;color:var(--muted);font-weight:600}
+.so-mini{padding:8px 10px;border-radius:10px;background:var(--surface);box-shadow:var(--shadow);font-size:12px;display:grid;gap:2px}
+.so-mini[draggable=true]{cursor:grab}.so-mini b{font-size:12px}.so-mini .so-lock{color:var(--muted)}
+.so-mv{display:flex;gap:6px;flex-wrap:wrap;align-items:center;margin-top:6px}.so-mv input{width:auto;margin:0}
 .so-more{margin:6px 0 0;font-size:12px}.so-more summary{cursor:pointer}.so-more code{direction:ltr;unicode-bidi:plaintext;display:block;white-space:pre-wrap;word-break:break-word}
 </style>
 </head>
@@ -73,6 +89,8 @@ import { ClientRouter } from 'astro:transitions';
             <p class="so-why" id="platWhy" role="status" hidden></p>
             <label for="body">النص</label><textarea id="body" rows="6"></textarea>
             <p class="so-cnt muted" id="cnt"></p>
+            <details class="so-ovr" id="ovr"><summary>نص خاص لكل منصة <span class="muted">(اختياري)</span></summary>
+              <p class="muted so-ovr-note">فاضي = نفس النص فوق. كل منصة تنفحص على نصها.</p><div id="ovrList"></div></details>
             <div class="bar"><button class="btn sm secondary" type="button" id="suggest">اكتب لي نص من الفكرة</button></div>
             <label for="file">صورة أو فيديو <span class="muted">(اختياري)</span></label>
             <div class="so-up"><input type="file" id="file" accept="image/jpeg,image/png,image/webp,video/mp4,video/quicktime"><span class="muted" id="upMsg"></span></div>
@@ -80,7 +98,7 @@ import { ClientRouter } from 'astro:transitions';
             <details class="so-link"><summary class="muted">أو حط رابط</summary><input type="url" id="media" dir="ltr" placeholder="https://"></details>
             <label for="at">وقت النشر <span class="muted">(بتوقيت الرياض)</span></label><input type="datetime-local" id="at" required>
             <p class="so-note" id="who">كل منشور ينتظر اعتماد قبل ما ينشر.</p>
-            <div class="bar" style="margin-top:20px"><button class="btn primary" type="submit">جدوِل</button></div>
+            <div class="bar" style="margin-top:20px"><button class="btn primary" type="submit" name="go" value="at">جدوِل</button><button class="btn secondary" type="submit" name="go" value="queue" id="queueBtn">أضف للطابور</button></div>
             <div class="msg" id="msg" role="status"></div>
             <div id="notices"></div>
           </form>
@@ -106,13 +124,26 @@ import { ClientRouter } from 'astro:transitions';
               <ul class="so-ck" id="engOut"></ul>
             </div>
           </section>
+          <section class="card pad so-slots" id="slots">
+            <h2>مواعيد الطابور</h2>
+            <p class="muted" style="margin:0 0 10px">«أضف للطابور» يحط المنشور في أول موعد فاضي. المنشور ينتظر الاعتماد مثل أي منشور.</p>
+            <ul class="so-slist" id="slotList"></ul>
+            <form class="so-sadd" id="slotAdd" novalidate>
+              <label for="slotDay" class="sr-only">اليوم</label><select id="slotDay"><option value="0">الأحد</option><option value="1">الاثنين</option><option value="2">الثلاثاء</option><option value="3">الأربعاء</option><option value="4">الخميس</option><option value="5">الجمعة</option><option value="6">السبت</option></select>
+              <label for="slotTime" class="sr-only">الوقت</label><input type="time" id="slotTime" value="20:00" required>
+              <button class="btn sm secondary" type="submit">أضف موعد</button>
+            </form>
+            <div class="msg" id="slotMsg" role="status"></div>
+          </section>
           <section class="card pad so-appr" id="appr" hidden>
             <h2>مين يعتمد النشر</h2>
             <p class="muted" style="margin:0 0 10px">ما ينشر أي منشور إلا بعد اعتماده. بدون اختيار: المالك بس.</p>
             <div class="checks" id="apprList"></div>
             <div class="bar" style="margin-top:12px"><button class="btn sm primary" type="button" id="apprSave">احفظ</button><span class="msg" id="apprMsg" role="status"></span></div>
           </section>
-          <div class="bar" style="justify-content:space-between"><h2 style="margin:0">التقويم</h2><span class="muted" id="range"></span></div>
+          <div class="bar" style="justify-content:space-between"><h2 style="margin:0">التقويم</h2>
+            <div class="seg so-view" role="group" aria-label="طريقة العرض"><button type="button" data-view="list" aria-pressed="true">قائمة</button><button type="button" data-view="grid" aria-pressed="false">أسبوعين</button></div>
+            <span class="muted" id="range"></span></div>
           <p class="so-note" id="chk"></p>
           <div id="list"></div>
         </section>
