@@ -5,6 +5,7 @@
 //  - a post stuck in 'publishing' (the Worker died mid-way) is re-claimed after STALE_MS and finished from its stored results:
 //    what went out is never repeated, what never started starts, what may have gone out is marked 'unconfirmed' for a person to decide;
 //  - a retry of the failed platforms (routes.ts) goes through the same path with the failed entries cleared.
+import { tokensOf } from '../../mcp/vault';
 import { env, sb, type AuthEnv, type Cfg } from '../../lib/auth';
 import { WELL_COMPANY } from '../../lib/tenant';
 import { due, pending, publishPost, stale, type Draft, type Results } from './social';
@@ -47,9 +48,8 @@ export async function runSocial(e: AuthEnv, now = Date.now(), f: typeof fetch = 
   if (!list.ok || !Array.isArray(list.data)) return 0;
   // Stuck in 'publishing' (a Worker that died): found by age, re-claimed by the old claim time so two runs never both take it
   const stuck = await sb<Row[]>(cfg, `/rest/v1/social_posts?${sel}&status=eq.publishing&publish_at=lte.${iso}&order=publish_at.asc&limit=20`, { admin: true });
-  // Platform tokens: the vault holds Well's today; per-company vault names come with ADR-0006's next step
-  const vault = await sb<{ name: string; value: string }[]>(cfg, '/rest/v1/rpc/connector_env', { method: 'POST', admin: true, body: {} });
-  const wellTokens = withEngineSecrets(Object.fromEntries((vault.ok && Array.isArray(vault.data) ? vault.data : []).map(x => [x.name, x.value])), e);
+  // Platform tokens: Well's, from the Token Vault (src/mcp/vault.ts). Other companies' posts keep their current path (below).
+  const wellTokens = withEngineSecrets(await tokensOf(cfg, WELL_COMPANY), e);
   let done = 0;
   const dueNow = list.data.filter(x => due(x, x.company?.social_approvers || [], now));
   // waiting videos and fresh posts each take their own slots, oldest first

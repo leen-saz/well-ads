@@ -6,6 +6,7 @@ import {
 } from '../../lib/auth';
 import { WELL_COMPANY } from '../../lib/tenant';
 import { saveValues } from '../../lib/vault';
+import { dropTokens } from '../../mcp/vault';
 import { TIKTOK_MCP_DAYS, pkce, registerClient, authorizeUrl as mcpAuthorizeUrl, exchangeCode } from '../../lib/mcp-oauth';
 import { PLATFORMS, OAUTH, byId, appCreds, authorizeUrl, exchange, oauth1, check, pullState, type Platform, type Values, type Exchanged, CORE } from '../../lib/connectors';
 
@@ -20,7 +21,7 @@ const redirectFor = (request: Request) => new URL('/api/connectors/callback', re
 async function dropPlatform(cfg: Cfg, user: Session, p: Platform): Promise<void> {
   const old = await sb(cfg, `/rest/v1/connections?platform=eq.${encodeURIComponent(p.id)}&select=names`, { admin: true });
   const names = ((old.ok ? rows(old.data)[0] : undefined)?.names as string[] | undefined) || [];
-  if (names.length) await sb(cfg, '/rest/v1/rpc/connector_drop', { method: 'POST', admin: true, body: { p_names: names } });
+  if (names.length) await dropTokens(cfg, user.co, names);
   await sb(cfg, `/rest/v1/connections?platform=eq.${encodeURIComponent(p.id)}`, { method: 'DELETE', admin: true });
   await audit(cfg, user, 'connector_removed', { target: { platform: p.id, names } });
 }

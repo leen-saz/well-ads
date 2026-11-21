@@ -6,6 +6,7 @@
 //   - a platform's own outage (5xx, timeout) is not the account's fault: the state stays as it was.
 // Stored: status, times, a short error code. Never a key, a token, an account name or the platform's message.
 // Connections are Well's only today (connections has no company column: docs/migrations.md), so this runs for Well.
+import { tokensOf } from '../mcp/vault';
 import { sb, type Cfg } from './auth';
 import { WELL_COMPANY } from './tenant';
 import { postizStatus } from '../mcp/adapters/postiz';
@@ -89,8 +90,7 @@ export async function runAccountHealth(cfg: Cfg, e: HealthEnv, { all, names }: {
     targets = [...prev.values()].filter(r => r.status === 'degraded' && r.grace_until && Date.parse(r.grace_until) <= now).map(r => ({ platform: r.platform, expires_at: r.expires_at }));
   }
   if (!targets.length) return { checked: 0, alerts: 0 };
-  const vr = await sb<{ name: string; value: string }[]>(cfg, '/rest/v1/rpc/connector_env', { method: 'POST', admin: true, body: {} });
-  const values: Values = Object.fromEntries((vr.ok && Array.isArray(vr.data) ? vr.data : []).map(x => [x.name, x.value]));
+  const values: Values = await tokensOf(cfg, WELL_COMPANY);
   let alerts = 0;
   const out: (Row & { company_id: string; updated_at: string })[] = [];
   for (const t of targets) {

@@ -3,6 +3,7 @@
 // Social tab's page chooser (src/modules/social/routes.ts).
 import { sb, audit, type Cfg, type Session } from './auth';
 import type { Values } from './connectors';
+import { putToken, dropTokens } from '../mcp/vault';
 
 type Row = Record<string, unknown>;
 const rows = (d: unknown): Row[] => (Array.isArray(d) ? (d as Row[]) : []);
@@ -11,12 +12,9 @@ const rows = (d: unknown): Row[] => (Array.isArray(d) ? (d as Row[]) : []);
 export async function saveValues(cfg: Cfg, user: Session, p: { id: string }, method: 'key' | 'oauth', values: Values,
   { shown = {}, expiresIn = null, checked = null, drop = [] }: { shown?: Values | undefined; expiresIn?: number | null; checked?: string | null; drop?: string[] | undefined } = {}): Promise<void> {
   const names = Object.keys(values);
-  for (const name of names) {
-    const r = await sb(cfg, '/rest/v1/rpc/connector_put', { method: 'POST', admin: true, body: { p_name: name, p_value: values[name] } });
-    if (!r.ok) throw new Error('vault write failed');
-  }
+  for (const name of names) await putToken(cfg, user.co, name, values[name] as string);
   const gone = drop.filter(n => !names.includes(n));
-  if (gone.length) await sb(cfg, '/rest/v1/rpc/connector_drop', { method: 'POST', admin: true, body: { p_names: gone } });
+  if (gone.length) await dropTokens(cfg, user.co, gone);
   const old = await sb(cfg, `/rest/v1/connections?platform=eq.${encodeURIComponent(p.id)}&select=names,shown`, { admin: true });
   const prev = (old.ok ? rows(old.data)[0] : undefined) || { names: [], shown: {} };
   const row: Row = {
