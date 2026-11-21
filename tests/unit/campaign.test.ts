@@ -68,6 +68,13 @@ describe('parsePlan', () => {
     expect(q.tasks).toHaveLength(2);
     expect(parsePlan(JSON.stringify({ tasks: [{ agent: 'knowledge', title: 'k' }, { agent: 'optimize', title: 'o' }] }))!.tasks).toHaveLength(2);
   });
+  it('a compliance task placed before a later draft does not count: the plan still gets a gate after the last writer', () => {
+    const p = parsePlan(JSON.stringify({ tasks: [{ agent: 'knowledge', title: 'k' }, { agent: 'compliance', title: 'x', after: [0] }, { agent: 'content', title: 'c', after: [1] }, { agent: 'optimize', title: 'o' }] }))!;
+    expect(p.tasks.map(t => t.agent)).toEqual(['knowledge', 'compliance', 'content', 'compliance', 'optimize']);
+    expect(p.tasks[3]!.after).toEqual([2]); expect(p.tasks[4]!.after).toEqual([3]);
+    const ok = parsePlan(JSON.stringify({ tasks: [{ agent: 'content', title: 'c' }, { agent: 'compliance', title: 'x', after: [0] }, { agent: 'optimize', title: 'o', after: [1] }] }))!;
+    expect(ok.tasks.map(t => t.agent)).toEqual(['content', 'compliance', 'optimize']);
+  });
   it('at the task cap the missing compliance task takes the place of a non-writing last task, never of a draft', () => {
     const full = (last: string) => parsePlan(JSON.stringify({ tasks: [...Array.from({ length: 13 }, () => ({ agent: 'content', title: 'x' })), { agent: last, title: 'y' }] }))!;
     const a = full('optimize'); expect(a.tasks).toHaveLength(14); expect(a.tasks[13]!.agent).toBe('compliance'); expect(a.tasks[13]!.after).toHaveLength(13);
