@@ -90,7 +90,7 @@ Run one real test post per platform to a test account before relying on it, and 
 
 ## Adding another platform Postiz supports
 1. `engine.ts`: a `SOCIAL` entry (`engine: 'postiz'`, text limit) and its `CAPS` (image count, mp4 only).
-2. `postiz.ts`: its channel identifier in `IDENT`, and its settings in `settingsFor` if Postiz requires any (Postiz's provider page lists them).
+2. `src/mcp/adapters/postiz.ts`: its channel identifier in `IDENT`, and its settings in `settingsFor` if Postiz requires any (Postiz's provider page lists them).
 3. `public/assets/i18n-en.js`: its name. The Social tab, the checks and the tests pick it up from the map.
 Platforms that need extra per-post fields (YouTube title and privacy, Pinterest board) need a form field first.
 

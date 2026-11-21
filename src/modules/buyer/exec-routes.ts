@@ -3,7 +3,7 @@
 // the decisions board (Leen, or someone she gave approve) and the Well company; the stop line, the per-platform real-execution
 // switch and the limits are the owner's. Every mutating call needs the same-origin check (requireUser write:true).
 import { json, readJson, handle, requireUser, isOwner, notApplied } from '../../lib/auth';
-import { configured, type ExecEnv } from './exec/adapters';
+import { configured, type ExecEnv } from '../../mcp/adapters/ads';
 import { actionable, apply as applyAction, list, manualDone, propose as proposeAction, reject, rollback as rollbackAction, saveSettings, type Ctx, type Out } from './exec/service';
 import { buildReport } from './report';
 

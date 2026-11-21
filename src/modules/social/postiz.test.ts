@@ -2,7 +2,7 @@
 // the rate limit, the readiness status, and the rule that an unapproved post makes ZERO calls to Postiz. Synthetic data only.
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { publishPost, publishOne, validate, retryPlan, readiness, type Draft, type Results } from './social';
-import { postizConf, postizStatus, cachedStatus, _clearStatusCache, platformLive, withEngineSecrets, POSTIZ_WAIT_MS, tiktokTitle } from './postiz';
+import { postizConf, postizStatus, cachedStatus, _clearStatusCache, platformLive, withEngineSecrets, POSTIZ_WAIT_MS, tiktokTitle } from '../../mcp/adapters/postiz';
 import { runSocial } from './cron';
 import { WELL_COMPANY } from '../../lib/tenant';
 import { postizMock } from './postiz-mock';

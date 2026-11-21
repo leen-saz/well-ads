@@ -1,7 +1,7 @@
 // What the executor needs from an ad platform: read one entity, find a campaign by its exact name, set a budget or a status.
 // Adapters hold NO policy: every guard lives in guards.ts and the service. They take their credentials from the Worker's secrets
 // (never from the database or the repo) and never log, return or store them.
-import type { Level, Plat, Status } from './guards';
+import type { Level, Plat, Status } from '../../modules/buyer/exec/guards';
 
 export interface Entity { id: string; level: Level; name: string; status: Status | 'other'; budget: number | null; campaignId?: string }
 export interface Adapter {
