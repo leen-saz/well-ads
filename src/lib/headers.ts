@@ -8,7 +8,8 @@ export const SECURITY_HEADERS: Record<string, string> = {
   'Strict-Transport-Security': 'max-age=31536000; includeSubDomains',
   // No cross-origin window may keep a reference to our pages (no popups are opened by the app).
   'Cross-Origin-Opener-Policy': 'same-origin',
-  'Permissions-Policy': 'camera=(), microphone=(), geolocation=()',
+  // Browser features the app never uses stay off, so an injected script cannot switch them on (none is used in src or public/assets).
+  'Permissions-Policy': 'camera=(), microphone=(), geolocation=(), payment=(), usb=(), serial=(), bluetooth=(), hid=(), midi=(), display-capture=(), accelerometer=(), gyroscope=(), magnetometer=()',
 };
 
 export function withSecurityHeaders(res: Response): Response {
