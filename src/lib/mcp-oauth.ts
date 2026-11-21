@@ -2,13 +2,8 @@
 // Standard MCP authorization: dynamic client registration (no developer app), PKCE S256, `resource` indicator,
 // public client (token_endpoint_auth_method "none"), refresh tokens. Endpoints read from the server's metadata
 // on 2026-11-01: <resource>/oauth/.well-known/oauth-authorization-server.
-export const TIKTOK_MCP = {
-  resource: 'https://business-api.tiktok.com/open_mcp/tt-ads-mcp-flat',
-  authorize: 'https://business-api.tiktok.com/portal/mcp-tt4b-authorize',
-  token: 'https://business-api.tiktok.com/open_mcp/tt-ads-mcp-flat/oauth/token',
-  register: 'https://business-api.tiktok.com/open_mcp/tt-ads-mcp-flat/oauth/register',
-  scope: 'mcp:tt4b',
-} as const;
+import { TIKTOK_MCP } from '../mcp/adapters/tiktok';
+export { TIKTOK_MCP };
 
 // TikTok ends the authorization after 30 days; the connectors page shows the date and offers "Reconnect"
 export const TIKTOK_MCP_DAYS = 30;

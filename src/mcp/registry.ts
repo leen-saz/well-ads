@@ -2,5 +2,6 @@
 import type { Tool } from './types';
 import { READ_TOOLS } from './tools/read';
 import { socialPostCreate } from './tools/social';
+import { TIKTOK_TOOLS } from './tools/tiktok';
 
-export const TOOLS = new Map<string, Tool<never>>(([...READ_TOOLS, socialPostCreate] as Tool<never>[]).map(t => [t.name, t]));
+export const TOOLS = new Map<string, Tool<never>>(([...READ_TOOLS, ...TIKTOK_TOOLS, socialPostCreate] as Tool<never>[]).map(t => [t.name, t]));

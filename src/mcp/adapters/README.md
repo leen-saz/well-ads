@@ -9,6 +9,7 @@ source file names a platform API host, apart from the short list there of files 
 | `meta-ads.ts` | Meta Marketing API | buyer execution |
 | `snap-ads.ts` | Snapchat Marketing API | buyer execution |
 | `meta-graph.ts` | Meta Graph: Facebook and Instagram publishing, the connection check, the account-health probe | `src/modules/social/social.ts`, `src/lib/account-health.ts` |
+| `tiktok.ts` | TikTok for Business through TikTok's own MCP server (read only: `_get`/`_list` tools, the one advertiser in `TIKTOK_ADVERTISER_ID`) | the Well MCP tools `tiktok.*`, the connect flow (`src/lib/mcp-oauth.ts`) |
 | `postiz.ts` | Postiz, the extra publishing engine (TikTok, X, LinkedIn) | social publishing, connectors, account health |
 
 Adapters hold no policy: approval, timing, retries and guards stay with their callers. Tokens arrive as arguments and never leave in a
