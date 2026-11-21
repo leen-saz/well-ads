@@ -8,7 +8,6 @@ import { describe, expect, it } from 'vitest';
 const HOSTS = /graph\.facebook\.com|adsapi\.snapchat\.com|accounts\.snapchat\.com\/login\/oauth2\/access_token|business-api\.tiktok\.com|open\.tiktokapis\.com|googleads\.googleapis\.com|api\.linkedin\.com|api\.x\.com/;
 const LATER: Record<string, string> = {
   'src/lib/connectors.ts': 'connecting an account (OAuth exchange, page list, the connect check): moves with the Token Vault and refresher, M11',
-  'src/lib/mcp-oauth.ts': 'the OAuth client for TikTok’s own MCP server: becomes the TikTok adapter, M14',
   'src/modules/journeys/journeys.ts': 'WhatsApp sends: not connected (Leen’s rule); moves with the inbox, M15',
 };
 
@@ -30,8 +29,8 @@ describe('platform calls live in src/mcp/adapters', () => {
   it('every file still waiting to move still needs its entry', () => {
     for (const f of Object.keys(LATER)) expect(HOSTS.test(readFileSync(f, 'utf8')), f).toBe(true);
   });
-  it('the adapters exist: Meta ads, Snapchat ads, Meta Graph publishing, Postiz', () => {
-    for (const f of ['ads', 'meta-ads', 'snap-ads', 'meta-graph', 'postiz']) expect(files).toContain(`src/mcp/adapters/${f}.ts`);
+  it('the adapters exist: Meta ads, Snapchat ads, Meta Graph publishing, Postiz, TikTok', () => {
+    for (const f of ['ads', 'meta-ads', 'snap-ads', 'meta-graph', 'postiz', 'tiktok']) expect(files).toContain(`src/mcp/adapters/${f}.ts`);
   });
 });
 
