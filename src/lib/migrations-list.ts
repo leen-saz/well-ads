@@ -43,6 +43,7 @@ export const MIGRATIONS: readonly string[] = [
   '036_crm_sync_progress.sql',
   '037_session_revocation.sql',
   '038_cascade_fk_indexes.sql',
+  '039_function_search_path.sql',
 ];
 
 // Files up to this one were applied by hand before the schema_migrations table existed: they are not checked here
