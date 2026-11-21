@@ -15,6 +15,7 @@ import * as buyer from './routes/buyer';
 import * as vitals from './routes/vitals';
 import * as approvals from './routes/approvals';
 import * as webhooks from './routes/webhooks';
+import * as automation from './routes/automation';
 import { ROUTES } from '../modules/routes';
 import { health, type HealthEnv } from '../lib/health';
 import { dataStatus } from '../lib/datastatus';
@@ -49,7 +50,7 @@ api.all('/v1/*', c => handleV1(c.req.raw, c.env as never));
 // The Well MCP (docs/PRD.md §3.0): JSON-RPC over POST, the same key check inside (src/mcp/http.ts)
 api.all('/mcp', c => handleMcp(c.req.raw, c.env as never));
 // Every route group: the core ones, then one per live module (src/modules/routes.ts). Exported for the error-behaviour test.
-export const GROUPS: Record<string, Group> = { auth, admin, account, connectors, control, buyer, dash, lessons, approvals, webhooks, today, campaigns, vitals, library: { list: libraryRoot, item: libraryItem, star: libraryStar, approve: libraryApprove }, ...ROUTES };
+export const GROUPS: Record<string, Group> = { auth, admin, account, connectors, control, buyer, dash, lessons, approvals, webhooks, automation, today, campaigns, vitals, library: { list: libraryRoot, item: libraryItem, star: libraryStar, approve: libraryApprove }, ...ROUTES };
 for (const [key, routes] of Object.entries(GROUPS)) api.all(`/${key}/:action`, group(routes));
 // The shared library also answers on the bare path: GET/POST /api/library
 api.on(['GET', 'POST'], '/library', c => (libraryRoot[c.req.method as 'GET' | 'POST'] as Handler)(c.req.raw, c.env));

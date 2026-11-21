@@ -10,11 +10,12 @@ import { versionAssets } from './lib/assets';
 import { withTokens } from './lib/theme';
 import { withWaiter } from './lib/usage';
 import { dispatchRefresh, dispatchWorkflow, hourlyTasks, type CronEnv, type HourlyTask } from './lib/cron';
-import { runWatchdog, type WatchdogEnv } from './lib/watchdog';
+import { runWatchdog, sendAlert, type WatchdogEnv } from './lib/watchdog';
 import { runAccountHealth } from './lib/account-health';
 import { runLearning } from './modules/buyer/measure';
 import { deliverDue } from './mcp/events';
 import { runWriteAccess } from './lib/write-access';
+import { autoWatch } from './lib/automation';
 import { WELL_COMPANY } from './lib/tenant';
 import { env as authEnv } from './lib/auth';
 import { PLATFORMS } from './lib/connectors';
@@ -111,7 +112,7 @@ export default {
       refresh: () => dispatchRefresh(env),
       watchdog: () => runWatchdog(env),
       accounts: () => accountsJob(env, true),
-      learn: async () => runLearning(authEnv(env), WELL_COMPANY),
+      learn: async () => { const c = authEnv(env); await runLearning(c, WELL_COMPANY); await autoWatch(c, (subject, text) => sendAlert(env, { subject, text })); },
       perms: async () => runWriteAccess(authEnv(env), env as never),
       backup: () => dispatchWorkflow(env, 'db-backup.yml'),
       restore: () => dispatchWorkflow(env, 'db-restore-test.yml'),

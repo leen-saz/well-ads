@@ -25,6 +25,7 @@ export function entries(me, L, sections) {
   const has = k => me?.role === 'owner' || (me?.dashboards || []).includes(k);
   if (has('social')) add({ label: L('منشور جديد', 'New post'), hint: L('النشر', 'Publishing'), href: '/social/?new=1', kind: 'action' });
   if (has('control')) add({ label: L('حملة جديدة', 'New campaign'), hint: L('القرارات', 'Decisions'), href: '/control/new/', kind: 'action' });
+  if (has('control')) add({ label: L('الأتمتة', 'Automation'), hint: L('«تلقائي» والسقف', 'Auto mode and the cap'), href: '/automation/', kind: 'page' });
   add({ label: L('الإعدادات', 'Settings'), hint: '', href: '/settings/', kind: 'page' });
   add({ label: L('حسابي', 'My account'), hint: '', href: '/account/', kind: 'page' });
   return out;

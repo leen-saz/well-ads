@@ -77,6 +77,7 @@ by code that is live on main; open «المدير ← صحة الداتا ← ا
 | `mcp_events` | 043 | Well MCP events (src/mcp/events.ts) | yes (FK) | type (post.published, ad_action.applied, account.disconnected…), data (ids, platforms, codes only), created_at | Kept as a record of what happened; no post text, token or personal data. |
 | `webhooks` | 043 | Webhooks (/api/webhooks) | yes (FK) | url (public https), types, active, created_by | Until removed by the owner. The signing secret is in the company's Token Vault, not here. |
 | `webhook_deliveries` | 043 | Webhooks | yes (FK) | webhook_id, event_id (unique pair); status (pending, delivered, failed), attempts, next_at, last_code, delivered_at | Delivery attempts; removed with the webhook or the event. |
+| `managed_campaigns` | 045 | automation («تلقائي») | yes (FK) | company_id, platform, entity_id (PK); level (campaign, adset), name, added_by | Until the owner removes it. Auto mode acts only on these. |
 | `account_permissions` | 044 | connectors (صلاحيات الكتابة) | yes (FK) | company_id, platform (PK); state (write, partial, read_only, not_connected, unknown), missing (permission names), code, checked_at | One row per connection, overwritten by the daily check. Permission names only, never a token. |
 | `account_groups` | 039 | connectors (مجموعات الحسابات) | yes (FK) | name (unique per company), created_by | Until deleted by a user. |
 | `account_group_members` | 039 | connectors | yes (FK) | group_id, platform, account_ref | Deleted with its group. |
