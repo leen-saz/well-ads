@@ -89,6 +89,7 @@ const lvl = (s: Step | null | undefined): Severity => s?.level ?? 'na';
 
 // The company's own rules, one pass over the campaigns each matches. Same read-only output; each says who acts.
 function companyRules(x: Input, camps: Map<string, Camp>, end: string, verdict: Verdicts, push: Push, gated: Gated[]) {
+  const tgtCpl = x.targets.cpl;
   for (const rule of x.rules ?? []) {
     const p = rule.platform, frags = rule.match.map(m => m.toLowerCase()).filter(Boolean);
     for (const c of camps.values()) {
@@ -126,7 +127,9 @@ function companyRules(x: Input, camps: Map<string, Camp>, end: string, verdict: 
         push({ ...base, act: { op: 'status', to: 'active' }, rule: 'company', kind: 'resume', weight: 56, spend: c.cur.spend, title: `${label}: متوقفة وفيها نتائج جيدة، شغّلها`, change: 'شغّل الحملة بميزانية صغيرة وراقب أول 3 أيام.',
           why: 'الحملة متوقفة وآخر أرقامها تحت الحد المقبول للتكلفة.', risk: 'عينة صغيرة: يوم أو يومين ما يثبتون الأداء.',
           evidence: [`${r0(c.cur.leads)} نتيجة بتكلفة ${sar(cc)} مقابل حد ${sar(rule.maxCpl)}`], success: { metric: 'التكلفة بعد التشغيل', goal: `تحت ${sar(rule.maxCpl)} على 3 أيام` } });
-      if (rule.kind === 'stop_idle' && c.live && c.all.leads === 0 && c.days >= (rule.minIdleDays ?? 14))
+      if (rule.kind === 'stop_idle' && c.live && c.all.leads === 0 && c.days >= (rule.minIdleDays ?? 14) && c.all.spend < T.zeroLeadSpendMultiple * tgtCpl)
+        gated.push({ rule: 'stop_cpl', platform: p, campaign: c.name, reason: 'الصرف الكلي أقل من حد العينة: عدد الأيام وحده ما يكفي للإيقاف' });
+      else if (rule.kind === 'stop_idle' && c.live && c.all.leads === 0 && c.days >= (rule.minIdleDays ?? 14))
         push({ ...base, act: { op: 'status', to: 'paused' }, rule: 'company', kind: 'pause', weight: 88, spend: c.cur.spend, confidence: 'high', title: `${label}: ${c.days} يوم بدون نتائج، أوقفها`,
           change: 'أوقف الحملة وحوّل صرفها للحملات اللي تجيب نتائج.', why: RULE.stop_cpl.why, risk: RULE.stop_cpl.risk, evidence: [`${c.days} يوم صرف بدون ولا نتيجة`],
           success: { metric: 'الصرف على حملات بلا نتائج', goal: 'صفر خلال أسبوع' } });
