@@ -2,10 +2,27 @@
 // وتيك توك وX ولينكدإن عبر Postiz كمحرك نشر إضافي (postiz.ts)؛ كلهم بعد اعتماد المعتمد بس. الباقي يتحفظ كتذكير (ADR-0006).
 // التوكنات من الخزنة (صفحة الربط) بأسماء المتغيرات، وما ترجع للمتصفح أبداً.
 import { check, notice, type Rule } from '../compliance/compliance';
-import { SOCIAL, Fail, capCheck, engineOf, textLength, type Code, type Ctx, type Draft, type Media, type Result, type Results, type SocialPlatform, type Tokens } from './engine';
+import { SOCIAL, Fail, capCheck, engineOf, textLength, type Code, type Ctx, type Draft, type Media, type Overrides, type Result, type Results, type SocialPlatform, type Tokens } from './engine';
 import { postizPublish, platformLive, type EngineStatus } from './postiz';
 export { SOCIAL, capCheck, engineOf };
-export type { Code, Ctx, Draft, Media, Result, Results, SocialPlatform };
+export type { Code, Ctx, Draft, Media, Overrides, Result, Results, SocialPlatform };
+
+/** The text a platform publishes: its own override when there is one, else the shared text. */
+export const bodyFor = (post: Pick<Draft, 'body' | 'overrides'>, p: SocialPlatform): string => {
+  const o = post.overrides?.[p]?.body;
+  return typeof o === 'string' && o.trim() ? o : post.body;
+};
+// Keeps only the chosen platforms' texts that really differ from the shared one (trimmed, at most 5000 characters each)
+export function cleanOverrides(v: unknown, platforms: SocialPlatform[], body: string): Overrides {
+  const out: Overrides = {};
+  if (!v || typeof v !== 'object') return out;
+  for (const p of platforms) {
+    const raw = (v as Record<string, unknown>)[p];
+    const t = String((raw && typeof raw === 'object' ? (raw as { body?: unknown }).body : '') ?? '').trim().slice(0, 5000);
+    if (t && t !== body) out[p] = { body: t };
+  }
+  return out;
+}
 
 const GRAPH = 'https://graph.facebook.com/v23.0';
 
@@ -24,22 +41,27 @@ export function validate(input: Record<string, unknown>, now = Date.now(), extra
   const mode = 'manual' as const;
   const notices = check(body, extra).map(notice);
   if (!platforms.length) return { error: 'اختر منصة وحدة على الأقل', notices };
+  const overrides = cleanOverrides(input.overrides, platforms, body);
+  // Each platform's own text is checked too, said with the platform's name
+  for (const [p, o] of Object.entries(overrides) as [SocialPlatform, { body: string }][]) for (const n of check(o.body, extra).map(notice)) notices.push(`${SOCIAL[p].name}: ${n}`);
+  const draftOf = { body, overrides };
   const videos = media.filter(m => m.type === 'video').length;
   if (videos > 1) return { error: 'فيديو واحد بس لكل منشور', notices };
   if (videos && media.length > 1) return { error: 'فيديو واحد أو صور، مو الاثنين مع بعض', notices };
-  if (!body && !media.length) return { error: 'اكتب نص أو أضف صورة/فيديو', notices };
+  if (!media.length && platforms.some(p => !bodyFor(draftOf, p))) return { error: 'اكتب نص أو أضف صورة/فيديو', notices };
   if (!Number.isFinite(at)) return { error: 'حدد وقت النشر', notices };
   if (at < now - 60_000) return { error: 'وقت النشر راح', notices };
   for (const p of platforms) {
     const s = SOCIAL[p];
-    if (textLength(p, body) > s.max) return { error: `النص أطول من حد ${s.name} (${s.max} حرف)`, notices };
+    const own = bodyFor(draftOf, p);
+    if (textLength(p, own) > s.max) return { error: `النص أطول من حد ${s.name} (${s.max} حرف)`, notices };
     if ('needsMedia' in s && s.needsMedia && !media.length) return { error: `${s.name} يحتاج صورة أو فيديو`, notices };
     // What the platform accepts of the media (count, video format), said now and not at the post's time
-    const fit = capCheck(p, { body, media });
+    const fit = capCheck(p, { body: own, media });
     if (fit) return { error: fit, notices };
   }
   if (platforms.some(p => !isLive(p))) notices.push('بعض المنصات المختارة ما ينشر لها تلقائي للحين، وبتنحفظ كتذكير.');
-  return { draft: { platforms, body, media, publish_at: new Date(at).toISOString(), mode }, notices };
+  return { draft: { platforms, body, media, publish_at: new Date(at).toISOString(), mode, ...(Object.keys(overrides).length ? { overrides } : {}) }, notices };
 }
 
 // Who may approve: the company's named approvers; none named = the owner only (checked when approving).
@@ -201,7 +223,8 @@ export async function publishPost(post: Draft, t: Tokens, f: typeof fetch = fetc
     // 'unsaved' = it went out but the result could not be saved: it is never sent again, a person checks it
     if (results[p]?.ok || results[p]?.code === 'unsaved') continue;
     const save = async (r: Result) => { results[p] = r; await o.save?.(results); };
-    try { results[p] = await publishOne(p, post, t, f, results[p], { ...o, save }); } catch { results[p] = { ok: false, code: 'network' }; }
+    // each platform gets its own text (overrides); everything else about the post is shared
+    try { results[p] = await publishOne(p, { ...post, body: bodyFor(post, p) }, t, f, results[p], { ...o, save }); } catch { results[p] = { ok: false, code: 'network' }; }
     try { await o.save?.(results); }
     catch {
       // The platform answered but the database did not take the result. Mark it so a recovery run never publishes it again;
