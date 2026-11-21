@@ -73,8 +73,8 @@ describe('cron dispatch timeout', () => {
 
 describe('hourly trigger: which jobs are due (UTC)', () => {
   const at = (iso: string) => hourlyTasks(new Date(iso));
-  it('every hour: the refresh and the watchdog', () => {
-    expect(at('2026-11-12T10:07:00Z')).toEqual(['refresh', 'watchdog']); // a Thursday
+  it('every hour: the refresh, the watchdog and the account check', () => {
+    expect(at('2026-11-12T10:07:00Z')).toEqual(['refresh', 'watchdog', 'accounts']); // a Thursday
   });
   it('backup only on Sunday at 02 UTC', () => {
     expect(at('2026-11-15T02:07:00Z')).toContain('backup'); // Sunday

@@ -1,12 +1,12 @@
 // صفحة الربط: حالة كل منصة، وزر "اربط" (OAuth) أو الخانات اليدوية حسب توثيق المنصة.
 // القيم السرية تروح للسيرفر وما ترجع أبداً: الخانة المحفوظة تطلع "محفوظ" بس.
 import { t } from './i18n.js';
-import { $, $$, api, esc, icon, shell, say, toast, busy, when, friendly } from './common.js';
+import { $, $$, api, esc, icon, shell, say, toast, busy, when, friendly, pageSignal } from './common.js';
 
 // Runs on every visit of this page (assets/router.js calls it after each ClientRouter navigation).
 export default async function mount() {
 
-  const S = { list: [], q: '', open: null, fallback: new Set() };
+  const S = { list: [], q: '', open: null, fallback: new Set(), health: { accounts: new Map(), groups: [], can: { approve: false }, missing: false }, editing: null };
   const GROUP = { ads: 'منصات الإعلانات', analytics: 'التحليلات والقياس' };
   const STATUS = {
     ok: ['ok', 'check', 'مربوط'], partial: ['warn', 'alert', 'ناقص'], expired: ['warn', 'alert', 'انتهى الربط'],
@@ -41,6 +41,45 @@ export default async function mount() {
         ${!p.mcp && !['none', 'github'].includes(p.status) ? `<button class="btn ghost" type="button" data-drop="${p.id}">${icon('x')}فك الربط</button>` : ''}</div>
       <div class="msg" role="status"></div></form>`;
   }
+  // Account health (M5): the last read-only check of the connected account, in plain words
+  const HEALTH = {
+    ok: ['ok', 'يستجيب'], expiring: ['warn', 'ينتهي قريب: أعد الربط قبل ما ينتهي'],
+    degraded: ['warn', 'ما استجاب في آخر فحص. نعيد الفحص بعد ساعة قبل ما نعتبره مفصول'], disconnected: ['bad', 'وقف الربط: أعد الربط'],
+  };
+  function healthText(h) {
+    const [cls, txt] = HEALTH[h.status] || HEALTH.ok;
+    const at = h.last_check_at ? ` · آخر فحص ${when(h.last_check_at)}` : '';
+    const how = h.probed ? '' : ' (من تاريخ الانتهاء بس)';
+    return `<span class="cx-h-${cls}" data-health="${esc(h.status)}">${icon(cls === 'ok' ? 'check' : 'alert')}${esc(txt)}${how}${at}</span>`;
+  }
+  function healthBox() {
+    const H = S.health, names = Object.fromEntries(S.list.map(p => [p.id, p.name]));
+    if (H.missing) return `<h2 class="cx-h">صحة الحسابات</h2><p class="muted">فحص صحة الحسابات يشتغل بعد ما تكتمل تجهيزات القاعدة.</p>`;
+    const bad = [...H.accounts.values()].filter(a => a.status !== 'ok').length;
+    const connected = S.list.filter(p => ['ok', 'partial', 'expired'].includes(p.status));
+    const editing = S.editing && (S.editing === 'new' ? { id: null, name: '', members: [] } : H.groups.find(g => g.id === S.editing));
+    const groups = H.groups.length ? `<ul class="cx-groups">${H.groups.map(g => `<li><b>${esc(g.name)}</b> <span class="muted">${g.members.map(m => esc(names[m] || m)).join('، ')}</span>
+      ${H.can.approve ? `<button class="btn sm ghost" type="button" data-gedit="${g.id}">${icon('pen')}عدّل</button><button class="btn sm ghost" type="button" data-gdrop="${g.id}">${icon('x')}احذف</button>` : ''}</li>`).join('')}</ul>`
+      : `<p class="muted" data-gempty>ما عندك مجموعات. جمّع حساباتك عشان تختارها مرة وحدة في النشر والتقارير.</p>`;
+    const form = editing ? `<form class="cx-gform" data-gform="${editing.id ?? ''}"><label for="gName">اسم المجموعة</label><input id="gName" name="name" maxlength="60" value="${esc(editing.name)}" required>
+      <fieldset><legend>الحسابات</legend>${connected.map(p => `<label class="cx-gpick"><input type="checkbox" name="m" value="${esc(p.id)}"${editing.members.includes(p.id) ? ' checked' : ''}> ${esc(p.name)}</label>`).join('') || '<p class="muted">اربط حساب أول.</p>'}</fieldset>
+      <div class="bar"><button class="btn primary" type="submit">احفظ المجموعة</button><button class="btn ghost" type="button" data-gcancel>إلغاء</button></div><div class="msg" role="status"></div></form>` : '';
+    return `<div class="cx-health-top"><h2 class="cx-h">صحة الحسابات</h2><span class="muted" id="hSum">${H.accounts.size ? (bad ? `${bad} يحتاج انتباه` : 'كل الحسابات المربوطة تستجيب') : 'ما انفحص شي للحين: الفحص كل ساعة'}</span>
+      ${H.can.approve ? `<button class="btn sm secondary" type="button" id="hNow">${icon('refresh')}افحص الحين</button>` : ''}</div>
+      <h3>مجموعات الحسابات</h3>${groups}${H.can.approve && !editing ? `<button class="btn sm ghost" type="button" data-gnew>${icon('plus')}مجموعة جديدة</button>` : ''}${form}`;
+  }
+  function drawHealth() {
+    let box = $('#cxHealth');
+    if (!box) { $('#list').insertAdjacentHTML('beforebegin', '<section id="cxHealth" class="card pad cx-health" aria-live="polite"></section>'); box = $('#cxHealth'); }
+    box.innerHTML = healthBox();
+  }
+  async function loadHealth() {
+    try {
+      const r = await api('/api/connectors/health');
+      S.health = { accounts: new Map((r.accounts || []).map(a => [a.platform, a])), groups: r.groups || [], can: r.can || { approve: false }, missing: !!r.missing };
+    } catch { /* the page works without it */ }
+  }
+
   function card(p) {
     // منصة بلا خانات (تيك توك) زرها الوحيد هو الربط، حتى لو أسرار التطبيق لسا ما انضافت أو المحاولة السابقة فشلت.
     const direct = p.oauth && (p.oauthReady || !p.fields.length) && (!p.fields.length || !S.fallback.has(p.id));
@@ -56,6 +95,8 @@ export default async function mount() {
     if (p.expires) meta.push(`ينتهي ${when(p.expires)}`);
     if (p.status === 'github' && p.lastPull) meta.push(`آخر سحب ناجح ${when(p.lastPull)} · يشتغل تلقائياً من إعدادات النظام، مو من هذي الصفحة`);
     if (p.checked) meta.push(esc(p.checked));
+    const h = S.health.accounts.get(p.id);
+    if (h) meta.push(healthText(h));
     const drop = !['none', 'mcp', 'github'].includes(p.status) && !p.fields.length
       ? `<button class="btn sm ghost" type="button" data-drop="${p.id}">${icon('x')}فك الربط</button>` : '';
     const note = p.mcp && S.open !== p.id ? `<p class="muted cx-meta">${esc(p.help)}</p>` : '';
@@ -69,7 +110,7 @@ export default async function mount() {
   const DRAFT = {};
   const keep = () => $$('[data-save]', $('#list')).forEach(f => { for (const i of $$('input,textarea', f)) if (i.name) (DRAFT[f.dataset.save] ||= {})[i.name] = i.value; });
   const restore = () => $$('[data-save]', $('#list')).forEach(f => { const d = DRAFT[f.dataset.save]; if (d) for (const i of $$('input,textarea', f)) if (i.name in d) i.value = d[i.name]; });
-  function render() { keep(); draw(); restore(); }
+  function render() { keep(); draw(); drawHealth(); restore(); }
   function draw() {
     const q = S.q.trim().toLowerCase();
     // Platforms nothing is built for yet (no numbers pulled, no publishing, no conversions) are not listed: a long list of
@@ -89,7 +130,8 @@ export default async function mount() {
   }
   async function load() {
     try {
-      S.list = (await api('/api/connectors/list')).platforms;
+      const [l] = await Promise.all([api('/api/connectors/list'), loadHealth()]);
+      S.list = l.platforms;
       if (S.open) {
         const opened = S.list.find(x => x.id === S.open);
         if (opened && !opened.fields.length) { S.open = null; S.fallback.delete(opened.id); }
@@ -122,6 +164,40 @@ export default async function mount() {
     } catch (err) { busy(btn, false); say($('.msg', f), err.message); }
   });
   $('#q').addEventListener('input', e => { S.q = e.target.value; render(); });
+  // The health box: «افحص الحين» and the account groups. Bound per visit (pageSignal), so a later visit does not add a second listener.
+  const sig = { signal: pageSignal() };
+  document.addEventListener('click', async e => {
+    if (!e.target.closest('#cxHealth')) return;
+    const now = e.target.closest('#hNow');
+    if (now) {
+      busy(now, true);
+      try { const r = await api('/api/connectors/recheck', { method: 'POST', body: {} }); toast(`انفحص ${r.checked} حساب`); await load(); }
+      catch (err) { busy(now, false); toast(err.message, true); }
+      return;
+    }
+    if (e.target.closest('[data-gnew]')) { S.editing = 'new'; drawHealth(); $('#gName')?.focus(); return; }
+    const ed = e.target.closest('[data-gedit]');
+    if (ed) { S.editing = Number(ed.dataset.gedit); drawHealth(); $('#gName')?.focus(); return; }
+    if (e.target.closest('[data-gcancel]')) { S.editing = null; drawHealth(); return; }
+    const gd = e.target.closest('[data-gdrop]');
+    if (gd) {
+      const g = S.health.groups.find(x => x.id === Number(gd.dataset.gdrop));
+      if (!g || !confirm(t(`تحذف مجموعة ${g.name}؟ الحسابات نفسها تبقى مربوطة.`))) return;
+      busy(gd, true);
+      try { await api('/api/connectors/groups', { method: 'DELETE', body: { id: g.id } }); toast('انحذفت المجموعة'); await load(); }
+      catch (err) { busy(gd, false); toast(err.message, true); }
+    }
+  }, sig);
+  document.addEventListener('submit', async e => {
+    const f = e.target.closest('[data-gform]'); if (!f) return;
+    e.preventDefault();
+    const members = $$('input[name=m]:checked', f).map(i => i.value);
+    const btn = $('button[type=submit]', f); busy(btn, true);
+    try {
+      await api('/api/connectors/groups', { method: 'POST', body: { id: f.dataset.gform ? Number(f.dataset.gform) : null, name: $('#gName', f).value.trim(), members } });
+      S.editing = null; toast('انحفظت المجموعة'); await load();
+    } catch (err) { busy(btn, false); say($('.msg', f), err.message); }
+  }, sig);
 
   shell({ active: 'connectors', title: 'الربط' }).then(() => {
     const u = new URLSearchParams(location.search);
