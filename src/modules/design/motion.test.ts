@@ -43,7 +43,7 @@ describe('the plan', () => {
     const late = cleanSpec({ scenes: [{ from: 4, to: 6, text: 'أول' }, { from: 6, to: 8, text: 'ثاني' }] }, 10, '9:16')!;
     expect(late.scenes.map(x => [x.from, x.to])).toEqual([[0, 6], [6, 8]]);
     const beat = cleanSpec({ scenes: [{ from: 0.8, to: 3, text: 'أول' }] }, 10, '9:16')!;
-    expect(beat.scenes[0].from).toBe(0.8);
+    expect(beat.scenes[0]!.from).toBe(0.8);
   });
 
   it('builds v1 from a template without a model, spread over the voice, in brand colours', () => {
