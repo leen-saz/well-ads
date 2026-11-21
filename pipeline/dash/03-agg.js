@@ -35,10 +35,10 @@ function passesStatus(a){
   if(S.stat==='off') return d==='off';
   return true;
 }
-function matchesSlice(a){
+function matchesSlice(a, noStatus){
   if(!a || !samePlat(a.platform)) return false;
   if(S.dept && a.dept!==S.dept) return false;
-  if(!passesStatus(a)) return false;
+  if(!noStatus && !passesStatus(a)) return false;
   if(S.camp && a.platform+'|'+a.campaign!==S.camp) return false;
   if(S.goal && a.goal!==S.goal) return false;
   if(S.fmt && (a.format||'')!==S.fmt) return false;
