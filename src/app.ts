@@ -13,6 +13,7 @@ import { dispatchRefresh, dispatchWorkflow, hourlyTasks, type CronEnv, type Hour
 import { runWatchdog, type WatchdogEnv } from './lib/watchdog';
 import { runAccountHealth } from './lib/account-health';
 import { runLearning } from './modules/buyer/measure';
+import { deliverDue } from './mcp/events';
 import { WELL_COMPANY } from './lib/tenant';
 import { env as authEnv } from './lib/auth';
 import { PLATFORMS } from './lib/connectors';
@@ -31,6 +32,9 @@ const HOURLY_CRON = '7 * * * *';
 const NAMES: Record<string, string> = Object.fromEntries(PLATFORMS.map(p => [p.id, p.name]));
 // async: a missing setting (authEnv throws) becomes this job's own failure, never the other jobs'
 const accountsJob = async (e: AuthEnv & WatchdogEnv, all: boolean) => runAccountHealth(authEnv(e), e, { all, names: NAMES });
+
+// Outbound webhooks due now (src/mcp/events.ts), a few per run
+const webhooksJob = async (e: AuthEnv) => deliverDue(authEnv(e));
 
 // Requests produced by a gateway rewrite (department or creative copy) skip the gateway the second time.
 const REWRITTEN = new WeakSet<Request>();
@@ -98,7 +102,7 @@ export default {
   scheduled(event: ScheduledController, env: CronEnv & AuthEnv & WatchdogEnv, ctx: ExecutionContext) {
     if (event.cron === SOCIAL_CRON) {
       // Due social posts, one social-listening keyword that has not been fetched in a day, and the approved campaigns that are running (no page needed)
-      withWaiter(p => ctx.waitUntil(p), () => ctx.waitUntil(Promise.allSettled([runSocial(env), runListening(env as ListenEnv), runTranscribe(env as Parameters<typeof runTranscribe>[0]), driveCampaigns(env as Parameters<typeof driveCampaigns>[0]), accountsJob(env, false)]).then(rs => rs.forEach((r, i) => { if (r.status === 'rejected') console.error('cron: job failed', ['social', 'listening', 'transcribe', 'campaigns', 'accounts'][i], String(r.reason).slice(0, 200)); }))));
+      withWaiter(p => ctx.waitUntil(p), () => ctx.waitUntil(Promise.allSettled([runSocial(env), runListening(env as ListenEnv), runTranscribe(env as Parameters<typeof runTranscribe>[0]), driveCampaigns(env as Parameters<typeof driveCampaigns>[0]), accountsJob(env, false), webhooksJob(env)]).then(rs => rs.forEach((r, i) => { if (r.status === 'rejected') console.error('cron: job failed', ['social', 'listening', 'transcribe', 'campaigns', 'accounts', 'webhooks'][i], String(r.reason).slice(0, 200)); }))));
       return;
     }
     if (event.cron !== HOURLY_CRON) { console.error('cron: unknown trigger', event.cron); return; }

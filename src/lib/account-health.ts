@@ -6,6 +6,7 @@
 //   - a platform's own outage (5xx, timeout) is not the account's fault: the state stays as it was.
 // Stored: status, times, a short error code. Never a key, a token, an account name or the platform's message.
 // Connections are Well's only today (connections has no company column: docs/migrations.md), so this runs for Well.
+import { emit } from '../mcp/events';
 import { tokensOf } from '../mcp/vault';
 import { sb, type Cfg } from './auth';
 import { WELL_COMPANY } from './tenant';
@@ -97,7 +98,7 @@ export async function runAccountHealth(cfg: Cfg, e: HealthEnv, { all, names }: {
     const [p, code] = await probe(t.platform, values, f);
     const { row, alert } = step(prev.get(`${t.platform}|`) ?? null, p, code, t.expires_at, now, t.platform);
     out.push({ ...row, company_id: co, updated_at: new Date(now).toISOString() });
-    if (alert) { alerts++; await sendAlert(e, MSG[alert](names[t.platform] || t.platform), f); }
+    if (alert) { alerts++; await sendAlert(e, MSG[alert](names[t.platform] || t.platform), f); await emit(cfg, co, `account.${alert}`, { platform: t.platform, status: row.status, code: row.error_code ?? null }); }
   }
   await sb(cfg, '/rest/v1/account_health?on_conflict=company_id,platform,account_ref', { method: 'POST', admin: true, headers: { Prefer: 'resolution=merge-duplicates' }, body: out });
   return { checked: out.length, alerts };

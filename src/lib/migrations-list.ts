@@ -47,6 +47,7 @@ export const MIGRATIONS: readonly string[] = [
   '040_social_v2.sql',
   '041_mcp.sql',
   '042_vault_company.sql',
+  '043_events.sql',
 ];
 
 // Files up to this one were applied by hand before the schema_migrations table existed: they are not checked here

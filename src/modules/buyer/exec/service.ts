@@ -2,6 +2,7 @@
 // Order of every real run: approval and second confirmation → guards → claim the row (idempotency) → read the platform's actual
 // state → abort if it is not what the owner was shown → write → read it back → record. A dry run does everything up to the
 // write and then stops: it never calls a platform with anything but a GET. Nothing here stores or returns a credential.
+import { emit } from '../../../mcp/events';
 import { audit, missingSchema, sb, type Cfg, type Session } from '../../../lib/auth';
 import { scoped } from '../../../lib/tenant';
 import { patchGuardrails } from '../../../lib/guardrails';
@@ -253,11 +254,13 @@ async function write(ctx: Ctx, a: Action, adapter: Adapter, before: Entity, c: C
       ? { status: 'rolled_back', rolled_back_at: at, rolled_back_by: user.email }
       : { status: 'applied', applied_at: at, result: { before: stateOf(before), after: after ? stateOf(after) : null, at, by: user.email } });
     await audit(cfg, user, back ? 'buyer_rolled_back' : 'buyer_applied', { target, before: stateOf(before), after: after ? stateOf(after) : null, result: { ok: true } });
+    if (!back) await emit(cfg, user.co, 'ad_action.applied', { ...target, before: stateOf(before), after: after ? stateOf(after) : null });
     return out(200, { ok: true, applied: !back, rolled_back: back, before: stateOf(before), after: after ? stateOf(after) : null });
   }
   // Failed or not verifiable: the outcome is recorded as it is read back, never assumed
   const failCode = code ?? 'verify_failed';
   await move(cfg, user.co, id, 'applying', back ? { status: 'applied' } : { status: 'failed', result: { before: stateOf(before), after: after ? stateOf(after) : null, at, code: failCode } });
+  if (!back) await emit(cfg, user.co, 'ad_action.failed', { ...target, code: failCode });
   await audit(cfg, user, back ? 'buyer_rollback_failed' : 'buyer_failed', { target, before: stateOf(before), after: after ? stateOf(after) : null, note: failCode, result: { ok: false } });
   return fail(502, code ? 'write_failed' : 'verify_failed', { detail: failCode, after: after ? stateOf(after) : null });
 }

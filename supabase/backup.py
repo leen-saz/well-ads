@@ -16,11 +16,12 @@ TABLES = ("profiles", "audit_log", "dashboard_state", "ads", "ad_metrics", "plat
           "motion_projects", "motion_versions",
           "ai_budgets", "ai_routes", "ai_usage", "campaigns", "campaign_tasks", "campaign_outputs", "library_items",
           "library_favorites", "transcribe_jobs", "vision_analyses", "voiceover_settings", "buyer_actions", "buyer_outcomes",
-          "schema_migrations", "video_projects", "video_jobs", "video_settings", "account_groups", "account_group_members", "social_slots")
+          "schema_migrations", "video_projects", "video_jobs", "video_settings", "account_groups", "account_group_members", "social_slots", "webhooks", "mcp_events")
 # Not backed up on purpose (tests/unit/backup-coverage.test.ts reads this): web_vitals is 7-day telemetry with no personal data;
 # account_health is recomputed by the hourly check from the live accounts (src/lib/account-health.ts)
 # mcp_idempotency holds 24-hour replay answers only (src/mcp/call.ts)
-SKIPPED = ("web_vitals", "account_health", "mcp_idempotency")
+# webhook_deliveries: send attempts only, rebuilt from mcp_events when needed
+SKIPPED = ("web_vitals", "account_health", "mcp_idempotency", "webhook_deliveries")
 PAGE = 1000
 
 

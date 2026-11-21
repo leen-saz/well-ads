@@ -6,6 +6,7 @@
 //    what went out is never repeated, what never started starts, what may have gone out is marked 'unconfirmed' for a person to decide;
 //  - a retry of the failed platforms (routes.ts) goes through the same path with the failed entries cleared.
 import { tokensOf } from '../../mcp/vault';
+import { emit } from '../../mcp/events';
 import { env, sb, type AuthEnv, type Cfg } from '../../lib/auth';
 import { WELL_COMPANY } from '../../lib/tenant';
 import { due, pending, publishPost, stale, type Draft, type Results } from './social';
@@ -23,7 +24,13 @@ async function work(cfg: Cfg, p: Row, tokens: Record<string, string>, f: typeof 
   if (!(await patch(final)).ok && !(await patch(final)).ok) {
     // Still refused: the row stays 'publishing' and is recovered later from what was stored; the 'unsaved' mark keeps it from going out twice
     console.error('social: could not save the result of a post', p.id);
+    return;
   }
+  // Outbound event (src/mcp/events.ts): ids, platforms and codes only, never the post text
+  if (out.status === 'pending') return;
+  const went = Object.entries(out.results).filter(([, r]) => r?.ok).map(([k]) => k);
+  const codes = Object.fromEntries(Object.entries(out.results).filter(([, r]) => r && !r.ok && r.code).map(([k, r]) => [k, r!.code]));
+  await emit(cfg, p.company_id, out.status === 'failed' ? 'post.failed' : 'post.published', { post_id: p.id, status: out.status, platforms: went, ...(Object.keys(codes).length ? { codes } : {}) });
 }
 
 // One run never takes more than this: a Worker invocation may make only 50 subrequests on the free plan (1000 on Paid), and
