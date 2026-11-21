@@ -221,15 +221,18 @@ const RECHECK_MS = 60_000;
 export const health = {
   GET: handle(async (request, e) => {
     const { cfg, user } = await requireUser(request, e, 'connectors', { well: true });
-    const [h, g, m] = await Promise.all([
+    const [h, g, m, w] = await Promise.all([
       sb(cfg, `/rest/v1/account_health?company_id=eq.${user.co}&select=platform,status,probed,last_check_at,first_failed_at,grace_until,error_code,expires_at&order=platform.asc`, { admin: true }),
       sb(cfg, `/rest/v1/account_groups?company_id=eq.${user.co}&select=id,name,created_at&order=name.asc`, { admin: true }),
       sb(cfg, `/rest/v1/account_group_members?company_id=eq.${user.co}&select=group_id,platform,account_ref`, { admin: true }),
+      sb(cfg, `/rest/v1/account_permissions?company_id=eq.${user.co}&select=platform,state,missing,code,checked_at`, { admin: true }),
     ]);
     if (!h.ok) return json(200, { missing: true, accounts: [], groups: [], can: { approve: atLeast(user, 'connectors', 'approve', cfg) } });
     const members = rows(m.data);
     return json(200, {
       accounts: rows(h.data),
+      // What each connection may write (M12a); empty before 044 is applied
+      access: w.ok ? rows(w.data) : [],
       groups: rows(g.data).map(x => ({ ...x, members: members.filter(y => y.group_id === x.id).map(y => y.platform) })),
       can: { approve: atLeast(user, 'connectors', 'approve', cfg) },
     });
@@ -245,8 +248,9 @@ export const recheck = {
     const at = Date.parse(String(rows(last.data)[0]?.last_check_at || ''));
     if (Number.isFinite(at) && Date.now() - at < RECHECK_MS) return json(429, { error: 'انفحصت الحسابات قبل أقل من دقيقة. جرّب بعد شوي' });
     const { runAccountHealth } = await import('../../lib/account-health');
-    const r = await runAccountHealth(cfg, vars(e) as never, { all: true, names: HEALTH_NAMES });
-    await audit(cfg, user, 'accounts_checked', { target: { checked: r.checked } });
+    const { runWriteAccess } = await import('../../lib/write-access');
+    const [r, perms] = await Promise.all([runAccountHealth(cfg, vars(e) as never, { all: true, names: HEALTH_NAMES }), runWriteAccess(cfg, vars(e) as never).catch(() => 0)]);
+    await audit(cfg, user, 'accounts_checked', { target: { checked: r.checked, permissions: perms } });
     return json(200, { ok: true, checked: r.checked });
   }),
 };

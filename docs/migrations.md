@@ -25,6 +25,7 @@ reads or alters what the other creates, so either order gives the same schema. K
 | 15 | `041_mcp` | `companies`; idempotency for Well MCP writes (M9). Apply before any MCP write tool is used; reads work without it |
 | 16 | `042_vault_company` | `005_connectors`, `companies`; a Token Vault per company (M11). Well's secret names do not change; safe to apply before or after the deploy |
 | 17 | `043_events` | `companies`, `042_vault_company` (webhook secrets live in the vault); outbound events and webhooks (M11). Safe to apply before or after the deploy: until then events are simply not stored |
+| 18 | `044_account_permissions` | `companies`; the daily write-access check (M12a). Safe to apply before or after the deploy: until then the check runs but stores nothing |
 
 Rules going forward:
 

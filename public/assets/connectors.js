@@ -46,6 +46,18 @@ export default async function mount() {
     ok: ['ok', 'يستجيب'], expiring: ['warn', 'ينتهي قريب: أعد الربط قبل ما ينتهي'],
     degraded: ['warn', 'ما استجاب في آخر فحص. نعيد الفحص بعد ساعة قبل ما نعتبره مفصول'], disconnected: ['bad', 'وقف الربط: أعد الربط'],
   };
+  // Write access (M12a): read automatically from what each account is already allowed to do; reconnect only for a named gap
+  const PERM = { ads_management: 'إدارة الإعلانات', pages_manage_posts: 'النشر على الصفحة', instagram_content_publish: 'النشر على انستقرام',
+    'SNAP_WRITE_*': 'مفاتيح الكتابة', 'write tools on TikTok’s MCP server': 'أدوات الكتابة في تيك توك', tiktok: 'تيك توك', x: 'X', linkedin: 'لينكدإن' };
+  function accessText(a) {
+    // one text node per name, so each one is translated on its own (i18n.js works on text nodes)
+    const miss = (a.missing || []).map(m => `<span>${esc(PERM[m] || m)}</span>`).join(' · ');
+    if (a.state === 'write') return `<span class="cx-h-ok" data-access="write">${icon('check')}يكتب</span>`;
+    if (a.state === 'partial' && a.code === 'postiz_many') return `<span class="cx-h-warn" data-access="partial">${icon('alert')}<span>فيه أكثر من حساب في محرك النشر:</span> ${miss}</span>`;
+    if (a.state === 'partial' || a.state === 'read_only') return `<span class="cx-h-warn" data-access="${esc(a.state)}">${icon('alert')}<span>ناقصه:</span> ${miss} <span>أعد الربط بهالصلاحية بس</span></span>`;
+    if (a.state === 'unknown') return `<span class="cx-h-ok" data-access="unknown">ما قدرنا نقرأ صلاحيات الكتابة في آخر فحص</span>`;
+    return '';
+  }
   function healthText(h) {
     const [cls, txt] = HEALTH[h.status] || HEALTH.ok;
     const at = h.last_check_at ? ` · آخر فحص ${when(h.last_check_at)}` : '';
@@ -76,7 +88,7 @@ export default async function mount() {
   async function loadHealth() {
     try {
       const r = await api('/api/connectors/health');
-      S.health = { accounts: new Map((r.accounts || []).map(a => [a.platform, a])), groups: r.groups || [], can: r.can || { approve: false }, missing: !!r.missing };
+      S.health = { accounts: new Map((r.accounts || []).map(a => [a.platform, a])), access: new Map((r.access || []).map(a => [a.platform, a])), groups: r.groups || [], can: r.can || { approve: false }, missing: !!r.missing };
     } catch { /* the page works without it */ }
   }
 
@@ -97,6 +109,8 @@ export default async function mount() {
     if (p.checked) meta.push(esc(p.checked));
     const h = S.health.accounts.get(p.id);
     if (h) meta.push(healthText(h));
+    const ac = S.health.access?.get(p.id);
+    if (ac) { const s = accessText(ac); if (s) meta.push(s); }
     const drop = !['none', 'mcp', 'github'].includes(p.status) && !p.fields.length
       ? `<button class="btn sm ghost" type="button" data-drop="${p.id}">${icon('x')}فك الربط</button>` : '';
     const note = p.mcp && S.open !== p.id ? `<p class="muted cx-meta">${esc(p.help)}</p>` : '';
