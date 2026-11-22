@@ -25,6 +25,8 @@ export const password = {
     // The sidebar draws every module from here: locked = switched off for the company, ok = this user may open it
     const modules = MODULES.map(m => ({ key: m.key, ar: m.ar, en: m.en, icon: m.icon, group: m.group, status: m.status, does: m.does, doesEn: m.doesEn, pages: m.pages ?? [], into: m.into ?? '',
       locked: !!user.off?.includes(m.key), ok: m.status === 'soon' || can(user, m.key) }));
-    return json(200, { email: user.email, name: user.name, role: user.role, dashboards: user.dash, departments: user.depts || [], modules });
+    // approver: holds «approve» somewhere, so the sidebar offers the approvals center (the list itself filters per item)
+    const approver = user.role === 'owner' || Object.values(user.lvl ?? {}).includes('approve');
+    return json(200, { email: user.email, name: user.name, role: user.role, dashboards: user.dash, departments: user.depts || [], modules, approver });
   }),
 };

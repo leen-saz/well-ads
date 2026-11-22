@@ -10,7 +10,7 @@
 //    'unconfirmed' (a person decides). Reads and media uploads are safe to repeat and are retried.
 //  - What was done is saved step by step in the platform's result (sending -> processing + the Postiz post id), which is what the
 //    claim/recovery logic of cron.ts relies on (#202).
-import { Fail, SOCIAL, capCheck, type Ctx, type Draft, type Result, type SocialPlatform, type Tokens } from './engine';
+import { Fail, SOCIAL, capCheck, type Ctx, type Draft, type Result, type SocialPlatform, type Tokens } from '../../modules/social/engine';
 
 export const POSTIZ_WAIT_MS = 30 * 60_000;    // Postiz gets this long to publish before the result counts as unconfirmed
 const TIMEOUT_MS = 15_000;

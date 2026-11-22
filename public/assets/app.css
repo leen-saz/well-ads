@@ -491,3 +491,29 @@ html[lang=en] .nv-g:not([data-open]) .nv-c,[dir=ltr] .nv-g:not([data-open]) .nv-
   --glass-edge:color-mix(in srgb,var(--foreground) 12%,transparent);
   color:var(--text);
 }
+
+/* ---- The approvals row under «جديد» in the sidebar, with its live count (M3/M4) */
+.ap-link{margin-block:4px 6px}
+.ap-n{margin-inline-start:auto;min-width:22px;height:22px;padding:0 6px;border-radius:999px;display:inline-grid;place-items:center;font:700 12px/1 var(--f-num);background:var(--primary);color:var(--on-primary)}
+
+/* ---- Account health and groups on the connectors page (M5) */
+.cx-health{margin:0 0 20px;display:grid;gap:10px}
+.cx-health-top{display:flex;align-items:center;gap:12px;flex-wrap:wrap}.cx-health-top .cx-h{margin:0}.cx-health-top .btn{margin-inline-start:auto}
+.cx-health h3{margin:6px 0 0}
+.cx-groups{list-style:none;margin:0;padding:0;display:grid;gap:6px}.cx-groups li{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+.cx-gform{display:grid;gap:8px;max-width:560px}.cx-gform fieldset{border:1px solid var(--line);border-radius:var(--r-sm);padding:10px 14px;display:flex;flex-wrap:wrap;gap:6px 16px}
+.cx-gpick{display:inline-flex;align-items:center;gap:6px;min-height:44px}
+[class^=cx-h-]{display:inline-flex;align-items:center;gap:4px}[class^=cx-h-] .i{width:14px;height:14px}
+.cx-h-ok{color:var(--muted)}.cx-h-warn{color:var(--warn-fg)}.cx-h-bad{color:var(--err);font-weight:600}
+
+/* ---- Touch targets on phones (docs/PRD.md §3.10, milestone M2): every control a finger presses is 44×44 px or more.
+   Desktop keeps its compact sizes. !important on min sizes only: some page styles are scoped by Astro (an extra
+   attribute selector) and would otherwise win; nothing else is forced. Checked by tests/smoke/touch.spec.ts. */
+@media (max-width:900px){
+  .btn.sm,.btn.icon{--h:44px}
+  .btn.icon{width:44px}
+  :is(.sec-tab,.so-chip,.chip,.pf button,.ah-chips button,[role=tab],.seg button,.tabs button,summary){min-height:44px!important}
+  :is(.sec-tab,.so-chip,[role=tab],summary){display:inline-flex;align-items:center}
+  summary{display:flex}
+  input:not([type=hidden]):not([type=checkbox]):not([type=radio]),select{min-height:44px!important}
+}

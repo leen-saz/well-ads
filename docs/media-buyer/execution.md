@@ -66,7 +66,7 @@
 `tests/unit/buyer-exec.test.ts` (المسارات كاملة على Supabase وميتا وهميين) و`src/modules/buyer/exec/exec.test.ts` (الحواجز والمحوّلات). كلها بيانات صناعية، والمحاكاة تفشل لو صار نداء لأي عنوان غير الوهمي. تثبت: لا تنفيذ بدون موافقة وتأكيد، التجربة ما تكتب، كل حاجز، الإلغاء عند تغيّر القيمة، منع التكرار، التراجع، وإن المفتاح ما يطلع في أي رد أو سجل.
 
 ## Snap: still unverified (open item)
-- The Snap adapter (`src/modules/buyer/exec/snap.ts`) updates by reading the whole object and sending it back with one field changed. Its tests run against a **hand-written** fake, so they prove our request shape, not that Snap accepts it. Nobody has run a real Snap write yet.
+- The Snap adapter (`src/mcp/adapters/snap-ads.ts`) updates by reading the whole object and sending it back with one field changed. Its tests run against a **hand-written** fake, so they prove our request shape, not that Snap accepts it. Nobody has run a real Snap write yet.
 - **To close it (needs a real trial campaign, so it cannot be done from the repo):** with `live` still off for Snap, run one real «بدون تنفيذ»; then one real change on a trial campaign (a status pause and resume). Save the raw GET and PUT answers with the ids replaced by obviously fake ones, put them in `src/modules/buyer/exec/fixtures/`, replace the `it.todo` in `exec.test.ts` with a test that replays them, and, if Snap rejects the read-only fields, strip them in `put()` before the PUT.
 - Until then, treat the first real Snap write like the first Meta one: small, on a trial campaign, with the emergency stop within reach.
 

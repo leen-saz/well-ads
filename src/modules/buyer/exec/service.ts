@@ -2,14 +2,15 @@
 // Order of every real run: approval and second confirmation → guards → claim the row (idempotency) → read the platform's actual
 // state → abort if it is not what the owner was shown → write → read it back → record. A dry run does everything up to the
 // write and then stops: it never calls a platform with anything but a GET. Nothing here stores or returns a credential.
+import { emit } from '../../../mcp/events';
 import { audit, missingSchema, sb, type Cfg, type Session } from '../../../lib/auth';
 import { scoped } from '../../../lib/tenant';
 import { patchGuardrails } from '../../../lib/guardrails';
 import type { Rec } from '../buyer';
-import { configured, PlatformError, type Adapter, type Entity, type ExecEnv } from './adapters';
+import { configured, PlatformError, type Adapter, type Entity, type ExecEnv } from '../../../mcp/adapters/ads';
 import { cleanSettings, evaluate, idemKey, newBudget, pctOf, reachedTarget, round2, sameAsShown, type Block, type Change, type Level, type Plat, type Recent, type Settings } from './guards';
-import { metaAdapter } from './meta';
-import { snapAdapter } from './snap';
+import { metaAdapter } from '../../../mcp/adapters/meta-ads';
+import { snapAdapter } from '../../../mcp/adapters/snap-ads';
 
 export const DB_KEY: Record<Plat, string> = { meta: 'meta', snapchat: 'snap', tiktok: 'tiktok', google: 'google' };
 type Row = Record<string, unknown>;
@@ -75,7 +76,7 @@ export async function loadRecent(cfg: Cfg, co: string, now: number): Promise<Rec
   }
   return recent;
 }
-const one = async (cfg: Cfg, co: string, id: string): Promise<Action | null> => {
+export const one = async (cfg: Cfg, co: string, id: string): Promise<Action | null> => {
   if (!/^[0-9a-f-]{36}$/i.test(id)) return null;
   const r = await sb<Action[]>(cfg, scoped(`/rest/v1/buyer_actions?id=eq.${id}&select=*`, co), { admin: true });
   return r.ok && Array.isArray(r.data) ? r.data[0] ?? null : null;
@@ -253,11 +254,13 @@ async function write(ctx: Ctx, a: Action, adapter: Adapter, before: Entity, c: C
       ? { status: 'rolled_back', rolled_back_at: at, rolled_back_by: user.email }
       : { status: 'applied', applied_at: at, result: { before: stateOf(before), after: after ? stateOf(after) : null, at, by: user.email } });
     await audit(cfg, user, back ? 'buyer_rolled_back' : 'buyer_applied', { target, before: stateOf(before), after: after ? stateOf(after) : null, result: { ok: true } });
+    if (!back) await emit(cfg, user.co, 'ad_action.applied', { ...target, before: stateOf(before), after: after ? stateOf(after) : null });
     return out(200, { ok: true, applied: !back, rolled_back: back, before: stateOf(before), after: after ? stateOf(after) : null });
   }
   // Failed or not verifiable: the outcome is recorded as it is read back, never assumed
   const failCode = code ?? 'verify_failed';
   await move(cfg, user.co, id, 'applying', back ? { status: 'applied' } : { status: 'failed', result: { before: stateOf(before), after: after ? stateOf(after) : null, at, code: failCode } });
+  if (!back) await emit(cfg, user.co, 'ad_action.failed', { ...target, code: failCode });
   await audit(cfg, user, back ? 'buyer_rollback_failed' : 'buyer_failed', { target, before: stateOf(before), after: after ? stateOf(after) : null, note: failCode, result: { ok: false } });
   return fail(502, code ? 'write_failed' : 'verify_failed', { detail: failCode, after: after ? stateOf(after) : null });
 }

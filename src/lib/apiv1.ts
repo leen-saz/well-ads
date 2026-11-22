@@ -23,7 +23,7 @@ const omit = <T extends object>(o: T, ...keys: string[]): Row => Object.fromEntr
 
 // ---- dash.json: Well's file is site/dash.json (what the overview serves); another company reads its own copy or nothing
 type Parsed = Dash & { rows_cols?: { k: string[]; d: string[]; c: unknown[][] }; crm?: { rows?: unknown[][]; paid_all?: unknown[][]; [k: string]: unknown }; aud?: unknown };
-async function loadDash(e: Env): Promise<Parsed | null> {
+export async function loadDash(e: Env): Promise<Parsed | null> {
   if (!e.FILES) return null;
   const obj = await e.FILES.get('site/dash.json');
   if (!obj) return null;
@@ -152,6 +152,15 @@ async function campaignsEndpoint(cfg: Cfg): Promise<Response> {
 async function healthEndpoint(e: Env): Promise<Response> {
   const s = await dataStatus(e.FILES as StatusBucket | undefined);
   return reply(200, s);
+}
+
+// The same reads for the Well MCP tools (src/mcp/tools/read.ts): the status and the JSON body, no HTTP around them
+export const V1_READS = ['dash', 'overview', 'ads', 'decisions', 'campaigns', 'health'] as const;
+export async function readV1(name: (typeof V1_READS)[number], e: Env, cfg: Cfg, params: Record<string, string> = {}): Promise<{ status: number; body: unknown }> {
+  const q = new URLSearchParams(params);
+  const res = name === 'dash' ? await dashEndpoint(e) : name === 'overview' ? await overviewEndpoint(e, q) : name === 'ads' ? await adsEndpoint(e, q)
+    : name === 'decisions' ? await decisionsEndpoint(cfg) : name === 'campaigns' ? await campaignsEndpoint(cfg) : await healthEndpoint(e);
+  return { status: res.status, body: await res.json() };
 }
 
 // ---- entry

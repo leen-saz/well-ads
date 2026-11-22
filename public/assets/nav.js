@@ -2,6 +2,7 @@
 // كل الأقسام تطلع للكل، واللي ما له صلاحية عليه يطلع مقفل. في الجوال: زر قائمة يفتح درج.
 import { sections, groupNav, navHtml, syncNav, wireNav, boardActive } from './sidebar.js';
 import { agentDots } from './agentdots.js';
+import { installPalette } from './palette.js';
 import { ME_KEY, FRESH, readMe, slim } from './me-cache.js';
 const EN = (() => { try { return new URLSearchParams(location.search).get('lang') === 'en' || localStorage.getItem('well-ads-lang') === 'en'; } catch { return false; } })();
 const L = (ar, en) => EN ? en : ar;
@@ -17,6 +18,7 @@ const P = {
   pen: '<path d="M12 20h9"/><path d="M16.4 3.6a2 2 0 0 1 3 3L7 19l-4 1 1-4Z"/>',
   star: '<path d="M12 3l1.9 5.8L20 11l-6.1 2.2L12 19l-1.9-5.8L4 11l6.1-2.2Z"/>',
   user: '<circle cx="12" cy="8" r="4"/><path d="M20 21a8 8 0 0 0-16 0"/>',
+  check: '<path d="M20 6 9 17l-5-5"/>',
   out: '<path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><path d="m16 17 5-5-5-5"/><path d="M21 12H9"/>',
   chev: '<path d="m6 9 6 6 6-6"/>',
   lock: '<rect x="4" y="11" width="16" height="10" rx="2"/><path d="M8 11V7a4 4 0 0 1 8 0v4"/>',
@@ -72,6 +74,7 @@ body:has(.wl-side) #tabs[data-mode=ads]{display:none}
 .wl-navi[aria-current]{background:var(--primary,#A68CFF);color:var(--on-primary,#120D2B);font-weight:500;box-shadow:0 6px 18px rgba(126,87,253,.28)}
 .wl-i{width:18px;height:18px;stroke:currentColor;fill:none;stroke-width:1.75;stroke-linecap:round;stroke-linejoin:round;flex:none}
 .wl-grow{flex:1}
+.ap-link{margin-block-end:6px}.ap-n{margin-inline-start:auto;min-width:22px;height:22px;padding:0 6px;border-radius:999px;display:inline-grid;place-items:center;font:700 12px/1 "Thmanyah Sans",system-ui,sans-serif;background:var(--primary,#A68CFF);color:var(--on-primary,#120D2B)}
 .wl-items{display:flex;flex-direction:column;gap:2px}
 .wl-items{gap:2px}
 .nv-g{display:flex;flex-direction:column;gap:2px;position:relative}
@@ -122,6 +125,7 @@ function draw(me) {
   const initials = (me.name || me.email || '·').trim().split(/\s+/).map(w => w[0]).join('').slice(0, 2).toUpperCase();
   const role = owner ? L('المالك', 'Owner') : (me.departments || []).length ? L('مدير قسم', 'Department manager') : L('عضو', 'Member');
   side.innerHTML = `<div class="wl-top"><a class="wl-mark" href="/today/">Well<i>.</i></a><button type="button" class="wl-x" aria-label="${L('إغلاق القائمة', 'Close menu')}">${I('x')}</button></div>
+    ${me.approver ? `<a class="wl-navi ap-link" href="/approvals/" data-astro-reload>${I('check')}<span>${L('الاعتمادات', 'Approvals')}</span><b class="ap-n" data-ap-n hidden></b></a>` : ''}
     <div class="wl-items" data-nv>${navHtml(groupNav(sections(me, L), here).entries, { item: 'wl-navi', icon: 'wl-i', L, esc, extra: h => (h === '/' || h.startsWith('/?') ? ' data-astro-reload' : '') })}</div>
     <div class="wl-grow"></div>
     <a class="wl-navi" href="/settings/">${I('settings')}<span>${L('الإعدادات', 'Settings')}</span></a>
@@ -133,6 +137,9 @@ function draw(me) {
   // The board's bare address was the summary of the old board; the performance overview page replaces it when this user has it
   if (location.pathname === '/' && !location.search.replace(/[?&]lang=en/, '').replace(/^&/, '') && gn.cur?.items.some(it => it.key === 'overview')) location.replace('/overview/' + location.search);
   side.querySelector('.wl-out')?.addEventListener('submit', () => { try { localStorage.removeItem(ME_KEY); } catch { /* storage blocked */ } });
+  // ⌘K palette, shortcuts and the live approvals number, as on the app pages
+  installPalette(me, L, sections);
+  import('./apcount.js').then(m => m.startCounts()).catch(() => {});
 }
 
 if (cached?.v) {

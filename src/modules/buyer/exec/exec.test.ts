@@ -4,10 +4,10 @@ import { describe, expect, it, vi } from 'vitest';
 import { check } from '../../compliance/compliance';
 import type { Rec } from '../buyer';
 import { cleanSettings, defaultSettings, evaluate, idemKey, newBudget, reachedTarget, sameAsShown, type Change, type Recent, type Settings, type Subject } from './guards';
-import { metaAdapter } from './meta';
-import { snapAdapter } from './snap';
+import { metaAdapter } from '../../../mcp/adapters/meta-ads';
+import { snapAdapter } from '../../../mcp/adapters/snap-ads';
 import { adapterFor, MSG, propose } from './service';
-import { configured } from './adapters';
+import { configured } from '../../../mcp/adapters/ads';
 
 const NOW = Date.parse('2026-11-20T09:00:00Z');
 const S = (): Settings => ({ ...defaultSettings(), dailyCap: 100, live: { meta: true, snapchat: true, tiktok: false, google: false } });

@@ -12,6 +12,10 @@ const PUBLIC = [/^\/login\/?$/, /^\/reset\/?$/, /^\/welcome\/?$/, /^\/api\/auth\
   /^\/api\/listening\/probe\/?$/,
   // Read-only API: no cookie, its own Authorization: Bearer key check on every path (src/lib/apiv1.ts). Nothing else under /api gets this.
   /^\/api\/v1(\/|$)/,
+  // The Well MCP endpoint: the same bearer-key check inside (src/mcp/http.ts)
+  /^\/api\/mcp\/?$/,
+  // The Well MCP endpoint: the same bearer-key check inside (src/mcp/http.ts)
+  /^\/api\/mcp\/?$/,
   /^\/assets\//, /^\/_astro\//, /^\/m\/[0-9a-f-]{36}\/[0-9a-f]{32}\.(jpg|png|webp|mp4|mov)$/i, /^\/robots\.txt$/, /^\/favicon/];
 
 // The five sidebar destinations (public/assets/sidebar.js GROUPS). /today/ is the start page; the others open
@@ -59,6 +63,10 @@ export function need(rawPathname: string, search: string): Need | null {
   if (PUBLIC.some(r => r.test(pathname))) return null;
   if (HUB.test(pathname) || ALIAS[pathname.replace(/\/$/, '')] || /^\/(api\/)?today(\/|$)/.test(pathname)) return 'any';
   if (/^\/(api\/)?admin(\/|$)/.test(pathname)) return 'owner';
+  // «تلقائي» settings: the control board's people; changes are the owner's (src/api/routes/automation.ts)
+  if (/^\/(api\/)?automation(\/|$)/.test(pathname)) return 'control';
+  // Outbound webhooks of the company: the owner only (src/api/routes/webhooks.ts)
+  if (/^\/api\/webhooks(\/|$)/.test(pathname)) return 'owner';
   // Full health (dependencies, migrations, data age, env): the owner only. /api/health itself is public and says only ok + version
   if (/^\/api\/health\/details\/?$/.test(pathname)) return 'owner';
   // Data health (a sub-page of the Manager): the owner only
@@ -73,6 +81,8 @@ export function need(rawPathname: string, search: string): Need | null {
   if (/^\/api\/campaigns\//.test(pathname)) return 'any';
   // Lessons of any tab: the route checks that tab's own level
   if (/^\/api\/lessons\//.test(pathname)) return 'any';
+  // The approvals center: every signed-in user; each one sees only what they may approve (src/lib/approvals.ts)
+  if (/^\/(api\/)?approvals(\/|$)/.test(pathname)) return 'any';
   // The shared library: the routes check each item's own tab
   if (/^\/(api\/)?library(\/|$)/.test(pathname)) return 'any';
   // Live modules: /<key>/ and /api/<key>/* need the module's own dashboard

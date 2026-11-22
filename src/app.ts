@@ -10,7 +10,17 @@ import { versionAssets } from './lib/assets';
 import { withTokens } from './lib/theme';
 import { withWaiter } from './lib/usage';
 import { dispatchRefresh, dispatchWorkflow, hourlyTasks, type CronEnv, type HourlyTask } from './lib/cron';
-import { runWatchdog, type WatchdogEnv } from './lib/watchdog';
+import { runWatchdog, sendAlert, type WatchdogEnv } from './lib/watchdog';
+import { runAccountHealth } from './lib/account-health';
+import { runLearning } from './modules/buyer/measure';
+import { deliverDue } from './mcp/events';
+import { runWriteAccess } from './lib/write-access';
+import { autoWatch } from './lib/automation';
+import { runPerfAlerts } from './lib/perf';
+import { runJobs } from './mcp/jobs';
+import { WELL_COMPANY } from './lib/tenant';
+import { env as authEnv } from './lib/auth';
+import { PLATFORMS } from './lib/connectors';
 import { runListening, type ListenEnv } from './modules/listening/fetcher';
 import { runSocial } from './modules/social/cron';
 import { runTranscribe } from './modules/transcribe/service';
@@ -22,6 +32,15 @@ type Bindings = Env & AuthEnv;
 const SOCIAL_CRON = '*/5 * * * *';
 // Two triggers only (Workers Free: 5 per account). The hourly one runs every periodic job that is due: src/lib/cron.ts hourlyTasks
 const HOURLY_CRON = '7 * * * *';
+// Platform names for the account-health alerts (plain words, no ids)
+const NAMES: Record<string, string> = Object.fromEntries(PLATFORMS.map(p => [p.id, p.name]));
+// async: a missing setting (authEnv throws) becomes this job's own failure, never the other jobs'
+const accountsJob = async (e: AuthEnv & WatchdogEnv, all: boolean) => runAccountHealth(authEnv(e), e, { all, names: NAMES });
+
+// Outbound webhooks due now (src/mcp/events.ts), a few per run
+const webhooksJob = async (e: AuthEnv) => deliverDue(authEnv(e));
+// Background jobs of the Well MCP (src/mcp/jobs.ts), two per run
+const jobsJob = async (e: AuthEnv) => runJobs(authEnv(e), e as never);
 
 // Requests produced by a gateway rewrite (department or creative copy) skip the gateway the second time.
 const REWRITTEN = new WeakSet<Request>();
@@ -89,13 +108,17 @@ export default {
   scheduled(event: ScheduledController, env: CronEnv & AuthEnv & WatchdogEnv, ctx: ExecutionContext) {
     if (event.cron === SOCIAL_CRON) {
       // Due social posts, one social-listening keyword that has not been fetched in a day, and the approved campaigns that are running (no page needed)
-      withWaiter(p => ctx.waitUntil(p), () => ctx.waitUntil(Promise.allSettled([runSocial(env), runListening(env as ListenEnv), runTranscribe(env as Parameters<typeof runTranscribe>[0]), driveCampaigns(env as Parameters<typeof driveCampaigns>[0])]).then(rs => rs.forEach((r, i) => { if (r.status === 'rejected') console.error('cron: job failed', ['social', 'listening', 'transcribe', 'campaigns'][i], String(r.reason).slice(0, 200)); }))));
+      withWaiter(p => ctx.waitUntil(p), () => ctx.waitUntil(Promise.allSettled([runSocial(env), runListening(env as ListenEnv), runTranscribe(env as Parameters<typeof runTranscribe>[0]), driveCampaigns(env as Parameters<typeof driveCampaigns>[0]), accountsJob(env, false), webhooksJob(env), jobsJob(env)]).then(rs => rs.forEach((r, i) => { if (r.status === 'rejected') console.error('cron: job failed', ['social', 'listening', 'transcribe', 'campaigns', 'accounts', 'webhooks', 'jobs'][i], String(r.reason).slice(0, 200)); }))));
       return;
     }
     if (event.cron !== HOURLY_CRON) { console.error('cron: unknown trigger', event.cron); return; }
     const jobs: Record<HourlyTask, () => Promise<unknown>> = {
       refresh: () => dispatchRefresh(env),
       watchdog: () => runWatchdog(env),
+      accounts: () => accountsJob(env, true),
+      learn: async () => { const c = authEnv(env); await runLearning(c, WELL_COMPANY); await autoWatch(c, (subject, text) => sendAlert(env, { subject, text })); },
+      perms: async () => runWriteAccess(authEnv(env), env as never),
+      perf: async () => runPerfAlerts(authEnv(env), env as never, m => sendAlert(env, m), WELL_COMPANY),
       backup: () => dispatchWorkflow(env, 'db-backup.yml'),
       restore: () => dispatchWorkflow(env, 'db-restore-test.yml'),
     };

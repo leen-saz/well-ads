@@ -1,8 +1,8 @@
 // Snapchat Marketing API adapter. Snap has no per-action keys: the owner's OAuth app (refresh token) is exchanged for a short
 // access token on every run, kept only in memory. Updates are read-modify-write of the whole object (Snap's PUT replaces it).
 // Budgets are in micro-currency (×1,000,000). Campaign-level budget is a spend cap; ad squads carry the daily budget.
-import { PlatformError, type Adapter, type Entity, type ExecEnv } from './adapters';
-import type { Level, Status } from './guards';
+import { PlatformError, type Adapter, type Entity, type ExecEnv } from './ads';
+import type { Level, Status } from '../../modules/buyer/exec/guards';
 
 const API = 'https://adsapi.snapchat.com/v1/';
 const TOKEN_URL = 'https://accounts.snapchat.com/login/oauth2/access_token';

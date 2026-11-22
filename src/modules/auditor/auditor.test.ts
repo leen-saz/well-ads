@@ -330,6 +330,29 @@ describe('auditor: chain_product holds on any data, within the rounding of the q
   });
 });
 
+describe('auditor: sar_sum allows the rounding of the amounts it adds, and no more', () => {
+  // SAR amounts are quoted in whole riyals, so each may be off by 0.5 and so may the total: n parts and a total can differ
+  // by 0.5 × (n + 1) from honest rounding alone. A fixed 0.5 slack flagged an honest verdict as soon as it had two parts.
+  const d = synth();
+  const sumCheck = (parts: number[], total: number) => {
+    const c = structuredClone(claimFromJudge(d, from, to));
+    c.steps.forEach((s, i) => { s.sarAtStake = parts[i] ?? null; });
+    c.verdict = { ...c.verdict, step: null, level: 'ok', sarAtStake: total };
+    return ids(audit(d, c)).includes('sar_sum');
+  };
+  it('parts and a total rounded the honest way never trip it', () => {
+    // true parts 10.5 each, true total 31.5: parts round up to 11, the total to 32 (or 31)
+    expect(sumCheck([11, 11, 11], 32)).toBe(false);
+    expect(sumCheck([10, 10, 10], 31)).toBe(false);
+    expect(sumCheck([11, 11], 22)).toBe(false);
+  });
+  it('a total beyond that rounding still trips it', () => {
+    expect(sumCheck([11, 11, 11], 35.5)).toBe(true);
+    expect(sumCheck([11, 11, 11], 30.4)).toBe(true);
+    expect(sumCheck([100, 50], 400)).toBe(true);
+  });
+});
+
 // Keep this block last: it reads what the tests above produced.
 describe('auditor: no finding id without a test that produces it', () => {
   it('every id in checks.ts and advocate.ts came out of an audit in this file', () => {

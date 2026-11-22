@@ -181,6 +181,23 @@ input[type=search]{width:min(240px,100%)}
 @media (max-width:640px){.dpick{position:fixed;inset-inline:16px;top:auto;bottom:16px;width:auto;max-width:none;z-index:200}.dp-fields .field{min-width:100%}}
 .kgroups{display:grid;gap:18px}
 .kgroup{display:grid;gap:8px}
+.panel.sumstrip{gap:24px}
+.ss-block{display:grid;gap:10px;min-width:0}
+.ss-block .khead h2{margin:0;font-size:1.05rem;font-weight:600;color:var(--ink)}
+.ss-table{width:100%;border-collapse:collapse}
+.ss-table th,.ss-table td{padding:8px 10px;text-align:start;vertical-align:top;border-bottom:1px solid var(--line)}
+.ss-table thead th{font-size:.8rem;font-weight:500;color:var(--muted)}
+.ss-table tbody th{font-weight:500}
+.ss-table td.n{font-weight:600;font-family:var(--f-num);font-variant-numeric:tabular-nums}
+.ss-table td .sub{display:block;font-weight:400;font-size:.72rem;color:var(--muted);font-family:var(--f-ar)}
+.ss-table .st-live-n{color:#2E9E5B}
+.ss-table .ss-total th,.ss-table .ss-total td{border-bottom:0}
+.ss-kpis{grid-template-columns:repeat(auto-fill,minmax(min(100%,170px),1fr))}
+.ss-pick{grid-column:span 2;align-content:start}
+.ss-pick .sub{font-size:.78rem;color:var(--muted)}
+.ss-name{all:unset;box-sizing:border-box;cursor:pointer;color:var(--accent);font-weight:600;font-size:.9rem;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:100%;text-decoration:underline;text-underline-offset:3px}
+.ss-name:focus-visible{outline:2px solid var(--accent);outline-offset:2px;border-radius:4px}
+@media (max-width:640px){.ss-pick{grid-column:1/-1}.ss-table th,.ss-table td{padding:8px 6px}}
 .khead{display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap}
 .khead h3{margin:0;font-size:.95rem;font-weight:600;color:var(--ink)}
 .seg-sm button{font-size:.78rem;padding:3px 10px}
@@ -617,6 +634,7 @@ body{background:
       </div>
   <nav class="ptabs" id="tabs" aria-label="صفحات اللوحة"></nav>
   <section data-mode="ads" data-page="overview channels depts creative dept" class="kgroups" id="kpis" aria-label="الملخص"></section>
+  <section data-mode="ads" data-page="creative" class="panel sumstrip" id="sumStrip"><div id="sumStripBody"></div></section>
   <section data-mode="ads" data-page="overview dept" class="panel b-6" aria-labelledby="winsH">
     <div class="panel-h"><h2 id="winsH">نجاحات هالأسبوع</h2><span class="sub" id="winsSub"></span></div>
     <div class="wins" id="wins"></div>

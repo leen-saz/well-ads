@@ -195,6 +195,7 @@ function wallCard({key, wall, label, thumb, badges, title, sub, stats, flag, vie
 function renderCards(c){
   let list = cardsList(c);
   { list=ideaList(list); const key={spend:x=>-x.spend,leads:x=>-(x.leads+x.conv),cpl:x=>(x.a.goal==='lead'&&x.a.dest!=='whatsapp'?x.cpl:null)??1e12,ctr:x=>-(x.ctr??-1),impr:x=>-x.impr}[S.sort]; list.sort((p,q)=>key(p)-key(q)); IDEAS={}; list.forEach(x=>IDEAS[x.k]=x); }
+  renderSummary(c, list);
   const show = list.slice(0,S.shown);
   $('#cards').innerHTML = show.length ? show.map(x=>wallCard({
     key:x.k, wall:'ad', label:ui('تفاصيل ','Details: ')+x.a.name, thumb:thumbHTML(x.a),
@@ -238,3 +239,71 @@ function weekly(k){
   const lead=ADS[k].goal==='lead';
   return `<div><div class="sub">${ui('أسبوع بأسبوع من أول ما اشتغل الإعلان','Week by week since the ad started')}</div><div class="tbl"><table><thead><tr><th>${ui('الأسبوع','Week')}</th><th class="n">${ui('الصرف','Spend')}</th><th class="n">${ui('الظهور','Impressions')}</th><th class="n">${ui('نسبة النقر','CTR')}</th>${lead?`<th class="n">${ui('الليدز','Leads')}</th><th class="n">${ui('تكلفة الليد','CPL')}</th>`:''}</tr></thead><tbody>${rows.map(([wk,x])=>`<tr><td>${nice(wk)}</td><td class="n">${sar(x.sp)}</td><td class="n">${fmt(x.im)}</td><td class="n">${x.im?pct(100*x.cl/x.im):'—'}</td>${lead?`<td class="n">${qty(x.ld)}</td><td class="n">${x.ld?sar(x.sp/x.ld):'—'}</td>`:''}</tr>`).join('')}</tbody></table></div></div>`;
 }
+
+// ---- summary strip at the top of the creative page (asked by Leen, 2026-11-21)
+// Block 1: how many ads are delivering right now, by the platform's own `delivery` field (never `live` alone).
+//   on, not delivering = budget / rejected / in review / scheduled; stopped = off or ended; unknown stays apart.
+//   Follows the platform, department, campaign, goal and format filters. Ads count if they ran in the chosen period
+//   or are on and not stopped now (scheduled, in review or rejected ads have no spend yet, so a period alone would hide them).
+// Block 2: the same idea list the cards below show (cardsList + ideaList), so the two always agree.
+const SS_FAMS = ['meta','snap','tiktok','google'];
+const SS_PENDING = ['budget','rejected','in_review','scheduled'];
+const SS_MIN_SPEND = 50;   // best / worst need real spend: 3 riyals and one lead is noise (same floor as the card flag)
+const SS_WHY = {budget:['الميزانية خلصت','Budget used up'],rejected:['مرفوض','Rejected'],in_review:['قيد المراجعة','In review'],scheduled:['مجدول','Scheduled']};
+function summaryStatus(c){
+  const rows = c.now.byAd, by = {}, tot = {delivering:0,pending:0,stopped:0,unknown:0,why:{}};
+  const mk = () => ({delivering:0,pending:0,stopped:0,unknown:0,why:{}});
+  for(const [k,a] of Object.entries(ADS)){
+    if(!matchesSlice(a,true)) continue;
+    const d = deliveryOf(a);
+    if(!rows[k] && d!=='delivering' && !SS_PENDING.includes(d)) continue;
+    const bucket = d==='delivering' ? 'delivering' : SS_PENDING.includes(d) ? 'pending' : d==='unknown' ? 'unknown' : 'stopped';
+    for(const o of [tot, by[family(a.platform)||a.platform] ||= mk()]){ o[bucket]++; if(bucket==='pending') o.why[d]=(o.why[d]||0)+1; }
+  }
+  return {by, tot};
+}
+function summaryCreative(list){
+  const t = {spend:0,impr:0,clicks:0,res:0}, rated = [];
+  for(const x of list){
+    const res = (x.leads||0)+(x.conv||0);
+    t.spend+=x.spend; t.impr+=x.impr; t.clicks+=x.clicks; t.res+=res;
+    if(x.spend>=SS_MIN_SPEND && res>0) rated.push({x, res, cpr:x.spend/res});
+  }
+  rated.sort((p,q)=>p.cpr-q.cpr);
+  return {n:list.length, ...t, cpr:t.res?t.spend/t.res:null, ctr:t.impr?100*t.clicks/t.impr:null,
+    best:rated[0]||null, worst:rated.length>1?rated[rated.length-1]:null};
+}
+function ssWhy(why){
+  return SS_PENDING.filter(d=>why[d]).map(d=>`${ui(...SS_WHY[d])} ${fmt(why[d])}`).join(ui(' · ',' · '));
+}
+function renderSummary(c, list){
+  const box = $('#sumStripBody'); if(!box) return;
+  const st = summaryStatus(c), cr = summaryCreative(list);
+  const fams = SS_FAMS.filter(f=>st.by[f]).concat(Object.keys(st.by).filter(f=>!SS_FAMS.includes(f)));
+  const row = (label, o, cls='') => `<tr${cls?` class="${cls}"`:''}><th scope="row">${label}</th>`
+    + `<td class="n st-live-n">${fmt(o.delivering)}</td>`
+    + `<td class="n">${fmt(o.pending)}${o.pending?`<span class="sub">${esc(ssWhy(o.why))}</span>`:''}</td>`
+    + `<td class="n">${fmt(o.stopped)}</td>`
+    + (st.tot.unknown?`<td class="n">${fmt(o.unknown)}</td>`:'') + `</tr>`;
+  const platLabel = f => `<span class="pill"><span class="dot" style="background:var(${(PL[f]||{c:'--s-meta'}).c})"></span>${esc(platName(f)||f)}</span>`;
+  const pick = (label, p, sub) => `<div class="kpi ss-pick"><span class="l">${label}</span>${p
+    ? `<button type="button" class="ss-name" data-k="${esc(p.x.k)}" title="${esc(p.x.a.name)}">${esc(p.x.a.name)}</button><span class="v">${sar(p.cpr)}<small>${money()}</small></span><span class="sub">${fmt(p.res)} ${ui('نتيجة','results')} · ${sar(p.x.spend)} ${money()}</span>`
+    : `<span class="v">—</span><span class="sub">${sub}</span>`}</div>`;
+  const kpi = (l,v,u) => `<div class="kpi"><span class="l">${l}</span><span class="v">${v}${u?`<small>${u}</small>`:''}</span></div>`;
+  box.innerHTML = `<div class="ss-block"><div class="khead"><h2 id="ssH1">${ui('حالة التسليم الآن','Delivery right now')}</h2>`
+    + `<span class="sub">${ui('من حالة الإعلان عند المنصة نفسها، مو بس إنه مفعّل','From the platform\'s own ad status, not just whether the ad is switched on')}</span></div>`
+    + (fams.length ? `<div class="tbl"><table class="ss-table" aria-labelledby="ssH1"><thead><tr><th scope="col">${ui('المنصة','Platform')}</th>`
+      + `<th scope="col" class="n">${ui('يصرف الآن','Delivering now')}</th><th scope="col" class="n">${ui('مفعّل بس ما يصرف','On, not delivering')}</th><th scope="col" class="n">${ui('متوقف','Stopped')}</th>`
+      + (st.tot.unknown?`<th scope="col" class="n">${ui('غير معروف','Unknown')}</th>`:'') + `</tr></thead><tbody>`
+      + fams.map(f=>row(platLabel(f), st.by[f])).join('') + (fams.length>1 ? row(`<b>${ui('الكل','All')}</b>`, st.tot, 'ss-total') : '') + `</tbody></table></div>`
+    : `<p class="knote">${ui('ما فيه إعلانات تطابق الفلاتر.','No ads match the filters.')}</p>`)
+    + `<p class="knote">${ui('«مفعّل بس ما يصرف» = الميزانية خلصت أو مرفوض أو قيد المراجعة أو مجدول. المتوقف = مطفي أو انتهت مدته. العدد بالإعلانات (الكرت الواحد ممكن يضم أكثر من إعلان).','"On, not delivering" = budget used up, rejected, in review or scheduled. Stopped = switched off or ended. Counted in ads (one card can hold several ads).')}</p></div>`
+    + `<div class="ss-block"><div class="khead"><h2 id="ssH2">${ui('المواد الإعلانية بالأرقام','Creatives in numbers')}</h2>`
+    + `<span class="sub">${ui('للفترة والمنصة اللي اخترتها، ونفس المواد اللي تحت','For the period and platform you picked, the same creatives shown below')}</span></div>`
+    + `<div class="kpis ss-kpis">${kpi(ui('عدد المواد','Creatives'),fmt(cr.n),'')}${kpi(ui('الصرف','Spend'),sar(cr.spend),money())}${kpi(ui('النتائج (ليدز ومحادثات)','Results (leads and chats)'),fmt(cr.res),'')}`
+    + `${kpi(ui('تكلفة النتيجة','Cost per result'),sar(cr.cpr),cr.cpr==null?'':money())}${kpi(ui('نسبة النقر','CTR'),pct(cr.ctr),'')}`
+    + `${pick(ui('أفضل مادة بتكلفة النتيجة','Best creative by cost per result'),cr.best,ui('ما فيه مادة صرفت '+SS_MIN_SPEND+' ريال وجابت نتيجة','No creative spent '+SS_MIN_SPEND+' SAR and got a result'))}`
+    + `${pick(ui('أضعف مادة بتكلفة النتيجة','Weakest creative by cost per result'),cr.worst,ui('تحتاج مادتين على الأقل للمقارنة','Needs at least two creatives to compare'))}</div>`
+    + `<p class="knote">${ui(`الأفضل والأضعف من المواد اللي صرفت ${SS_MIN_SPEND} ريال أو أكثر وجابت نتيجة. اضغط على الاسم عشان تفتح تفاصيل المادة.`,`Best and weakest come from creatives that spent ${SS_MIN_SPEND} SAR or more and got a result. Tap the name to open the creative.`)}</p></div>`;
+}
+$('#sumStripBody').addEventListener('click', e=>{ const b=e.target.closest('.ss-name'); if(b) openCard(b.dataset.k); });

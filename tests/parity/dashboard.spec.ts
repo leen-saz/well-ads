@@ -66,6 +66,8 @@ const SCENARIOS: Scenario[] = [
   { name: 'channels 14d google', query: 'p=channels', steps: [range('2026-10-08', '2026-10-21'), plat('google')] },
   { name: 'creative 30d', query: 'p=creative', steps: [preset('30')] },
   { name: 'creative wall only 30d', query: 'view=creative', steps: [preset('30')] },
+  { name: 'creative wall only 30d snap', query: 'view=creative', steps: [preset('30'), plat('snap')] },
+  { name: 'creative wall only 30d live only', query: 'view=creative', steps: [preset('30'), stat('live')] },
   { name: 'organic accounts', query: 'mode=organic&p=accounts', steps: [preset('90')] },
   { name: 'organic posts', query: 'mode=organic&p=posts', steps: [preset('90')] },
 ];
@@ -119,6 +121,35 @@ for (const s of SCENARIOS) {
     expect(got).toEqual(golden[s.name]);
   });
 }
+
+// The summary strip on top of the creative page reads the same data as the cards below it: same creatives, same spend, and its
+// delivery counts come from `delivery` (not `live`) for the ads in the picked platform.
+for (const q of ['view=creative', 'p=creative']) {
+  test(`creative summary strip agrees with the cards (${q})`, async ({ page }) => {
+    await open(page, { name: 'strip', query: q, steps: [preset('90')] });
+    await page.locator('#more').evaluate(el => { while (!(el as HTMLElement).hidden) (el as HTMLElement).click(); });
+    const got = await page.evaluate(() => {
+      const num = (s: string) => Number(s.replace(/[^0-9.]/g, ''));
+      const tiles = Object.fromEntries([...document.querySelectorAll('#sumStripBody .ss-kpis .kpi')].map(k => [k.querySelector('.l')?.textContent?.trim() ?? '', (k.querySelector('.v')?.textContent ?? '').trim()]));
+      const cards = [...document.querySelectorAll('#cards .card')];
+      const cardSpend = cards.map(c => [...c.querySelectorAll('.k')].find(k => k.textContent?.trim() === 'الصرف')?.nextElementSibling?.textContent ?? '0').reduce((a, v) => a + num(v), 0);
+      const rows = [...document.querySelectorAll('#sumStripBody .ss-table tbody tr')].map(r => [...r.children].map(c => (c.firstChild?.textContent ?? '').trim()));
+      return { creatives: num(tiles['عدد المواد'] ?? ''), cards: cards.length, spend: num(tiles['الصرف'] ?? ''), cardSpend, rows };
+    });
+    expect(got.creatives).toBe(got.cards);
+    expect(Math.abs(got.spend - got.cardSpend)).toBeLessThan(got.cards + 1);   // cards round each spend
+    expect(got.rows.length).toBeGreaterThan(1);
+  });
+}
+
+test('summary strip delivery counts come from `delivery`, per platform', async ({ page }) => {
+  await open(page, { name: 'strip', query: 'p=creative', steps: [preset('90')] });
+  const data = fixture() as { ads: Record<string, { platform: string; delivery: string }> };
+  const tot = [0, 0, 0];
+  for (const a of Object.values(data.ads)) { const d = a.delivery; if (d === 'delivering') tot[0]++; else if (['budget', 'rejected', 'in_review', 'scheduled'].includes(d)) tot[1]++; }
+  const shownTotal = await page.locator('#sumStripBody .ss-table tbody tr.ss-total td').first().textContent();
+  expect(Number(shownTotal)).toBe(tot[0]);
+});
 
 test.afterAll(() => {
   if (!UPDATE) return;

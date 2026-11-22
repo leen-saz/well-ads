@@ -1,6 +1,7 @@
 // /api/content/*: the content + SEO/AEO agent of the user's company. Analyze -> plan -> approve each item -> draft -> publish.
+import { tokensOf } from '../../mcp/vault';
 import { sb, json, readJson, handle, requireUser, audit, atLeast, NO_APPROVE, type AuthEnv } from '../../lib/auth';
-import { scoped, WELL_COMPANY } from '../../lib/tenant';
+import { scoped } from '../../lib/tenant';
 import { knowledgeFor, rulesFor, withKnowledge } from '../knowledge/knowledge';
 import { check } from '../compliance/compliance';
 import { aiFor, type LlmEnv } from '../../lib/llm';
@@ -28,9 +29,8 @@ export const analyze = { POST: handle(async (request, e: AiEnv) => {
   const competitors = (Array.isArray(body.competitors) ? body.competitors : String(body.competitors || '').split(/[\n،,]+/))
     .map(x => String(x).trim()).filter(Boolean).slice(0, 10);
   const pages = await crawl(site);
-  // Google tokens: the vault holds Well's today; per-company vault names come with ADR-0006's next step
-  const v = user.co === WELL_COMPANY ? await sb<{ name: string; value: string }[]>(cfg, '/rest/v1/rpc/connector_env', { method: 'POST', admin: true, body: {} }) : null;
-  const t = Object.fromEntries((v?.ok && Array.isArray(v.data) ? v.data : []).map(x => [x.name, x.value]));
+  // Google tokens: this company's own, from the Token Vault (src/mcp/vault.ts)
+  const t = await tokensOf(cfg, user.co);
   const gsc = await searchConsole(site, t).catch(() => []);
   const p = await plan(aiOf(e, usageCtx(cfg, user)), site, niche, competitors, pages, gsc, await knowledgeFor(cfg, user.co, 'content'));
   // Nothing to propose: say so instead of saving an empty plan

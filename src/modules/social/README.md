@@ -6,7 +6,7 @@
 - جدولة بوقت النشر
 - ما ينشر إلا باعتماد المدير اللي يحدده المالك (`companies.social_approvers`، migration 013). بدون اختيار: المالك بس. ما فيه وضع تلقائي.
 
-**الملفات:** module.ts، routes.ts، social.ts (التحقق والنشر)، cron.ts (النشر كل 5 دقايق)، Page.astro، `public/modules/social/client.js`، social.test.ts
+**الملفات:** module.ts، routes.ts، social.ts (التحقق والنشر)، schedule.ts (الجدولة، مشتركة مع MCP)، وكلام Graph في `src/mcp/adapters/meta-graph.ts`، cron.ts (النشر كل 5 دقايق)، Page.astro، `public/modules/social/client.js`، social.test.ts
 
 **النشر (ما يُنشر مرتين):** كل منصة تحفظ نتيجتها في `social_posts.results` وهي تشتغل (sending / processing / publishing)، وعليها يقوم الاسترجاع وإعادة المحاولة.
 - فيديو انستقرام: ينتظر الـ container لين `FINISHED` (يكمل في دورة الـ cron الجاية، وحد أقصى 20 دقيقة) قبل `media_publish`.
@@ -17,4 +17,4 @@
 - فحص الجاهزية بدون نشر: `/api/social/connection` (المالك).
 - الاختبارات: `publish.test.ts` على Graph API وهمي بحالة (`graph-mock.ts`)، و`routes.test.ts`.
 
-**محركات النشر:** `engine.ts` يحدد لكل منصة محركها وحدودها. فيسبوك وانستقرام = محركنا (Graph). تيك توك وX ولينكدإن = Postiz كمحرك إضافي (`postiz.ts`) بعد الاعتماد بس، بأمر «انشر الحين» (never schedule/draft). المنصة تصير جاهزة لما يكون المحرك مضبوط والحساب مربوط فيه. الإعداد والـ AGPL: `docs/social-engine.md`. فحص المالك: `/api/social/engine`. اختبارات: `postiz.test.ts` على `postiz-mock.ts`.
+**محركات النشر:** `engine.ts` يحدد لكل منصة محركها وحدودها. فيسبوك وانستقرام = محركنا (Graph). تيك توك وX ولينكدإن = Postiz كمحرك إضافي (`src/mcp/adapters/postiz.ts`) بعد الاعتماد بس، بأمر «انشر الحين» (never schedule/draft). المنصة تصير جاهزة لما يكون المحرك مضبوط والحساب مربوط فيه. الإعداد والـ AGPL: `docs/social-engine.md`. فحص المالك: `/api/social/engine`. اختبارات: `postiz.test.ts` على `postiz-mock.ts`.

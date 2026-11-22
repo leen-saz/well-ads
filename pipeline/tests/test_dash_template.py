@@ -38,5 +38,20 @@ class DashTemplateTests(unittest.TestCase):
         self.assertIn("renderPersonas", html)
 
 
+    def test_creative_summary_strip(self):
+        # Leen, 2026-11-21: a strip on top of the creative page. Delivery counts come from the platform's `delivery`
+        # (through deliveryOf), never from `live` alone; the creative numbers come from the same list as the cards.
+        html = template()
+        self.assertRegex(html, r'<section[^>]*data-page="creative"[^>]*id="sumStrip"')
+        self.assertIn("function summaryStatus", html)
+        self.assertIn("function summaryCreative", html)
+        body = html[html.index("function summaryStatus"):html.index("function summaryCreative")]
+        self.assertIn("deliveryOf(a)", body)
+        self.assertNotIn(".live", body)
+        self.assertIn("renderSummary(c, list);", html)          # fed by renderCards' own idea list
+        self.assertIn("matchesSlice(a,true)", html)             # same filters as the cards, minus the status toggle
+        self.assertNotIn("a.name", body)                        # creative page audience: counts only, no stop list
+
+
 if __name__ == "__main__":
     unittest.main()

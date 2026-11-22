@@ -1,8 +1,10 @@
 // /api/social/*: the post calendar of the user's company. Reads need the `social` dashboard, writes are same-origin.
 // Publishing itself runs from the Worker cron (src/modules/social/cron.ts), never from the browser.
-import { sb, json, readJson, handle, requireUser, audit, isOwner, levelsOf, atLeast, NO_APPROVE, type Cfg, type Profile } from '../../lib/auth';
+import { tokensOf } from '../../mcp/vault';
+import { sb, json, readJson, handle, requireUser, audit, isOwner, levelsOf, atLeast, missingSchema, notApplied, NO_APPROVE, type Cfg, type Profile } from '../../lib/auth';
+import { cleanSlot } from './slots';
 import { scoped, WELL_COMPANY } from '../../lib/tenant';
-import { SOCIAL, readiness, validate, canApprove, cleanApprovers, suggestPrompt, cleanSuggestion, retryPlan, checkConnection, type SocialPlatform, type Results } from './social';
+import { SOCIAL, canApprove, cleanApprovers, suggestPrompt, cleanSuggestion, retryPlan, checkConnection, type SocialPlatform, type Results } from './social';
 import { saveValues } from '../../lib/vault';
 import { META_PENDING, pageValues, type PageCand } from '../../lib/connectors';
 import { check } from '../compliance/compliance';
@@ -10,7 +12,8 @@ import { knowledgeFor, rulesFor, withKnowledge } from '../knowledge/knowledge';
 import { generate, pick, type LlmEnv } from '../../lib/llm';
 import { usageCtx } from '../../lib/usage';
 import { MEDIA_TYPES, limitOf, tooBig, sniff, mediaKey } from './media';
-import { cachedStatus, postizPlatforms, withEngineSecrets, type EngineStatus } from './postiz';
+import { cachedStatus, postizPlatforms } from '../../mcp/adapters/postiz';
+import { tokensFor, engineState, readyOf, schedulePost } from './schedule';
 
 type Row = Record<string, unknown>;
 const rows = (d: unknown): Row[] => (Array.isArray(d) ? (d as Row[]) : []);
@@ -22,17 +25,6 @@ async function approversOf(cfg: Cfg, company: string): Promise<string[]> {
 const ONLY = (names: string[]) => names.length ? `الاعتماد لـ ${names.join('، ')} بس` : 'الاعتماد للمالك بس، أو للمعتمد اللي يحدده';
 const day = (s: string | null, fallback: number) => { const t = Date.parse(s || ''); return new Date(Number.isFinite(t) ? t : fallback).toISOString(); };
 
-// The connected accounts, as the publisher sees them (src/modules/social/cron.ts): Well's vault today
-async function tokensFor(cfg: Cfg, co: string, e?: unknown): Promise<Record<string, string>> {
-  if (co !== WELL_COMPANY) return {};
-  const v = await sb<{ name: string; value: string }[]>(cfg, '/rest/v1/rpc/connector_env', { method: 'POST', admin: true, body: {} });
-  return withEngineSecrets(Object.fromEntries((v.ok && Array.isArray(v.data) ? v.data : []).map(x => [x.name, x.value])), e);
-}
-// What the extra publishing engine reports (asked at most once a minute per Worker). A platform it carries is "ready" only when
-// the engine is set up AND that account is connected there. Not asked at all when no Postiz platform is involved or none is set up.
-const engineState = (t: Record<string, string>): Promise<EngineStatus> => cachedStatus(t);
-// Per platform: '' when it can go out, else why not (no token values leave the server)
-const readyOf = (t: Record<string, string>, s: EngineStatus | null) => Object.fromEntries((Object.keys(SOCIAL) as SocialPlatform[]).map(p => [p, readiness(p, t, s)]));
 // The platform list the page gets: `live` = can go out by itself right now (nothing says which engine does it)
 const platformsView = (ready: Record<string, string>) => Object.fromEntries((Object.entries(SOCIAL) as [SocialPlatform, (typeof SOCIAL)[SocialPlatform]][]).map(([k, s]) =>
   [k, { name: s.name, max: s.max, ...('needsMedia' in s && s.needsMedia ? { needsMedia: true } : {}), live: s.live && !ready[k]!.startsWith('غير متاح') }]));
@@ -77,17 +69,8 @@ export const posts = {
   }),
   POST: handle(async (request, e) => {
     const { cfg, user } = await requireUser(request, e, 'social', { write: true });
-    const tk = await tokensFor(cfg, user.co, e), ready = readyOf(tk, await engineState(tk));
-    const v = validate(await readJson(request), Date.now(), await rulesFor(cfg, user.co), p => SOCIAL[p].live && !ready[p]!.startsWith('غير متاح'));
-    if (!v.draft) return json(400, { error: v.error, notices: v.notices });
-    // A platform whose account is not connected would fail at its time: said now, while it can still be fixed
-    for (const pl of v.draft.platforms) if (ready[pl] && SOCIAL[pl].live && !ready[pl].startsWith('غير متاح')) v.notices.push(`${SOCIAL[pl].name}: ${ready[pl]}`);
-    const r = await sb<Row[]>(cfg, '/rest/v1/social_posts', { method: 'POST', admin: true, headers: { Prefer: 'return=representation' },
-      body: { ...v.draft, company_id: user.co, status: 'scheduled', created_by: user.email } });
-    if (!r.ok) return json(500, { error: 'ما انحفظ المنشور' });
-    const post = rows(r.data)[0];
-    await audit(cfg, user, 'social_scheduled', { target: { id: post?.id, platforms: v.draft.platforms, mode: v.draft.mode, publish_at: v.draft.publish_at } });
-    return json(200, { ok: true, post, notices: v.notices });
+    const r = await schedulePost(cfg, user, e, await readJson(request));
+    return json(r.status, r.body);
   }),
   // approve (manual mode) or cancel. Only posts that have not gone out yet.
   PATCH: handle(async (request, e) => {
@@ -95,7 +78,8 @@ export const posts = {
     const body = await readJson(request);
     const id = parseInt(String(body.id), 10);
     const act = String(body.action || '');
-    if (!id || !['approve', 'cancel', 'retry'].includes(act)) return json(400, { error: 'طلب غير صحيح' });
+    if (!id || !['approve', 'cancel', 'retry', 'move'].includes(act)) return json(400, { error: 'طلب غير صحيح' });
+    if (act === 'move') return movePost(cfg, user, id, body.publish_at);
     if (act === 'approve' || act === 'retry') {
       // Being on the approvers list is not enough: the person must still hold «approve» on Social today (a lowered level loses it)
       if (!atLeast(user, 'social', 'approve', cfg)) return json(403, { error: NO_APPROVE });
@@ -167,8 +151,7 @@ export const approvers = {
 // Which Facebook page (and its Instagram account) the Social tab publishes to. Connecting with several pages binds none
 // of them (src/lib/connectors.ts): the owner chooses here. Names only come back; the page tokens stay in the vault.
 async function pendingPages(cfg: Cfg): Promise<PageCand[]> {
-  const v = await sb<{ name: string; value: string }[]>(cfg, '/rest/v1/rpc/connector_env', { method: 'POST', admin: true, body: {} });
-  const raw = (v.ok && Array.isArray(v.data) ? v.data : []).find(x => x.name === META_PENDING)?.value;
+  const raw = (await tokensOf(cfg, WELL_COMPANY))[META_PENDING];
   try {
     const j = JSON.parse(raw || '') as { at?: number; pages?: PageCand[] };
     return j.at && Date.now() - j.at < 3600e3 && Array.isArray(j.pages) ? j.pages : []; // a choice left for over an hour is asked again
@@ -254,3 +237,48 @@ export const engine = { GET: handle(async (request, e) => {
   const s = await cachedStatus(await tokensFor(cfg, user.co, e), fetch, Date.now(), true);
   return json(200, { status: s.code, channels: s.channels, platforms: postizPlatforms.map(p => ({ key: p, name: SOCIAL[p].name })) });
 }) };
+
+// ---- Queue slots and moving a post (docs/PRD.md §3.2, milestone M6)
+// A new time for a post that has not gone out. An approved post loses its approval: the approver approved a time too.
+async function movePost(cfg: Cfg, user: Parameters<typeof audit>[1], id: number, when: unknown): Promise<Response> {
+  const at = Date.parse(String(when || ''));
+  if (!Number.isFinite(at)) return json(400, { error: 'حدد الوقت الجديد' });
+  if (at < Date.now() - 60_000) return json(400, { error: 'الوقت الجديد راح' });
+  const cur = await sb<Row[]>(cfg, scoped(`/rest/v1/social_posts?id=eq.${id}&select=status,approved_at,publish_at`, (user as { co: string }).co), { admin: true });
+  const post = cur.ok ? rows(cur.data)[0] : undefined;
+  if (!post) return json(404, { error: 'المنشور مو موجود' });
+  if (post.status !== 'scheduled') return json(409, { error: 'المنشور انتشر أو انلغى' });
+  const wasApproved = !!post.approved_at;
+  const r = await sb<Row[]>(cfg, scoped(`/rest/v1/social_posts?id=eq.${id}&status=eq.scheduled`, (user as { co: string }).co), { method: 'PATCH', admin: true, headers: { Prefer: 'return=representation' },
+    body: { publish_at: new Date(at).toISOString(), approved_at: null, approved_by: null } });
+  if (!r.ok || !rows(r.data).length) return json(409, { error: 'المنشور تغيّر. حدّث الصفحة' });
+  await audit(cfg, user, 'social_moved', { target: { id, from: post.publish_at, to: new Date(at).toISOString(), approval_cleared: wasApproved } });
+  return json(200, { ok: true, post: rows(r.data)[0], approvalCleared: wasApproved });
+}
+
+export const slots = {
+  GET: handle(async (request, e) => {
+    const { cfg, user } = await requireUser(request, e, 'social');
+    const r = await sb<Row[]>(cfg, scoped('/rest/v1/social_slots?select=id,weekday,at_local&order=weekday.asc,at_local.asc', user.co), { admin: true });
+    if (!r.ok) return json(200, { slots: [], missing: missingSchema(r) });
+    return json(200, { slots: rows(r.data) });
+  }),
+  POST: handle(async (request, e) => {
+    const { cfg, user } = await requireUser(request, e, 'social', { write: true });
+    const s = cleanSlot(await readJson(request));
+    if (!s) return json(400, { error: 'اختر يوم ووقت صحيح' });
+    const r = await sb<Row[]>(cfg, '/rest/v1/social_slots', { method: 'POST', admin: true, headers: { Prefer: 'return=representation' }, body: { ...s, company_id: user.co, created_by: user.email } });
+    if (!r.ok) return json(r.status === 409 ? 409 : missingSchema(r) ? 503 : 500, { error: r.status === 409 ? 'هالموعد موجود' : missingSchema(r) ? notApplied(user, '040_social_v2.sql') : 'ما انحفظ الموعد' });
+    await audit(cfg, user, 'social_slot_added', { target: s });
+    return json(200, { ok: true, slot: rows(r.data)[0] });
+  }),
+  DELETE: handle(async (request, e) => {
+    const { cfg, user } = await requireUser(request, e, 'social', { write: true });
+    const id = parseInt(String((await readJson(request)).id), 10);
+    if (!id) return json(400, { error: 'طلب غير صحيح' });
+    const r = await sb<Row[]>(cfg, scoped(`/rest/v1/social_slots?id=eq.${id}`, user.co), { method: 'DELETE', admin: true, headers: { Prefer: 'return=representation' } });
+    if (!r.ok || !rows(r.data).length) return json(404, { error: 'الموعد مو موجود' });
+    await audit(cfg, user, 'social_slot_removed', { target: { id } });
+    return json(200, { ok: true });
+  }),
+};

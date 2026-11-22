@@ -1,8 +1,8 @@
 // Meta Marketing API adapter (Graph API). The token goes in the Authorization header, never in the URL, so it cannot land in a log.
 // Budgets are read and written in the account currency's minor units (SAR: halalas, ×100; a few currencies have none).
 // Needs a system-user token with ads_management on the one ad account (docs/media-buyer/execution.md).
-import { PlatformError, type Adapter, type Entity, type ExecEnv } from './adapters';
-import type { Level, Status } from './guards';
+import { PlatformError, type Adapter, type Entity, type ExecEnv } from './ads';
+import type { Level, Status } from '../../modules/buyer/exec/guards';
 
 const GRAPH = 'https://graph.facebook.com/v23.0/';
 const ZERO_DECIMAL = new Set(['JPY', 'KRW', 'VND', 'CLP', 'ISK', 'HUF', 'TWD', 'UGX', 'PYG']);

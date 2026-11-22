@@ -64,7 +64,7 @@
 /* app.css styles table, th, td, input, label and headings without a layer, so it would beat these layered
    utilities. Inside the shadcn pieces those rules step aside; a small preflight below takes their place. */
 :is(.ui, [data-slot]) :is(table, thead, tbody, tr, th, td, input, label, h1, h2, h3, button, select),
-:is(table, thead, tbody, tr, th, td, input, label, button, select)[data-slot] { all: revert-layer; }
+:is(table, thead, tbody, tr, th, td, input, label, button, select, a)[data-slot] { all: revert-layer; }
 /* app.css also has more specific table rules (row hover, last row border) */
 .ui tbody tr[data-slot]:hover, .ui tbody tr[data-slot]:last-child td[data-slot] { all: revert-layer; }
 
@@ -76,6 +76,8 @@
     font: inherit; color: inherit; background: transparent; margin: 0; padding: 0;
   }
   :is(.ui, [data-slot]) button, button[data-slot] { cursor: pointer; }
+  a[data-slot] { text-decoration: none; }
+  :is(.ui, [data-slot]) kbd { display: inline-grid; place-items: center; min-width: 1.5em; padding: 0 .35em; border: 1px solid var(--ui-border); border-bottom-width: 2px; border-radius: 6px; font: 600 11px/1.6 var(--f-num); background: var(--ui-muted); }
   :is(.ui, [data-slot]) table, table[data-slot] { border-collapse: collapse; text-indent: 0; }
   :is(.ui, [data-slot]) :is(h1, h2, h3, p) { margin: 0; font: inherit; }
 }

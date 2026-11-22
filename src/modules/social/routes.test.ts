@@ -5,7 +5,7 @@ import { WELL_COMPANY } from '../../lib/tenant';
 import { graphMock } from './graph-mock';
 import { META_PENDING } from '../../lib/connectors';
 import { postizMock } from './postiz-mock';
-import { _clearStatusCache } from './postiz';
+import { _clearStatusCache } from '../../mcp/adapters/postiz';
 
 const SECRET = 's'.repeat(32);
 const ENV = { SUPABASE_URL: 'https://db.test', SUPABASE_SERVICE_ROLE_KEY: 'sb_secret_x', SESSION_SECRET: SECRET, OWNER_EMAIL: 'leen@x.co' };

@@ -3,12 +3,12 @@
 //
 // Two engines publish for us, and only after the named approver approved the post (cron.ts is the only caller):
 //   native: our own Graph API code (social.ts) for Facebook and Instagram.
-//   postiz: an open-source publisher we call over HTTPS (postiz.ts) for TikTok, X and LinkedIn. Postiz is only an engine:
+//   postiz: an open-source publisher we call over HTTPS (src/mcp/adapters/postiz.ts) for TikTok, X and LinkedIn. Postiz is only an engine:
 //           its own approval or draft features are never used as the gate (see docs/social-engine.md).
 // A platform with no engine (Snapchat) is saved as a reminder.
 //
 // Adding a platform Postiz supports: one SOCIAL entry here (engine: 'postiz', limits), its Postiz identifier and settings in
-// postiz.ts (IDENT, settingsFor), and its name in i18n-en.js. Nothing else.
+// src/mcp/adapters/postiz.ts (IDENT, settingsFor), and its name in i18n-en.js. Nothing else.
 export type EngineId = 'native' | 'postiz';
 
 export const SOCIAL = {
@@ -25,7 +25,9 @@ export type SocialPlatform = keyof typeof SOCIAL;
 export const engineOf = (p: SocialPlatform): EngineId | null => SOCIAL[p].engine;
 
 export interface Media { url: string; type: 'image' | 'video' }
-export interface Draft { platforms: SocialPlatform[]; body: string; media: Media[]; publish_at: string; mode: 'auto' | 'manual' }
+// overrides: the text of one platform when it differs from the shared text (docs/PRD.md §3.2, M6). Absent = the shared text.
+export type Overrides = Partial<Record<SocialPlatform, { body: string }>>;
+export interface Draft { platforms: SocialPlatform[]; body: string; media: Media[]; publish_at: string; mode: 'auto' | 'manual'; overrides?: Overrides | null }
 export type Tokens = Record<string, string | undefined>;
 
 // ---- Results. One per platform, kept on the post (social_posts.results) so a crash or a retry knows what already went out.

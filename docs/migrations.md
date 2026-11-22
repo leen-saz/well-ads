@@ -20,6 +20,15 @@ reads or alters what the other creates, so either order gives the same schema. K
 | 10 | `034_video` | `companies`, `ai_usage` (019); it also locks the `video` module for every company once |
 | 11 | `035_buyer_outcomes` | `companies`, `buyer_actions` (032) |
 | 12 | `037_session_revocation` | `profiles`; adds `valid_after` (signing out or changing a password ends older logins). Safe to apply before or after the deploy |
+| 13 | `039_account_health` | `companies`; account health, account groups (M5). Safe to apply before or after the deploy: the check does nothing until the table exists |
+| 14 | `040_social_v2` | `companies`, `social_posts`; text per platform (`overrides`) and queue slots (M6). Apply before using either; posts without them keep working |
+| 15 | `041_mcp` | `companies`; idempotency for Well MCP writes (M9). Apply before any MCP write tool is used; reads work without it |
+| 16 | `042_vault_company` | `005_connectors`, `companies`; a Token Vault per company (M11). Well's secret names do not change; safe to apply before or after the deploy |
+| 17 | `043_events` | `companies`, `042_vault_company` (webhook secrets live in the vault); outbound events and webhooks (M11). Safe to apply before or after the deploy: until then events are simply not stored |
+| 18 | `044_account_permissions` | `companies`; the daily write-access check (M12a). Safe to apply before or after the deploy: until then the check runs but stores nothing |
+| 19 | `045_automation` | `companies`; the managed list for «تلقائي» (M13). Auto stays off until the owner switches it on; safe before or after the deploy |
+| 20 | `046_jobs` | `companies`; background jobs of the Well MCP (M17). Safe before or after the deploy: until then report tools answer «not set up yet» |
+| 21 | `047_function_search_path` | the functions of `001`, `019` and `031` (pins `search_path` on four functions; no data change). Safe before or after the deploy |
 
 Rules going forward:
 
@@ -64,3 +73,18 @@ the Worker variable `MIGRATIONS_STRICT` to `1` (Cloudflare ← Workers ← well-
 return `ok: false` while any tracked migration is missing or `033` is not applied, and the deploy check in
 `deploy.yml` already fails on `ok: false`. Turn it on only after 033 and everything after it are applied, otherwise the
 next deploy fails.
+
+## The production deploy stops on a missing migration (M2)
+
+`deploy.yml` runs `node scripts/check-migrations.mjs` **before the build** of every production deploy. It reads the list
+in `src/lib/migrations-list.ts` and the `schema_migrations` table with the production environment's `SUPABASE_URL` and
+`SUPABASE_SERVICE_ROLE_KEY` secrets (the same ones `refresh.yml` uses), and fails the run when:
+
+| case | message |
+|---|---|
+| a tracked file (after `032`) has no row | `not applied yet: <files>`: run them in order in the SQL editor, then deploy again |
+| `033_schema_migrations.sql` is not applied | run it first, then every later file |
+| the table cannot be read, or the two secrets are missing | the deploy does not go ahead blind |
+
+It prints file names only. Staging deploys are not checked (staging is not guaranteed to share the production database).
+`MIGRATIONS_STRICT` (below) still controls the health check after the deploy; the two are independent.
