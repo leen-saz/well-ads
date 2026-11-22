@@ -78,7 +78,7 @@ by code that is live on main; open «المدير ← صحة الداتا ← ا
 | `webhooks` | 043 | Webhooks (/api/webhooks) | yes (FK) | url (public https), types, active, created_by | Until removed by the owner. The signing secret is in the company's Token Vault, not here. |
 | `webhook_deliveries` | 043 | Webhooks | yes (FK) | webhook_id, event_id (unique pair); status (pending, delivered, failed), attempts, next_at, last_code, delivered_at | Delivery attempts; removed with the webhook or the event. |
 | `mcp_jobs` | 046 | Well MCP background jobs (src/mcp/jobs.ts) | yes (FK) | kind (report.performance), status (queued, running, done, failed), input, result (numbers only), error (code), actor, created_at, started_at, finished_at | 30 days; a report can be run again. |
-| `managed_campaigns` | 045 | automation («تلقائي») | yes (FK) | company_id, platform, entity_id (PK); level (campaign, adset), name, added_by | Until the owner removes it. Auto mode acts only on these. |
+| `auto_exclusions` | 045 | automation («تلقائي») | yes (FK) | company_id, platform, entity_id (PK); name, added_by | Until the owner removes it. Auto mode works on every campaign except these. |
 | `account_permissions` | 044 | connectors (صلاحيات الكتابة) | yes (FK) | company_id, platform (PK); state (write, partial, read_only, not_connected, unknown), missing (permission names), code, checked_at | One row per connection, overwritten by the daily check. Permission names only, never a token. |
 | `account_groups` | 039 | connectors (مجموعات الحسابات) | yes (FK) | name (unique per company), created_by | Until deleted by a user. |
 | `account_group_members` | 039 | connectors | yes (FK) | group_id, platform, account_ref | Deleted with its group. |

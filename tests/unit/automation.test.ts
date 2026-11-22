@@ -1,15 +1,20 @@
 /* eslint-disable @typescript-eslint/no-explicit-any -- recorded request bodies are read loosely in assertions */
-// «تلقائي» (M13): off by default; acts only on a managed entity, within 20% and the 2,500 SAR day, and through every normal guard.
+// «تلقائي» (M13): off by default; every campaign except the owner's exclusions, within 20% and the 2,500 SAR day
+// (yesterday's real spend + the increase), and through every normal guard.
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { AUTO_MAX_PCT, SPEND_CAP_SAR, autoApply, autoWatch, cleanAuto, expectedSpend } from '../../src/lib/automation';
 
 const cfg = { url: 'https://sb.example', anon: 'anon', service: 'service' } as never;
-const ENV = { META_WRITE_TOKEN: 'w', META_WRITE_AD_ACCOUNT_ID: '123' };
+const dashOf = (yesterday: number) => ({ generated_at: '2026-11-21T00:00:00Z', range: { start: '2026-11-20', end: '2026-11-20' }, ads: { m1: { name: 'A', platform: 'facebook', goal: 'lead' } }, rows: [['m1', '2026-11-20', yesterday, 1000, 10, 1, 0]] });
+const files = (yesterday: number | null) => ({ async get(k: string) { return yesterday != null && k === 'site/dash.json' ? { json: async () => dashOf(yesterday) } : null; } }) as unknown as R2Bucket;
+const ENV0 = { META_WRITE_TOKEN: 'w', META_WRITE_AD_ACCOUNT_ID: '123' };
+let ENV: typeof ENV0 & { FILES?: R2Bucket } = { ...ENV0, FILES: files(1000) };
 const ACTION = (over: any = {}) => ({ id: '11111111-1111-4111-8111-111111111111', status: 'proposed', mode: 'auto', platform: 'meta', level: 'campaign', entity_id: 'c1',
   change: { op: 'budget', from: 1000, to: 1200, pct: 20 }, ...over });
 
-type World = { action?: any; auto?: any; kill?: boolean; live?: boolean; dailyCap?: number; managed?: any[] | 'missing'; budgets?: Record<string, number>; statuses?: Record<string, string>; outcomes?: any[] };
+type World = { action?: any; auto?: any; kill?: boolean; live?: boolean; dailyCap?: number; excluded?: any[] | 'missing'; yesterday?: number | null; budgets?: Record<string, number>; statuses?: Record<string, string>; outcomes?: any[] };
 function world(w: World) {
+  ENV = { ...ENV0, FILES: files(w.yesterday === undefined ? 1000 : w.yesterday) };
   const calls: { url: string; method: string; body: any }[] = [];
   const state: Record<string, number> = { ...(w.budgets ?? { c1: 1000 }) };
   const status: Record<string, string> = { ...(w.statuses ?? {}) };
@@ -24,7 +29,7 @@ function world(w: World) {
       const g = { platform: 'global', guardrails: { kill: !!w.kill, auto: saved?.guardrails?.auto ?? w.auto ?? {}, exec: { maxPct: 20, ...(w.dailyCap ? { dailyCap: w.dailyCap } : {}) } }, updated_at: '2026-11-21T00:00:00Z' };
       return j(url.includes('platform=eq.global') ? [g] : [g, { platform: 'meta', guardrails: { exec: { live: w.live !== false } } }]);
     }
-    if (url.includes('/rest/v1/managed_campaigns')) return w.managed === 'missing' ? j({ code: '42P01', message: 'relation does not exist' }, 404) : j(w.managed ?? [{ platform: 'meta', level: 'campaign', entity_id: 'c1', name: 'A' }]);
+    if (url.includes('/rest/v1/auto_exclusions')) return w.excluded === 'missing' ? j({ code: '42P01', message: 'relation does not exist' }, 404) : j(w.excluded ?? []);
     if (url.includes('/rest/v1/buyer_actions')) {
       if (method === 'PATCH') return j([{ ...(w.action ?? ACTION()), ...body }]);
       return j(url.includes('id=eq.') ? [w.action ?? ACTION()] : []);
@@ -50,38 +55,39 @@ describe('settings', () => {
     expect(cleanAuto({ spendCap: 1000 }).spendCap).toBe(1000);
     expect(cleanAuto({ on: { buyer: 'yes' } }).on.buyer).toBe(false);
   });
-  it('expected spend: the active managed daily budgets, with this change applied', () => {
-    const live = [{ entity_id: 'a', budget: 1000, status: 'active' }, { entity_id: 'b', budget: 800, status: 'paused' }];
-    expect(expectedSpend(live, { entity_id: 'a', change: { op: 'budget', from: 1000, to: 1200, pct: 20 } } as any)).toBe(1200);
-    expect(expectedSpend(live, { entity_id: 'b', change: { op: 'status', from: 'paused', to: 'active' } } as any)).toBe(1800);
+  it('expected spend: yesterday’s actual spend plus what the change adds', () => {
+    expect(expectedSpend(1000, { change: { op: 'budget', from: 1000, to: 1200, pct: 20 } } as any, null)).toBe(1200);
+    expect(expectedSpend(1000, { change: { op: 'status', from: 'paused', to: 'active' } } as any, 800)).toBe(1800);
+    expect(expectedSpend(1000, { change: { op: 'budget', from: 1000, to: 800, pct: -20 } } as any, null)).toBe(1000);
   });
 });
 
 describe('autoApply', () => {
   it('auto off (the default): nothing is written, the proposal stays for approval', async () => {
     const calls = world({ dailyCap: 5000 });
-    expect(await autoApply(cfg, ENV, 'buyer', ACTION() as any)).toMatchObject({ applied: false, why: 'off' });
+    expect(await autoApply(cfg, ENV as any, 'buyer', ACTION() as any)).toMatchObject({ applied: false, why: 'off' });
     expect(writes(calls)).toEqual([]);
   });
-  it('on, managed, within 20% and the day: applied through the normal path (written and read back)', async () => {
+  it('on, not excluded, within 20% and the day: applied through the normal path (written and read back)', async () => {
     const calls = world({ auto: { on: { buyer: true } }, dailyCap: 5000 });
-    expect(await autoApply(cfg, ENV, 'buyer', ACTION() as any)).toEqual({ applied: true });
+    expect(await autoApply(cfg, ENV as any, 'buyer', ACTION() as any)).toEqual({ applied: true });
     expect(writes(calls).map(c => new URLSearchParams(String(c.body)).get('daily_budget'))).toEqual(['120000']);
     const claim = calls.find(c => c.url.includes('/buyer_actions') && c.method === 'PATCH' && c.body?.status === 'applying')!;
     expect(claim.body.decided_by).toBe('auto:buyer');
   });
-  it('refuses: emergency stop, not on the managed list, over 20%, over the 2,500 SAR day, a guard (no daily cap set)', async () => {
+  it('refuses: emergency stop, an excluded campaign, over 20%, over the 2,500 SAR day, no dashboard, a guard (no daily cap set)', async () => {
     const cases: [World, any, string][] = [
       [{ auto: { on: { buyer: true } }, kill: true, dailyCap: 5000 }, ACTION(), 'kill'],
-      [{ auto: { on: { buyer: true } }, dailyCap: 5000, managed: [] }, ACTION(), 'not_managed'],
+      [{ auto: { on: { buyer: true } }, dailyCap: 5000, excluded: [{ platform: 'meta', entity_id: 'c1', name: 'A' }] }, ACTION(), 'excluded'],
       [{ auto: { on: { buyer: true } }, dailyCap: 5000 }, ACTION({ change: { op: 'budget', from: 1000, to: 1300, pct: 30 } }), 'cap_pct'],
-      [{ auto: { on: { buyer: true } }, dailyCap: 5000, budgets: { c1: 2200 } }, ACTION({ change: { op: 'budget', from: 2200, to: 2640, pct: 20 } }), 'spend_cap'],
+      [{ auto: { on: { buyer: true } }, dailyCap: 5000, yesterday: 2400 }, ACTION(), 'spend_cap'],
+      [{ auto: { on: { buyer: true } }, dailyCap: 5000, yesterday: null }, ACTION(), 'read_failed'],
       [{ auto: { on: { buyer: true } } }, ACTION(), 'guard'],
-      [{ auto: { on: { buyer: true } }, managed: 'missing' }, ACTION(), 'setup'],
+      [{ auto: { on: { buyer: true } }, excluded: 'missing' }, ACTION(), 'setup'],
     ];
     for (const [w, a, why] of cases) {
       const calls = world(w);
-      expect(await autoApply(cfg, ENV, 'buyer', a), why).toMatchObject({ applied: false, why });
+      expect(await autoApply(cfg, ENV as any, 'buyer', a), why).toMatchObject({ applied: false, why });
       expect(writes(calls), why).toEqual([]);
     }
     expect(AUTO_MAX_PCT).toBe(20);
@@ -89,7 +95,7 @@ describe('autoApply', () => {
   it('a pause that lowers spend is never stopped by the spend cap', async () => {
     const a = ACTION({ change: { op: 'status', from: 'active', to: 'paused' } });
     const calls = world({ action: a, auto: { on: { buyer: true } }, budgets: { c1: 3000 }, statuses: {} });
-    const r = await autoApply(cfg, ENV, 'buyer', a as any);
+    const r = await autoApply(cfg, ENV as any, 'buyer', a as any);
     expect(r, JSON.stringify(r)).toEqual({ applied: true });
     expect(writes(calls).map(c => new URLSearchParams(String(c.body)).get('status'))).toEqual(['PAUSED']);
   });
@@ -106,5 +112,18 @@ describe('autoWatch', () => {
     const calls = world({});
     expect(await autoWatch(cfg, vi.fn())).toEqual([]);
     expect(calls.some(c => c.url.includes('buyer_outcomes'))).toBe(false);
+  });
+});
+
+describe('one switch', () => {
+  it('turning auto on also turns real execution on for platforms with write keys, and sets the daily increase cap when unset', async () => {
+    const { enableExecution } = await import('../../src/lib/automation');
+    const calls = world({});
+    const r = await enableExecution(cfg, ENV0 as any, 'owner@example.com', 2500);
+    expect(r.live).toEqual(['meta']);
+    const writes = calls.filter(c => c.url.includes('/control_settings') && (c.method === 'PATCH' || c.method === 'POST')).map(c => JSON.stringify(c.body));
+    expect(writes.some(w => w.includes('"live":true'))).toBe(true);
+    expect(writes.some(w => w.includes('"dailyCap":2500'))).toBe(true);
+    expect(writes.some(w => w.includes('snap'))).toBe(false);
   });
 });
