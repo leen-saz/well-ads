@@ -40,10 +40,12 @@ export function integrity(c: Claim, f: Facts, cfg: AuditConfig): Run {
     if (s.median != null && s.key !== 'sale') compare(s, 'median', s.median, usualOf(s.key));
   }
 
-  // 2. Coverage the verdict quotes
+  // 2. Coverage the verdict quotes. Coverage is a share of the period's leads, so it is read at most 100%: the raw ratio
+  // (CRM leads tied to an ad ÷ platform results) passes 1 when the CRM counts more tied leads than the platforms report,
+  // and a verdict that says 100% then is right, not a mismatch. The raw ratio stays in the facts (chain_product needs it).
   if (c.verdict.coverage !== undefined) {
     r.checked++;
-    const t = f.crm.coverage, q = c.verdict.coverage;
+    const t = f.crm.coverage == null ? null : Math.min(1, f.crm.coverage), q = c.verdict.coverage;
     if ((q == null) !== (t == null) || (q != null && t != null && Math.abs(q - t) > 0.005))
       bad(r, { id: 'mismatch_coverage', kind: 'integrity', effect: 'contradicts', step: 'verdict',
         text: { ar: `نسبة ربط الليدز بالإعلانات المذكورة (${num(q == null ? null : q * 100, 1)}%) ما تطابق الحساب من البيانات (${num(t == null ? null : t * 100, 1)}%).`,

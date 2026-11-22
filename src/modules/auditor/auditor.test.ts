@@ -117,6 +117,18 @@ describe('auditor: a deliberately corrupted verdict is caught', () => {
   it('a quoted coverage that is not the data\'s', () => {
     expect(ids(corrupt(c => { c.verdict.coverage = 0.9; }))).toContain('mismatch_coverage');
   });
+  it('more CRM leads tied to ads than platform results: the judge\'s 100% coverage is honest, a lower figure is not', () => {
+    // Every result in the CRM, plus a fifth more tied leads than the platforms report: the raw ratio passes 1
+    const dd = synth({ tied: 1 });
+    const res = (dd.rows ?? []).filter(r => String(r[1]) >= from && String(r[1]) <= to).reduce((a, r) => a + (r[5] as number), 0);
+    for (let i = 0; i < Math.round(res * 0.2); i++) dd.crm.rows.push(['meta|1', '2026-10-15', '', false, 0]);
+    expect(recompute(dd, from, to).crm.coverage!).toBeGreaterThan(1);
+    const c = claimFromJudge(dd, from, to);
+    expect(c.verdict.coverage).toBe(1);
+    expect(ids(audit(dd, c))).not.toContain('mismatch_coverage');
+    const low = structuredClone(c); low.verdict.coverage = 0.9;
+    expect(ids(audit(dd, low))).toContain('mismatch_coverage');
+  });
   it('SAR parts that do not add up to the total', () => {
     const r = corrupt(c => { c.steps[0]!.sarAtStake = 100; c.steps[1]!.sarAtStake = 50; c.verdict.sarAtStake = 400; c.verdict.step = null; c.verdict.level = 'ok'; });
     expect(ids(r)).toContain('sar_sum');
