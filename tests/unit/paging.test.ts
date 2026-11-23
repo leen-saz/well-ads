@@ -34,6 +34,21 @@ describe('readAll', () => {
     expect((await readAll(cfg, '/rest/v1/x?select=id', 'id.asc', 2))).toMatchObject({ ok: true, full: false });
     await expect(readAll(cfg, '/rest/v1/x?select=id&order=id.desc', 'id.asc')).rejects.toThrow();
   });
+  it('every page carries a timeout signal, and a page that times out ends the read like an error page', async () => {
+    const signals: (AbortSignal | null | undefined)[] = [];
+    vi.stubGlobal('fetch', vi.fn(async (_u: string, init: RequestInit = {}) => {
+      signals.push(init.signal);
+      if (signals.length === 2) throw new DOMException('timed out', 'TimeoutError');
+      return new Response(JSON.stringify(Array.from({ length: 1000 }, (_, i) => ({ id: i }))));
+    }));
+    const r = await readAll<{ id: number }>(cfg, '/rest/v1/x?select=id', 'id.asc');
+    expect(r).toMatchObject({ ok: true, full: false });
+    expect(r.rows.length).toBe(1000);
+    expect(signals.length).toBe(2);
+    for (const s of signals) expect(s?.aborted).toBe(false);
+    vi.stubGlobal('fetch', vi.fn(async () => { throw new DOMException('timed out', 'TimeoutError'); }));
+    expect(await readAll(cfg, '/rest/v1/x?select=id', 'id.asc')).toEqual({ ok: false, rows: [], full: false });
+  });
   it('a missing table reads as empty and not ok', async () => {
     vi.stubGlobal('fetch', vi.fn(async () => new Response('{"code":"42P01"}', { status: 404 })));
     expect(await readAll(cfg, '/rest/v1/nope?select=id', 'id.asc')).toEqual({ ok: false, rows: [], full: false });
