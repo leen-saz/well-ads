@@ -1,8 +1,8 @@
-// التغيّر عن الفترة السابقة، ومكتوب جنبه وش يقارن عشان ما يطلع رقم بدون معنى (مثل اللوحة الرئيسية: «▲ 12% عن الفترة السابقة»).
+// التغيّر عن نفس الأيام من الشهر الماضي (compare.ts)، ومكتوب جنبه وش يقارن عشان ما يطلع رقم بدون معنى.
 import { change } from './numbers';
 import { pageLang } from './lang';
 
-export const VS = 'عن الفترة السابقة', VS_EN = 'vs the earlier period';
+export const VS = 'عن الشهر الماضي', VS_EN = 'vs last month';
 
 // lowerIsBetter colours a drop in cost as good news; null = neither. Nothing when there is no valid comparison.
 export function Delta({ now, was, lowerIsBetter, className = '' }: { now: number | null; was: number | null; lowerIsBetter: boolean | null; className?: string }) {

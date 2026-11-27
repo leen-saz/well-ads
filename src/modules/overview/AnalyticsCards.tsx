@@ -2,7 +2,7 @@
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { type Dash, platformName } from './numbers';
 import { depts, heat, pace, share, wins } from './analytics';
-import { canCompare } from './numbers';
+import { compareWindow } from './compare';
 import { qty, sar } from './format';
 import { T, pageLang } from './lang';
 
@@ -114,13 +114,13 @@ export function DeptsCard({ data, from, to }: Props) {
 }
 
 export function WinsCard({ data, from, to }: Props) {
-  const ok = canCompare(data, from, to);
-  const list = wins(data, from, to, ok);
+  const win = compareWindow(data, from, to), ok = !!win;
+  const list = wins(data, from, to, win);
   const n = Math.round((Date.parse(to) - Date.parse(from)) / 864e5) + 1;
   return (
     <Card>
       <CardHeader><CardTitle>{n === 7 ? T('نجاحات هالأسبوع', 'This week’s wins') : T('نجاحات الفترة', 'Wins in this period')}</CardTitle>
-        <CardDescription>{ok ? T('مقارنة بنفس المدة اللي قبلها.', 'Compared with the same length before.') : T('ما فيه فترة سابقة كاملة للمقارنة، فاللي يطلع هنا من الفترة نفسها بس.', 'No complete earlier period to compare, so these come from this period alone.')}</CardDescription></CardHeader>
+        <CardDescription>{ok ? T('مقارنة بنفس الأيام من الشهر الماضي.', 'Compared with the same days of last month.') : T('لا توجد فترة سابقة كاملة للمقارنة، فاللي يطلع هنا من الفترة نفسها بس.', 'No complete earlier period to compare with, so these come from this period alone.')}</CardDescription></CardHeader>
       <CardContent className="grid gap-3">
         {list.length ? list.map(w => (
           <div key={w.title} className="flex items-start gap-3"><span aria-hidden="true" className="text-xl leading-none">{w.icon}</span>

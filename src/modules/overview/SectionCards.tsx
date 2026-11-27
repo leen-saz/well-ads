@@ -3,7 +3,8 @@ import * as React from 'react';
 import { TrendingDown, TrendingUp } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardAction, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
-import { type Dash, canCompare, change, mover, platformName, previous, summarize } from './numbers';
+import { type Dash, change, mover, platformName, summarize } from './numbers';
+import { NO_PREV, NO_PREV_EN, compareWindow } from './compare';
 import { type Bucket, buckets } from './analytics';
 import { pct, qty, sar } from './format';
 import { T } from './lang';
@@ -20,16 +21,16 @@ const per = (a: number, b: number) => (b > 0 ? a / b : null);
 
 export function SectionCards({ data, from, to }: Props) {
   const now = summarize(data, from, to);
-  const [pf, pt] = previous(from, to);
-  const was = summarize(data, pf, pt);
-  // No comparison when the earlier period is outside the data or a platform has a gap, like the main dashboard
-  const ok = canCompare(data, from, to);
+  // Last month's same days (compare.ts); none when that window is outside the data, has a platform gap or holds nothing
+  const win = compareWindow(data, from, to);
+  const ok = !!win;
+  const was = win ? summarize(data, win.from, win.to) : summarize(data, to, to);
   const vs = (a: number | null, b: number | null) => (ok ? change(a, b) : null);
   // lowerIsBetter: a drop in cost per result is good news; spend is neither good nor bad (null)
   // The 'why' line: the platform that moved the number most (shadcn dashboard-01 card footer)
   const why = (field: 'spend' | 'res', fmt: (n: number) => string) => {
     if (!ok) return null;
-    const m = mover(data, from, to, pf, pt, field);
+    const m = mover(data, from, to, win!.from, win!.to, field);
     if (!m) return null;
     const sign = m.delta > 0 ? '+' : '−';
     return m.delta > 0 ? T(`أكبر زيادة من ${platformName(m.platform)}: ${sign}${fmt(Math.abs(m.delta))}`, `Biggest rise from ${platformName(m.platform)}: ${sign}${fmt(Math.abs(m.delta))}`)
@@ -37,11 +38,11 @@ export function SectionCards({ data, from, to }: Props) {
   };
   const bk = buckets(data, from, to);
   const line = (f: (b: Bucket) => number | null) => bk.map(f);
-  const cards: { label: string; value: string; d: number | null; lowerIsBetter: boolean | null; note: string; points: (number | null)[]; why?: string | null }[] = [
-    { label: T('الصرف', 'Spend'), value: sar(now.spend), d: vs(now.spend, was.spend), lowerIsBetter: null, note: ok ? T(`قبلها ${sar(was.spend)}`, `Before: ${sar(was.spend)}`) : T('ما فيه مقارنة: الفترة اللي قبلها ناقصة', 'No comparison: the earlier period is incomplete'), points: line(b => b.spend), why: why('spend', sar) },
-    { label: T('النتائج', 'Results'), value: qty(now.results), d: vs(now.results, was.results), lowerIsBetter: false, note: T('الليدز والمحادثات', 'Leads and conversations'), points: line(b => b.results), why: why('res', qty) },
-    { label: T('تكلفة النتيجة', 'Cost per result'), value: sar(now.cpr), d: vs(now.cpr, was.cpr), lowerIsBetter: true, note: ok ? T(`قبلها ${sar(was.cpr)}`, `Before: ${sar(was.cpr)}`) : T('الصرف ÷ الليدز والمحادثات', 'Spend ÷ leads and conversations'), points: line(b => per(b.spend, b.results)) },
-    { label: T('نسبة النقر', 'Click rate'), value: pct(now.ctr), d: vs(now.ctr, was.ctr), lowerIsBetter: false, note: T(`${qty(now.clicks)} نقرة من ${qty(now.impr)} ظهور`, `${qty(now.clicks)} clicks from ${qty(now.impr)} impressions`), points: line(b => { const r = per(b.clicks, b.impr); return r == null ? null : 100 * r; }) },
+  const cards: { label: string; value: string; d: number | null; lowerIsBetter: boolean | null; note: string; sub?: string; points: (number | null)[]; why?: string | null }[] = [
+    { label: T('الصرف', 'Spend'), value: sar(now.spend), d: vs(now.spend, was.spend), lowerIsBetter: null, note: ok ? T(`الشهر الماضي ${sar(was.spend)}`, `Last month: ${sar(was.spend)}`) : T(NO_PREV, NO_PREV_EN), points: line(b => b.spend), why: why('spend', sar) },
+    { label: T('النتائج', 'Results'), value: qty(now.results), d: vs(now.results, was.results), lowerIsBetter: false, note: ok ? T(`الشهر الماضي ${qty(was.results)}`, `Last month: ${qty(was.results)}`) : T(NO_PREV, NO_PREV_EN), sub: T('الليدز والمحادثات', 'Leads and conversations'), points: line(b => b.results), why: why('res', qty) },
+    { label: T('تكلفة النتيجة', 'Cost per result'), value: sar(now.cpr), d: vs(now.cpr, was.cpr), lowerIsBetter: true, note: ok ? T(`الشهر الماضي ${sar(was.cpr)}`, `Last month: ${sar(was.cpr)}`) : T(NO_PREV, NO_PREV_EN), points: line(b => per(b.spend, b.results)) },
+    { label: T('نسبة النقر', 'Click rate'), value: pct(now.ctr), d: vs(now.ctr, was.ctr), lowerIsBetter: false, note: ok ? T(`الشهر الماضي ${pct(was.ctr)}`, `Last month: ${pct(was.ctr)}`) : T(NO_PREV, NO_PREV_EN), sub: T(`${qty(now.clicks)} نقرة من ${qty(now.impr)} ظهور`, `${qty(now.clicks)} clicks from ${qty(now.impr)} impressions`), points: line(b => { const r = per(b.clicks, b.impr); return r == null ? null : 100 * r; }) },
   ];
   return (
     <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4 *:data-[slot=card]:bg-gradient-to-t *:data-[slot=card]:from-primary/5 *:data-[slot=card]:to-card *:data-[slot=card]:shadow-xs">
@@ -65,7 +66,8 @@ export function SectionCards({ data, from, to }: Props) {
             <CardFooter className="flex-col items-stretch gap-2 text-sm text-muted-foreground">
               <Spark points={c.points} />
               {c.why && <div className="font-medium text-foreground">{c.why}</div>}
-              {c.note}
+              <div>{c.note}</div>
+              {c.sub && <div>{c.sub}</div>}
             </CardFooter>
           </Card>
         );

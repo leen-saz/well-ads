@@ -4,7 +4,8 @@ import * as React from 'react';
 import { Card, CardAction, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
 import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group';
-import { type Dash, canCompare, platformNameIn, previous } from './numbers';
+import { type Dash, platformNameIn } from './numbers';
+import { NO_PREV, NO_PREV_EN, compareWindow } from './compare';
 import { type CrmBy, type JStat, type Outcome, journey, order, outcome } from './analytics';
 import { type Targets, J, configTargets, formats, judgeFunnel, resolveTargets, saveTargets, savedTargets } from './judge';
 import { Input } from '@/components/ui/input';
@@ -38,17 +39,19 @@ function Stat({ label, value, now, was, lowerIsBetter, big }: { label: string; v
 export function OutcomeCards({ data, from, to }: Props) {
   const [by, setBy] = React.useState<CrmBy>('lead');
   const a = outcome(data, from, to, by);
-  const [pf, pt] = previous(from, to);
-  // Same rule as the main dashboard: no comparison when the earlier period is incomplete
-  const b: Partial<Outcome> = canCompare(data, from, to) ? outcome(data, pf, pt, by) : {};
+  // Last month's same days; none when that window is outside the data, has a platform gap or holds nothing (compare.ts)
+  const win = compareWindow(data, from, to);
+  const b: Partial<Outcome> = win ? outcome(data, win.from, win.to, by) : {};
+  // One department: the CRM's paid list has no ad, so closings and paid are the ones tied to that department's ads
+  const crm = a.crm || (!!data.deptScoped && a.crmLinked);
   const v = (k: keyof Outcome) => (b[k] as number | null | undefined) ?? null;
   return (
     <div className="grid gap-4">
       <Card>
         <CardHeader>
           <CardTitle>{T('النتيجة', 'Result')}</CardTitle>
-          <CardDescription>{a.crm ? T('الإقفالات والمدفوع من كل المصادر في نظام العملاء. العائد على الصرف = المدفوع ÷ الصرف. تكلفة العميل = الصرف ÷ الإقفالات.', 'Closings and payments from every source in the CRM. Return on spend = paid ÷ spend. Cost per customer = spend ÷ closings.') : T('نظام العملاء مو مربوط، فما فيه إقفالات.', 'The CRM is not connected, so there are no closings.')}</CardDescription>
-          {a.crm && (
+          <CardDescription>{a.crm ? T('الإقفالات والمدفوع من كل المصادر في نظام العملاء. العائد على الصرف = المدفوع ÷ الصرف. تكلفة العميل = الصرف ÷ الإقفالات.', 'Closings and payments from every source in the CRM. Return on spend = paid ÷ spend. Cost per customer = spend ÷ closings.') : crm ? T('إقفالات القسم المربوطة بإعلاناته. العائد على الصرف = المدفوع ÷ الصرف. تكلفة العميل = الصرف ÷ الإقفالات.', 'Closings tied to this department’s ads. Return on spend = paid ÷ spend. Cost per customer = spend ÷ closings.') : T('نظام العملاء مو مربوط، فما فيه إقفالات.', 'The CRM is not connected, so there are no closings.')}</CardDescription>
+          {crm && (
             <CardAction>
               <ToggleGroup type="single" variant="outline" value={by} onValueChange={x => x && setBy(x as CrmBy)} aria-label={T('الإقفالات حسب', 'Closings by')}>
                 <ToggleGroupItem value="lead" className="px-3">{T('يوم الليد', 'Lead day')}</ToggleGroupItem>
@@ -59,13 +62,14 @@ export function OutcomeCards({ data, from, to }: Props) {
         </CardHeader>
         <CardContent className="grid grid-cols-2 gap-4 sm:grid-cols-3 xl:grid-cols-5">
           <Stat big label={T('الصرف', 'Spend')} value={sar(a.spend)} now={a.spend} was={v('spend')} lowerIsBetter={null} />
-          {a.crm && <>
+          {crm && <>
             <Stat big label={T('الإقفالات', 'Closings')} value={qty(a.closings)} now={a.closings} was={v('closings')} lowerIsBetter={false} />
             <Stat big label={T('المدفوع', 'Paid')} value={sar(a.paid)} now={a.paid} was={v('paid')} lowerIsBetter={false} />
             <Stat big label={T('العائد على الصرف', 'Return on spend')} value={a.closings ? x2(a.mer) : T('لا توجد إقفالات', 'No closings')} now={a.mer} was={v('mer')} lowerIsBetter={false} />
             <Stat big label={T('تكلفة العميل', 'Cost per customer')} value={a.closings ? sar(a.cac) : T('لا توجد إقفالات', 'No closings')} now={a.cac} was={v('cac')} lowerIsBetter />
           </>}
         </CardContent>
+        {!win && <p className="px-6 text-sm text-muted-foreground">{T(NO_PREV, NO_PREV_EN)}</p>}
       </Card>
       <JourneyCard data={data} from={from} to={to} by={by} />
       <DataSpanCard />
@@ -82,8 +86,8 @@ function JourneyCard({ data, from, to, by }: Props & { by: CrmBy }) {
   const [edits, setEdits] = React.useState<Partial<Targets> | null>(() => savedTargets());
   const p = plat === 'all' ? undefined : plat;
   const a = outcome(data, from, to, by, p);
-  const [pf, pt] = previous(from, to);
-  const b = canCompare(data, from, to) ? outcome(data, pf, pt, by, p) : null;
+  const win = compareWindow(data, from, to);
+  const b = win ? outcome(data, win.from, win.to, by, p) : null;
   const was = (x: JStat) => (b && x.key ? ((b[x.key] as number | null | undefined) ?? null) : null);
   const j = journey(a, l);
   const targets = resolveTargets(data, edits);

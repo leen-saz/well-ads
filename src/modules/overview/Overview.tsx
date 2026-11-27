@@ -12,6 +12,8 @@ import { OverviewSkeleton } from './Skeletons';
 import { DeptsCard, HeatCard, PaceCard, ShareCard, WinsCard } from './AnalyticsCards';
 import { OutcomeCards } from './OutcomeCards';
 import { longDay } from './format';
+import { DeptFilter, readDept, writeDept } from './DeptFilter';
+import { deptOptions, filterDept, resolveDept } from './dept';
 
 // The chart (Recharts) and the ads table (TanStack Table, menus, the sheet) are separate files: the numbers above them
 // draw first. The chart starts loading at once; the table only when it is about to scroll into view.
@@ -35,11 +37,15 @@ function WhenNear({ minHeight, children }: { minHeight: number; children: React.
 }
 
 export default function Overview() {
-  const { data, error } = useDash();
+  const { data: all, error } = useDash();
   const [period, setPeriod] = React.useState<Period | null>(null);
+  const [deptRaw, setDeptRaw] = React.useState<string | null>(readDept);
+  // The department's own numbers feed every card, chart, funnel and table below (dept.ts)
+  const dept = all ? resolveDept(all, deptRaw) : 'all';
+  const data = React.useMemo(() => (all ? filterDept(all, dept) : null), [all, dept]);
 
   if (error) return <p className="ui text-destructive">{error}</p>;
-  if (!data) return <OverviewSkeleton />;
+  if (!all || !data) return <OverviewSkeleton />;
   const to = lastDay(data);
   if (!to) return <p className="ui text-muted-foreground">{T('ما فيه أرقام للحين.', 'No numbers yet.')}</p>;
   // Days are the data's own (Riyadh) days: today, the last full day (range.end) and the first day the data has
@@ -53,8 +59,11 @@ export default function Overview() {
     {/* min-w-0: a wide table or chart scrolls inside its card instead of widening the page on a phone */}
     <div className="ui grid gap-4 [&>*]:min-w-0 [&>.grid>*]:min-w-0">
       <div className="flex flex-wrap items-center justify-between gap-3">
-        <p className="text-sm text-muted-foreground">{period ? T(`من ${longDay(from)} إلى ${longDay(end)}، مقارنة بنفس المدة اللي قبلها`, `${longDay(from)} to ${longDay(end)}, compared with the same length before`) : ''}</p>
-        <PeriodFilter id="overview" def="30" ctx={ctx} onChange={setPeriod} />
+        <p className="text-sm text-muted-foreground">{period ? T(`من ${longDay(from)} إلى ${longDay(end)}، مقارنة بنفس الأيام من الشهر الماضي`, `${longDay(from)} to ${longDay(end)}, compared with the same days of last month`) : ''}</p>
+        <div className="flex flex-wrap items-center gap-2">
+          <DeptFilter value={dept} options={deptOptions(all)} onChange={k => { setDeptRaw(k); writeDept(k); }} />
+          <PeriodFilter id="overview" def="30" ctx={ctx} onChange={setPeriod} />
+        </div>
       </div>
       {period && <>
       <SectionCards data={data} from={from} to={end} />
@@ -66,7 +75,8 @@ export default function Overview() {
       </div>
       <div className="grid gap-4 lg:grid-cols-2">
         <WinsCard data={data} from={from} to={end} />
-        <DeptsCard data={data} from={from} to={end} />
+        {/* One department chosen: the departments card would be that single row, so it steps aside */}
+        {dept === 'all' && <DeptsCard data={data} from={from} to={end} />}
       </div>
       <div className="grid gap-4">
         <HeatCard data={data} from={from} to={end} />

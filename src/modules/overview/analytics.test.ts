@@ -80,12 +80,12 @@ describe('overview: the rest of the analytics page', () => {
   it('wins: up and down against the period before, cheapest idea, record day and launches', () => {
     const W = { ...D, ads: { ...D.ads, n: { name: 'clip.mp4_فكرة جديدة - Spark', campaign: 'جديدة', platform: 'instagram', goal: 'lead', dept: 'iv' } },
       rows: [...(D.rows ?? []), ['n', '2026-10-09', 30, 300, 3, 12, 0], ['a', '2026-09-25', 10, 100, 1, 2, 0], ['b', '2026-09-26', 10, 100, 1, 0, 1]] } as unknown as Dash;
-    const t = wins(W, F, T, true).map(w => w.title);
+    const t = wins(W, F, T, { from: '2026-09-21', to: '2026-09-30' }).map(w => w.title);
     expect(t).toContain('الليدز زادت 850%');            // 19 leads vs 2 in Sep 21–30
     expect(t).toContain('أرخص فكرة في الفترة');
     expect(t).toContain('أعلى يوم ليدز من بداية البيانات');
     expect(t).toContain('أطلقنا حملتين وإعلانين جداد');  // the new ad, and the hidden-platform ad first spent on 10-03 (counted like the main dashboard)
-    expect(wins(W, F, T, false).some(w => w.title.startsWith('الليدز'))).toBe(false);   // no comparison without a full earlier period
+    expect(wins(W, F, T, null).some(w => w.title.startsWith('الليدز'))).toBe(false);   // no comparison without a full earlier period
     expect(ideaKey('clip.mp4_فكرة جديدة - Spark')).toBe('فكرة جديدة');
   });
 
