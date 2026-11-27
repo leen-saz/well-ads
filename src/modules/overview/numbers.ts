@@ -15,6 +15,8 @@ export interface Coverage { coverage_end?: string; synced_at?: string; ok?: bool
 export interface Dash {
   ads?: Record<string, Ad>; rows?: unknown[][]; generated_at?: string;
   range?: { start?: string; end?: string; today?: string }; platforms?: Record<string, Coverage>;
+  // Set by filterDept (dept.ts): the numbers are one department's, so the CRM's ad-less paid list does not apply
+  deptScoped?: string;
 }
 export interface Totals { spend: number; impr: number; clicks: number; results: number; cpr: number | null; ctr: number | null }
 export interface Day { day: string; spend: number; results: number }

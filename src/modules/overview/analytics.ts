@@ -155,7 +155,7 @@ export function outcome(d: Dash, from: string, to: string, by: CrmBy = 'lead', p
     const day = by === 'paid' ? paidDay : leadDay;
     if (day && day >= from && day <= to) { closingsAll++; if (!plat) { closings++; paid += num(amount); } }
   }
-  if (plat) { closings = booked; paid = value; }
+  if (plat || d.deptScoped) { closings = booked; paid = value; }
   return {
     spend, impr, clicks, leads, conv, crm: !plat && !!crmData?.paid_all, crmLinked: !!crmData, crmLeads, booked, value, closings, paid,
     cpm: impr ? (1000 * spend) / impr : null, cpc: ratio(spend, clicks), ctr: impr ? (100 * clicks) / impr : null, cpl: ratio(ls, ln),
@@ -256,10 +256,11 @@ const r0 = (v: number) => Math.round(v).toLocaleString('en-US');
 const r2 = (v: number | null) => (v == null ? '—' : v.toFixed(2));
 const few = (n: number, one: string, two: string, many: string) => (n === 1 ? one : n === 2 ? two : `${n} ${n <= 10 ? many : one}`);
 
-export function wins(d: Dash, from: string, to: string, compare: boolean): Win[] {
+// prev: the window to compare with (compare.ts), null for none
+export function wins(d: Dash, from: string, to: string, prev: { from: string; to: string } | null): Win[] {
   const out: Win[] = [];
-  const A = sums(d, from, to), days = Math.round((Date.parse(to) - Date.parse(from)) / 864e5) + 1;
-  const pf = addDays(from, -days), pt = addDays(from, -1), B = compare ? sums(d, pf, pt) : null;
+  const A = sums(d, from, to);
+  const B = prev ? sums(d, prev.from, prev.to) : null;
   if (B) {
     const c = pctCh(A.tot.leads, B.tot.leads);
     if (c != null && c >= 3) out.push({ icon: '📈', title: T(`الليدز زادت ${r0(c)}%`, `Leads up ${r0(c)}%`), detail: T(`${r0(A.tot.leads)} ليد مقابل ${r0(B.tot.leads)}`, `${r0(A.tot.leads)} leads vs ${r0(B.tot.leads)}`) });
