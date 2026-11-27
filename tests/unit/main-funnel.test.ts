@@ -10,23 +10,23 @@ const src = render.slice(render.indexOf(START));
 
 type Fn = (...a: unknown[]) => unknown;
 type Verdict = { level: string; step: string | null; owner: string | null; evidence: string; sar: number | null; unlinked: unknown; steps: { key: string; level: string; unattributed: boolean; line: string }[] };
-type Api = { FUN: { MIN: number; MAX: number }; funShape: Fn; funPath: Fn; funX: (i: number) => number; funJudge: (a: unknown) => Verdict; funnelHTML: Fn; funTargetsHTML: () => string };
+type Api = { crmPaid: () => unknown[][]; FUN: { MIN: number; MAX: number }; funShape: Fn; funPath: Fn; funX: (i: number) => number; funJudge: (a: unknown) => Verdict; funnelHTML: Fn; funTargetsHTML: () => string };
 // The period's rows match `base` below: one ad, one day
 const ROWS = [['a', '2026-10-05', 15000, 200000, 3000, 70, 20]];
 // The page's script runs with these names in scope (no Node typings in this project, so no node:vm)
-function page(over: { crm?: unknown; rows?: unknown[][]; LANG?: string } = {}) {
+function page(over: { crm?: unknown; rows?: unknown[][]; LANG?: string; dept?: string } = {}) {
   const fmt = (n: number | null, d = 0) => (n == null || !isFinite(n) ? '—' : n.toLocaleString('en-US', { maximumFractionDigits: d, minimumFractionDigits: d }));
   const lang = over.LANG ?? 'ar';
   const scope: Record<string, unknown> = {
     D: { rows: over.rows ?? ROWS, crm: over.crm }, ADS: { a: { platform: 'facebook', goal: 'lead' } },
-    S: { from: '2026-10-01', to: '2026-10-30', crmBy: 'lead', plat: 'all', stat: 'all', dept: '', camp: '', goal: '', fmt: '' }, MAX: '2026-10-30',
+    S: { from: '2026-10-01', to: '2026-10-30', crmBy: 'lead', plat: 'all', stat: 'all', dept: over.dept ?? '', camp: '', goal: '', fmt: '' }, MAX: '2026-10-30',
     LANG: lang, JUDGE: J, render: () => {}, document: { addEventListener: () => {} }, localStorage: { getItem: () => null, setItem: () => {}, removeItem: () => {} },
     matchesSlice: () => true, tr: (s: string) => s, ui: (ar: string, en: string) => (lang === 'en' ? en : ar), money: () => 'ريال', fmt,
     qty: (n: number) => fmt(n), sar: (n: number | null) => (n == null ? '—' : fmt(n, 2)), pct: (n: number | null) => (n == null ? '—' : fmt(n, 2) + '%'),
     addDays: (s: string, n: number) => { const d = new Date(s + 'T00:00:00Z'); d.setUTCDate(d.getUTCDate() + n); return d.toISOString().slice(0, 10); },
     delta: (x: number | null, y: number | null) => (x == null || y == null || !y ? '<span class="delta flat">— لا مقارنة</span>' : `<span class="delta">${x > y ? '▲' : '▼'} عن الفترة السابقة</span>`),
   };
-  const run = new Function(...Object.keys(scope), src + '\n;return { FUN, funShape, funPath, funX, funJudge, funnelHTML, funTargetsHTML };');
+  const run = new Function(...Object.keys(scope), src + '\n;return { crmPaid, FUN, funShape, funPath, funX, funJudge, funnelHTML, funTargetsHTML };');
   return run(...Object.values(scope)) as Api;
 }
 const base = { spend: 15000, impr: 200000, clicks: 3000, leads: 70, conv: 20, crmLeads: 60, booked: 6, allPaidN: 8, allPaid: 12000, ctr: 1.5, cpl: 50, closeRate: 10 };
@@ -34,6 +34,14 @@ const tiedCrm = { rows: Array.from({ length: 60 }, (_, i) => ['a', '2026-10-05',
 
 describe('main dashboard: customer journey', () => {
   it('the funnel section is found', () => expect(render.indexOf(START)).toBeGreaterThan(0));
+
+  it('a department filter keeps only that department\'s sales from the CRM; no filter keeps them all', () => {
+    const crm = { rows: [], paid_all: [['2026-10-05', '2026-10-06', 900, 'manual', 'midwife'], ['2026-10-05', '2026-10-06', 500, 'manual', 'iv'],
+      ['2026-10-05', '2026-10-06', 300, 'manual', ''], ['2026-10-05', '2026-10-06', 200, 'manual']] };
+    expect(page({ crm }).crmPaid()).toHaveLength(4);
+    expect(page({ crm, dept: 'midwife' }).crmPaid().map(r => r[2])).toEqual([900]);
+    expect(page({ crm, dept: 'foot' }).crmPaid()).toHaveLength(0);
+  });
 
   it('the pipe narrows with the numbers on an eased scale, with a neck on every link; stage 1 on the right in Arabic', () => {
     const f = page(), sh = f.funShape([2000000, 30000, 600, 12], [1, 1, 1]) as { heights: number[]; waists: number[] };

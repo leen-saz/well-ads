@@ -2,6 +2,8 @@
 
 data['crm'] = {
   'rows': [[ad_key, lead_day, paid_day, paid, paid_sar], ...]   # one per matched lead; days in Riyadh; paid = 1 when paid
+  'paid_all': [[lead_day, paid_day, paid_sar, source, dept], ...] # every paid lead, with or without an ad; dept from the CRM's own
+                                                                  # department/service (config/departments.json signals), '' when unknown
   'unmatched': n, 'total': n, 'synced': iso, 'caveats': [...]
 }
 The dashboard sums them in its date range and filters, next to spend: closings, cost per closing, revenue, ROAS.
@@ -11,11 +13,14 @@ from datetime import datetime, timedelta, timezone
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 import supabase_store  # noqa: E402
+import classify  # noqa: E402
 
 RIYADH = timezone(timedelta(hours=3))
 PREFIX = {"meta_form": "m", "meta_ctwa": "m", "whatsapp_ad_prefill": "m", "snapchat_form": "s", "tiktok_form": "t"}
 COLUMNS = "lead_id,customer_id,created_at,platform_created_at,source_platform,ad_id,ad_id_quality,ad_name,status,booked_at,amount_paid_sar,booking_value_sar,paid_at,payment_status"
 # Fields the CRM owner may add (ad id, UTM): read from the stored CRM row (`doc`) so no migration is needed. Absent = null = ignored.
+# The CRM's own department and service of the booking: the sale's department on the dashboard (Leen, 27-11)
+COLUMNS += ",department,service"
 COLUMNS += ",doc_ad_id:doc->>ad_id,utm_id:doc->>utm_id,utm_content:doc->>utm_content,utm_source:doc->>utm_source"
 CAVEATS = ["الإقفالة = ليد دفع، وقيمتها = المبلغ المدفوع", "الدفع من ميسّر بس (تابي والكاش ما يطلعون للحين)",
            "إقفالة بدون إعلان (يدوي، واتساب عضوي…) تنحسب لآخر إعلان جاب نفس العميل خلال 90 يوم قبلها"]
@@ -142,9 +147,17 @@ def is_paid(r):
     return r.get("payment_status") == "paid" and float(r.get("amount_paid_sar") or 0) > 0
 
 
-def paid_all(leads):
-    """Every paid lead, with or without an ad: [lead_day, paid_day, amount, source], by payment day."""
-    out = [[day_of(r), riyadh_day(r.get("paid_at")), float(r["amount_paid_sar"]), r.get("source_platform") or "?"]
+def dept_of(r, cfg=None):
+    """The sale's department from the CRM's own department and service text, with the same signals the ads use.
+    '' when neither says (never guessed from the ad: a customer from a midwife ad can book another service)."""
+    cfg = cfg or classify.load()
+    return classify._hit(cfg, f"{r.get('department') or ''} {r.get('service') or ''}") or ""
+
+
+def paid_all(leads, cfg=None):
+    """Every paid lead, with or without an ad: [lead_day, paid_day, amount, source, dept], by payment day."""
+    cfg = cfg or classify.load()
+    out = [[day_of(r), riyadh_day(r.get("paid_at")), float(r["amount_paid_sar"]), r.get("source_platform") or "?", dept_of(r, cfg)]
            for r in leads if is_paid(r)]
     return sorted(out, key=lambda x: x[1])
 

@@ -69,6 +69,16 @@ class JoinTests(unittest.TestCase):
         self.assertEqual(join.last_days(crm["paid_all"], "2026-11-01"),
                          {"from": "2026-10-03", "to": "2026-11-01", "closings": 1, "paid_sar": 700.0})
 
+    def test_paid_all_carries_the_sales_department_from_the_crm(self):
+        # The department filter on the dashboard counts a sale by the CRM's own department/service, not by the ad (synthetic rows)
+        crm = join.attach({"ads": ADS}, [
+            lead(source_platform="manual", ad_id=None, payment_status="paid", amount_paid_sar=700, paid_at="2026-10-20T10:00:00Z",
+                 department="Maternity", service="Home midwife visit"),
+            lead(payment_status="paid", amount_paid_sar=500, paid_at="2026-10-21T10:00:00Z", department="العيادة المنزلية", service="محلول وريدي"),
+            lead(payment_status="paid", amount_paid_sar=300, paid_at="2026-10-22T10:00:00Z", department=None, service=None)])
+        self.assertEqual([r[4] for r in crm["paid_all"]], ["midwife", "iv", ""])
+        self.assertEqual(len(crm["paid_all"][0]), 5)
+
     def test_the_build_log_has_no_business_figures_by_default(self):
         # The repo and its Actions logs are public: closings, amounts and breakdowns only with PIPELINE_DEBUG=1
         crm = join.attach({"ads": ADS}, [

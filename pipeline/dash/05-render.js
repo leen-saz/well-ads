@@ -92,7 +92,7 @@ function renderKpis(now,prev){
   const BK = buckets(now), keys = BK.keys.slice(-14);
   const daySum = (k,f) => Object.values(BK.byKey[k]||{}).reduce((t,v)=>t+(v[f]||0),0);
   const paidIn = (k,amount) => { const [x,y] = BK.span(k); let n=0;
-    for(const [ld,pd,am] of ((D.crm&&D.crm.paid_all)||[])){ const d = S.crmBy==='paid'?pd:ld; if(d && d>=x && d<=y) n += amount?am:1; } return n; };
+    for(const [ld,pd,am] of crmPaid()){ const d = S.crmBy==='paid'?pd:ld; if(d && d>=x && d<=y) n += amount?am:1; } return n; };
   const spark = vals => { const m = Math.max(...vals,0); if(!m || vals.length<2) return '';
     const bw = 100/vals.length; return `<svg class="spark" viewBox="0 0 100 32" preserveAspectRatio="none" aria-hidden="true">${vals.map((v,i)=>{ const h=Math.max(2,30*v/m);
       return `<rect x="${(LANG==='en'?i:vals.length-1-i)*bw+bw*.18}" y="${32-h}" width="${bw*.64}" height="${h}" rx="1.5" opacity="${i===vals.length-1?1:.45}"/>`; }).join('')}</svg>`; };
@@ -128,7 +128,7 @@ function payerHTML(a,now){
   const T = funTargets().t, sev = p.level==='na' ? '' : `<span class="fv-badge">${ui(...JUDGE.SEV[p.level])}</span>`;
   const res = (a.leads||0)+(a.conv||0);
   const detail = p.value==null ? p.note
-    : `${p.note} · ${ui(`${qty(p.closings)} عميل دافع`,`${qty(p.closings)} paying customers`)}${res?ui(` من ${qty(res)} ليد`,` from ${qty(res)} leads`):''}${funSliced()?` · ${ui('من كل نظام العملاء، مو بس الفلتر','across the whole CRM, not only the filter')}`:''}`;
+    : `${p.note} · ${ui(`${qty(p.closings)} عميل دافع`,`${qty(p.closings)} paying customers`)}${res?ui(` من ${qty(res)} ليد`,` from ${qty(res)} leads`):''}${crmWide()?` · ${ui('من كل نظام العملاء، مو بس الفلتر','across the whole CRM, not only the filter')}`:S.dept?` · ${ui('مبيعات القسم حسب نظام العملاء','the department\'s sales, as the CRM records them')}`:''}`;
   const cplText = a.cpl==null ? '—' : funFmt.sar(a.cpl);
   const wa = v.wa ? `<p class="m">${v.wa.line}</p>` : '';
   return `<div class="kgroup"><div class="payer ${lvl}"><div class="payer-main"><span class="l">${ui('تكلفة العميل الدافع','Cost per paying customer')}</span>`
@@ -175,6 +175,10 @@ const funFmt = { pct:v=>`${Number(v.toFixed(Math.abs(v)<.1?3:2)).toLocaleString(
   sar:v=>`${fmt(v, Math.abs(v)>=100||Number.isInteger(v)?0:2)} ${money()}`, x:v=>`${fmt(v,2)}×`, qty:v=>qty(v), num:(v,d)=>fmt(v,d) };
 // Any filter narrows the ads; the CRM's closings can't follow it, so the CRM side is then the whole account
 const funSliced = () => S.plat!=='all' || !!S.dept || S.stat!=='all' || !!S.camp || !!S.goal || !!S.fmt;
+// The CRM's paid leads for the page: the department filter keeps the sale's own department (paid_all[4], from the CRM);
+// the other filters narrow only the ads, so with them the CRM side stays the whole account
+const crmPaid = () => ((D.crm&&D.crm.paid_all)||[]).filter(r=>!S.dept || r[4]===S.dept);
+const crmWide = () => S.plat!=='all' || S.stat!=='all' || !!S.camp || !!S.goal || !!S.fmt;
 // The whole account in the period (the CRM side), and every ad's leads by day (the cohort)
 function funWhole(from,to){
   const o = {results:0, spend:0, crmLeads:0, booked:0, value:0, byDay:{}};
@@ -186,7 +190,7 @@ function funWhole(from,to){
 }
 function funJudge(a){
   const T = funTargets().t, w = funWhole(S.from,S.to), all = !!(D.crm && D.crm.paid_all);
-  const paid = all ? D.crm.paid_all.map(r=>[r[0],r[1]||null]) : ((D.crm&&D.crm.rows)||[]).filter(r=>r[3]).map(r=>[r[1],r[2]||null]);
+  const paid = all ? crmPaid().map(r=>[r[0],r[1]||null]) : ((D.crm&&D.crm.rows)||[]).filter(r=>r[3]).map(r=>[r[1],r[2]||null]);
   const cohort = D.crm ? JUDGE.cohort(Object.entries(w.byDay), paid, S.from, S.to, MAX, T.maturityDays) : null;
   return JUDGE.judge({
     top:{impr:a.impr||0, clicks:a.clicks||0, results:(a.leads||0)+(a.conv||0), spend:a.spend||0, cpl:a.cpl,
