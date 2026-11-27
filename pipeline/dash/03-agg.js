@@ -116,9 +116,11 @@ function agg(from,to){
   }
   const tot = {spend:0,impr:0,clicks:0,leads:0,conv:0,leadSpend:0,leadN:0,crmLeads:0,booked:0,paid:0,value:0,waSpend:0,waClicks:0};
   for(const p of Object.values(byPlat)){for(const f in tot) tot[f]+=(p[f]||0);}
-  // Every paid lead in the CRM, with or without an ad (crm.paid_all: [lead_day, paid_day, amount, source]); ignores the ad filters
+  // Every paid lead in the CRM, with or without an ad (crm.paid_all: [lead_day, paid_day, amount, source, dept]).
+  // The department filter keeps the CRM's own department of the sale; the other ad filters can't narrow the CRM, so they don't apply here.
   tot.allPaidN=0; tot.allPaid=0;
-  for(const [leadDay,paidDay,amount] of ((D.crm&&D.crm.paid_all)||[])){
+  for(const [leadDay,paidDay,amount,,dept] of ((D.crm&&D.crm.paid_all)||[])){
+    if(S.dept && dept!==S.dept) continue;
     const d = S.crmBy==='paid' ? paidDay : leadDay;
     if(d && d>=from && d<=to){ tot.allPaidN++; tot.allPaid+=amount; }
   }
