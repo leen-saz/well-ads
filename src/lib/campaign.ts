@@ -75,11 +75,12 @@ ${agents}
 }
 
 // The planner is told that every draft is checked by compliance before it is approved, but a model can forget the task. A plan that
-// writes something and has no compliance task gets one at the end, after every writing task (the per-task gate in the run is separate).
+// writes something and has no compliance task after its last draft gets one at the end, after every writing task (the per-task gate in the run is separate).
 const WRITERS: Agent[] = ['content', 'design', 'voice', 'social'];
 function ensureCompliance(tasks: PlanTask[]): void {
   const writers = tasks.flatMap((t, i) => (WRITERS.includes(t.agent) ? [i] : []));
-  if (!writers.length || tasks.some(t => t.agent === 'compliance')) return;
+  // A compliance task only counts if it comes after the last writing task: one placed before a draft checks nothing of it.
+  if (!writers.length || tasks.some((t, i) => t.agent === 'compliance' && i > writers[writers.length - 1]!)) return;
   if (tasks.length >= MAX_TASKS) { const last = tasks[tasks.length - 1]!; if (WRITERS.includes(last.agent)) return; tasks.pop(); }
   const gate = { agent: 'compliance' as const, title: AGENTS.compliance.ar, detail: 'فحص كل المسودات قبل الاعتماد' };
   // The plan is told to END with the measurement plan: a trailing optimize task keeps the last place, and the gate goes just before it
