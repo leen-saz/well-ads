@@ -27,6 +27,11 @@ describe('security headers', () => {
     expect(withSecurityHeaders(new Response('x')).headers.get('Cross-Origin-Opener-Policy')).toBe('same-origin');
   });
 
+  it('turns off browser features the app never uses', () => {
+    const pp = withSecurityHeaders(new Response('x')).headers.get('Permissions-Policy') ?? '';
+    for (const f of ['camera', 'microphone', 'geolocation', 'payment', 'usb', 'serial', 'bluetooth', 'hid', 'midi', 'display-capture', 'accelerometer', 'gyroscope', 'magnetometer']) expect(pp).toContain(`${f}=()`);
+  });
+
   it('locks down responses that have no CSP', () => {
     const res = withSecurityHeaders(new Response('{}'));
     expect(res.headers.get('Content-Security-Policy')).toBe("default-src 'none'; frame-ancestors 'none'");
