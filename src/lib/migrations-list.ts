@@ -51,6 +51,7 @@ export const MIGRATIONS: readonly string[] = [
   '044_account_permissions.sql',
   '045_automation.sql',
   '046_jobs.sql',
+  '047_function_search_path.sql',
 ];
 
 // Files up to this one were applied by hand before the schema_migrations table existed: they are not checked here

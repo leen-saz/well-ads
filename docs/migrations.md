@@ -28,6 +28,7 @@ reads or alters what the other creates, so either order gives the same schema. K
 | 18 | `044_account_permissions` | `companies`; the daily write-access check (M12a). Safe to apply before or after the deploy: until then the check runs but stores nothing |
 | 19 | `045_automation` | `companies`; the managed list for «تلقائي» (M13). Auto stays off until the owner switches it on; safe before or after the deploy |
 | 20 | `046_jobs` | `companies`; background jobs of the Well MCP (M17). Safe before or after the deploy: until then report tools answer «not set up yet» |
+| 21 | `047_function_search_path` | the functions of `001`, `019` and `031` (pins `search_path` on four functions; no data change). Safe before or after the deploy |
 
 Rules going forward:
 
