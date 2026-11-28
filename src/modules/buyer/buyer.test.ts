@@ -145,6 +145,11 @@ describe('company rules (names and limits come from the database)', () => {
     const idle = recommend(base({ ads: [ad('s2', 'snap', 'delta')], metrics: series('s2', 20, 0, () => [T.cpl * 0.2, 1000, 5, 0]), rules: [R({ id: 'd', kind: 'stop_idle', platform: 'snapchat', match: ['delta'], minIdleDays: 14 })] }));
     expect(idle.recs.find(x => x.rule === 'company')!.kind).toBe('pause');
   });
+  it('does not stop an idle campaign on a token spend, and says why', () => {
+    const tiny = recommend(base({ ads: [ad('s3', 'snap', 'eps')], metrics: series('s3', 20, 0, () => [T.cpl * 0.02, 100, 1, 0]), rules: [R({ id: 'e', kind: 'stop_idle', platform: 'snapchat', match: ['eps'], minIdleDays: 14 })] }));
+    expect(tiny.recs.find(x => x.rule === 'company')).toBeUndefined();
+    expect(tiny.gated.some(g => g.campaign === 'eps' && g.rule === 'stop_cpl')).toBe(true);
+  });
   it('still reads live (switched on), never the delivery layer', () => {
     // an ad that is on but rejected / not spending keeps counting as on: the decision board's meaning of live must not change
     const on = { live: true, delivery: 'rejected', delivery_days_no_spend: 9 } as Partial<AdRow>;
