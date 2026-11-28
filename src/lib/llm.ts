@@ -28,6 +28,8 @@ export const OR_TIMEOUT_MS = 60_000, OR_STREAM_MS = 120_000;
 export const TEXT_TIMEOUT_MS = 90_000;
 // A streamed OpenAI or xAI answer has no total limit (a long answer is fine), but a provider that sends nothing for this long is cut
 export const STREAM_IDLE_MS = 90_000;
+// Grok with live search and OpenAI image calls are slower than plain text (search rounds, image rendering) so they get their own, longer deadlines
+export const GROK_SEARCH_MS = 120_000, IMAGE_MS = 180_000;
 const clean = (s: string | undefined) => (s || '').replace(/[^a-z0-9.\-_:]/gi, '').slice(0, 80);
 
 // The provider a tab would use now: its own if the key is there, else Workers AI if bound, else none
@@ -322,7 +324,7 @@ export async function grokSearch(e: LlmEnv, messages: Msg[], sources: ('web' | '
   if (!e.XAI_API_KEY) return null;
   if (ctx && await overCap(ctx, 'listening')) { console.warn('grok_search_capped'); return null; }
   try {
-    const r = await f(URL_OF.xai, { method: 'POST', headers: { authorization: `Bearer ${e.XAI_API_KEY}`, 'content-type': 'application/json' },
+    const r = await f(URL_OF.xai, { method: 'POST', signal: AbortSignal.timeout(GROK_SEARCH_MS), headers: { authorization: `Bearer ${e.XAI_API_KEY}`, 'content-type': 'application/json' },
       body: JSON.stringify(body('xai', clean(e.XAI_MODEL) || DEFAULTS.xai, { messages, max_tokens, search: sources })) });
     if (!r.ok) { console.warn('grok_search_failed', r.status); return null; }
     const j = await r.json();
@@ -355,9 +357,9 @@ export async function imageOf(e: LlmEnv, prompt: string, f: typeof fetch = fetch
       form.append('model', model); form.append('prompt', prompt); form.append('n', '1');
       for (const [k, v] of Object.entries(opts)) form.append(k, v);
       form.append('image', new Blob([product.bytes], { type: product.mime }), product.mime === 'image/png' ? 'product.png' : 'product.jpg');
-      r = await f('https://api.openai.com/v1/images/edits', { method: 'POST', headers: { authorization: `Bearer ${e.OPENAI_API_KEY}` }, body: form });
+      r = await f('https://api.openai.com/v1/images/edits', { method: 'POST', signal: AbortSignal.timeout(IMAGE_MS), headers: { authorization: `Bearer ${e.OPENAI_API_KEY}` }, body: form });
     } else {
-      r = await f('https://api.openai.com/v1/images/generations', { method: 'POST', headers: { authorization: `Bearer ${e.OPENAI_API_KEY}`, 'content-type': 'application/json' },
+      r = await f('https://api.openai.com/v1/images/generations', { method: 'POST', signal: AbortSignal.timeout(IMAGE_MS), headers: { authorization: `Bearer ${e.OPENAI_API_KEY}`, 'content-type': 'application/json' },
         body: JSON.stringify({ model, prompt, n: 1, ...opts }) });
     }
     if (!r.ok) {
