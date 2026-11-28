@@ -181,8 +181,21 @@ export function suggestPrompt(brief: string, platforms: SocialPlatform[]): strin
 القواعد: جمل قصيرة، الفائدة قبل الميزة، دعوة واضحة للحجز، بدون وعد بشفاء أو نتيجة، بدون "الأفضل" أو "الوحيد"، بدون تجارب مرضى، بدون سعر إلا لو موجود في المعرفة ومعه الإجمالي.
 الحد ${max} حرف. رد بنص المنشور بس، بدون شرح وبدون علامات تنصيص.`;
 }
+// A suggestion is cut to what every chosen platform accepts, measured the way that platform measures (engine.ts textLength), so
+// what the page shows is never refused a moment later by validate(). On X an ellipsis, a rial sign or an emoji weighs 2 and a
+// link weighs 23 whatever its length (https://docs.x.com/fundamentals/counting-characters, read 2026-11-24), so a plain
+// .length cut kept texts X refuses and shortened texts X accepts. Whole words go first; a text with no space left to cut at
+// loses whole characters (never half an emoji).
+const SUGGEST_MAX = 600;
+const LAST = new Intl.Segmenter(undefined, { granularity: 'grapheme' });
 export function cleanSuggestion(raw: string, platforms: SocialPlatform[]): string {
-  const max = Math.min(...platforms.map(p => SOCIAL[p].max), 600);
+  const fits = (s: string) => s.length <= SUGGEST_MAX && platforms.every(p => textLength(p, s) <= SOCIAL[p].max);
   const t = String(raw || '').trim().replace(/^["«“]+|["»”]+$/g, '').replace(/^(المنشور|النص)\s*:\s*/, '').trim();
-  return t.length > max ? t.slice(0, max).replace(/\s+\S*$/, '') : t;
+  if (fits(t)) return t;
+  let cut = t.slice(0, SUGGEST_MAX + 1);
+  while (cut && !fits(cut)) {
+    const words = cut.replace(/\s+\S*$/, '');
+    cut = words.length < cut.length ? words : [...LAST.segment(cut)].slice(0, -1).map(g => g.segment).join('').trimEnd();
+  }
+  return cut;
 }

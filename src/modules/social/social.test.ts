@@ -1,7 +1,7 @@
 // Social: validation, due rule, publishing to Facebook/Instagram with a stubbed Graph API, and company scoping.
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { textLength } from './engine';
-import { validate, due, publishPost, canApprove, cleanApprovers } from './social';
+import { validate, due, publishPost, canApprove, cleanApprovers, cleanSuggestion } from './social';
 import { runSocial } from './cron';
 import { WELL_COMPANY } from '../../lib/tenant';
 
@@ -176,5 +176,34 @@ describe('readiness before scheduling', () => {
     expect(readiness('snapchat', {})).toContain('قريباً');
     // TikTok, X and LinkedIn go through the extra engine: not available until it is set up and the account is connected there
     expect(readiness('tiktok', {})).toContain('غير متاح الحين');
+  });
+});
+
+describe('cleanSuggestion', () => {
+  const fitsX = (s: string) => validate({ platforms: ['x'], body: s, publish_at: later }, NOW).error === undefined;
+  it('cuts a suggestion for X by X\'s own count, so what the page shows is never refused when scheduled', () => {
+    // 279 characters by .length, but each ellipsis weighs 2 on X: 307. A .length cut left it whole and validate refused it.
+    const heavy = Array.from({ length: 28 }, () => 'احجز جلس\u2026').join(' ');
+    expect(heavy.length).toBeLessThanOrEqual(280);
+    expect(textLength('x', heavy)).toBeGreaterThan(280);
+    const out = cleanSuggestion(heavy, ['x']);
+    expect(textLength('x', out)).toBeLessThanOrEqual(280);
+    expect(fitsX(out)).toBe(true);
+    expect(heavy.startsWith(out) && heavy[out.length] === ' ').toBe(true);   // cut between words, never inside one
+  });
+  it('keeps a suggestion X accepts although its link makes it longer than 280 characters', () => {
+    const withLink = 'كلمة '.repeat(40) + 'https://well.example/book/' + 'a'.repeat(120);
+    expect(withLink.length).toBeGreaterThan(280);
+    expect(cleanSuggestion(withLink, ['x'])).toBe(withLink);
+    expect(fitsX(withLink)).toBe(true);
+  });
+  it('never leaves half an emoji when there is no space to cut at, and other platforms still count characters', () => {
+    const out = cleanSuggestion('\u{1F642}'.repeat(200), ['x']);
+    expect(out).toBe('\u{1F642}'.repeat(140));
+    expect(/[\ud800-\udbff]$/.test(out)).toBe(false);
+    const snap = cleanSuggestion('كلمة '.repeat(100), ['snapchat', 'facebook']);
+    expect(snap.length).toBeLessThanOrEqual(250);
+    expect(snap.endsWith('كلمة')).toBe(true);
+    expect(cleanSuggestion('كلمة '.repeat(300), ['facebook']).length).toBeLessThanOrEqual(600);
   });
 });
