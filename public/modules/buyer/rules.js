@@ -14,8 +14,8 @@ const HTML = `  <section class="card pad" style="margin:0 0 12px">
     <p class="muted" id="by-rulesInfo" style="margin:0 0 8px"></p>
     <div id="by-rulesForm" hidden>
       <p class="muted" style="margin:0 0 8px">ارفع ملف JSON أو الصق نصه. تنحفظ في قاعدة البيانات فقط، والملف ما يدخل الريبو.</p>
-      <input type="file" id="by-rulesFile" accept="application/json,.json" style="margin:0 0 8px">
-      <textarea id="by-rulesText" rows="6" dir="ltr" style="width:100%;font:13px var(--f-num,monospace)" placeholder='{"rules":[...]}'></textarea>
+      <input type="file" id="by-rulesFile" aria-label="ملف القواعد" accept="application/json,.json" style="margin:0 0 8px">
+      <textarea id="by-rulesText" aria-label="نص القواعد" rows="6" dir="ltr" style="width:100%;font:13px var(--f-num,monospace)" placeholder='{"rules":[...]}'></textarea>
       <div class="bar" style="margin:8px 0 0"><button class="btn sm secondary" type="button" id="by-rulesPreview">معاينة</button></div>
       <div id="by-rulesPrev" style="margin:10px 0 0"></div>
     </div>
@@ -40,7 +40,7 @@ export async function mountRules() {
       + rules.map((r, i) => `<tr data-i="${i}"><td><b>${esc(r.id)}</b><br><small>${esc(PLAT[r.platform] || r.platform)} · ${esc(KINDS[r.kind] || r.kind)}</small></td>
         <td><input data-f="match" value="${esc(r.match.join('، '))}" aria-label="تطابق"></td>
         <td><div class="by-lim">${FIELDS(r).map(f => `<label><span>${esc(LABEL[f])}</span><input type="number" step="any" min="0" data-f="${f}" value="${r[f] ?? ''}"></label>`).join('') || '<span class="muted">—</span>'}</div></td>
-        <td><select data-f="owner">${Object.entries(OWNER).map(([k, v]) => `<option value="${k}"${(r.owner || 'media_buyer') === k ? ' selected' : ''}>${esc(v)}</option>`).join('')}</select></td>
+        <td><select data-f="owner" aria-label="ينفّذ">${Object.entries(OWNER).map(([k, v]) => `<option value="${k}"${(r.owner || 'media_buyer') === k ? ' selected' : ''}>${esc(v)}</option>`).join('')}</select></td>
         <td><input data-f="open" value="${esc(r.open || '')}" placeholder="فاضي = محسوم" aria-label="قرار مفتوح"></td>
         <td><button class="btn sm secondary" type="button" data-del="${i}">احذف</button></td></tr>`).join('') + '</tbody></table></div>'
       : '<p class="muted">ما فيه قواعد للتعديل.</p>';

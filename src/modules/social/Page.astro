@@ -95,7 +95,7 @@ import { ClientRouter } from 'astro:transitions';
             <label for="file">صورة أو فيديو <span class="muted">(اختياري)</span></label>
             <div class="so-up"><input type="file" id="file" accept="image/jpeg,image/png,image/webp,video/mp4,video/quicktime"><span class="muted" id="upMsg"></span></div>
             <div class="so-prev" id="prev" hidden></div>
-            <details class="so-link"><summary class="muted">أو حط رابط</summary><input type="url" id="media" dir="ltr" placeholder="https://"></details>
+            <details class="so-link"><summary class="muted">أو حط رابط</summary><input type="url" id="media" aria-label="رابط الوسائط" dir="ltr" placeholder="https://"></details>
             <label for="at">وقت النشر <span class="muted">(بتوقيت الرياض)</span></label><input type="datetime-local" id="at" required>
             <p class="so-note" id="who">كل منشور ينتظر اعتماد قبل ما ينشر.</p>
             <div class="bar" style="margin-top:20px"><button class="btn primary" type="submit" name="go" value="at">جدوِل</button><button class="btn secondary" type="submit" name="go" value="queue" id="queueBtn">أضف للطابور</button></div>

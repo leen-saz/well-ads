@@ -575,6 +575,7 @@ export const EN = {
   'نجحت': 'Worked', 'ما تغيّر شي': 'No change', 'أسوأ': 'Worse', 'عينة صغيرة': 'Small sample',
   'ما فيه قواعد محفوظة بعد. استورد ملف القواعد.': 'No rules saved yet. Import the rules file.',
   'قواعد الإدارة': 'Management rules', 'تعديل الحدود والقرارات المفتوحة': 'Edit the limits and the open decisions', 'احفظ التعديلات': 'Save the changes', 'احذف': 'Delete',
+  'ملف القواعد': 'Rules file', 'نص القواعد': 'Rules text', 'نوع الخطوة': 'Step type', 'رابط الوسائط': 'Media link',
   'القاعدة': 'Rule', 'تطابق': 'Matches', 'ينفّذ': 'Acts', 'قرار مفتوح': 'Open decision', 'فاضي = محسوم': 'Empty = decided', 'ما فيه قواعد للتعديل.': 'No rules to edit.',
   'أقصى تكلفة ليد': 'Max cost per lead', 'أقل نسبة نقر %': 'Min click rate %', 'خطوة الرفع %': 'Raise step %', 'كل كم يوم': 'Every how many days', 'أقل عدد نتائج': 'Min results', 'أيام بلا نتائج': 'Days with no results',
   'ما فيه صرف في آخر 7 أيام عشان نحلله.': 'No spend in the last 7 days to analyze.', 'الأرقام ضمن القاعدة، وما فيه تغيير مطلوب.': 'The numbers are within the rules; no change needed.', 'ما فيه توصية الحين.': 'No recommendation right now.',
