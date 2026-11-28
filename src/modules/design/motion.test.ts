@@ -39,6 +39,13 @@ describe('the plan', () => {
     expect(t.scenes.map(x => [x.from, x.to])).toEqual([[0, 1], [1, 2.5]]);
   });
 
+  it('starts the first caption at second 0 when a model plan leaves the opening bare, but keeps a short beat', () => {
+    const late = cleanSpec({ scenes: [{ from: 4, to: 6, text: 'أول' }, { from: 6, to: 8, text: 'ثاني' }] }, 10, '9:16')!;
+    expect(late.scenes.map(x => [x.from, x.to])).toEqual([[0, 6], [6, 8]]);
+    const beat = cleanSpec({ scenes: [{ from: 0.8, to: 3, text: 'أول' }] }, 10, '9:16')!;
+    expect(beat.scenes[0]!.from).toBe(0.8);
+  });
+
   it('builds v1 from a template without a model, spread over the voice, in brand colours', () => {
     const s = templateSpec({ headline: 'المحاليل في بيتك', script: 'نجيك البيت. ممرضة مرخصة؟ احجز اليوم.', seconds: 12, ratio: '1:1', colors: ['#7E57FD'] })!;
     expect(s.scenes.map(x => x.text)).toEqual(['المحاليل في بيتك', 'نجيك البيت.', 'ممرضة مرخصة؟', 'احجز اليوم.']);
